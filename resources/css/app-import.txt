@@ -1,0 +1,3 @@
+Agrega esta línea a resources/css/app.css:
+
+@import './equipo4.css';

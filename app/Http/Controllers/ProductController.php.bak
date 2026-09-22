@@ -1,0 +1,142 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
+use App\Models\Product;
+use App\Models\Category;
+use Inertia\Inertia;
+use Inertia\Response;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+
+class ProductController extends Controller
+{
+    protected string $businessId = 'BUS-CD-SOUV-001';
+
+    public function index(Request $request): Response
+    {
+        // only_category es opcional: si viene (ej. desde otra vista que
+        // reutilice este mismo listado), filtra por esa categoría. Si no
+        // viene, se listan todos los productos como antes.
+        $onlyCategory = trim((string) $request->query('only_category', ''));
+        $onlyCategory = $onlyCategory !== '' ? $onlyCategory : null;
+
+        return $this->buildProductsIndex($request, $onlyCategory, 'Equipo4/Productos');
+    }
+
+    public function souvenirs(Request $request): Response
+    {
+        // Souvenirs NO tiene CRUD propio: es Productos filtrado a
+        // category = 'souvenirs', reutilizando el mismo query/paginación/
+        // búsqueda que index().
+        return $this->buildProductsIndex($request, 'souvenirs', 'Equipo4/Souvenirs');
+    }
+
+    /**
+     * Construye el listado paginado de productos, opcionalmente filtrado
+     * por categoría, y lo renderiza en la página Inertia indicada.
+     * Centraliza la lógica que comparten index() y souvenirs() para no
+     * duplicar el query, el mapeo de datos ni la paginación.
+     */
+    private function buildProductsIndex(Request $request, ?string $onlyCategory, string $page): Response
+    {
+        $q = trim((string) $request->query('q', ''));
+        $perPage = 25;
+
+        $query = Product::where('business_id', $this->businessId);
+
+        if ($onlyCategory !== null) {
+            $query->where('category', $onlyCategory);
+        }
+
+        if ($q !== '') {
+            $regex = '/' . preg_quote($q, '/') . '/i';
+            $query->where(function ($sub) use ($regex) {
+                $sub->where('sku', 'regex', $regex)
+                    ->orWhere('name', 'regex', $regex);
+            });
+        }
+
+        $products = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+        $productsData = collect($products->items())->map(function ($product) {
+            return [
+                '_id' => (string) $product->_id,
+                'sku' => (string) $product->sku,
+                'name' => (string) $product->name,
+                'description' => (string) ($product->description ?? ''),
+                'category' => (string) $product->category,
+                'stock_min' => (int) $product->stock_min,
+                'stock_max' => (int) $product->stock_max,
+                'active' => (bool) $product->active,
+            ];
+        })->values()->all();
+
+        $categories = Category::where('business_id', $this->businessId)
+            ->where('active', true)
+            ->orderBy('name', 'asc')
+            ->get()
+            ->map(fn($cat) => [
+                'slug' => (string) $cat->slug,
+                'name' => (string) $cat->name,
+            ])
+            ->values()
+            ->all();
+
+        return Inertia::render($page, [
+            'products' => $productsData,
+            'categories' => $categories,
+            'pagination' => [
+                'current_page' => $products->currentPage(),
+                'last_page' => $products->lastPage(),
+                'per_page' => $products->perPage(),
+                'total' => $products->total(),
+                'from' => $products->firstItem() ?? 0,
+                'to' => $products->lastItem() ?? 0,
+            ],
+            'filters' => ['q' => $q],
+        ]);
+    }
+
+    public function store(StoreProductRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+        $validated['business_id'] = $this->businessId;
+
+        Product::create($validated);
+
+        return redirect()->route('equipo4.productos.index')->with('success', 'Producto creado exitosamente.');
+    }
+
+    public function update(UpdateProductRequest $request, string $id): RedirectResponse
+    {
+        $product = Product::where('_id', $id)
+            ->where('business_id', $this->businessId)
+            ->first();
+
+        if (!$product) {
+            abort(404, 'Producto no encontrado.');
+        }
+
+        $product->update($request->validated());
+
+        return redirect()->route('equipo4.productos.index')->with('success', 'Producto actualizado exitosamente.');
+    }
+
+    public function destroy(string $id): RedirectResponse
+    {
+        $product = Product::where('_id', $id)
+            ->where('business_id', $this->businessId)
+            ->first();
+
+        if (!$product) {
+            abort(404, 'Producto no encontrado.');
+        }
+
+        $product->delete();
+
+        return redirect()->route('equipo4.productos.index')->with('success', 'Producto eliminado exitosamente.');
+    }
+}

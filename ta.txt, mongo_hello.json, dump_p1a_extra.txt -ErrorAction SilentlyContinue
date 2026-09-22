@@ -1,0 +1,139 @@
+warning: in the working copy of 'app/Http/Controllers/Team4Controller.php', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/app/Http/Controllers/Team4Controller.php b/app/Http/Controllers/Team4Controller.php[m
+[1mindex 4116806..7ec993e 100644[m
+[1m--- a/app/Http/Controllers/Team4Controller.php[m
+[1m+++ b/app/Http/Controllers/Team4Controller.php[m
+[36m@@ -1,37 +1,113 @@[m
+ <?php[m
+[32m+[m
+ namespace App\Http\Controllers;[m
+ [m
+[31m-use App\Models\{Product,Warehouse,Location,Inventory,StockMovement,Supplier,PurchaseOrder,StockReservation};[m
+[32m+[m[32muse App\Models\{[m
+[32m+[m[32m    Product,[m
+[32m+[m[32m    Warehouse,[m
+[32m+[m[32m    Location,[m
+[32m+[m[32m    Inventory,[m
+[32m+[m[32m    StockMovement,[m
+[32m+[m[32m    Supplier,[m
+[32m+[m[32m    PurchaseOrder,[m
+[32m+[m[32m    StockReservation[m
+[32m+[m[32m};[m
+ use Illuminate\Http\Request;[m
+ use Inertia\Inertia;[m
+ [m
+ class Team4Controller extends Controller[m
+ {[m
+[31m-    public function dashboard() { return Inertia::render('Equipo4/Dashboard', ['stats'=>[[m
+[31m-        'products'=>Product::count(),'warehouses'=>Warehouse::count(),[m
+[31m-        'inventory'=>Inventory::sum('on_hand'),'reservations'=>StockReservation::where('status','RESERVED')->count()[m
+[31m-    ]]); }[m
+[32m+[m[32m    public function dashboard()[m
+[32m+[m[32m    {[m
+[32m+[m[32m        return Inertia::render('Equipo4/Dashboard', ['stats' => [[m
+[32m+[m[32m            'products' => Product::count(),[m
+[32m+[m[32m            'warehouses' => Warehouse::count(),[m
+[32m+[m[32m            'inventory' => Inventory::sum('on_hand'),[m
+[32m+[m[32m            'reservations' => StockReservation::where('status', 'RESERVED')->count(),[m
+[32m+[m[32m        ]]);[m
+[32m+[m[32m    }[m
+ [m
+[31m-    public function page(string $module) {[m
+[32m+[m[32m    public function page(string $module)[m
+[32m+[m[32m    {[m
+         $allowed = [[m
+[31m-            'Inventario','Productos','Almacenes','Kardex','Proveedores','Compras',[m
+[31m-            'Recepciones','Costos','Reservas','Devoluciones','Alertas','Conteos','Souvenirs'[m
+[32m+[m[32m            'Inventario',[m
+[32m+[m[32m            'Productos',[m
+[32m+[m[32m            'Almacenes',[m
+[32m+[m[32m            'Kardex',[m
+[32m+[m[32m            'Proveedores',[m
+[32m+[m[32m            'Compras',[m
+[32m+[m[32m            'Recepciones',[m
+[32m+[m[32m            'Costos',[m
+[32m+[m[32m            'Reservas',[m
+[32m+[m[32m            'Devoluciones',[m
+[32m+[m[32m            'Alertas',[m
+[32m+[m[32m            'Conteos',[m
+[32m+[m[32m            'Souvenirs',[m
+         ];[m
+[31m-        abort_unless(in_array($module,$allowed,true),404);[m
+[31m-        return Inertia::render('Equipo4/'.$module);[m
+[32m+[m
+[32m+[m[32m        abort_unless(in_array($module, $allowed, true), 404);[m
+[32m+[m
+[32m+[m[32m        return Inertia::render('Equipo4/' . $module);[m
+     }[m
+ [m
+[31m-    public function products(Request $r) {[m
+[31m-        $q = trim((string)$r->query('q',''));[m
+[31m-        $items = Product::query()->when($q, fn($x)=>$x->where('sku','like','%'.$q.'%')[m
+[31m-            ->orWhere('name','like','%'.$q.'%'))->limit(100)->get();[m
+[32m+[m[32m    public function products(Request $r)[m
+[32m+[m[32m    {[m
+[32m+[m[32m        $q = trim((string) $r->query('q', ''));[m
+[32m+[m
+[32m+[m[32m        /*[m
+[32m+[m[32m         * CORRECCIÓN #7:[m
+[32m+[m[32m         * En Mongo, "like" termina representándose como una expresión regular.[m
+[32m+[m[32m         * Construirla directamente con entrada del usuario permite que caracteres[m
+[32m+[m[32m         * de regex cambien la consulta. preg_quote() convierte el texto buscado[m
+[32m+[m[32m         * en literal y la /i hace la búsqueda insensible a mayúsculas.[m
+[32m+[m[32m         */[m
+[32m+[m[32m        $items = Product::query()[m
+[32m+[m[32m            ->when($q !== '', function ($query) use ($q) {[m
+[32m+[m[32m                $regex = '/' . preg_quote($q, '/') . '/i';[m
+[32m+[m
+[32m+[m[32m                $query->where(function ($subQuery) use ($regex) {[m
+[32m+[m[32m                    $subQuery[m
+[32m+[m[32m                        ->where('sku', 'regex', $regex)[m
+[32m+[m[32m                        ->orWhere('name', 'regex', $regex);[m
+[32m+[m[32m                });[m
+[32m+[m[32m            })[m
+[32m+[m[32m            ->limit(100)[m
+[32m+[m[32m            ->get();[m
+[32m+[m
+         return response()->json($items);[m
+     }[m
+ [m
+[31m-    public function warehouses() { return response()->json(Warehouse::limit(100)->get()); }[m
+[31m-    public function locations() { return response()->json(Location::limit(200)->get()); }[m
+[31m-    public function inventory() { return response()->json(Inventory::limit(500)->get()); }[m
+[31m-    public function movements() { return response()->json(StockMovement::orderBy('created_at','desc')->limit(200)->get()); }[m
+[31m-    public function suppliers() { return response()->json(Supplier::limit(100)->get()); }[m
+[31m-    public function purchaseOrders() { return response()->json(PurchaseOrder::orderBy('created_at','desc')->limit(100)->get()); }[m
+[32m+[m[32m    public function warehouses()[m
+[32m+[m[32m    {[m
+[32m+[m[32m        return response()->json(Warehouse::limit(100)->get());[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public function locations()[m
+[32m+[m[32m    {[m
+[32m+[m[32m        return response()->json(Location::limit(200)->get());[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public function inventory()[m
+[32m+[m[32m    {[m
+[32m+[m[32m        return response()->json(Inventory::limit(500)->get());[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public function movements()[m
+[32m+[m[32m    {[m
+[32m+[m[32m        return response()->json([m
+[32m+[m[32m            StockMovement::orderBy('created_at', 'desc')->limit(200)->get()[m
+[32m+[m[32m        );[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public function suppliers()[m
+[32m+[m[32m    {[m
+[32m+[m[32m        return response()->json(Supplier::limit(100)->get());[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public function purchaseOrders()[m
+[32m+[m[32m    {[m
+[32m+[m[32m        return response()->json([m
+[32m+[m[32m            PurchaseOrder::orderBy('created_at', 'desc')->limit(100)->get()[m
+[32m+[m[32m        );[m
+[32m+[m[32m    }[m
+ }[m
