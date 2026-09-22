@@ -3,30 +3,18 @@ import { ref, computed, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 
 const props = defineProps({
-  title: { type: String, required: true },
+  title: { type: String, default: '' },
   subtitle: { type: String, default: '' },
   columns: { type: Array, required: true },
   rows: { type: Array, default: () => [] },
   kpis: { type: Array, default: () => [] },
   pagination: {
     type: Object,
-    default: () => ({
-      current_page: 1,
-      last_page: 1,
-      per_page: 25,
-      total: 0,
-      from: 0,
-      to: 0,
-    })
+    default: () => ({ current_page: 1, last_page: 1, per_page: 25, total: 0, from: 0, to: 0 })
   },
-  filters: {
-    type: Object,
-    default: () => ({ q: '' })
-  },
-  searchRoute: {
-    type: String,
-    required: true
-  }
+  filters: { type: Object, default: () => ({ q: '' }) },
+  searchRoute: { type: String, required: true },
+  hero: { type: String, default: '' } // Texto opcional del hero azul
 })
 
 const search = ref(props.filters.q || '')
@@ -35,36 +23,20 @@ let debounceTimer = null
 watch(search, (value) => {
   clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
-    router.get(props.searchRoute, {
-      q: value || undefined,
-      page: 1
-    }, {
-      preserveState: true,
-      preserveScroll: true,
-      replace: true
+    router.get(props.searchRoute, { q: value || undefined, page: 1 }, {
+      preserveState: true, preserveScroll: true, replace: true
     })
   }, 300)
 })
 
 function goToPage(page) {
   if (page < 1 || page > props.pagination.last_page) return
-  router.get(props.searchRoute, {
-    q: search.value || undefined,
-    page: page
-  }, {
-    preserveState: true,
-    preserveScroll: true,
-    replace: true
+  router.get(props.searchRoute, { q: search.value || undefined, page: page }, {
+    preserveState: true, preserveScroll: true, replace: true
   })
 }
-
-function goToPrev() {
-  goToPage(props.pagination.current_page - 1)
-}
-
-function goToNext() {
-  goToPage(props.pagination.current_page + 1)
-}
+function goToPrev() { goToPage(props.pagination.current_page - 1) }
+function goToNext() { goToPage(props.pagination.current_page + 1) }
 
 const visiblePages = computed(() => {
   const current = props.pagination.current_page
@@ -80,12 +52,17 @@ const visiblePages = computed(() => {
 
 <template>
   <section class="space-y-6">
+    <!-- Hero azul oscuro estilo Eq. 1 -->
+    <div v-if="title" class="rounded-2xl bg-[#00338D] px-7 py-6 text-white shadow-xl shadow-[#00338D]/10">
+      <p v-if="hero" class="text-sm text-blue-100">{{ hero }}</p>
+      <h1 class="mt-1 text-3xl font-bold tracking-tight">{{ title }}</h1>
+      <p v-if="subtitle" class="mt-2 text-sm text-blue-100">{{ subtitle }}</p>
+    </div>
+
+    <!-- Barra de búsqueda + acciones -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-[#00338D]">{{ title }}</h1>
-        <p class="mt-1 text-sm text-slate-500">{{ subtitle }}</p>
-      </div>
-      <div class="flex items-center gap-2">
+      <div v-if="!title || !subtitle" class="text-xs text-slate-500">&nbsp;</div>
+      <div class="flex items-center gap-2 ml-auto">
         <input
           v-model="search"
           placeholder="Buscar..."
@@ -97,12 +74,12 @@ const visiblePages = computed(() => {
       </div>
     </div>
 
-    <!-- KPIs opcionales -->
+    <!-- KPIs sin borde, solo sombra (estilo Eq. 1) -->
     <div v-if="kpis && kpis.length > 0" class="grid grid-cols-2 md:grid-cols-4 gap-4">
       <div
         v-for="(k, i) in kpis"
         :key="i"
-        class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+        class="rounded-2xl bg-white p-5 shadow-sm"
       >
         <span class="text-sm text-slate-500">{{ k.label }}</span>
         <strong
@@ -118,25 +95,28 @@ const visiblePages = computed(() => {
       </div>
     </div>
 
-    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div class="border-b border-slate-200 px-6 py-4 font-semibold text-[#00338D] text-sm uppercase tracking-wide">Información</div>
+    <!-- Tabla minimalista estilo Eq. 1 -->
+    <div class="rounded-2xl bg-white shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-200">
+        <h2 class="font-bold text-[#00338D] text-sm uppercase tracking-wide">Información</h2>
+      </div>
       <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
-          <thead class="bg-slate-50 text-xs uppercase text-slate-600">
+          <thead class="text-xs uppercase text-slate-500 border-b border-slate-200">
             <tr>
-              <th v-for="c in columns" :key="c" class="px-6 py-3 font-semibold">{{ c }}</th>
-              <th v-if="$slots.actions" class="px-6 py-3 font-semibold text-right">Acciones</th>
+              <th v-for="c in columns" :key="c" class="px-4 py-3 font-semibold">{{ c }}</th>
+              <th v-if="$slots.actions" class="px-4 py-3 font-semibold text-right">Acciones</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100">
-            <tr v-for="(r, i) in rows" :key="r._id || i" class="hover:bg-slate-50 transition">
-              <td v-for="c in columns" :key="c" class="px-6 py-4 text-slate-700">{{ r[c] ?? '—' }}</td>
-              <td v-if="$slots.actions" class="px-6 py-4 text-right whitespace-nowrap">
+          <tbody>
+            <tr v-for="(r, i) in rows" :key="r._id || i" class="border-b border-slate-100 last:border-0 hover:bg-slate-50/70 transition">
+              <td v-for="c in columns" :key="c" class="px-4 py-3 text-slate-700">{{ r[c] ?? '—' }}</td>
+              <td v-if="$slots.actions" class="px-4 py-3 text-right whitespace-nowrap">
                 <slot name="actions" :row="r" :index="i" />
               </td>
             </tr>
             <tr v-if="!rows.length">
-              <td :colspan="columns.length + ($slots.actions ? 1 : 0)" class="px-6 py-8 text-center text-slate-500">
+              <td :colspan="columns.length + ($slots.actions ? 1 : 0)" class="px-4 py-8 text-center text-slate-500">
                 {{ search ? 'No se encontraron resultados para "' + search + '"' : 'Sin registros para mostrar.' }}
               </td>
             </tr>
@@ -144,36 +124,26 @@ const visiblePages = computed(() => {
         </table>
       </div>
 
-      <div v-if="pagination.total > 0" class="border-t border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/50">
+      <div v-if="pagination.total > 0" class="border-t border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
         <p class="text-xs text-slate-500">
           Mostrando <strong>{{ pagination.from }}</strong> a <strong>{{ pagination.to }}</strong> de <strong>{{ pagination.total }}</strong> registros
         </p>
 
         <div class="flex items-center gap-1">
-          <button
-            @click="goToPrev"
-            :disabled="pagination.current_page === 1"
-            class="px-3 py-1 text-xs font-medium rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
-          >
+          <button @click="goToPrev" :disabled="pagination.current_page === 1"
+            class="px-3 py-1 text-xs font-medium rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition">
             ← Anterior
           </button>
 
-          <button
-            v-for="p in visiblePages"
-            :key="p"
-            @click="goToPage(p)"
+          <button v-for="p in visiblePages" :key="p" @click="goToPage(p)"
             :class="p === pagination.current_page
               ? 'px-3 py-1 text-xs font-semibold rounded bg-[#00338D] text-white'
-              : 'px-3 py-1 text-xs font-medium rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition'"
-          >
+              : 'px-3 py-1 text-xs font-medium rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition'">
             {{ p }}
           </button>
 
-          <button
-            @click="goToNext"
-            :disabled="pagination.current_page === pagination.last_page"
-            class="px-3 py-1 text-xs font-medium rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
-          >
+          <button @click="goToNext" :disabled="pagination.current_page === pagination.last_page"
+            class="px-3 py-1 text-xs font-medium rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition">
             Siguiente →
           </button>
         </div>
