@@ -1,13 +1,22 @@
+# Storage
+/storage/framework/views/*
+/storage/framework/cache/data/*
+/storage/logs/*
+!/storage/framework/views/.gitignore
+!/storage/framework/cache/data/.gitignore
+!/storage/logs/.gitignore
+
+# Dumps y basura
+dump_*.txt
+mongo_hello.json
+ta.txt
+*.bak_*
+equipo4.zip
+
+# Node y vendor
 /vendor
 /node_modules
-/public/storage
-/storage/*.key
+
+# Entorno
 .env
 .env.backup
-.phpunit.result.cache
-/.idea
-/.vscode
-.DS_Store
-*.zip
-*.7z
-*.rar
