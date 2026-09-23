@@ -17,7 +17,6 @@ function isActive(group) { return group.match(page.url) }
 
 const alertsCount = computed(() => page.props.alertsCount || 0)
 
-// Usuario actual (con fallback si no hay auth todavia)
 const currentUser = computed(() => {
   const u = page.props.auth?.user
   return {
@@ -27,7 +26,6 @@ const currentUser = computed(() => {
   }
 })
 
-// Dropdown de usuario
 const showingUserMenu = ref(false)
 const userMenuRef = ref(null)
 
