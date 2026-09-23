@@ -1,3 +1,28 @@
+# Campus Digital — Comunidad (equipo 6)
+
+Laravel 12, Vue 3/Inertia y MongoDB, sobre Docker/WSL.
+
+La instalación, cuentas locales, modelo de datos, pruebas y pendientes están en [Entrega 1: MongoDB y Asociaciones](docs/Entrega_1_MongoDB_Asociaciones.md).
+
+El flujo de eventos, reservas, espera y boletos se documenta en [Entrega 2: Eventos](docs/Entrega_2_Eventos.md).
+
+El flujo de convocatorias, documentos privados y dictámenes está en [Entrega 3: Becas](docs/Entrega_3_Becas.md).
+
+Las campañas y la bandeja están documentadas en [Entrega 4: Comunicación](docs/Entrega_4_Comunicacion.md).
+
+Encuestas y votaciones: [Entrega 5](docs/Entrega_5_Encuestas_Votaciones.md).
+
+Reportes y dashboard: [Entrega 6](docs/Entrega_6_Transparencia_Dashboard.md).
+
+Staff y correcciones de continuidad/MongoDB: [Entrega 7](docs/Entrega_7_Staff_Continuidad.md).
+
+Alta, presidencia inicial y estados de organizaciones: [Entrega 8](docs/Entrega_8_Gestion_Organizaciones.md).
+- [Entrega 9: rediseño de la interfaz](docs/Entrega_9_Rediseno_Interfaz.md)
+
+Estado frente al documento, hallazgos y siguientes pasos: [Revisión del módulo 6](docs/Revision_Modulo_6.md).
+
+Propuesta para acordar con los otros equipos: [Contratos de integración](docs/Contratos_Integracion_Modulo_6.md).
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">

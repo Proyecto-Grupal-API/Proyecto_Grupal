@@ -1,234 +1,699 @@
 <script setup>
-import { Head } from '@inertiajs/vue3';
-import Modulo6Layout from '@/Layouts/Modulo6Layout.vue';
-import PanelLateral from '@/Components/Panellateral.vue';
-import { ref, onMounted } from 'vue';
-import axios from 'axios';
-
-const eventos = ref([]);
-const eventoSeleccionado = ref(null); // Aquí guardaremos el evento que estamos viendo actualmente
-const cargando = ref(true);
-const mostrarPanelCrear = ref(false); 
-
-const tokenEscaneado = ref('');
-const mensajeScanner = ref('');
-const tipoMensaje = ref(''); 
-
-const formEvento = ref({
-    titulo: '', descripcion: '', ubicacion: '', 
-    fecha_hora_inicio: '', fecha_hora_fin: '', costo: 0, capacidad: 100
-});
-
-const cargarDatos = async () => {
+import { Head, Link, usePage } from "@inertiajs/vue3";
+import { ref, computed, onMounted } from "vue";
+import axios from "axios";
+import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
+import PanelLateral from "@/Components/Panellateral.vue";
+import EscanerEvento from "@/Components/EscanerEvento.vue";
+import StaffEventoPanel from "@/Components/StaffEventoPanel.vue";
+const staffEvento = ref(null);
+const page = usePage();
+const modo = ref(page.props.auth.puede_editar ? "gestion" : "catalogo");
+const datos = ref(null),
+    cargando = ref(false),
+    ocupado = ref(false),
+    error = ref(""),
+    errores = ref({}),
+    aviso = ref("");
+const buscar = ref(""),
+    estado = ref(""),
+    panel = ref(false),
+    formulario = ref({}),
+    seleccionado = ref(null),
+    lista = ref(null),
+    paginaLista = ref(1),
+    filtroLista = ref(""),
+    token = ref("");
+const puedeGestionar = computed(
+    () => datos.value?.puede_gestionar ?? page.props.auth.puede_editar,
+);
+const fecha = (v) =>
+    v
+        ? new Intl.DateTimeFormat("es-MX", {
+              dateStyle: "medium",
+              timeStyle: "short",
+              timeZone: "America/Mexico_City",
+          }).format(new Date(v))
+        : "";
+const local = (v) =>
+    new Date(v)
+        .toLocaleString("sv-SE", { timeZone: "America/Mexico_City" })
+        .replace(" ", "T")
+        .slice(0, 16);
+const dinero = (v) =>
+    Number(v) === 0
+        ? "Gratuito"
+        : new Intl.NumberFormat("es-MX", {
+              style: "currency",
+              currency: "MXN",
+          }).format(v);
+const editable = (e) =>
+    e.estado !== "cancelado" && new Date(e.fecha_hora_inicio) > new Date();
+function fallar(e) {
+    errores.value = e.response?.data?.errors ?? {};
+    error.value = Object.keys(errores.value).length
+        ? "Revisa los datos indicados."
+        : e.response?.status >= 500
+          ? "No fue posible completar la operación. Intenta nuevamente."
+          : e.response?.data?.message ||
+            "No fue posible conectar con el servidor.";
+}
+async function cargar(pagina = 1) {
+    cargando.value = true;
     try {
-        const respuesta = await axios.get('/api/eventos');
-        eventos.value = respuesta.data.eventos;
-        
-        // Si hay eventos, seleccionamos el primero por defecto o actualizamos el que ya estaba seleccionado
-        if(eventos.value.length > 0) {
-            if(!eventoSeleccionado.value) {
-                eventoSeleccionado.value = eventos.value[0];
-            } else {
-                eventoSeleccionado.value = eventos.value.find(e => e.id === eventoSeleccionado.value.id) || eventos.value[0];
-            }
-        } else {
-            eventoSeleccionado.value = null;
-        }
-    } catch (error) {
-        console.error("Error al cargar eventos:", error);
-    }
-};
-
-onMounted(async () => {
-    await cargarDatos();
-    cargando.value = false;
-});
-
-const formatearFecha = (fechaString) => {
-    if (!fechaString) return '';
-    const opciones = { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' };
-    return new Date(fechaString).toLocaleDateString('es-MX', opciones);
-};
-
-const guardarEvento = async () => {
-    try {
-        await axios.post('/api/eventos', formEvento.value);
-        mostrarPanelCrear.value = false;
-        formEvento.value = { titulo: '', descripcion: '', ubicacion: '', fecha_hora_inicio: '', fecha_hora_fin: '', costo: 0, capacidad: 100 };
-        await cargarDatos();
-    } catch (error) {
-        alert("Fallo en SQL Server: " + (error.response?.data?.error || "Error desconocido"));
-    }
-};
-
-const procesarCheckin = async () => {
-    if(!tokenEscaneado.value.trim() || !eventoSeleccionado.value) return;
-    
-    try {
-        // Ahora enviamos el token Y el ID del evento que estamos gestionando
-        const respuesta = await axios.post('/api/eventos/checkin', { 
-            token_qr: tokenEscaneado.value,
-            evento_id: eventoSeleccionado.value.id
-        });
-        mensajeScanner.value = respuesta.data.message;
-        tipoMensaje.value = 'success';
-        await cargarDatos(); 
-    } catch (error) {
-        mensajeScanner.value = error.response?.data?.error || "Error al procesar el pase";
-        tipoMensaje.value = 'error';
+        datos.value = (
+            await axios.get("/api/eventos", {
+                params: {
+                    gestion: modo.value === "gestion" ? 1 : 0,
+                    buscar: buscar.value,
+                    estado: modo.value === "gestion" ? estado.value : "",
+                    page: pagina,
+                },
+            })
+        ).data;
+        if (seleccionado.value)
+            seleccionado.value =
+                datos.value.eventos.find(
+                    (e) => e.id === seleccionado.value.id,
+                ) ?? null;
+    } catch (e) {
+        fallar(e);
     } finally {
-        tokenEscaneado.value = ''; 
-        setTimeout(() => { mensajeScanner.value = ''; }, 4000);
+        cargando.value = false;
     }
-};
+}
+onMounted(() => cargar());
+async function cambiarModo(v) {
+    modo.value = v;
+    seleccionado.value = null;
+    error.value = "";
+    errores.value = {};
+    await cargar();
+}
+function abrir(e = null) {
+    error.value = "";
+    errores.value = {};
+    aviso.value = "";
+    formulario.value = e
+        ? {
+              id: e.id,
+              titulo: e.titulo,
+              descripcion: e.descripcion,
+              ubicacion: e.ubicacion,
+              costo: e.costo,
+              capacidad: e.capacidad,
+              lista_espera: !!e.lista_espera,
+              fecha_hora_inicio: local(e.fecha_hora_inicio),
+              fecha_hora_fin: local(e.fecha_hora_fin),
+              fecha_inicio_registro: local(e.fecha_inicio_registro),
+              fecha_fin_registro: local(e.fecha_fin_registro),
+          }
+        : {
+              titulo: "",
+              descripcion: "",
+              ubicacion: "",
+              costo: 0,
+              capacidad: 50,
+              lista_espera: true,
+              fecha_hora_inicio: "",
+              fecha_hora_fin: "",
+              fecha_inicio_registro: local(Date.now()),
+              fecha_fin_registro: "",
+          };
+    panel.value = true;
+}
+async function ejecutar(fn) {
+    if (ocupado.value) return;
+    ocupado.value = true;
+    error.value = "";
+    errores.value = {};
+    aviso.value = "";
+    try {
+        const res = await fn();
+        aviso.value = res.data.message;
+        panel.value = false;
+        await cargar(datos.value?.page ?? 1);
+        if (seleccionado.value) await cargarLista(paginaLista.value);
+    } catch (e) {
+        fallar(e);
+    } finally {
+        ocupado.value = false;
+    }
+}
+const guardar = () =>
+    ejecutar(() =>
+        formulario.value.id
+            ? axios.put(`/api/eventos/${formulario.value.id}`, formulario.value)
+            : axios.post("/api/eventos", formulario.value),
+    );
+const publicar = (e) =>
+    ejecutar(() => axios.post(`/api/eventos/${e.id}/publicar`));
+function cancelar(e) {
+    const motivo = prompt("Motivo de cancelación (mínimo 10 caracteres):");
+    if (motivo !== null)
+        ejecutar(() => axios.post(`/api/eventos/${e.id}/cancelar`, { motivo }));
+}
+const inscribir = (e) =>
+    ejecutar(() => axios.post(`/api/eventos/${e.id}/inscripcion`));
+async function cargarLista(pagina = 1) {
+    if (!seleccionado.value) return;
+    paginaLista.value = pagina;
+    try {
+        lista.value = (
+            await axios.get(`/api/eventos/${seleccionado.value.id}/inscritos`, {
+                params: { page: pagina, estado: filtroLista.value },
+            })
+        ).data;
+    } catch (e) {
+        fallar(e);
+    }
+}
+async function verLista(e) {
+    seleccionado.value = e;
+    lista.value = null;
+    token.value = "";
+    filtroLista.value = "";
+    await cargarLista();
+}
+function checkin(codigo = token.value) {
+    if (!codigo?.trim() || !seleccionado.value) return;
+    token.value = codigo.trim();
+    ejecutar(() =>
+        axios.post("/api/eventos/checkin", {
+            evento_id: seleccionado.value.id,
+            token_qr: token.value,
+        }),
+    ).then(() => {
+        token.value = "";
+    });
+}
+function cerrar() {
+    if (!ocupado.value) {
+        panel.value = false;
+        error.value = "";
+        errores.value = {};
+    }
+}
 </script>
-
 <template>
-    <Head title="Eventos y Check-in - Campus Digital" />
-
-    <Modulo6Layout headerTitle="Gestión de Eventos y Asistencia">
-        <template #headerActions>
-            <button @click="mostrarPanelCrear = true" class="bg-[#00378c] text-white font-semibold py-1.5 px-4 rounded-lg hover:bg-[#002866] transition">
-                + Crear Evento
-            </button>
-        </template>
-
-        <div class="p-8 space-y-6">
-            <div v-if="cargando" class="flex justify-center py-12">
-                <p class="text-[#00378c] font-bold animate-pulse">Cargando eventos desde SQL Server...</p>
-            </div>
-
-            <div v-else-if="eventos.length > 0">
-                
-                <!-- NUEVO: SELECTOR DE EVENTOS (PESTAÑAS) -->
-                <div class="flex space-x-3 overflow-x-auto pb-4 mb-2">
-                    <button 
-                        v-for="evt in eventos" 
-                        :key="evt.id" 
-                        @click="eventoSeleccionado = evt"
-                        :class="eventoSeleccionado.id === evt.id ? 'bg-[#00378c] text-white ring-2 ring-blue-300' : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'"
-                        class="px-5 py-2.5 rounded-full text-sm font-bold shadow-sm whitespace-nowrap transition-all"
+    <Head title="Eventos — Campus Digital" />
+    <Modulo6Layout headerTitle="Eventos y actividades">
+        <div class="campus-page space-y-6">
+            <div class="flex flex-wrap justify-between gap-4 items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">
+                        Participa en tu campus
+                    </h1>
+                    <p class="text-sm text-gray-600 mt-1">
+                        Horarios de Ciudad de México ·
+                        {{
+                            page.props.auth.organizacion?.nombre ||
+                            "Comunidad estudiantil"
+                        }}
+                    </p>
+                </div>
+                <div class="flex gap-3">
+                    <Link
+                        href="/modulo6/mis-boletos"
+                        class="rounded-lg border px-4 py-2 bg-white text-sm font-semibold"
+                        >Mis boletos</Link
+                    ><button
+                        v-if="modo === 'gestion' && puedeGestionar"
+                        @click="abrir()"
+                        :disabled="ocupado"
+                        class="rounded-lg bg-blue-900 text-white px-4 py-2 text-sm font-semibold"
                     >
-                        {{ evt.titulo }}
+                        Crear evento
                     </button>
                 </div>
-
-                <div v-if="eventoSeleccionado" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Tarjeta del Evento -->
-                    <div class="col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <span class="bg-red-100 text-red-800 text-xs font-bold px-2.5 py-1 rounded-full animate-pulse mr-2">EN GESTIÓN</span>
-                                <h3 class="text-2xl font-bold text-gray-800 inline-block">{{ eventoSeleccionado.titulo }}</h3>
-                                <p class="text-gray-500 mt-1">📍 {{ eventoSeleccionado.ubicacion }} | 📅 {{ formatearFecha(eventoSeleccionado.fecha_hora_inicio) }}</p>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-sm text-gray-500 font-bold uppercase">Costo</p>
-                                <p class="text-xl font-bold text-[#00378c]">
-                                    {{ parseFloat(eventoSeleccionado.costo) === 0 ? 'GRATIS' : '$' + eventoSeleccionado.costo + ' MXN' }}
-                                </p>
-                            </div>
-                        </div>
-                        <p class="text-sm text-gray-600 mb-6">{{ eventoSeleccionado.descripcion }}</p>
-
-                        <!-- Barra de Asistencia -->
-                        <div class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <div class="flex justify-between text-sm text-gray-700 mb-2 font-semibold">
-                                <span>Asistencia Total: {{ eventoSeleccionado.stats.asistieron }} de {{ eventoSeleccionado.stats.capacidad }} estudiantes</span>
-                                <span>{{ Math.round((eventoSeleccionado.stats.asistieron / eventoSeleccionado.stats.capacidad) * 100) }}% Capacidad</span>
-                            </div>
-                            <div class="w-full bg-gray-300 rounded-full h-3">
-                                <div class="bg-[#00378c] h-3 rounded-full transition-all duration-1000" :style="{ width: (eventoSeleccionado.stats.asistieron / eventoSeleccionado.stats.capacidad) * 100 + '%' }"></div>
-                            </div>
-                        </div>
+            </div>
+            <div class="flex gap-2">
+                <button
+                    @click="cambiarModo('catalogo')"
+                    :disabled="ocupado || cargando"
+                    :class="
+                        modo === 'catalogo'
+                            ? 'bg-blue-900 text-white'
+                            : 'bg-white text-gray-700'
+                    "
+                    class="rounded-lg px-4 py-2 border"
+                >
+                    Explorar eventos</button
+                ><button
+                    v-if="puedeGestionar"
+                    @click="cambiarModo('gestion')"
+                    :disabled="ocupado || cargando"
+                    :class="
+                        modo === 'gestion'
+                            ? 'bg-blue-900 text-white'
+                            : 'bg-white text-gray-700'
+                    "
+                    class="rounded-lg px-4 py-2 border"
+                >
+                    Administrar organización
+                </button>
+            </div>
+            <p
+                v-if="aviso"
+                role="status"
+                class="rounded-lg bg-green-50 border border-green-200 p-4 text-green-800"
+            >
+                {{ aviso }}
+            </p>
+            <div
+                v-if="error && !panel"
+                role="alert"
+                class="rounded-lg bg-red-50 p-4 text-red-800"
+            >
+                {{ error }}
+                <ul class="list-disc pl-5">
+                    <li v-for="(mensajes, campo) in errores" :key="campo">
+                        {{ mensajes[0] }}
+                    </li>
+                </ul>
+            </div>
+            <form @submit.prevent="cargar()" class="flex flex-wrap gap-3">
+                <label class="flex-1 min-w-40"
+                    ><span class="sr-only">Buscar eventos</span
+                    ><input
+                        v-model="buscar"
+                        placeholder="Buscar por título"
+                        maxlength="120"
+                        class="w-full rounded-lg border-gray-300" /></label
+                ><select
+                    v-if="modo === 'gestion'"
+                    v-model="estado"
+                    aria-label="Estado del evento"
+                    class="rounded-lg border-gray-300"
+                >
+                    <option value="">Todos los estados</option>
+                    <option value="borrador">Borradores</option>
+                    <option value="publicado">Publicados</option>
+                    <option value="cancelado">Cancelados</option></select
+                ><button
+                    :disabled="cargando"
+                    class="rounded-lg border px-4 py-2 bg-white"
+                >
+                    Buscar
+                </button>
+            </form>
+            <p v-if="cargando" role="status" class="text-gray-500">
+                Cargando eventos…
+            </p>
+            <div v-if="datos" class="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+                <article
+                    v-for="e in datos.eventos"
+                    :key="e.id"
+                    class="rounded-xl border bg-white p-5 flex flex-col gap-3"
+                >
+                    <div class="flex justify-between items-center gap-2">
+                        <span
+                            class="text-xs font-semibold uppercase text-blue-700"
+                            >{{ e.organizacion_nombre }}</span
+                        ><span
+                            class="text-xs rounded-full px-2 py-1 bg-gray-100"
+                            >{{ e.estado }}</span
+                        >
                     </div>
-
-                    <!-- MÓDULO DE ESCÁNER DINÁMICO -->
-                    <div class="col-span-1 bg-gray-900 rounded-xl shadow-sm border border-gray-800 p-6 flex flex-col items-center justify-center text-center relative overflow-hidden">
-                        <div class="absolute inset-0 opacity-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiNmZmYiLz48L3N2Zz4=')]"></div>
-                        
-                        <div class="z-10 w-20 h-20 bg-gray-800 border-4 border-[#00378c] border-dashed rounded-xl flex items-center justify-center mb-4 transition-transform duration-300" :class="{'scale-110 border-green-500': tipoMensaje === 'success', 'scale-110 border-red-500': tipoMensaje === 'error'}">
-                            <span class="text-4xl">📷</span>
-                        </div>
-                        <h3 class="text-white font-bold text-lg z-10">Escáner Activo</h3>
-                        <p class="text-gray-400 text-xs mt-1 mb-4 z-10">Acerca el QR o teclea el token manual</p>
-                        
-                        <form @submit.prevent="procesarCheckin" class="z-10 w-full relative">
-                            <input 
-                                v-model="tokenEscaneado" 
-                                type="text" 
-                                placeholder="Ej. QR-1234-ABC" 
-                                class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-3 text-center tracking-widest font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 mb-3"
-                                autocomplete="off"
-                            >
-                            <button type="submit" class="bg-[#00378c] hover:bg-[#002866] text-white font-bold py-2.5 px-6 rounded-lg w-full transition shadow-md">
-                                Validar Acceso
-                            </button>
-                        </form>
-
-                        <div v-if="mensajeScanner" :class="tipoMensaje === 'success' ? 'bg-green-500/20 text-green-400 border-green-500/50' : 'bg-red-500/20 text-red-400 border-red-500/50'" class="z-10 w-full mt-4 p-3 rounded-lg border text-sm font-bold shadow-lg">
-                            {{ mensajeScanner }}
-                        </div>
+                    <h2 class="font-bold text-xl text-gray-900">
+                        {{ e.titulo }}
+                    </h2>
+                    <p class="text-sm text-gray-600 whitespace-pre-line">
+                        {{ e.descripcion }}
+                    </p>
+                    <div class="text-sm space-y-1">
+                        <p class="font-medium">
+                            {{ fecha(e.fecha_hora_inicio) }}
+                        </p>
+                        <p>{{ e.ubicacion }}</p>
+                        <p class="font-semibold text-blue-800">
+                            {{ dinero(e.costo) }}
+                        </p>
                     </div>
-
-                    <!-- Tabla de Lista -->
-                    <div class="col-span-1 lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <div class="flex justify-between items-center mb-4 border-b pb-4">
-                            <h3 class="text-lg font-bold text-gray-800">Lista de Inscritos a: {{ eventoSeleccionado.titulo }} ({{ eventoSeleccionado.stats.total }})</h3>
-                        </div>
-                        <div class="overflow-auto">
-                            <table class="min-w-full text-sm text-left">
-                                <thead class="text-xs text-gray-500 uppercase bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-3 font-medium">Boleto (Token)</th>
-                                        <th class="px-4 py-3 font-medium">ID Usuario</th>
-                                        <th class="px-4 py-3 font-medium">Pago</th>
-                                        <th class="px-4 py-3 font-medium text-right">Asistencia</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-100">
-                                    <tr v-for="inscrito in eventoSeleccionado.inscritos" :key="inscrito.id" class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 font-mono text-xs text-gray-500">#{{ inscrito.token_qr || 'SIN-TOKEN' }}</td>
-                                        <td class="px-4 py-3 font-semibold text-gray-800">Usuario ID: {{ inscrito.usuario_id }}</td>
-                                        <td class="px-4 py-3">
-                                            <span :class="inscrito.estado_pago === 'pagado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'" class="text-xs px-2 py-1 rounded capitalize">
-                                                {{ inscrito.estado_pago }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 text-right">
-                                            <span v-if="inscrito.estado_asistencia === 'asistio'" class="bg-blue-100 text-[#00378c] text-xs font-bold px-2 py-1 rounded inline-flex items-center">
-                                                ✅ Asistió
-                                            </span>
-                                            <span v-else class="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded inline-flex items-center capitalize">
-                                                ⏳ {{ inscrito.estado_asistencia }}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    <tr v-if="eventoSeleccionado.inscritos.length === 0">
-                                        <td colspan="4" class="px-4 py-6 text-center text-gray-500">No hay inscritos aún.</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                    <p class="text-sm text-gray-500">
+                        {{ e.stats.confirmados }} / {{ e.capacidad }} lugares
+                        reservados<span v-if="e.stats.espera">
+                            · {{ e.stats.espera }} en espera</span
+                        >
+                    </p>
+                    <p class="text-xs text-gray-500">
+                        Inscripción: {{ fecha(e.fecha_inicio_registro) }} —
+                        {{ fecha(e.fecha_fin_registro) }}
+                    </p>
+                    <div
+                        v-if="modo === 'gestion'"
+                        class="mt-auto flex flex-wrap gap-3 text-sm font-semibold"
+                    >
+                        <button
+                            @click="staffEvento = e"
+                            :disabled="ocupado"
+                            class="text-blue-800"
+                        >
+                            Personal de acceso
+                        </button>
+                        <Link
+                            :href="`/modulo6/staff?evento=${e.id}`"
+                            class="text-blue-800"
+                            >Control de acceso</Link
+                        >
+                        <button
+                            v-if="editable(e)"
+                            @click="abrir(e)"
+                            :disabled="ocupado"
+                            class="text-blue-800"
+                        >
+                            Editar</button
+                        ><button
+                            v-if="e.estado === 'borrador' && editable(e)"
+                            @click="publicar(e)"
+                            :disabled="ocupado"
+                            class="text-green-800"
+                        >
+                            Publicar</button
+                        ><button
+                            @click="verLista(e)"
+                            :disabled="ocupado"
+                            class="text-blue-800"
+                        >
+                            Inscritos y asistencia</button
+                        ><button
+                            v-if="editable(e)"
+                            @click="cancelar(e)"
+                            :disabled="ocupado"
+                            class="text-red-700"
+                        >
+                            Cancelar evento
+                        </button>
+                    </div>
+                    <div v-else class="mt-auto space-y-2">
+                        <Link
+                            v-if="
+                                e.mi_registro &&
+                                e.mi_registro.estado !== 'cancelada'
+                            "
+                            :href="`/modulo6/eventos/${e.id}/boleto`"
+                            class="block text-center rounded-lg bg-blue-900 px-4 py-2 font-semibold text-white"
+                            >{{
+                                e.mi_registro.estado === "espera"
+                                    ? "Ver mi lugar en espera"
+                                    : "Ver mi reserva"
+                            }}</Link
+                        >
+                        <button
+                            v-else
+                            :disabled="
+                                ocupado ||
+                                !e.registro_abierto ||
+                                (e.stats.confirmados >= e.capacidad &&
+                                    !e.lista_espera)
+                            "
+                            @click="inscribir(e)"
+                            class="w-full rounded-lg bg-blue-900 px-4 py-2 font-semibold text-white disabled:opacity-50"
+                        >
+                            {{
+                                !e.registro_abierto
+                                    ? "Inscripción cerrada"
+                                    : e.stats.confirmados >= e.capacidad
+                                      ? e.lista_espera
+                                          ? "Unirme a la espera"
+                                          : "Cupo agotado"
+                                      : e.costo > 0
+                                        ? "Reservar lugar"
+                                        : "Inscribirme"
+                            }}
+                        </button>
+                        <p v-if="e.costo > 0" class="text-xs text-amber-800">
+                            El lugar se reserva con pago pendiente. Aún no se
+                            realizan cobros ni se habilita el acceso.
+                        </p>
+                    </div>
+                </article>
+            </div>
+            <p
+                v-if="datos && !datos.eventos.length && !cargando"
+                class="rounded-xl border bg-white p-8 text-center text-gray-600"
+            >
+                No hay eventos que coincidan con esta búsqueda.
+            </p>
+            <div
+                v-if="datos && datos.last_page > 1"
+                class="flex justify-center gap-4 items-center"
+            >
+                <button
+                    :disabled="datos.page === 1 || cargando"
+                    @click="cargar(datos.page - 1)"
+                    class="disabled:opacity-40"
+                >
+                    Anterior</button
+                ><span>{{ datos.page }} / {{ datos.last_page }}</span
+                ><button
+                    :disabled="datos.page === datos.last_page || cargando"
+                    @click="cargar(datos.page + 1)"
+                    class="disabled:opacity-40"
+                >
+                    Siguiente
+                </button>
+            </div>
+            <section
+                v-if="seleccionado && modo === 'gestion'"
+                class="rounded-xl border bg-white p-6 space-y-5"
+            >
+                <div class="flex justify-between gap-3">
+                    <h2 class="text-xl font-semibold">
+                        Inscritos: {{ seleccionado.titulo }}
+                    </h2>
+                    <button
+                        @click="seleccionado = null"
+                        aria-label="Cerrar inscritos"
+                    >
+                        Cerrar
+                    </button>
+                </div>
+                <div
+                    v-if="seleccionado.estado === 'publicado'"
+                    class="max-w-xl space-y-3"
+                >
+                    <h3 class="font-semibold">Registrar asistencia</h3>
+                    <p class="text-sm text-gray-500">
+                        Desde 30 minutos antes del inicio hasta el final. Solo
+                        reservas confirmadas con pago exento o confirmado.
+                    </p>
+                    <EscanerEvento
+                        :evento-id="seleccionado.id"
+                        :disabled="ocupado"
+                        @token="checkin"
+                    />
+                    <form @submit.prevent="checkin()" class="flex gap-2">
+                        <input
+                            v-model="token"
+                            required
+                            maxlength="255"
+                            aria-label="Código del boleto"
+                            placeholder="Pega el código o usa un lector QR"
+                            autocomplete="off"
+                            class="rounded-lg border-gray-300 min-w-0 flex-1"
+                        /><button
+                            :disabled="ocupado"
+                            class="rounded-lg bg-blue-900 text-white px-3 py-2"
+                        >
+                            Validar acceso
+                        </button>
+                    </form>
+                </div>
+                <select
+                    v-model="filtroLista"
+                    @change="cargarLista()"
+                    aria-label="Estado de inscripción"
+                    class="rounded-lg border-gray-300"
+                >
+                    <option value="">Todas las inscripciones</option>
+                    <option value="confirmada">Confirmadas</option>
+                    <option value="espera">Lista de espera</option>
+                    <option value="cancelada">Canceladas</option>
+                </select>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="border-b text-gray-500">
+                            <tr>
+                                <th class="py-3">Estudiante</th>
+                                <th>Matrícula</th>
+                                <th>Reserva</th>
+                                <th>Pago</th>
+                                <th>Asistencia</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <tr v-for="reg in lista?.registros" :key="reg.id">
+                                <td class="py-3 pr-3">{{ reg.nombre }}</td>
+                                <td class="pr-3">{{ reg.matricula || "—" }}</td>
+                                <td class="pr-3">{{ reg.estado }}</td>
+                                <td class="pr-3">{{ reg.estado_pago }}</td>
+                                <td>
+                                    {{
+                                        reg.estado_asistencia === "asistio"
+                                            ? "Registrada"
+                                            : "Pendiente"
+                                    }}
+                                </td>
+                            </tr>
+                            <tr v-if="lista && !lista.registros.length">
+                                <td
+                                    colspan="5"
+                                    class="py-6 text-center text-gray-500"
+                                >
+                                    Sin inscripciones.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div v-if="lista && lista.last_page > 1" class="flex gap-4">
+                    <button
+                        :disabled="lista.page === 1"
+                        @click="cargarLista(lista.page - 1)"
+                    >
+                        Anterior</button
+                    ><span>{{ lista.page }} / {{ lista.last_page }}</span
+                    ><button
+                        :disabled="lista.page === lista.last_page"
+                        @click="cargarLista(lista.page + 1)"
+                    >
+                        Siguiente
+                    </button>
+                </div>
+            </section>
+        </div>
+        <StaffEventoPanel :evento="staffEvento" @close="staffEvento = null" />
+        <PanelLateral
+            :show="panel"
+            :titulo="formulario.id ? 'Editar evento' : 'Nuevo borrador'"
+            @close="cerrar"
+        >
+            <div
+                v-if="error"
+                role="alert"
+                class="bg-red-50 text-red-800 p-3 mb-4 rounded-lg"
+            >
+                {{ error }}
+                <ul class="list-disc pl-4">
+                    <li v-for="(m, c) in errores" :key="c">{{ m[0] }}</li>
+                </ul>
+            </div>
+            <form id="form-evento" @submit.prevent="guardar" class="space-y-4">
+                <p class="text-sm text-gray-500">
+                    Horarios de Ciudad de México. Los nuevos eventos se guardan
+                    como borrador antes de publicarse.
+                </p>
+                <div>
+                    <label for="evt-titulo">Título</label
+                    ><input
+                        id="evt-titulo"
+                        v-model="formulario.titulo"
+                        required
+                        maxlength="150"
+                        class="w-full rounded-lg border-gray-300"
+                    />
+                </div>
+                <div>
+                    <label for="evt-descripcion">Descripción</label
+                    ><textarea
+                        id="evt-descripcion"
+                        v-model="formulario.descripcion"
+                        required
+                        maxlength="5000"
+                        rows="3"
+                        class="w-full rounded-lg border-gray-300"
+                    ></textarea>
+                </div>
+                <div>
+                    <label for="evt-lugar">Ubicación</label
+                    ><input
+                        id="evt-lugar"
+                        v-model="formulario.ubicacion"
+                        required
+                        maxlength="255"
+                        class="w-full rounded-lg border-gray-300"
+                    />
+                </div>
+                <div
+                    v-for="campo in [
+                        { id: 'fecha_hora_inicio', label: 'Inicio del evento' },
+                        { id: 'fecha_hora_fin', label: 'Fin del evento' },
+                        {
+                            id: 'fecha_inicio_registro',
+                            label: 'Apertura de inscripción',
+                        },
+                        {
+                            id: 'fecha_fin_registro',
+                            label: 'Cierre de inscripción',
+                        },
+                    ]"
+                    :key="campo.id"
+                >
+                    <label :for="campo.id">{{ campo.label }}</label
+                    ><input
+                        :id="campo.id"
+                        v-model="formulario[campo.id]"
+                        type="datetime-local"
+                        required
+                        class="w-full rounded-lg border-gray-300"
+                    />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="evt-cupo">Cupo</label
+                        ><input
+                            id="evt-cupo"
+                            v-model.number="formulario.capacidad"
+                            required
+                            type="number"
+                            min="1"
+                            max="10000"
+                            class="w-full rounded-lg border-gray-300"
+                        />
+                    </div>
+                    <div>
+                        <label for="evt-costo">Costo (MXN)</label
+                        ><input
+                            id="evt-costo"
+                            v-model.number="formulario.costo"
+                            required
+                            type="number"
+                            min="0"
+                            max="100000"
+                            step="0.01"
+                            class="w-full rounded-lg border-gray-300"
+                        />
                     </div>
                 </div>
-            </div>
-            
-            <div v-else class="bg-yellow-50 border border-yellow-200 p-6 rounded-xl text-yellow-800 font-semibold text-center">
-                No hay eventos activos publicados. ¡Crea uno nuevo!
-            </div>
-        </div>
-
-        <PanelLateral :show="mostrarPanelCrear" titulo="Crear Nuevo Evento" @close="mostrarPanelCrear = false">
-            <form @submit.prevent="guardarEvento" class="space-y-4">
-                <div><label class="block text-sm font-bold text-gray-700 mb-1">Título del Evento</label><input v-model="formEvento.titulo" required type="text" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:border-[#00378c]"></div>
-                <div><label class="block text-sm font-bold text-gray-700 mb-1">Descripción</label><textarea v-model="formEvento.descripcion" required rows="3" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:border-[#00378c]"></textarea></div>
-                <div><label class="block text-sm font-bold text-gray-700 mb-1">Ubicación</label><input v-model="formEvento.ubicacion" required type="text" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:border-[#00378c]"></div>
-                <div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-bold text-gray-700 mb-1">Fecha Inicio</label><input v-model="formEvento.fecha_hora_inicio" required type="datetime-local" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[#00378c]"></div><div><label class="block text-sm font-bold text-gray-700 mb-1">Fecha Fin</label><input v-model="formEvento.fecha_hora_fin" required type="datetime-local" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[#00378c]"></div></div>
-                <div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-bold text-gray-700 mb-1">Costo (MXN)</label><input v-model="formEvento.costo" type="number" min="0" step="0.5" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[#00378c]"></div><div><label class="block text-sm font-bold text-gray-700 mb-1">Aforo Máximo</label><input v-model="formEvento.capacidad" type="number" min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[#00378c]"></div></div>
+                <label class="flex items-center gap-2"
+                    ><input
+                        v-model="formulario.lista_espera"
+                        type="checkbox"
+                        class="rounded"
+                    />Habilitar lista de espera</label
+                >
+                <p v-if="formulario.costo > 0" class="text-sm text-amber-800">
+                    Se aceptarán reservas con pago pendiente; el cobro lo
+                    integrará el equipo 2.
+                </p>
             </form>
-            <template #footer><button @click="guardarEvento" class="px-4 py-2 bg-[#00378c] rounded-lg text-sm font-bold text-white hover:bg-[#002866]">Guardar Evento</button></template>
+            <template #footer
+                ><button
+                    form="form-evento"
+                    type="submit"
+                    :disabled="ocupado"
+                    class="rounded-lg bg-blue-900 px-4 py-2 text-white disabled:opacity-50"
+                >
+                    {{
+                        ocupado
+                            ? "Guardando…"
+                            : formulario.id
+                              ? "Guardar cambios"
+                              : "Guardar borrador"
+                    }}
+                </button></template
+            >
         </PanelLateral>
-
     </Modulo6Layout>
 </template>

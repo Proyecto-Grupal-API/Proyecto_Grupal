@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\AutoridadOrganizaciones;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -33,6 +35,9 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
+                'gestiona_organizaciones' => fn () => app(AutoridadOrganizaciones::class)->permite($request->user()),
+                'organizacion' => fn () => $request->attributes->get('organizacion'),
+                'puede_editar' => fn () => $request->attributes->get('organizacion') && Gate::allows('update', $request->attributes->get('organizacion')),
             ],
         ];
     }

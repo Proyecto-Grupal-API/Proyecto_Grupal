@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Services\ResponsabilidadesComunidad;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -51,9 +52,7 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
-        Auth::logout();
-
-        $user->delete();
+        app(ResponsabilidadesComunidad::class)->eliminarCuenta($user, fn () => Auth::logout());
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

@@ -29,6 +29,12 @@ return [
     */
 
     'disks' => [
+        'becas' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/becas'),
+            'serve' => false,
+            'throw' => true,
+        ],
 
         'local' => [
             'driver' => 'local',

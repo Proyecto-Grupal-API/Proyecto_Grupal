@@ -4,7 +4,7 @@ services:
             context: './docker/8.5'
             dockerfile: Dockerfile
             args:
-                WWWGROUP: '${WWWGROUP}'
+                WWWGROUP: '${WWWGROUP:-1000}'
         image: 'sail-8.5/app'
         extra_hosts:
             - 'host.docker.internal:host-gateway'
@@ -12,7 +12,7 @@ services:
             - '${APP_PORT:-80}:80'
             - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
         environment:
-            WWWUSER: '${WWWUSER}'
+            WWWUSER: '${WWWUSER:-1000}'
             LARAVEL_SAIL: 1
             XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
             XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
@@ -22,9 +22,32 @@ services:
         networks:
             - sail
         depends_on:
-            - mongodb
+            mongodb:
+                condition: service_healthy
+    comunidad.worker:
+        image: 'sail-8.5/app'
+        environment:
+            WWWUSER: '${WWWUSER:-1000}'
+            LARAVEL_SAIL: 1
+        command: ['php', 'artisan', 'queue:work', 'comunidad', '--queue=comunidad', '--sleep=2', '--tries=3', '--timeout=45', '--max-time=3600']
+        volumes:
+            - '.:/var/www/html'
+        networks:
+            - sail
+        depends_on:
+            mongodb:
+                condition: service_healthy
+        restart: unless-stopped
+        stop_grace_period: 60s
     mongodb:
-        image: 'mongo:latest'
+        # MongoDB 8.3.11: referencia de la imagen verificada en este entorno.
+        image: 'mongo@sha256:5d7043a4ffe02b9ed1b6e0bab057546981af5ca0a79107e9c461e49bc44c0a7b'
+        healthcheck:
+            test: ['CMD', 'mongosh', '--quiet', '--eval', 'quit(db.adminCommand({ping: 1}).ok ? 0 : 1)']
+            interval: 5s
+            timeout: 5s
+            retries: 10
+            start_period: 10s
         volumes:
             - 'sail-mongo-data:/data/db'
         ports:
@@ -35,9 +58,5 @@ networks:
     sail:
         driver: bridge
 volumes:
-    sail-mongodb:
-        driver: local
-    sail-mongodb-config:
-        driver: local
     sail-mongo-data:
         driver: local

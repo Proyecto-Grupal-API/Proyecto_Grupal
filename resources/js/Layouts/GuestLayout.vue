@@ -1,22 +1,22 @@
 <script setup>
-import ApplicationLogo from '@/Components/ApplicationLogo.vue';
-import { Link } from '@inertiajs/vue3';
+import CampusBrand from "@/Components/CampusBrand.vue";
+import { Link } from "@inertiajs/vue3";
 </script>
-
 <template>
-    <div
-        class="flex min-h-screen flex-col items-center bg-gray-100 pt-6 sm:justify-center sm:pt-0"
-    >
-        <div>
-            <Link href="/">
-                <ApplicationLogo class="h-20 w-20 fill-current text-gray-500" />
-            </Link>
-        </div>
-
-        <div
-            class="mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg"
-        >
-            <slot />
-        </div>
+    <div class="campus-auth">
+        <header class="campus-auth-header">
+            <Link href="/"><CampusBrand /></Link>
+        </header>
+        <main class="campus-auth-main">
+            <div class="campus-auth-intro">
+                <span>BIENVENIDO A TU CAMPUS</span>
+                <h1>Campus Digital</h1>
+                <p>Tu comunidad, en un solo lugar.</p>
+            </div>
+            <div class="campus-auth-card"><slot /></div>
+            <p class="campus-auth-caption">
+                Asociaciones · Eventos · Becas · Comunidad
+            </p>
+        </main>
     </div>
 </template>

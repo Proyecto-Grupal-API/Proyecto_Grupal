@@ -1,184 +1,471 @@
 <script setup>
-import { Head } from '@inertiajs/vue3';
-import Modulo6Layout from '@/Layouts/Modulo6Layout.vue';
-import PanelLateral from '@/Components/Panellateral.vue'; // Importación corregida
-import { ref, onMounted } from 'vue';
-import axios from 'axios';
-
-const datos = ref(null);
-const cargando = ref(true);
-
-// Control del panel lateral
-const mostrarPanelReporte = ref(false);
-
-// Formulario para el nuevo reporte
-const formReporte = ref({
-    titulo: '',
-    descripcion: '',
-    fecha_inicio: '',
-    fecha_fin: ''
-});
-
-onMounted(async () => {
+import { Head, Link, usePage } from "@inertiajs/vue3";
+import { ref, onMounted } from "vue";
+import axios from "axios";
+import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
+import PanelLateral from "@/Components/Panellateral.vue";
+import MetricasReporte from "@/Components/MetricasReporte.vue";
+const page = usePage();
+const datos = ref(null),
+    detalle = ref(null),
+    panel = ref(false),
+    form = ref({}),
+    buscar = ref(""),
+    error = ref(""),
+    aviso = ref(""),
+    cargando = ref(false),
+    ocupado = ref(false);
+const fecha = (v) =>
+    v
+        ? new Date(v).toLocaleString("es-MX", {
+              timeZone: "America/Mexico_City",
+              dateStyle: "medium",
+              timeStyle: "short",
+          })
+        : "";
+const dia = () =>
+    new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Mexico_City",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(new Date());
+function fallar(e) {
+    error.value =
+        Object.values(e.response?.data?.errors ?? {})
+            .flat()
+            .join(" ") ||
+        e.response?.data?.message ||
+        "No fue posible conectar con el servidor. Intenta de nuevo.";
+}
+async function cargar(p = datos.value?.page ?? 1) {
+    if (cargando.value || !page.props.auth.organizacion) return;
+    cargando.value = true;
     try {
-        const respuesta = await axios.get('/api/transparencia');
-        datos.value = respuesta.data;
-    } catch (error) {
-        console.error("Error al cargar transparencia", error);
+        datos.value = (
+            await axios.get("/api/transparencia", {
+                params: { page: p, buscar: buscar.value },
+            })
+        ).data;
+    } catch (e) {
+        fallar(e);
     } finally {
         cargando.value = false;
     }
-});
-
-const formatearFecha = (fechaString) => {
-    if (!fechaString) return '';
-    const opciones = { day: 'numeric', month: 'long', year: 'numeric' };
-    return new Date(fechaString).toLocaleDateString('es-MX', opciones);
-};
-
-// Función para procesar el guardado
-const generarReporte = () => {
-    console.log("Datos del reporte:", formReporte.value);
-    alert("¡Aquí se calcularán los datos agregados y se enviarán vía POST!");
-};
+}
+onMounted(() => cargar(1));
+async function ejecutar(fn) {
+    if (ocupado.value) return;
+    ocupado.value = true;
+    error.value = "";
+    aviso.value = "";
+    try {
+        const { data } = await fn();
+        aviso.value = data.message ?? "";
+        return data;
+    } catch (e) {
+        fallar(e);
+    } finally {
+        ocupado.value = false;
+    }
+}
+function nuevo() {
+    error.value = "";
+    const hoy = dia();
+    form.value = {
+        titulo: "",
+        descripcion: "",
+        fecha_inicio: hoy.slice(0, 7) + "-01",
+        fecha_fin: hoy,
+        clave_solicitud: crypto.randomUUID(),
+    };
+    panel.value = true;
+}
+async function generar() {
+    const d = await ejecutar(() =>
+        axios.post("/api/transparencia/reportes", form.value),
+    );
+    if (d) {
+        detalle.value = d.reporte;
+        panel.value = false;
+        await cargar(1);
+    }
+}
+async function abrir(r) {
+    const d = await ejecutar(() =>
+        axios.get(`/api/transparencia/reportes/${r.id}`),
+    );
+    if (d) detalle.value = d;
+}
+async function publicar() {
+    const d = await ejecutar(async () => {
+        const res = await axios.post(
+            `/api/transparencia/reportes/${detalle.value.id}/publicar`,
+            { confirmar: true },
+        );
+        const reporte = (
+            await axios.get(`/api/transparencia/reportes/${detalle.value.id}`)
+        ).data;
+        return { data: { ...res.data, reporte } };
+    });
+    if (d) {
+        detalle.value = d.reporte;
+        await cargar();
+    }
+}
+async function retirar() {
+    const motivo = prompt(
+        "Motivo de retiro (mínimo 10 caracteres). El reporte dejará de estar disponible para los integrantes.",
+    );
+    if (motivo === null) return;
+    const d = await ejecutar(() =>
+        axios.post(`/api/transparencia/reportes/${detalle.value.id}/retirar`, {
+            motivo,
+        }),
+    );
+    if (d) {
+        detalle.value = null;
+        await cargar();
+    }
+}
 </script>
-
 <template>
-    <Head title="Transparencia - Campus Digital" />
-
-    <Modulo6Layout headerTitle="Transparencia y Rendición de Cuentas">
-        
-        <template #headerActions>
-            <!-- Botón conectado al panel -->
-            <button @click="mostrarPanelReporte = true" class="bg-[#00378c] text-white font-semibold py-1.5 px-4 rounded-lg hover:bg-[#002866] transition flex items-center">
-                <span class="mr-2">📄</span> Generar Nuevo Reporte
-            </button>
-        </template>
-
-        <div class="p-8 space-y-6">
-            
-            <div v-if="cargando" class="flex justify-center py-12">
-                <p class="text-[#00378c] font-bold animate-pulse">Cargando reportes públicos...</p>
-            </div>
-
-            <div v-else-if="datos" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                <!-- Reportes Públicos -->
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Reportes Públicos Publicados</h3>
-                    <p class="text-sm text-gray-500 mb-6">Información estadística generada a partir de los datos agregados. Los datos personales de los estudiantes se mantienen ocultos.</p>
-                    
-                    <div class="space-y-6">
-                        
-                        <div v-for="reporte in datos.reportes" :key="reporte.id" class="border border-gray-200 rounded-lg p-5 bg-gray-50 relative">
-                            <div class="absolute top-4 right-4 text-gray-400 hover:text-[#00378c] cursor-pointer">⬇️ PDF</div>
-                            <h4 class="font-bold text-lg text-[#002866]">{{ reporte.titulo }}</h4>
-                            <p class="text-xs text-gray-500 mb-4">Publicado el {{ formatearFecha(reporte.publicado_en) }}</p>
-                            
-                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
-                                <div v-for="(valor, llave) in reporte.datos" :key="llave" class="bg-white p-3 rounded shadow-sm border border-gray-100">
-                                    <p class="text-xs text-gray-500 font-bold uppercase">{{ llave }}</p>
-                                    <p class="text-xl font-bold text-gray-800">{{ valor }}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-if="datos.reportes.length === 0" class="text-center text-gray-500 text-sm">
-                            No hay reportes publicados.
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Resultados de Votaciones -->
-                <div class="space-y-6">
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <div class="flex justify-between items-center mb-4 border-b pb-2">
-                            <h3 class="text-lg font-bold text-gray-800">Resultados de Votaciones</h3>
-                            <span class="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded">Histórico</span>
-                        </div>
-                        
-                        <div v-if="datos.eleccion">
-                            <div class="mb-2">
-                                <h4 class="font-bold text-gray-800">{{ datos.eleccion.titulo }}</h4>
-                                <p class="text-xs text-gray-500">Participación: {{ datos.totalVotos }} votos emitidos ({{ datos.eleccion.criterios_votantes }})</p>
-                            </div>
-                            
-                            <div v-for="(resultado, index) in datos.resultados" :key="resultado.id" class="mt-4">
-                                <div class="flex justify-between text-sm mb-1">
-                                    <span class="font-semibold text-gray-700">{{ resultado.planilla }}</span>
-                                    <span :class="index === 0 ? 'text-[#00378c]' : 'text-gray-500'" class="font-bold">
-                                        {{ resultado.votos }} votos ({{ resultado.porcentaje }}%)
-                                    </span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-3">
-                                    <div :class="index === 0 ? 'bg-[#00378c]' : 'bg-gray-400'" class="h-3 rounded-full transition-all duration-1000" :style="{ width: resultado.porcentaje + '%' }"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div v-else class="text-center text-gray-500 text-sm py-4">
-                            No hay elecciones registradas.
-                        </div>
-
-                        <div class="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-[#002866] flex items-start">
-                            <span class="mr-2 text-lg">🛡️</span>
-                            <p><strong>Auditoría Electoral:</strong> El sistema garantizó un voto por estudiante mediante la llave única de la tabla de votos.</p>
-                        </div>
-                    </div>
-
-                    <!-- Módulo de Auditoría -->
-                    <div class="bg-gray-900 rounded-xl shadow-sm border border-gray-800 p-6 text-white">
-                        <h3 class="font-bold text-lg mb-2">Registro de Auditoría (Logs)</h3>
-                        <p class="text-gray-400 text-sm mb-4">Todas las asignaciones de becas y recargas han sido firmadas criptográficamente.</p>
-                        <div class="bg-gray-800 rounded p-3 font-mono text-xs text-green-400">
-                            > [18:04:22] CONEXIÓN API - ESTADO: ESTABLE<br>
-                            > [17:30:10] MÓDULO 6 - VISTAS: 100% DINÁMICAS<br>
-                            > [16:15:05] DATA GRIP - SINCRONIZADO
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- PANEL LATERAL PARA NUEVO REPORTE -->
-        <PanelLateral 
-            :show="mostrarPanelReporte" 
-            titulo="Generar Reporte de Transparencia" 
-            @close="mostrarPanelReporte = false"
-        >
-            <form @submit.prevent="generarReporte" class="space-y-4">
-                <div class="bg-blue-50 text-[#002866] p-3 rounded-lg text-sm border border-blue-100 mb-4 flex items-start">
-                    <span class="mr-2">💡</span>
-                    El sistema calculará automáticamente los fondos, eventos y becas entregadas dentro del periodo seleccionado.
-                </div>
-
+    <Head title="Transparencia — Campus Digital" />
+    <Modulo6Layout headerTitle="Transparencia y resultados"
+        ><div class="campus-page space-y-6">
+            <div class="flex flex-wrap justify-between gap-3 items-center">
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Título del Reporte</label>
-                    <input v-model="formReporte.titulo" type="text" placeholder="Ej. Reporte Semestral Enero-Junio" class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:border-[#00378c] focus:ring-1 focus:ring-[#00378c]">
+                    <h1 class="text-2xl font-bold">
+                        Transparencia y resultados
+                    </h1>
+                    <p class="text-sm text-gray-600 mt-1">
+                        Reportes para los integrantes de tu organización.
+                    </p>
                 </div>
-                
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Descripción / Notas Adicionales</label>
-                    <textarea v-model="formReporte.descripcion" rows="3" placeholder="Contexto sobre los gastos e ingresos..." class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:border-[#00378c] focus:ring-1 focus:ring-[#00378c]"></textarea>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Periodo de Inicio</label>
-                        <input v-model="formReporte.fecha_inicio" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[#00378c] focus:ring-1 focus:ring-[#00378c]">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Periodo de Fin</label>
-                        <input v-model="formReporte.fecha_fin" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[#00378c] focus:ring-1 focus:ring-[#00378c]">
-                    </div>
-                </div>
-            </form>
-            
-            <template #footer>
-                <button @click="generarReporte" class="px-4 py-2 bg-[#00378c] rounded-lg text-sm font-bold text-white hover:bg-[#002866] transition shadow-sm">
-                    Calcular y Publicar
+                <button
+                    v-if="page.props.auth.puede_editar"
+                    @click="nuevo"
+                    :disabled="ocupado"
+                    class="rounded-lg bg-blue-900 text-white px-4 py-2"
+                >
+                    Nuevo reporte
                 </button>
+            </div>
+            <p
+                v-if="!page.props.auth.organizacion"
+                class="bg-white border rounded-xl p-6"
+            >
+                Necesitas una membresía activa para consultar los reportes de
+                una organización.
+            </p>
+            <p
+                v-if="aviso"
+                role="status"
+                class="rounded-lg bg-green-50 text-green-800 p-4"
+            >
+                {{ aviso }}
+            </p>
+            <p
+                v-if="error && !panel"
+                role="alert"
+                class="rounded-lg bg-red-50 text-red-800 p-4"
+            >
+                {{ error }}
+            </p>
+            <template v-if="page.props.auth.organizacion">
+                <p class="text-sm text-gray-600">
+                    Cada reporte conserva las cifras al generarse. Las
+                    aprobaciones de becas y los pagos pendientes no representan
+                    apoyos entregados ni dinero cobrado.
+                </p>
+                <section
+                    v-if="detalle"
+                    class="rounded-xl border-2 border-blue-200 bg-white p-5 md:p-6 space-y-5"
+                >
+                    <div class="flex justify-between gap-3">
+                        <h2 class="text-xl font-bold break-words min-w-0">
+                            {{ detalle.titulo }}
+                        </h2>
+                        <button
+                            @click="detalle = null"
+                            :disabled="ocupado"
+                            aria-label="Cerrar reporte"
+                        >
+                            Cerrar
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-600">
+                        {{ detalle.estado }} · {{ detalle.fecha_inicio }} al
+                        {{ detalle.fecha_fin }} (ambos inclusive, Ciudad de
+                        México)<br />Generado: {{ fecha(detalle.generado_en) }}
+                    </p>
+                    <p
+                        v-if="detalle.descripcion"
+                        class="whitespace-pre-line break-words"
+                    >
+                        {{ detalle.descripcion }}
+                    </p>
+                    <p
+                        v-if="detalle.motivo_retiro"
+                        class="text-amber-800 break-words"
+                    >
+                        Retirado: {{ detalle.motivo_retiro }}
+                    </p>
+                    <div class="flex flex-wrap gap-3 text-sm font-semibold">
+                        <a
+                            :href="`/api/transparencia/reportes/${detalle.id}/csv`"
+                            class="text-blue-800"
+                            >Descargar CSV</a
+                        ><a
+                            :href="`/api/transparencia/reportes/${detalle.id}/imprimir`"
+                            target="_blank"
+                            rel="noopener"
+                            class="text-blue-800"
+                            >Imprimir / guardar PDF</a
+                        ><button
+                            v-if="
+                                datos?.puede_gestionar &&
+                                detalle.estado !== 'retirado'
+                            "
+                            @click="retirar"
+                            :disabled="ocupado"
+                            class="text-red-700"
+                        >
+                            {{
+                                detalle.estado === "borrador"
+                                    ? "Descartar borrador"
+                                    : "Retirar publicación"
+                            }}
+                        </button>
+                    </div>
+                    <MetricasReporte :metricas="detalle.metricas" />
+                    <div
+                        v-if="
+                            datos?.puede_gestionar &&
+                            detalle.estado === 'borrador'
+                        "
+                        class="border-t pt-4 space-y-3"
+                    >
+                        <p class="text-sm">
+                            Revisa las cifras, sus criterios y el contexto
+                            escrito antes de publicar. Usa únicamente contexto
+                            general, sin nombres ni datos personales. Para
+                            cambiar el periodo o recalcular, genera otro
+                            borrador.
+                        </p>
+                        <button
+                            @click="publicar"
+                            :disabled="ocupado"
+                            class="rounded-lg bg-blue-900 text-white px-4 py-2"
+                        >
+                            Confirmar publicación
+                        </button>
+                    </div>
+                </section>
+                <section class="space-y-4">
+                    <h2 class="text-xl font-bold">
+                        {{
+                            datos?.puede_gestionar
+                                ? "Reportes de la organización"
+                                : "Reportes publicados"
+                        }}
+                    </h2>
+                    <form @submit.prevent="cargar(1)" class="flex gap-3">
+                        <input
+                            v-model="buscar"
+                            aria-label="Buscar reportes"
+                            maxlength="120"
+                            placeholder="Buscar por título"
+                            class="min-w-0 flex-1 rounded-lg border-gray-300"
+                        /><button
+                            :disabled="cargando"
+                            class="border rounded-lg bg-white px-4 py-2"
+                        >
+                            Buscar
+                        </button>
+                    </form>
+                    <p v-if="cargando">Cargando reportes…</p>
+                    <div v-if="datos" class="grid md:grid-cols-2 gap-4">
+                        <article
+                            v-for="r in datos.reportes"
+                            :key="r.id"
+                            class="bg-white border rounded-xl p-5 space-y-3 min-w-0"
+                        >
+                            <h3 class="text-lg font-bold break-words">
+                                {{ r.titulo }}
+                            </h3>
+                            <p class="text-sm text-gray-600">
+                                {{ r.fecha_inicio }} al {{ r.fecha_fin }} ·
+                                {{ r.estado }}<br />Generado:
+                                {{ fecha(r.generado_en) }}
+                            </p>
+                            <button
+                                @click="abrir(r)"
+                                :disabled="ocupado"
+                                class="text-blue-800 font-semibold"
+                            >
+                                Ver reporte
+                            </button>
+                        </article>
+                    </div>
+                    <p
+                        v-if="datos && !datos.reportes.length && !cargando"
+                        class="border bg-white rounded-xl p-6 text-gray-500"
+                    >
+                        No hay reportes disponibles para esta búsqueda.
+                    </p>
+                    <div
+                        v-if="datos?.last_page > 1"
+                        class="flex gap-4 justify-center"
+                    >
+                        <button
+                            @click="cargar(datos.page - 1)"
+                            :disabled="cargando || datos.page === 1"
+                        >
+                            Anterior</button
+                        ><span>{{ datos.page }} / {{ datos.last_page }}</span
+                        ><button
+                            @click="cargar(datos.page + 1)"
+                            :disabled="
+                                cargando || datos.page === datos.last_page
+                            "
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                </section>
+                <section
+                    v-if="datos"
+                    class="rounded-xl border bg-white p-5 space-y-4"
+                >
+                    <div class="flex flex-wrap justify-between gap-3">
+                        <h2 class="text-xl font-bold">
+                            Última votación cerrada
+                        </h2>
+                        <Link href="/modulo6/votaciones" class="text-blue-800"
+                            >Ir a votaciones</Link
+                        >
+                    </div>
+                    <template v-if="datos.eleccion"
+                        ><h3 class="font-semibold break-words">
+                            {{ datos.eleccion.titulo }}
+                        </h3>
+                        <p class="text-sm text-gray-600">
+                            {{ datos.totalVotos }} votos ·
+                            {{ datos.eleccion.criterios_votantes }}
+                        </p>
+                        <div
+                            v-for="opcion in datos.resultados"
+                            :key="opcion.id"
+                        >
+                            <div
+                                class="flex flex-wrap justify-between gap-2 text-sm"
+                            >
+                                <span class="break-words">{{
+                                    opcion.planilla
+                                }}</span
+                                ><span
+                                    >{{ opcion.votos }} ·
+                                    {{ opcion.porcentaje }}%</span
+                                >
+                            </div>
+                            <div
+                                class="h-2 rounded-full bg-gray-100 mt-1 overflow-hidden"
+                            >
+                                <div
+                                    class="h-2 bg-blue-800"
+                                    :style="{ width: opcion.porcentaje + '%' }"
+                                ></div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500">
+                            Los conteos incluyen empates y no asignan cargos
+                            automáticamente.
+                        </p></template
+                    >
+                    <p v-else class="text-gray-500">
+                        No hay votaciones cerradas.
+                    </p>
+                </section>
             </template>
-        </PanelLateral>
-
+        </div>
+        <PanelLateral
+            :show="panel"
+            titulo="Nuevo reporte"
+            @close="!ocupado && (panel = false)"
+            ><p
+                v-if="error"
+                role="alert"
+                class="bg-red-50 text-red-800 rounded-lg p-3 mb-4"
+            >
+                {{ error }}
+            </p>
+            <form id="form-reporte" @submit.prevent="generar">
+                <fieldset :disabled="ocupado" class="space-y-4">
+                    <div>
+                        <label for="reporte-titulo">Título</label
+                        ><input
+                            id="reporte-titulo"
+                            v-model="form.titulo"
+                            required
+                            maxlength="150"
+                            class="w-full rounded-lg border-gray-300"
+                        />
+                    </div>
+                    <div>
+                        <label for="reporte-descripcion"
+                            >Contexto general (opcional)</label
+                        ><textarea
+                            id="reporte-descripcion"
+                            v-model="form.descripcion"
+                            maxlength="1500"
+                            rows="4"
+                            class="w-full rounded-lg border-gray-300"
+                        ></textarea>
+                        <p class="text-xs text-gray-500">
+                            Evita nombres, matrículas y detalles de expedientes.
+                        </p>
+                    </div>
+                    <div>
+                        <label for="reporte-inicio">Fecha de inicio</label
+                        ><input
+                            id="reporte-inicio"
+                            v-model="form.fecha_inicio"
+                            type="date"
+                            :max="dia()"
+                            required
+                            class="w-full rounded-lg border-gray-300"
+                        />
+                    </div>
+                    <div>
+                        <label for="reporte-fin">Fecha de fin (inclusive)</label
+                        ><input
+                            id="reporte-fin"
+                            v-model="form.fecha_fin"
+                            type="date"
+                            :min="form.fecha_inicio"
+                            :max="dia()"
+                            required
+                            class="w-full rounded-lg border-gray-300"
+                        />
+                    </div>
+                    <p class="text-sm text-gray-600">
+                        Máximo 366 días. Las cifras se calculan al generar y se
+                        guardan para revisión; la publicación es un paso
+                        posterior.
+                    </p>
+                </fieldset>
+            </form>
+            <template #footer
+                ><button
+                    type="submit"
+                    form="form-reporte"
+                    :disabled="ocupado"
+                    class="rounded-lg bg-blue-900 text-white px-4 py-2"
+                >
+                    {{ ocupado ? "Generando…" : "Generar borrador" }}
+                </button></template
+            ></PanelLateral
+        >
     </Modulo6Layout>
 </template>

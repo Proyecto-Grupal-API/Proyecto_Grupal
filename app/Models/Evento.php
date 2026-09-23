@@ -3,18 +3,21 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use MongoDB\Laravel\Eloquent\Model;
 
-class Evento extends Model
+class Evento extends Documento
 {
     use HasFactory;
 
     protected $connection = 'mongodb';
-    protected $collection = 'eventos';
+
+    protected $table = 'eventos';
 
     protected $fillable = [
         'organizacion_id',
         'tipo_evento_id',
+        'lista_espera',
+        'motivo_cancelacion',
+        'cancelado_en',
         'titulo',
         'slug',
         'descripcion',
@@ -28,6 +31,11 @@ class Evento extends Model
         'estado',
         'creado_por',
         'creado_en',
-        'actualizado_en'
+        'actualizado_en',
     ];
+
+    protected function casts(): array
+    {
+        return ['lista_espera' => 'boolean', 'cancelado_en' => 'datetime', 'fecha_hora_inicio' => 'datetime', 'fecha_hora_fin' => 'datetime', 'fecha_inicio_registro' => 'datetime', 'fecha_fin_registro' => 'datetime', 'capacidad' => 'integer', 'costo' => 'float'];
+    }
 }

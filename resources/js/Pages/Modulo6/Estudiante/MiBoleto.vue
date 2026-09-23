@@ -1,132 +1,282 @@
 <script setup>
-import { Head } from '@inertiajs/vue3';
-import { ref, onMounted, computed } from 'vue';
-import axios from 'axios';
-
-const boleto = ref(null);
-const cargando = ref(true);
-
-onMounted(async () => {
+import { Head, Link } from "@inertiajs/vue3";
+import { ref, onMounted, onBeforeUnmount } from "vue";
+import axios from "axios";
+import QRCode from "qrcode";
+import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
+const props = defineProps({ eventoId: String });
+const boletos = ref([]),
+    cargando = ref(false),
+    error = ref(""),
+    aviso = ref(""),
+    ocupado = ref(false),
+    pagina = ref(1),
+    ultima = ref(1),
+    qrs = ref({});
+const fecha = (v) =>
+    v
+        ? new Intl.DateTimeFormat("es-MX", {
+              dateStyle: "medium",
+              timeStyle: "short",
+              timeZone: "America/Mexico_City",
+          }).format(new Date(v))
+        : "";
+let timer;
+async function cargar(p = pagina.value, silencioso = false) {
+    if (cargando.value) return;
+    cargando.value = true;
+    if (!silencioso) error.value = "";
     try {
-        const respuesta = await axios.get('/api/estudiante/mi-boleto');
-        boleto.value = respuesta.data;
-    } catch (error) {
-        console.error("Error al cargar el boleto:", error);
+        if (props.eventoId)
+            boletos.value = [
+                (await axios.get(`/api/eventos/${props.eventoId}/boleto`)).data,
+            ];
+        else {
+            const { data } = await axios.get("/api/estudiante/boletos", {
+                params: { page: p },
+            });
+            boletos.value = data.boletos;
+            pagina.value = data.page;
+            ultima.value = data.last_page;
+        }
+        const imagenes = {};
+        for (const b of boletos.value)
+            if (b.qr_habilitado && b.token_qr)
+                imagenes[b.id] = await QRCode.toDataURL(b.token_qr, {
+                    width: 280,
+                    margin: 4,
+                    errorCorrectionLevel: "M",
+                });
+        qrs.value = imagenes;
+        error.value = "";
+    } catch (e) {
+        error.value =
+            e.response?.status === 404
+                ? "No tienes una inscripción para este evento."
+                : "No se pudo actualizar el boleto. Intenta nuevamente.";
+        qrs.value = {};
     } finally {
         cargando.value = false;
     }
+}
+onMounted(() => {
+    cargar();
+    timer = setInterval(() => {
+        if (!document.hidden && !ocupado.value) cargar(pagina.value, true);
+    }, 20000);
 });
-
-const formatearFecha = (fechaString) => {
-    if (!fechaString) return { dia: '', mes: '', hora: '' };
-    const fecha = new Date(fechaString);
-    return {
-        dia: fecha.toLocaleDateString('es-MX', { day: '2-digit' }),
-        mes: fecha.toLocaleDateString('es-MX', { month: 'short' }).toUpperCase(),
-        hora: fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
-    };
-};
-
-const fechaFormateada = computed(() => formatearFecha(boleto.value?.fecha_hora_inicio));
-
-// Usamos una API gratuita para generar el QR al vuelo usando el token de tu base de datos
-const qrUrl = computed(() => {
-    if (!boleto.value?.token_qr) return '';
-    return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${boleto.value.token_qr}`;
-});
+onBeforeUnmount(() => clearInterval(timer));
+async function cancelar(b) {
+    if (
+        !confirm(
+            "¿Cancelar tu inscripción? Si liberas un lugar se asignará a quien siga en la lista de espera.",
+        )
+    )
+        return;
+    ocupado.value = true;
+    error.value = "";
+    aviso.value = "";
+    try {
+        const { data } = await axios.delete(
+            `/api/eventos/${b.evento_id}/inscripcion`,
+        );
+        aviso.value = data.message;
+        await cargar();
+    } catch (e) {
+        error.value =
+            Object.values(e.response?.data?.errors ?? {})
+                .flat()
+                .join(" ") ||
+            e.response?.data?.message ||
+            "No se pudo cancelar.";
+    } finally {
+        ocupado.value = false;
+    }
+}
+function estado(b) {
+    if (b.estado === "cancelada") return "Inscripción cancelada";
+    if (b.estado_asistencia === "asistio") return "Asistencia registrada";
+    if (b.estado === "espera")
+        return `Lista de espera · posición ${b.posicion_espera ?? "—"}`;
+    if (b.estado_pago === "pendiente")
+        return "Lugar reservado · pago pendiente";
+    if (new Date(b.fecha_hora_fin) <= new Date()) return "Evento finalizado";
+    return "Inscripción confirmada";
+}
 </script>
-
 <template>
-    <Head title="Mi Boleto - Campus Digital" />
-
-    <!-- Fondo oscuro estilo app móvil -->
-    <div class="min-h-screen bg-[#001a4d] flex flex-col items-center py-10 px-4 font-sans">
-        
-        <!-- Header simple -->
-        <div class="w-full max-w-md flex justify-between items-center mb-8 text-white">
-            <button class="text-2xl font-bold">&larr;</button>
-            <h1 class="text-lg font-bold tracking-widest">MIS BOLETOS</h1>
-            <div class="w-6"></div>
-        </div>
-
-        <div v-if="cargando" class="text-white animate-pulse font-bold mt-20">
-            Generando pase de acceso...
-        </div>
-
-        <div v-else-if="boleto" class="w-full max-w-sm">
-            
-            <!-- DISEÑO DE BOLETO / TICKET -->
-            <div class="bg-white rounded-2xl shadow-2xl overflow-hidden relative">
-                
-                <!-- Círculos para simular el recorte del boleto -->
-                <div class="absolute top-[65%] -left-4 w-8 h-8 bg-[#001a4d] rounded-full z-10"></div>
-                <div class="absolute top-[65%] -right-4 w-8 h-8 bg-[#001a4d] rounded-full z-10"></div>
-
-                <!-- Mitad superior: Info del Evento -->
-                <div class="p-8 bg-gradient-to-br from-[#002866] to-[#00378c] text-white text-center">
-                    <span class="bg-white text-[#002866] text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-4 inline-block">
-                        Acceso General
-                    </span>
-                    <h2 class="text-2xl font-bold leading-tight mb-2">{{ boleto.titulo }}</h2>
-                    <p class="text-blue-200 text-sm mb-6 flex items-center justify-center">
-                        <span class="mr-1">📍</span> {{ boleto.ubicacion }}
-                    </p>
-                    
-                    <div class="flex justify-center items-center space-x-6 bg-[#001a4d]/30 rounded-xl p-3">
-                        <div class="text-center">
-                            <p class="text-[10px] text-blue-300 uppercase">Día</p>
-                            <p class="text-xl font-bold">{{ fechaFormateada.dia }}</p>
-                        </div>
-                        <div class="text-center border-l border-r border-blue-400/30 px-6">
-                            <p class="text-[10px] text-blue-300 uppercase">Mes</p>
-                            <p class="text-xl font-bold">{{ fechaFormateada.mes }}</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-[10px] text-blue-300 uppercase">Hora</p>
-                            <p class="text-xl font-bold">{{ fechaFormateada.hora }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Línea punteada de recorte -->
-                <div class="border-t-2 border-dashed border-gray-300 mx-4 mt-2 relative top-[65%] z-0"></div>
-
-                <!-- Mitad inferior: El Código QR -->
-                <div class="p-8 flex flex-col items-center bg-white">
-                    <p class="text-xs text-gray-500 uppercase font-bold tracking-widest mb-4">Escanea en la entrada</p>
-                    
-                    <div class="p-3 border-4 border-gray-100 rounded-2xl bg-white shadow-sm mb-4">
-                        <img :src="qrUrl" alt="Código QR de Acceso" class="w-48 h-48 object-contain">
-                    </div>
-                    
-                    <p class="font-mono text-gray-400 text-xs tracking-[0.3em]">{{ boleto.token_qr }}</p>
-
-                    <!-- Etiqueta de estado -->
-                    <div class="mt-6 w-full text-center">
-                        <span v-if="boleto.estado_asistencia === 'asistio'" class="bg-green-100 text-green-800 font-bold px-4 py-2 rounded-lg text-sm block">
-                            ✅ ASISTENCIA REGISTRADA
-                        </span>
-                        <span v-else-if="boleto.estado_pago === 'pagado' || boleto.estado_pago === 'exento'" class="bg-blue-50 text-[#00378c] font-bold px-4 py-2 rounded-lg text-sm block border border-blue-100">
-                            Boleto Pagado y Listo
-                        </span>
-                        <span v-else class="bg-yellow-100 text-yellow-800 font-bold px-4 py-2 rounded-lg text-sm block">
-                            ⚠️ Pago Pendiente
-                        </span>
-                    </div>
+    <Head title="Mis boletos — Campus Digital" />
+    <Modulo6Layout headerTitle="Mis boletos">
+        <div class="campus-page space-y-5">
+            <div class="flex flex-wrap justify-between gap-3 items-center">
+                <Link
+                    href="/modulo6/eventos"
+                    class="text-blue-800 font-semibold"
+                    >← Explorar eventos</Link
+                >
+                <div class="flex gap-3">
+                    <Link
+                        v-if="eventoId"
+                        href="/modulo6/mis-boletos"
+                        class="text-blue-800"
+                        >Todos mis boletos</Link
+                    ><button
+                        @click="cargar()"
+                        :disabled="cargando"
+                        class="rounded-lg border bg-white px-3 py-2"
+                    >
+                        Actualizar
+                    </button>
                 </div>
             </div>
-
-            <!-- Botón de Apple Wallet / Google Wallet falso por diseño -->
-            <button class="w-full mt-6 bg-black text-white font-bold py-3 rounded-xl flex items-center justify-center space-x-2 shadow-lg">
-                <span>Añadir a Google Wallet</span>
-            </button>
-
+            <p
+                v-if="error"
+                role="alert"
+                class="rounded-lg bg-red-50 p-4 text-red-800"
+            >
+                {{ error }}
+            </p>
+            <p
+                v-if="aviso"
+                role="status"
+                class="rounded-lg bg-green-50 p-4 text-green-800"
+            >
+                {{ aviso }}
+            </p>
+            <p v-if="cargando && !boletos.length" role="status">
+                Cargando boletos…
+            </p>
+            <p
+                v-if="!cargando && !error && !boletos.length"
+                class="rounded-xl bg-white border p-8 text-center"
+            >
+                Todavía no tienes inscripciones. Explora los eventos del campus.
+            </p>
+            <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+                <article
+                    v-for="b in boletos"
+                    :key="b.id"
+                    class="rounded-2xl border bg-white overflow-hidden"
+                >
+                    <div class="bg-blue-950 text-white p-6">
+                        <p
+                            class="text-xs uppercase tracking-widest text-blue-200"
+                        >
+                            Campus Digital · Boleto personal
+                        </p>
+                        <h1 class="mt-2 text-xl font-bold">{{ b.titulo }}</h1>
+                        <p class="mt-3 text-sm">
+                            {{ fecha(b.fecha_hora_inicio) }}
+                        </p>
+                        <p class="text-sm mt-1">{{ b.ubicacion }}</p>
+                        <p class="text-xs text-blue-200 mt-2">
+                            Horario de Ciudad de México
+                        </p>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <p
+                            class="font-semibold"
+                            :class="
+                                b.estado === 'cancelada'
+                                    ? 'text-red-700'
+                                    : b.estado === 'espera' ||
+                                        b.estado_pago === 'pendiente'
+                                      ? 'text-amber-800'
+                                      : 'text-blue-900'
+                            "
+                        >
+                            {{ estado(b) }}
+                        </p>
+                        <p
+                            v-if="b.organizacion_activa === false"
+                            class="rounded-lg bg-amber-50 p-3 text-amber-900"
+                        >
+                            La organización no está activa. Tu reserva se
+                            conserva, pero el acceso está suspendido.
+                        </p>
+                        <template v-if="b.qr_habilitado && qrs[b.id]"
+                            ><img
+                                :src="qrs[b.id]"
+                                :alt="`QR de acceso para ${b.titulo}`"
+                                width="280"
+                                height="280"
+                                class="w-full max-w-[280px] mx-auto"
+                            />
+                            <details class="text-sm">
+                                <summary class="cursor-pointer text-blue-800">
+                                    Ver código de acceso
+                                </summary>
+                                <p
+                                    class="mt-2 break-all font-mono select-all text-xs"
+                                >
+                                    {{ b.token_qr }}
+                                </p>
+                            </details>
+                            <a
+                                :href="qrs[b.id]"
+                                :download="`boleto-${b.evento_id}.png`"
+                                class="block text-center rounded-lg border py-2 text-sm font-semibold"
+                                >Descargar QR</a
+                            ></template
+                        >
+                        <p
+                            v-if="b.estado === 'espera'"
+                            class="text-sm text-gray-600"
+                        >
+                            Si se libera un lugar antes del inicio, tu reserva
+                            se confirmará por orden de inscripción. La página se
+                            actualiza automáticamente.
+                        </p>
+                        <p
+                            v-if="
+                                b.estado_pago === 'pendiente' &&
+                                b.estado !== 'cancelada'
+                            "
+                            class="text-sm text-amber-800"
+                        >
+                            {{
+                                (b.monto_centavos / 100).toLocaleString(
+                                    "es-MX",
+                                    { style: "currency", currency: "MXN" },
+                                )
+                            }}
+                            pendientes. No se han realizado cobros. El QR se
+                            habilitará cuando se integre y confirme el pago.
+                        </p>
+                        <p
+                            v-if="b.motivo_cancelacion"
+                            class="text-sm text-red-700"
+                        >
+                            Motivo: {{ b.motivo_cancelacion }}
+                        </p>
+                        <button
+                            v-if="b.puede_cancelar"
+                            @click="cancelar(b)"
+                            :disabled="ocupado"
+                            class="text-sm text-red-700 font-semibold disabled:opacity-50"
+                        >
+                            Cancelar inscripción
+                        </button>
+                    </div>
+                </article>
+            </div>
+            <div
+                v-if="ultima > 1"
+                class="flex justify-center items-center gap-4"
+            >
+                <button
+                    :disabled="pagina === 1 || cargando"
+                    @click="cargar(pagina - 1)"
+                >
+                    Anterior</button
+                ><span>{{ pagina }} / {{ ultima }}</span
+                ><button
+                    :disabled="pagina === ultima || cargando"
+                    @click="cargar(pagina + 1)"
+                >
+                    Siguiente
+                </button>
+            </div>
         </div>
-
-        <div v-else class="text-white text-center mt-20">
-            <p class="text-4xl mb-4">🎟️</p>
-            <p class="font-bold">No tienes boletos activos</p>
-            <p class="text-sm text-gray-400 mt-2">Los eventos a los que te inscribas aparecerán aquí.</p>
-        </div>
-    </div>
+    </Modulo6Layout>
 </template>

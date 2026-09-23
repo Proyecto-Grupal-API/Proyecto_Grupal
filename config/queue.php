@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'default' => env('QUEUE_CONNECTION', 'database'),
+    'default' => env('QUEUE_CONNECTION', 'sync'),
 
     /*
     |--------------------------------------------------------------------------
@@ -29,6 +29,13 @@ return [
     */
 
     'connections' => [
+        'comunidad' => [
+            'driver' => 'mongodb',
+            'connection' => 'mongodb',
+            'collection' => 'jobs_comunidad',
+            'queue' => 'comunidad',
+            'retry_after' => 120,
+        ],
 
         'sync' => [
             'driver' => 'sync',

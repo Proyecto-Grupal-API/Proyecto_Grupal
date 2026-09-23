@@ -1,50 +1,216 @@
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3';
-import { computed, ref, onMounted } from 'vue';
-import Panellateral from '@/Components/Panellateral.vue';
-import axios from 'axios';
+import { Link, usePage } from "@inertiajs/vue3";
+import {
+    computed,
+    ref,
+    onMounted,
+    onBeforeUnmount,
+    watchEffect,
+    watch,
+    nextTick,
+} from "vue";
+import Panellateral from "@/Components/Panellateral.vue";
+import axios from "axios";
+import CampusBrand from "@/Components/CampusBrand.vue";
 
 const props = defineProps({
     headerTitle: {
         type: String,
-        default: 'Panel de Control'
-    }
+        default: "Panel de Control",
+    },
 });
 
 const page = usePage();
-const currentUrl = computed(() => page.url);
+const currentUrl = computed(() => page.url.split("?")[0].split("#")[0]);
+const esPerfil = computed(() => currentUrl.value === "/profile");
+const menuAbierto = ref(false);
+const cuentaAbierta = ref(false);
+const botonMenu = ref(null);
+const lateral = ref(null);
+const navegacionModulos = ref(null);
+async function mostrarModuloActivo() {
+    await nextTick();
+    const nav = navegacionModulos.value;
+    const activo = nav?.querySelector(".is-active");
+    if (nav && activo && nav.scrollWidth > nav.clientWidth) {
+        nav.scrollLeft +=
+            activo.getBoundingClientRect().left -
+            nav.getBoundingClientRect().left -
+            (nav.clientWidth - activo.clientWidth) / 2;
+    }
+}
+watch(esPerfil, mostrarModuloActivo);
+const iniciales = computed(() =>
+    (page.props.auth.user?.name || "Usuario")
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase(),
+);
+const modulos = [
+    { nombre: "Mi Perfil", icono: "👤", href: "/profile", perfil: true },
+    { nombre: "Cartera", icono: "💳" },
+    { nombre: "Tienda", icono: "🛍️" },
+    { nombre: "Mis Productos", icono: "📦" },
+    { nombre: "Servicios", icono: "🎓" },
+    { nombre: "Comunidad", icono: "👥", href: "/modulo6" },
+    { nombre: "Recompensas", icono: "🎁" },
+];
+const enlaces = computed(() =>
+    esPerfil.value
+        ? [
+              { nombre: "Perfil", icono: "👤", href: "/profile", activo: true },
+              { nombre: "Seguridad", icono: "🔐", href: "/profile#seguridad" },
+          ]
+        : [
+              {
+                  nombre: "Resumen",
+                  icono: "🏠",
+                  href: "/modulo6",
+                  activo: currentUrl.value === "/modulo6",
+              },
+              {
+                  nombre: "Organizaciones",
+                  icono: "👥",
+                  href: "/modulo6/asociacion",
+              },
+              ...(page.props.auth.gestiona_organizaciones
+                  ? [
+                        {
+                            nombre: "Gestión de organizaciones",
+                            icono: "🏛️",
+                            href: "/modulo6/gestion-organizaciones",
+                        },
+                    ]
+                  : []),
+              {
+                  nombre: "Eventos y actividades",
+                  icono: "🎟️",
+                  href: "/modulo6/eventos",
+                  activo: currentUrl.value === "/modulo6/eventos",
+              },
+              ...(page.props.auth.organizacion
+                  ? [
+                        {
+                            nombre: "Staff · Control de acceso",
+                            icono: "📱",
+                            href: "/modulo6/staff",
+                        },
+                    ]
+                  : []),
+              {
+                  nombre: "Mis boletos",
+                  icono: "🎫",
+                  href: "/modulo6/mis-boletos",
+                  activo:
+                      currentUrl.value === "/modulo6/mis-boletos" ||
+                      /^\/modulo6\/eventos\/[^/]+\/boleto$/.test(
+                          currentUrl.value,
+                      ),
+              },
+              { nombre: "Becas y apoyos", icono: "🎓", href: "/modulo6/becas" },
+              {
+                  nombre: "Comunicación",
+                  icono: "📢",
+                  href: "/modulo6/comunicacion",
+              },
+              { nombre: "Mi bandeja", icono: "📩", href: "/modulo6/bandeja" },
+              { nombre: "Encuestas", icono: "📋", href: "/modulo6/encuestas" },
+              {
+                  nombre: "Votaciones",
+                  icono: "🗳️",
+                  href: "/modulo6/votaciones",
+              },
+              {
+                  nombre: "Transparencia",
+                  icono: "📊",
+                  href: "/modulo6/transparencia",
+              },
+          ],
+);
+const esActivo = (enlace) =>
+    enlace.activo ?? currentUrl.value.startsWith(enlace.href);
+watch(
+    () => page.url,
+    () => {
+        menuAbierto.value = false;
+        cuentaAbierta.value = false;
+    },
+);
+watch(menuAbierto, async (abierto) => {
+    await nextTick();
+    if (abierto) lateral.value?.querySelector("a")?.focus();
+    else botonMenu.value?.focus();
+});
+function tecladoMenu(event) {
+    if (!menuAbierto.value || event.key !== "Tab") return;
+    const controles = [...lateral.value.querySelectorAll("a, button")];
+    const primero = controles[0],
+        ultimo = controles.at(-1);
+    if (event.shiftKey && document.activeElement === primero) {
+        event.preventDefault();
+        ultimo?.focus();
+    } else if (!event.shiftKey && document.activeElement === ultimo) {
+        event.preventDefault();
+        primero?.focus();
+    }
+}
+watchEffect(() => {
+    const id = page.props.auth.organizacion?.id;
+    if (id) axios.defaults.headers.common["X-Organization-Id"] = id;
+    else delete axios.defaults.headers.common["X-Organization-Id"];
+});
 
 const mostrarNotificaciones = ref(false);
 const notificaciones = ref([]);
+const noLeidas = ref(0);
+let timerNotificaciones;
 
 const cargarNotificaciones = async () => {
     try {
-        const respuesta = await axios.get('/api/notificaciones');
+        const respuesta = await axios.get("/api/notificaciones");
         notificaciones.value = respuesta.data;
+        noLeidas.value = Number(respuesta.headers["x-unread-count"] || 0);
     } catch (error) {
         console.error("Error al cargar notificaciones:", error);
     }
 };
 
 onMounted(() => {
+    mostrarModuloActivo();
+    window.addEventListener("resize", mostrarModuloActivo);
     cargarNotificaciones();
+    window.addEventListener("bandeja-actualizada", cargarNotificaciones);
+    timerNotificaciones = setInterval(() => {
+        if (!document.hidden) cargarNotificaciones();
+    }, 15000);
+});
+onBeforeUnmount(() => {
+    window.removeEventListener("resize", mostrarModuloActivo);
+    clearInterval(timerNotificaciones);
+    window.removeEventListener("bandeja-actualizada", cargarNotificaciones);
 });
 
 const marcarComoLeidas = async () => {
     try {
-        await axios.put('/api/notificaciones/leer');
-        await cargarNotificaciones(); 
+        await axios.put("/api/notificaciones/leer");
+        await cargarNotificaciones();
     } catch (error) {
         console.error("Error al actualizar notificaciones:", error);
     }
 };
 
-// NUEVO: Dispara el DELETE a tu API
 const eliminarLeidas = async () => {
-    if (confirm("¿Estás seguro de que deseas limpiar todas las notificaciones leídas?")) {
+    if (
+        confirm(
+            "¿Estás seguro de que deseas limpiar todas las notificaciones leídas?",
+        )
+    ) {
         try {
-            await axios.delete('/api/notificaciones/leidas');
-            await cargarNotificaciones(); 
+            await axios.delete("/api/notificaciones/leidas");
+            await cargarNotificaciones();
         } catch (error) {
             console.error("Error al eliminar notificaciones:", error);
         }
@@ -53,79 +219,244 @@ const eliminarLeidas = async () => {
 </script>
 
 <template>
-    <div class="bg-gray-50 flex h-screen overflow-hidden font-sans">
-        
-        <aside class="w-64 bg-[#001a4d] text-white flex flex-col shadow-xl z-10">
-            <div class="h-16 flex items-center justify-center border-b border-[#002866]">
-                <h1 class="text-xl font-bold tracking-wider">CAMPUS DIGITAL</h1>
-            </div>
-            <nav class="flex-1 px-4 py-6 space-y-2">
-                <Link href="/modulo6" :class="['flex items-center px-4 py-3 rounded-lg transition', currentUrl === '/modulo6' ? 'bg-[#00378c] shadow-inner border-l-4 border-blue-400' : 'hover:bg-[#002866] text-blue-100']"><span class="mr-3">📊</span> Dashboard</Link>
-                <Link href="/modulo6/asociacion" :class="['flex items-center px-4 py-3 rounded-lg transition', currentUrl.startsWith('/modulo6/asociacion') ? 'bg-[#00378c] shadow-inner border-l-4 border-blue-400' : 'hover:bg-[#002866] text-blue-100']"><span class="mr-3">👥</span> Mi Asociación</Link>
-                <Link href="/modulo6/eventos" :class="['flex items-center px-4 py-3 rounded-lg transition', currentUrl.startsWith('/modulo6/eventos') ? 'bg-[#00378c] shadow-inner border-l-4 border-blue-400' : 'hover:bg-[#002866] text-blue-100']"><span class="mr-3">🎟️</span> Eventos y Check-in</Link>
-                <Link href="/modulo6/becas" :class="['flex items-center px-4 py-3 rounded-lg transition', currentUrl.startsWith('/modulo6/becas') ? 'bg-[#00378c] shadow-inner border-l-4 border-blue-400' : 'hover:bg-[#002866] text-blue-100']"><span class="mr-3">🎓</span> Becas y Apoyos</Link>
-                <Link href="/modulo6/comunicacion" :class="['flex items-center px-4 py-3 rounded-lg transition', currentUrl.startsWith('/modulo6/comunicacion') ? 'bg-[#00378c] shadow-inner border-l-4 border-blue-400' : 'hover:bg-[#002866] text-blue-100']"><span class="mr-3">📢</span> Comunicación</Link>
-                <Link href="/modulo6/transparencia" :class="['flex items-center px-4 py-3 rounded-lg transition', currentUrl.startsWith('/modulo6/transparencia') ? 'bg-[#00378c] shadow-inner border-l-4 border-blue-400' : 'hover:bg-[#002866] text-blue-100']"><span class="mr-3">📊</span> Transparencia</Link>
+    <div
+        class="campus-shell"
+        @keydown.esc="
+            menuAbierto = false;
+            cuentaAbierta = false;
+        "
+    >
+        <a href="#contenido-principal" class="campus-skip">Ir al contenido</a>
+        <button
+            v-if="menuAbierto"
+            class="campus-sidebar-backdrop"
+            aria-label="Cerrar menú"
+            @click="menuAbierto = false"
+        ></button>
+        <aside
+            id="navegacion-lateral"
+            ref="lateral"
+            class="campus-sidebar"
+            :class="{ 'is-open': menuAbierto }"
+            @keydown="tecladoMenu"
+        >
+            <Link
+                href="/modulo6"
+                class="campus-brand-link"
+                aria-label="Campus Digital · Inicio"
+                ><CampusBrand
+            /></Link>
+            <nav
+                aria-label="Navegación de la sección"
+                class="campus-section-nav"
+                @click="menuAbierto = false"
+            >
+                <p class="campus-section-label">
+                    {{ esPerfil ? "Identidad" : "Comunidad" }}
+                </p>
+                <Link
+                    v-for="enlace in enlaces"
+                    :key="enlace.href"
+                    :href="enlace.href"
+                    class="campus-sidebar-link"
+                    :class="{ 'is-active': esActivo(enlace) }"
+                    :aria-current="esActivo(enlace) ? 'page' : undefined"
+                >
+                    <span aria-hidden="true" class="campus-nav-icon">{{
+                        enlace.icono
+                    }}</span>
+                    <span>{{ enlace.nombre }}</span>
+                </Link>
             </nav>
+            <button class="campus-sidebar-close" @click="menuAbierto = false">
+                Cerrar menú
+            </button>
         </aside>
-
-        <main class="flex-1 flex flex-col h-screen overflow-y-auto">
-            <header class="h-16 bg-white shadow-sm flex items-center justify-between px-8">
-                <h2 class="text-xl font-semibold text-gray-800">{{ headerTitle }}</h2>
-                <div class="flex items-center space-x-4">
-                    
-                    <slot name="headerActions"></slot>
-                    
-                    <button @click="mostrarNotificaciones = true" class="relative text-gray-400 hover:text-gray-600 transition">
-                        <span class="text-xl">🔔</span>
-                        <span v-if="notificaciones.some(n => !n.leida)" class="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+        <div class="campus-workspace">
+            <header class="campus-topbar">
+                <button
+                    ref="botonMenu"
+                    class="campus-menu-toggle"
+                    aria-label="Abrir menú"
+                    aria-controls="navegacion-lateral"
+                    :aria-expanded="menuAbierto"
+                    @click="menuAbierto = !menuAbierto"
+                >
+                    ☰
+                </button>
+                <span class="campus-mobile-title">Campus Digital</span>
+                <nav
+                    ref="navegacionModulos"
+                    class="campus-modules"
+                    aria-label="Módulos de Campus Digital"
+                >
+                    <Link
+                        href="/modulo6"
+                        class="campus-home"
+                        aria-label="Inicio de Campus Digital"
+                        >🏠</Link
+                    >
+                    <template v-for="modulo in modulos" :key="modulo.nombre">
+                        <Link
+                            v-if="modulo.href"
+                            :href="modulo.href"
+                            class="campus-module"
+                            :class="{
+                                'is-active': modulo.perfil
+                                    ? esPerfil
+                                    : !esPerfil,
+                            }"
+                            :aria-current="
+                                (modulo.perfil ? esPerfil : !esPerfil)
+                                    ? 'true'
+                                    : undefined
+                            "
+                        >
+                            <span aria-hidden="true">{{ modulo.icono }}</span
+                            >{{ modulo.nombre }}
+                        </Link>
+                        <span
+                            v-else
+                            class="campus-module is-unavailable"
+                            role="link"
+                            aria-disabled="true"
+                            :aria-label="`${modulo.nombre}: pendiente de integración`"
+                            title="Pendiente de integración"
+                        >
+                            <span aria-hidden="true">{{ modulo.icono }}</span
+                            >{{ modulo.nombre }}
+                        </span>
+                    </template>
+                </nav>
+                <div class="campus-account-actions">
+                    <slot name="headerActions" />
+                    <button
+                        :aria-label="`Notificaciones: ${noLeidas} sin leer`"
+                        @click="mostrarNotificaciones = true"
+                        class="campus-notifications"
+                    >
+                        <span aria-hidden="true">🔔</span
+                        ><span
+                            v-if="noLeidas > 0"
+                            class="campus-notification-dot"
+                        ></span>
                     </button>
-
-                    <div class="flex items-center space-x-2 border-l pl-4 border-gray-200">
-                        <div class="w-8 h-8 bg-[#00378c] rounded-full flex items-center justify-center text-white font-bold">D</div>
-                        <span class="text-sm font-medium text-gray-700">Daniel (Presidencia)</span>
+                    <div class="campus-account">
+                        <button
+                            class="campus-account-button"
+                            :aria-expanded="cuentaAbierta"
+                            aria-controls="menu-cuenta"
+                            aria-label="Menú de cuenta"
+                            @click="cuentaAbierta = !cuentaAbierta"
+                        >
+                            <span class="campus-avatar">{{ iniciales }}</span>
+                            <span class="campus-account-info"
+                                ><strong>{{
+                                    page.props.auth.user?.name
+                                }}</strong
+                                ><small>{{
+                                    page.props.auth.user?.matricula ||
+                                    "Mi cuenta"
+                                }}</small></span
+                            >
+                        </button>
+                        <template v-if="cuentaAbierta">
+                            <button
+                                class="campus-account-backdrop"
+                                aria-label="Cerrar menú de cuenta"
+                                @click="cuentaAbierta = false"
+                            ></button>
+                            <div id="menu-cuenta" class="campus-account-menu">
+                                <p>{{ page.props.auth.user?.email }}</p>
+                                <Link href="/profile">Mi perfil</Link>
+                                <Link
+                                    :href="route('logout')"
+                                    method="post"
+                                    as="button"
+                                    >Cerrar sesión</Link
+                                >
+                            </div>
+                        </template>
                     </div>
                 </div>
             </header>
-
-            <div class="flex-1 relative">
+            <main
+                id="contenido-principal"
+                tabindex="-1"
+                class="campus-content"
+                :aria-label="headerTitle"
+            >
                 <slot />
-                
-                <Panellateral 
-                    :show="mostrarNotificaciones" 
-                    titulo="Centro de Notificaciones" 
-                    @close="mostrarNotificaciones = false"
+            </main>
+        </div>
+        <Panellateral
+            :show="mostrarNotificaciones"
+            titulo="Centro de Notificaciones"
+            @close="mostrarNotificaciones = false"
+        >
+            <div class="space-y-4">
+                <div
+                    v-for="noti in notificaciones"
+                    :key="noti.id"
+                    :class="
+                        noti.leida
+                            ? 'bg-white border-gray-200'
+                            : 'bg-blue-50 border-blue-200'
+                    "
+                    class="p-4 rounded-lg border shadow-sm relative"
                 >
-                    <div class="space-y-4">
-                        <div v-for="noti in notificaciones" :key="noti.id" 
-                             :class="noti.leida ? 'bg-white border-gray-200' : 'bg-blue-50 border-blue-200'" 
-                             class="p-4 rounded-lg border shadow-sm relative">
-                            <div v-if="!noti.leida" class="absolute top-4 right-4 w-2 h-2 bg-blue-600 rounded-full"></div>
-                            <p class="font-bold text-sm text-gray-800 pr-4">{{ noti.titulo }}</p>
-                            <p class="text-xs text-gray-600 mt-1">{{ noti.detalle }}</p>
-                            <p class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider">{{ noti.tiempo }}</p>
-                        </div>
-                        
-                        <div v-if="notificaciones.length === 0" class="text-center text-gray-500 text-sm py-4">
-                            No tienes notificaciones recientes.
-                        </div>
-                    </div>
-                    
-                    <template #footer>
-                        <div class="flex space-x-2 w-full">
-                            <button @click="marcarComoLeidas" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-200 transition">
-                                Marcar leídas
-                            </button>
-                            <!-- BOTÓN PARA ELIMINAR LEÍDAS -->
-                            <button @click="eliminarLeidas" title="Limpiar leídas" class="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition">
-                                🗑️
-                            </button>
-                        </div>
-                    </template>
-                </Panellateral>
+                    <div
+                        v-if="!noti.leida"
+                        class="absolute top-4 right-4 w-2 h-2 bg-blue-600 rounded-full"
+                    ></div>
+                    <p class="font-bold text-sm text-gray-800 pr-4">
+                        {{ noti.titulo }}
+                    </p>
+                    <p class="text-xs text-gray-600 mt-1">
+                        {{ noti.detalle }}
+                    </p>
+                    <Link
+                        :href="`/modulo6/bandeja?mensaje=${noti.id}`"
+                        class="block mt-2 text-sm font-semibold text-blue-800"
+                        >Abrir mensaje</Link
+                    >
+                    <p
+                        class="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider"
+                    >
+                        {{ noti.tiempo }}
+                    </p>
+                </div>
 
+                <div
+                    v-if="notificaciones.length === 0"
+                    class="text-center text-gray-500 text-sm py-4"
+                >
+                    No tienes notificaciones recientes.
+                </div>
             </div>
-        </main>
-        
+
+            <template #footer>
+                <div class="flex flex-wrap gap-2 w-full">
+                    <Link
+                        href="/modulo6/bandeja"
+                        class="w-full text-center text-blue-800 font-semibold py-2"
+                        >Ver toda la bandeja</Link
+                    >
+                    <button
+                        @click="marcarComoLeidas"
+                        class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-200 transition"
+                    >
+                        Marcar leídas
+                    </button>
+                    <button
+                        @click="eliminarLeidas"
+                        title="Limpiar leídas"
+                        class="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 transition"
+                    >
+                        🗑️
+                    </button>
+                </div>
+            </template>
+        </Panellateral>
     </div>
 </template>

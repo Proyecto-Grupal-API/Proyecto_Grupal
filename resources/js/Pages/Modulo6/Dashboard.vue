@@ -1,131 +1,275 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
-import Modulo6Layout from '@/Layouts/Modulo6Layout.vue';
-import { ref, onMounted } from 'vue';
-import axios from 'axios';
-
-const estadisticas = ref(null);
-const cargando = ref(true);
-
-onMounted(async () => {
+import { Head, Link, usePage } from "@inertiajs/vue3";
+import { ref, computed, onMounted } from "vue";
+import axios from "axios";
+import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
+const page = usePage(),
+    datos = ref(null),
+    cargando = ref(false),
+    error = ref("");
+const fecha = (v) =>
+    new Date(v).toLocaleString("es-MX", {
+        timeZone: "America/Mexico_City",
+        dateStyle: "medium",
+        timeStyle: "short",
+    });
+async function cargar() {
+    if (cargando.value || !page.props.auth.organizacion) return;
+    cargando.value = true;
+    error.value = "";
     try {
-        const respuesta = await axios.get('/api/dashboard');
-        estadisticas.value = respuesta.data;
-    } catch (error) {
-        console.error("Error cargando el dashboard", error);
+        datos.value = (await axios.get("/api/dashboard")).data;
+    } catch (e) {
+        error.value =
+            e.response?.data?.message ||
+            "No se pudieron cargar las cifras. Intenta de nuevo.";
     } finally {
         cargando.value = false;
     }
-});
+}
+onMounted(cargar);
+const tarjetas = computed(() =>
+    datos.value
+        ? [
+              {
+                  titulo: "Integrantes activos",
+                  valor: datos.value.miembrosActivos,
+                  href: "/modulo6/asociacion",
+              },
+              {
+                  titulo: "Eventos próximos o en curso",
+                  valor: datos.value.eventosActivos,
+                  href: "/modulo6/eventos",
+              },
+              {
+                  titulo: datos.value.puede_gestionar
+                      ? "Solicitudes por revisar"
+                      : "Mis solicitudes en revisión",
+                  valor: datos.value.becasPendientes,
+                  href: "/modulo6/becas",
+              },
+              {
+                  titulo: "Mis mensajes sin leer",
+                  valor: datos.value.personales.no_leidos,
+                  href: "/modulo6/bandeja",
+              },
+          ]
+        : [],
+);
+const ocupacion = computed(() =>
+    datos.value?.proximoEvento?.capacidad
+        ? Math.min(
+              100,
+              Math.round(
+                  (datos.value.proximoEvento.reservas /
+                      datos.value.proximoEvento.capacidad) *
+                      100,
+              ),
+          )
+        : 0,
+);
 </script>
-
 <template>
-    <Head title="Dashboard - Campus Digital" />
-
-    <Modulo6Layout headerTitle="Panel de Control">
-        <div class="p-8 space-y-6">
-            
-            <!-- Estado de carga -->
-            <div v-if="cargando" class="flex justify-center items-center py-12">
-                <p class="text-[#00378c] font-bold animate-pulse">Cargando métricas desde DataGrip (SQL Server)...</p>
-            </div>
-
-            <!-- Contenido Real -->
-            <div v-else-if="estadisticas">
-                
-                <!-- Tarjetas de Métricas -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-                        <div class="p-3 bg-blue-100 text-blue-600 rounded-lg text-2xl">👥</div>
-                        <div>
-                            <p class="text-sm text-gray-500">Miembros Activos</p>
-                            <p class="text-2xl font-bold text-gray-800">{{ estadisticas.miembrosActivos }}</p>
-                        </div>
-                    </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-                        <div class="p-3 bg-green-100 text-green-600 rounded-lg text-2xl">💰</div>
-                        <div>
-                            <p class="text-sm text-gray-500">Caja Disponible</p>
-                            <p class="text-2xl font-bold text-gray-800">${{ estadisticas.cajaDisponible }}</p>
-                        </div>
-                    </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-                        <div class="p-3 bg-purple-100 text-purple-600 rounded-lg text-2xl">🎟️</div>
-                        <div>
-                            <p class="text-sm text-gray-500">Eventos Activos</p>
-                            <p class="text-2xl font-bold text-gray-800">{{ estadisticas.eventosActivos }}</p>
-                        </div>
-                    </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
-                        <div class="p-3 bg-orange-100 text-orange-600 rounded-lg text-2xl">📄</div>
-                        <div>
-                            <p class="text-sm text-gray-500">Becas Pendientes</p>
-                            <p class="text-2xl font-bold text-gray-800">{{ estadisticas.becasPendientes }}</p>
-                        </div>
-                    </div>
+    <Head title="Dashboard — Campus Digital" /><Modulo6Layout
+        headerTitle="Panel de Comunidad"
+        ><div class="campus-page space-y-6">
+            <div class="flex flex-wrap justify-between gap-3 items-center">
+                <div>
+                    <h1 class="text-2xl font-bold">
+                        {{ datos?.organizacion || "Tu comunidad" }}
+                    </h1>
+                    <p v-if="datos" class="text-sm text-gray-500 mt-1">
+                        Actualizado: {{ fecha(datos.generado_en) }}
+                    </p>
                 </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    
-                    <!-- Próximo Evento -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">Próximo Evento</h3>
-                        
-                        <div v-if="estadisticas.proximoEvento" class="border border-gray-200 rounded-lg p-4 bg-gray-50 mb-4">
-                            <div class="flex justify-between items-start mb-2">
-                                <div>
-                                    <h4 class="font-bold text-[#002866]">{{ estadisticas.proximoEvento.nombre }}</h4>
-                                    <p class="text-sm text-gray-500">📍 {{ estadisticas.proximoEvento.lugar }}</p>
-                                </div>
-                                <span class="bg-blue-100 text-[#00378c] text-xs font-semibold px-2.5 py-0.5 rounded">{{ estadisticas.proximoEvento.fecha }}</span>
+                <button
+                    v-if="page.props.auth.organizacion"
+                    @click="cargar"
+                    :disabled="cargando"
+                    class="rounded-lg border bg-white px-4 py-2"
+                >
+                    {{ cargando ? "Actualizando…" : "Actualizar cifras" }}
+                </button>
+            </div>
+            <p
+                v-if="!page.props.auth.organizacion"
+                class="border rounded-xl bg-white p-6"
+            >
+                Necesitas una membresía activa para consultar el panel de una
+                organización.
+                <Link href="/modulo6/bandeja" class="text-blue-800 underline"
+                    >Ir a mi bandeja</Link
+                >
+            </p>
+            <p
+                v-if="error"
+                role="alert"
+                class="bg-red-50 text-red-800 p-4 rounded-lg"
+            >
+                {{ error }}
+            </p>
+            <p v-if="cargando && !datos">Cargando indicadores…</p>
+            <template v-if="datos"
+                ><div class="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <Link
+                        v-for="t in tarjetas"
+                        :key="t.titulo"
+                        :href="t.href"
+                        class="bg-white border rounded-xl p-5 hover:border-blue-400"
+                        ><p class="text-sm text-gray-600">{{ t.titulo }}</p>
+                        <p class="text-3xl font-bold text-blue-950 mt-2">
+                            {{ t.valor }}
+                        </p></Link
+                    >
+                </div>
+                <div class="grid lg:grid-cols-2 gap-5">
+                    <section class="border bg-white rounded-xl p-5 space-y-4">
+                        <h2 class="text-xl font-bold">
+                            {{
+                                datos.proximoEvento?.en_curso
+                                    ? "Evento en curso"
+                                    : "Próximo evento"
+                            }}
+                        </h2>
+                        <template v-if="datos.proximoEvento"
+                            ><h3 class="font-semibold break-words">
+                                {{ datos.proximoEvento.nombre }}
+                            </h3>
+                            <p class="text-sm text-gray-600">
+                                {{ datos.proximoEvento.lugar }}<br />{{
+                                    fecha(datos.proximoEvento.fecha)
+                                }}
+                                · Ciudad de México
+                            </p>
+                            <p class="text-sm">
+                                {{ datos.proximoEvento.reservas }} reservas
+                                confirmadas de
+                                {{ datos.proximoEvento.capacidad }} lugares ·
+                                {{ ocupacion }}%
+                            </p>
+                            <div
+                                class="bg-gray-100 h-2 rounded-full overflow-hidden"
+                            >
+                                <div
+                                    class="bg-blue-800 h-2"
+                                    :style="{ width: ocupacion + '%' }"
+                                ></div>
                             </div>
-                            <div class="mt-4">
-                                <div class="flex justify-between text-sm text-gray-600 mb-1">
-                                    <span>Asistencia (0/{{ estadisticas.proximoEvento.asistencia_total }})</span>
-                                    <span>0%</span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-2">
-                                    <div class="bg-[#00378c] h-2 rounded-full" style="width: 0%"></div>
-                                </div>
-                            </div>
+                            <p class="text-sm text-gray-600">
+                                {{
+                                    datos.proximoEvento.asistencias
+                                }}
+                                asistencias registradas por check-in.
+                            </p></template
+                        >
+                        <p v-else class="text-gray-500">
+                            No hay eventos próximos ni en curso.
+                        </p>
+                        <Link
+                            href="/modulo6/eventos"
+                            class="inline-block text-blue-800 font-semibold"
+                            >{{
+                                datos.puede_gestionar
+                                    ? "Gestionar eventos y asistencia"
+                                    : "Explorar eventos"
+                            }}</Link
+                        >
+                    </section>
+                    <section class="bg-white border rounded-xl p-5 space-y-4">
+                        <div class="flex justify-between gap-3">
+                            <h2 class="text-xl font-bold">
+                                {{
+                                    datos.puede_gestionar
+                                        ? "Solicitudes recientes"
+                                        : "Mis solicitudes recientes"
+                                }}
+                            </h2>
+                            <Link
+                                href="/modulo6/becas"
+                                class="text-blue-800 shrink-0"
+                                >Ver becas</Link
+                            >
                         </div>
-                        <div v-else class="text-gray-500 text-sm py-4">No hay eventos programados.</div>
-                        
-                        <button class="w-full bg-[#00378c] hover:bg-[#002866] text-white font-bold py-3 px-4 rounded-lg flex justify-center items-center transition disabled:opacity-50">
-                            <span class="mr-2">📷</span> Abrir Escáner QR / NFC
-                        </button>
-                    </div>
-
-                    <!-- Solicitudes de Beca (DINÁMICAS) -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-lg font-bold text-gray-800">Revisión de Becas</h3>
-                            <Link href="/modulo6/becas" class="text-sm text-[#00378c] hover:underline font-semibold">Ver todas</Link>
-                        </div>
-                        
-                        <ul class="divide-y divide-gray-100">
-                            <li v-for="beca in estadisticas.ultimasBecas" :key="beca.id" class="py-3 flex justify-between items-center">
-                                <div>
-                                    <p class="font-semibold text-gray-800">{{ beca.beca }}</p>
-                                    <!-- Simulamos el nombre del alumno con el ID por ahora -->
-                                    <p class="text-sm text-gray-500">Alumno ID: {{ beca.usuario_id }}</p>
-                                </div>
-                                <span :class="{
-                                    'bg-yellow-100 text-yellow-800': beca.estado === 'pendiente',
-                                    'bg-green-100 text-green-800': beca.estado === 'aprobada' || beca.estado === 'otorgada',
-                                    'bg-gray-100 text-gray-800': beca.estado !== 'pendiente' && beca.estado !== 'aprobada'
-                                }" class="text-xs font-semibold px-2.5 py-0.5 rounded capitalize">
-                                    {{ beca.estado.replace('_', ' ') }}
-                                </span>
-                            </li>
-                            <li v-if="estadisticas.ultimasBecas.length === 0" class="py-3 text-sm text-gray-500 text-center">
-                                No hay solicitudes recientes.
+                        <ul class="divide-y">
+                            <li
+                                v-for="s in datos.ultimasBecas"
+                                :key="s.id"
+                                class="py-3"
+                            >
+                                <Link
+                                    :href="`/modulo6/becas/solicitudes/${s.id}`"
+                                    class="font-semibold text-blue-800 break-words"
+                                    >{{ s.beca }}</Link
+                                >
+                                <p class="text-sm text-gray-500">
+                                    {{ s.folio || "Solicitud sin folio" }} ·
+                                    {{ s.estado.replaceAll("_", " ") }}
+                                </p>
                             </li>
                         </ul>
-                    </div>
-
+                        <p
+                            v-if="!datos.ultimasBecas.length"
+                            class="text-gray-500"
+                        >
+                            No hay solicitudes para mostrar.
+                        </p>
+                        <p class="text-xs text-gray-500">
+                            {{
+                                datos.puede_gestionar
+                                    ? "Solo se incluyen expedientes enviados. Los borradores de estudiantes son privados."
+                                    : "Esta lista incluye únicamente tus solicitudes en la organización seleccionada."
+                            }}
+                        </p>
+                    </section>
                 </div>
-            </div>
-        </div>
-    </Modulo6Layout>
+                <section class="border rounded-xl bg-white p-5 space-y-4">
+                    <h2 class="text-xl font-bold">Tu participación</h2>
+                    <div class="grid sm:grid-cols-3 gap-3">
+                        <Link
+                            href="/modulo6/encuestas"
+                            class="rounded-lg bg-blue-50 p-4 text-blue-950"
+                            >{{
+                                datos.personales.consultas.encuestas
+                            }}
+                            encuestas abiertas por responder</Link
+                        ><Link
+                            href="/modulo6/votaciones"
+                            class="rounded-lg bg-blue-50 p-4 text-blue-950"
+                            >{{
+                                datos.personales.consultas.votaciones
+                            }}
+                            votaciones abiertas por responder</Link
+                        ><Link
+                            href="/modulo6/mis-boletos"
+                            class="rounded-lg bg-blue-50 p-4 text-blue-950"
+                            >{{ datos.personales.boletos }} reservas o lugares
+                            en espera para eventos próximos o en curso</Link
+                        >
+                    </div>
+                </section>
+                <section
+                    v-if="datos.gestion"
+                    class="border rounded-xl bg-white p-5 space-y-4"
+                >
+                    <h2 class="text-xl font-bold">Pendientes de presidencia</h2>
+                    <div class="flex flex-wrap gap-4">
+                        <Link href="/modulo6/comunicacion" class="text-blue-800"
+                            >{{ datos.gestion.campanas_pendientes }} campañas
+                            con entregas pendientes</Link
+                        ><Link
+                            href="/modulo6/transparencia"
+                            class="text-blue-800"
+                            >{{ datos.gestion.reportes_borrador }} reportes por
+                            revisar</Link
+                        >
+                    </div>
+                </section>
+                <p class="text-sm text-gray-500">
+                    Caja disponible y entrega de apoyos: integración pendiente
+                    con los equipos correspondientes. Las aprobaciones locales
+                    no confirman pagos ni servicios entregados.
+                </p>
+            </template>
+        </div></Modulo6Layout
+    >
 </template>

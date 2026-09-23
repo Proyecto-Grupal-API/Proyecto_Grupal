@@ -2,14 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
-class Organizacion extends Model
+class Organizacion extends Documento
 {
-    // 1. El nombre exacto de tu tabla en SQL Server
-    protected $table = 'organizaciones'; 
+    protected $table = 'organizaciones';
 
-    // 2. Laravel busca 'created_at', le decimos que usas 'creado_en'
-    const CREATED_AT = 'creado_en';
-    const UPDATED_AT = 'actualizado_en';
+    protected $fillable = ['slug', 'nombre', 'tipo', 'descripcion', 'email', 'telefono', 'estado', 'clave_alta', 'firma_alta', 'alta_datos', 'creado_por', 'version_estado', 'historial_estados'];
+
+    protected $hidden = ['alta_datos', 'clave_alta', 'firma_alta', 'historial_estados'];
 }
