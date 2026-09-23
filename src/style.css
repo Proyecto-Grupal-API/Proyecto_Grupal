@@ -1,0 +1,17 @@
+/* src/style.css */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f3f5f8;
+  color: #202938;
+  width: 100vw;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#app {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  max-width: 100% !important;
+}
