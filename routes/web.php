@@ -165,6 +165,10 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
     Route::post('/roles/assign', [RoleController::class, 'assign'])
         ->middleware('role.context:admin')
         ->name('roles.assign');
+
+    Route::delete('/roles/revoke', [RoleController::class, 'revoke'])
+        ->middleware('role.context:admin')
+        ->name('roles.revoke');
 });
 
 require __DIR__.'/auth.php';

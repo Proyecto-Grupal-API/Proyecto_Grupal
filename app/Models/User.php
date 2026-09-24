@@ -224,6 +224,41 @@ class User extends Authenticatable
         $this->save();
     }
 
+    public function revokeRole(string $roleName, ?string $scopeType = null, ?string $scopeId = null): bool
+    {
+        if (! in_array($roleName, Role::VALID_ROLES, true)) {
+            throw new \InvalidArgumentException("El rol '{$roleName}' no es un rol válido.");
+        }
+
+        $scopeId = $scopeId === null ? null : (string) $scopeId;
+
+        if (($scopeType === null) !== ($scopeId === null)) {
+            throw new \InvalidArgumentException('Una asignación de rol debe ser global o incluir tipo e identificador de contexto.');
+        }
+
+        if ($scopeType !== null && ! in_array($scopeType, Role::VALID_SCOPE_TYPES, true)) {
+            throw new \InvalidArgumentException("El contexto '{$scopeType}' no es válido.");
+        }
+
+        $roles = $this->roles ?? [];
+        $remaining = array_values(array_filter($roles, static function (array $role) use ($roleName, $scopeType, $scopeId): bool {
+            $storedScopeId = ($role['scope_id'] ?? null) === null ? null : (string) $role['scope_id'];
+
+            return ($role['name'] ?? null) !== $roleName
+                || ($role['scope_type'] ?? null) !== $scopeType
+                || $storedScopeId !== $scopeId;
+        }));
+
+        if (count($remaining) === count($roles)) {
+            return false;
+        }
+
+        $this->roles = $remaining;
+        $this->save();
+
+        return true;
+    }
+
     public function hasRole(string $roleName, ?string $scopeType = null, ?string $scopeId = null): bool
     {
         $scopeId = $scopeId === null ? null : (string) $scopeId;
