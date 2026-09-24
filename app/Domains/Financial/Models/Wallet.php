@@ -4,13 +4,13 @@ namespace App\Domains\Financial\Models;
 
 use App\Domains\Financial\Enums\WalletStatus;
 use App\Domains\Financial\Enums\WalletType;
-use MongoDB\Laravel\Eloquent\Model;
+use Illuminate\Database\Eloquent\Model;
 
 class Wallet extends Model
 {
-    protected $connection = 'mongodb';
+    protected $connection = 'pgsql';
 
-    protected $collection = 'wallets';
+    protected $table = 'wallets';
 
     protected $fillable = [
         'public_id',

@@ -1,36 +1,45 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use MongoDB\Laravel\Schema\Blueprint;
 
-/**
- * Modulo 2.1 - Cuentas Wallet.
- *
- * Crea la coleccion principal de wallets del dominio financiero.
- */
 return new class extends Migration
 {
-    protected $connection = 'mongodb';
+    protected $connection = 'pgsql';
 
     public function up(): void
     {
-        Schema::connection('mongodb')->create('wallets', function (Blueprint $collection) {
-            $collection->unique('public_id');
+        Schema::connection('pgsql')->create('wallets', function (Blueprint $table) {
+            $table->id();
 
-            $collection->unique([
+            $table->uuid('public_id')->unique();
+
+            $table->string('owner_type', 50);
+            $table->string('owner_id', 255);
+
+            $table->string('type', 50);
+            $table->string('currency', 3)->default('MXN');
+            $table->string('status', 30);
+
+            $table->bigInteger('available_balance_cents')->default(0);
+            $table->bigInteger('held_balance_cents')->default(0);
+
+            $table->timestamps();
+
+            $table->unique([
                 'owner_type',
                 'owner_id',
                 'type',
             ]);
 
-            $collection->index('owner_id');
-            $collection->index('status');
+            $table->index('owner_id');
+            $table->index('status');
         });
     }
 
     public function down(): void
     {
-        Schema::connection('mongodb')->dropIfExists('wallets');
+        Schema::connection('pgsql')->dropIfExists('wallets');
     }
 };
