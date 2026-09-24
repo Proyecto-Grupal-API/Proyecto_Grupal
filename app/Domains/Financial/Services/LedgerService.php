@@ -69,10 +69,97 @@ class LedgerService
                     'wallet_id' => $wallet->public_id,
                     'movement_type' => $movementType,
                     'amount_cents' => $amountCents,
-                    'balance_after_cents' => $wallet->available_balance_cents,
+                    'balance_after_cents' =>
+                        $wallet->available_balance_cents,
                 ]);
 
                 $transaction->status = TransactionStatus::COMPLETADA;
+                $transaction->save();
+
+                return $transaction;
+            }
+        );
+    }
+
+    public function debit(
+        Wallet $wallet,
+        int $amountCents,
+        MovementType $movementType,
+        string $idempotencyKey,
+        ?string $referenceType = null,
+        ?string $referenceId = null,
+        array $metadata = []
+    ): FinancialTransaction {
+        if ($amountCents <= 0) {
+            throw new InvalidArgumentException(
+                'El monto debe ser mayor que cero.'
+            );
+        }
+
+        return DB::connection('pgsql')->transaction(
+            function () use (
+                $wallet,
+                $amountCents,
+                $movementType,
+                $idempotencyKey,
+                $referenceType,
+                $referenceId,
+                $metadata
+            ) {
+                $existingTransaction = FinancialTransaction::where(
+                    'idempotency_key',
+                    $idempotencyKey
+                )->first();
+
+                if ($existingTransaction) {
+                    return $existingTransaction;
+                }
+
+                $lockedWallet = Wallet::where(
+                    'public_id',
+                    $wallet->public_id
+                )
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if (
+                    $lockedWallet->available_balance_cents
+                    < $amountCents
+                ) {
+                    throw new InvalidArgumentException(
+                        'Saldo insuficiente.'
+                    );
+                }
+
+                $transaction = FinancialTransaction::create([
+                    'public_id' => (string) Str::uuid(),
+                    'idempotency_key' => $idempotencyKey,
+                    'status' => TransactionStatus::PENDIENTE,
+                    'reference_type' => $referenceType,
+                    'reference_id' => $referenceId,
+                    'metadata' => $metadata,
+                ]);
+
+                $lockedWallet->decrement(
+                    'available_balance_cents',
+                    $amountCents
+                );
+
+                $lockedWallet->refresh();
+
+                LedgerEntry::create([
+                    'public_id' => (string) Str::uuid(),
+                    'transaction_id' => $transaction->public_id,
+                    'wallet_id' => $lockedWallet->public_id,
+                    'movement_type' => $movementType,
+                    'amount_cents' => -$amountCents,
+                    'balance_after_cents' =>
+                        $lockedWallet->available_balance_cents,
+                ]);
+
+                $transaction->status =
+                    TransactionStatus::COMPLETADA;
+
                 $transaction->save();
 
                 return $transaction;
