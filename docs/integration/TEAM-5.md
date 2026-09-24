@@ -1,4 +1,4 @@
-# Equipo 5 — QR disponible; NFC pendiente
+# Equipo 5 — QR disponible; API NFC pendiente
 
 Integre sobre su código existente. La referencia contractual es [Team 1](TEAM-1-INTEGRATION.md).
 
@@ -12,4 +12,4 @@ El QR dinámico es single-use; el de identificación es reutilizable mientras es
 
 ## Dependencia NFC aún no disponible
 
-Existen registro y ciclo ordinario **web** NFC, pero **no existe API interequipos de validación NFC** ni reemplazo real old→new. No leer `nfc_cards`, no usar `identity.credential.changed.v1` como lookup del titular actual y no crear una API paralela de identidad. Si el servicio de Equipo 5 necesita validar UID antes de avanzar, reporte esa dependencia a Team 1 y detenga sólo la parte NFC.
+El flujo **web** NFC ya incluye registro, bloqueo, pérdida, suspensión, reactivación y reemplazo old→new con historial y motivo. La nueva tarjeta hereda el estado operativo y la anterior queda terminal como `replaced`. Esto **no proporciona una API interequipos de validación NFC**. No leer `nfc_cards`, no usar `identity.credential.changed.v1` como lookup del titular actual y no crear una API paralela de identidad. Si el servicio de Equipo 5 necesita validar UID antes de avanzar, reporte esa dependencia a Team 1 y detenga sólo la parte NFC.

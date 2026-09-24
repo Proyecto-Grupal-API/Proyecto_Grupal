@@ -25,6 +25,8 @@ const selectedCard = ref(null)
 // Nuevo estado seleccionado
 const selectedStatus = ref('')
 const reportingLost = ref(false)
+const replacing = ref(false)
+const newCardUid = ref('')
 const processing = ref(false)
 
 // Motivo del cambio
@@ -45,10 +47,12 @@ const statusLabels = {
 }
 
 // Abrir modal para cambiar estado
-const openStatusModal = (card, status, lost = false) => {
+const openStatusModal = (card, status, lost = false, replace = false) => {
     selectedCard.value = card
     selectedStatus.value = status
     reportingLost.value = lost
+    replacing.value = replace
+    newCardUid.value = ''
     reason.value = ''
     errorMessage.value = ''
     showModal.value = true
@@ -60,6 +64,8 @@ const closeModal = () => {
     selectedCard.value = null
     selectedStatus.value = ''
     reportingLost.value = false
+    replacing.value = false
+    newCardUid.value = ''
     reason.value = ''
     errorMessage.value = ''
 }
@@ -77,13 +83,21 @@ const updateStatus = () => {
         return
     }
 
+    if (replacing.value && !newCardUid.value.trim()) {
+        errorMessage.value = 'Debes ingresar el UID de la nueva tarjeta.'
+        return
+    }
+
     processing.value = true
-    router.patch(
-        route(reportingLost.value ? 'nfc-cards.report-lost' : 'nfc-cards.update-status', selectedCard.value.id),
-        reportingLost.value
-            ? { reason: reason.value }
-            : { status: selectedStatus.value, reason: reason.value },
+    const routeName = replacing.value ? 'nfc-cards.replace' : (reportingLost.value ? 'nfc-cards.report-lost' : 'nfc-cards.update-status')
+    const data = replacing.value
+        ? { uid: newCardUid.value, reason: reason.value }
+        : (reportingLost.value ? { reason: reason.value } : { status: selectedStatus.value, reason: reason.value })
+    router.visit(
+        route(routeName, selectedCard.value.id),
         {
+            method: replacing.value ? 'post' : 'patch',
+            data,
             preserveScroll: true,
             onFinish: () => { processing.value = false },
             onSuccess: () => {
@@ -92,6 +106,7 @@ const updateStatus = () => {
             onError: (errors) => {
                 errorMessage.value =
                     errors.reason ||
+                    errors.uid ||
                     errors.status ||
                     'No se pudo actualizar el estado.'
             },
@@ -279,6 +294,14 @@ const updateStatus = () => {
                                             >
                                                 Reportar pérdida
                                             </button>
+                                            <button
+                                                v-if="['active', 'blocked', 'suspended'].includes(card.status)"
+                                                type="button"
+                                                @click="openStatusModal(card, card.status, false, true)"
+                                                class="rounded-md bg-gray-100 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-200"
+                                            >
+                                                Reemplazar
+                                            </button>
                                         </template>
 
                                         <!-- Ver historial -->
@@ -308,7 +331,7 @@ const updateStatus = () => {
         <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
 
             <h2 class="text-xl font-bold text-gray-900">
-                {{ reportingLost ? 'Reportar pérdida de tarjeta' : 'Cambiar estado de tarjeta' }}
+                {{ replacing ? 'Reemplazar tarjeta NFC' : (reportingLost ? 'Reportar pérdida de tarjeta' : 'Cambiar estado de tarjeta') }}
             </h2>
 
             <p class="mt-2 text-sm text-gray-600">
@@ -327,11 +350,16 @@ const updateStatus = () => {
                 </p>
 
                 <p class="mt-1 text-sm text-gray-600">
-                    Nuevo estado:
+                    {{ replacing ? 'Estado que heredará la nueva tarjeta:' : 'Nuevo estado:' }}
                     <span class="font-semibold">
                         {{ statusLabels[selectedStatus] }}
                     </span>
                 </p>
+            </div>
+
+            <div v-if="replacing" class="mt-5">
+                <label for="newCardUid" class="block text-sm font-medium text-gray-700">UID de la nueva tarjeta *</label>
+                <input id="newCardUid" v-model="newCardUid" type="text" maxlength="255" class="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
             </div>
 
             <!-- Motivo -->

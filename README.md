@@ -234,7 +234,7 @@ El publicador incluido se ejecuta con `php artisan events:publish`. Configura `E
 - **Módulo 1.1:** gestión académica en MongoDB con perfiles, catálogos, historial, listado, alta, edición e importación CSV.
 - **Módulo 1.2:** autenticación de dos factores integrada con Fortify.
 - **Módulo 1.3:** RBAC contextual con roles y scopes.
-- **Módulo 1.4:** registro NFC; **1.5 parcial:** bloqueo, pérdida, suspensión y reactivación, con reemplazo real pendiente.
+- **Módulo 1.4:** registro NFC; **1.5:** bloqueo por pérdida, suspensión, reemplazo físico y reactivación, con historial y motivos.
 - **Módulo 1.6 parcial:** validación QR disponible; limpieza final de secretos legacy y reglas operativas pendientes. **1.7:** dispositivos, sesiones confiables y reautenticación.
 - **Módulos 1.8 y 1.9:** estado académico persistente e historial; consentimientos y preferencias persistentes mediante sesión/Sanctum.
 - **Integración entre servicios:** OAuth 2.0 `client_credentials`, JWT, scopes y middleware Bearer.
@@ -251,8 +251,8 @@ La guía [Team 1 — Identity Integration Contract](docs/integration/TEAM-1-INTE
 - [x] Módulo 1.1: perfiles académicos, catálogos, historial, listado, alta, edición e importación CSV adaptados a MongoDB.
 - [x] Módulo 1.2: 2FA con Fortify.
 - [x] Módulo 1.3: RBAC contextual.
-- [x] Módulo 1.4: registro NFC y ciclo ordinario de bloqueo/pérdida/suspensión/reactivación.
-- [ ] Módulo 1.5 completo: falta reemplazo real de credencial NFC.
+- [x] Módulo 1.4: registro NFC.
+- [x] Módulo 1.5: bloqueo/pérdida/suspensión/reactivación y reemplazo old→new con enlaces, historial, motivos y atomicidad MongoDB. La nueva tarjeta hereda el estado operativo; `replaced` es terminal.
 - [ ] Módulo 1.6 completo: validación QR disponible; fases legacy y reglas operativas pendientes.
 - [x] Módulo 1.7: dispositivos y sesiones confiables.
 - [x] Migraciones iniciales de usuarios y 2FA.

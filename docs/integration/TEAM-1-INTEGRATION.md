@@ -5,9 +5,9 @@ Esta guía describe el **working tree actual** del Equipo 1 para integrarlo con 
 ## Estado del snapshot
 
 - Baseline verificado antes de esta documentación: 234 tests, 1449 assertions, 0 failures; build y comprobación de diff correctos.
-- Disponibles: cuentas y perfiles estudiantiles (1.1); autenticación/2FA y roles contextuales; registro NFC (1.4); transiciones NFC ordinarias y pérdida; estado académico OAuth; validación QR OAuth y web con expiración, revocación, código corto y consumo único; eventos versionados publicados mediante outbox.
-- Parciales: ciclo NFC (1.5: falta reemplazo real) e identidad QR (1.6: quedan fases de secretos legacy y reglas operativas). No declarar esos requisitos terminados.
-- Pendientes para consumidores: API de validación NFC, reemplazo NFC old→new, QR-B.4B/retirada final de plaintext legacy, uso autorizativo de `purpose`, elegibilidad académica integrada en QR y contextos operativos QR. No hay fecha comprometida.
+- Disponibles: cuentas y perfiles estudiantiles (1.1); autenticación/2FA y roles contextuales; registro NFC (1.4); ciclo NFC con bloqueo, pérdida, suspensión, reactivación y reemplazo (1.5); estado académico OAuth; validación QR OAuth y web con expiración, revocación, código corto y consumo único; eventos versionados publicados mediante outbox.
+- Parcial: identidad QR (1.6: quedan fases de secretos legacy y reglas operativas). El ciclo de vida NFC (1.5) incluye reemplazo real; esto no crea una API NFC interequipos.
+- Pendientes para consumidores: API de validación NFC, QR-B.4B/retirada final de plaintext legacy, uso autorizativo de `purpose`, elegibilidad académica integrada en QR y contextos operativos QR. No hay fecha comprometida.
 
 ## Regla de identificadores
 
@@ -46,9 +46,9 @@ La web autenticada ofrece `/identidad/qr` para mostrar/generar QR e historial. L
 
 ## NFC
 
-Disponible **sólo como flujo web**, bajo `/nfc-cards`: registro por admin global para un usuario con `StudentProfile`, UID canónico (trim + uppercase), historial inicial, bloqueo, reporte explícito de pérdida, suspensión y reactivación. `active`, `blocked`, `suspended`, `replaced` son los estados persistidos; `replaced` es terminal y el endpoint genérico no lo crea. El dueño puede ver sus tarjetas/historial; admin puede administrar. Los cambios persisten tarjeta, historial y outbox en una transacción MongoDB.
+Disponible **sólo como flujo web**, bajo `/nfc-cards`: registro por admin global para un usuario con `StudentProfile`, UID canónico (trim + uppercase), historial inicial, bloqueo, reporte explícito de pérdida, suspensión, reactivación y `POST /nfc-cards/{nfcCard}/replace`. El reemplazo crea una tarjeta nueva para el mismo `User._id`, enlaza ambas credenciales y hereda `active`, `blocked` o `suspended` sin reactivar implícitamente. `active`, `blocked`, `suspended`, `replaced` son los estados persistidos; `replaced` es terminal y el endpoint genérico no lo crea. El dueño puede ver sus tarjetas/historial; admin puede administrar. Registro, cambios y reemplazo persisten tarjetas, historial con motivos y outbox en una transacción MongoDB.
 
-**Pendiente:** reemplazo real old→new y API interequipos para validar UID/propietario/estado. No hay ruta `/api/v1/.../nfc-validate` ni equivalente. No derivar la titularidad actual a partir de eventos ni consultar `nfc_cards` desde otro equipo.
+**Pendiente para integración:** API interequipos para validar UID/propietario/estado. No hay ruta `/api/v1/.../nfc-validate` ni equivalente. No derivar la titularidad actual a partir de eventos ni consultar `nfc_cards` desde otro equipo.
 
 ## Roles y contextos
 
@@ -68,7 +68,7 @@ No hay API OAuth pública para consultar/asignar roles contextuales. La represen
 | --- | --- | --- | --- |
 | `student.profile.changed.v1` | Alta/edición de perfil, cambio académico y preferencias | `student_id`, `operation`, `changed_fields`, `actor_id` | `student_id=User._id`; `operation` actual: `created`, `updated`, `academic_status_changed` o `communication_preferences_changed`; no contiene perfil completo ni valor nuevo de estado |
 | `student.consent.changed.v1` | Aceptación/revocación de consentimiento | `student_id`, `consent_id`, `status`, `version`, `actor_id` | `student_id=User._id`; no es copia del registro de consentimiento |
-| `identity.credential.changed.v1` | Registro NFC y cambio ordinario/pérdida | `credential_id`, `credential_type`, `operation`, `status`, `actor_id` | `credential_id=NfcCard._id` interno de la credencial, **no** `User._id`; `credential_type=nfc`, `operation` actual: `registered`, `status_changed` o `lost`; no contiene UID ni titular actual |
+| `identity.credential.changed.v1` | Registro NFC, cambio ordinario/pérdida y reemplazo | `credential_id`, `credential_type`, `operation`, `status`, `actor_id` | `credential_id=NfcCard._id` interno de la credencial, **no** `User._id`; `credential_type=nfc`. Un reemplazo emite `status_changed/replaced` para la vieja y `registered/{estado heredado}` para la nueva dentro de la misma transacción; no contiene UID, titular ni enlace old/new. Las otras operaciones actuales incluyen `lost`; no usar eventos aislados como consulta de titularidad. |
 
 `CredentialEvent`, `QrValidation` y `SecurityEvent` son historial/auditoría, **no** eventos de integración. El consumidor debe tolerar campos adicionales futuros, deduplicar por `event_id` y no inferir orden global. Solicitar contrato de consulta si el payload no basta.
 

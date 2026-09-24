@@ -18,6 +18,8 @@ class NfcCard extends Model
         'registered_at',
         'blocked_at',
         'replaced_at',
+        'replacement_of_card_id',
+        'replaced_by_card_id',
     ];
 
     protected $casts = [
@@ -48,5 +50,15 @@ class NfcCard extends Model
     public function credentialEvents()
     {
         return $this->hasMany(CredentialEvent::class, 'nfc_card_id');
+    }
+
+    public function replacementOf()
+    {
+        return $this->belongsTo(self::class, 'replacement_of_card_id');
+    }
+
+    public function replacedBy()
+    {
+        return $this->belongsTo(self::class, 'replaced_by_card_id');
     }
 }

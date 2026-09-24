@@ -145,6 +145,9 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
 
         Route::patch('/nfc-cards/{nfcCard}/lost', [NfcCardController::class, 'reportLost'])
             ->name('nfc-cards.report-lost');
+
+        Route::post('/nfc-cards/{nfcCard}/replace', [NfcCardController::class, 'replace'])
+            ->name('nfc-cards.replace');
     });
 
     // --------------------------------------------------------------
