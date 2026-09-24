@@ -96,3 +96,7 @@ Registros locales (ignorados por Git): `storage/logs/integracion-tests.log` y `s
 Solo el login usa la vista, el logotipo y la tipografía del equipo 1. Su presentación está aislada en `LoginLayout.vue`; las demás pantallas mantienen el diseño integrado anterior. Después del login se abre Comunidad como antes. El backend de autenticación del equipo 1 se conserva.
 
 Validado con compilación Vite y navegación en navegador: login del equipo 1 en escritorio/móvil, recuperación con el diseño previo, redirección a Comunidad y perfil, condición académica, QR, dispositivos y NFC con el diseño integrado anterior. Sin errores JavaScript.
+
+## Entrada y cierre de sesión
+
+La página principal `/` redirige al login cuando no hay sesión y a Comunidad cuando hay sesión. Cerrar sesión redirige directamente al login del equipo 1; se retiró la página de bienvenida de Laravel. Comprobado en navegador con el botón de cierre de sesión y el bloqueo posterior de vistas privadas; 9 pruebas de autenticación/entrada aprobadas y compilación Vite correcta.

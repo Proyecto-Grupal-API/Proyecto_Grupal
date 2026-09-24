@@ -12,17 +12,12 @@ use App\Http\Controllers\SecurityDeviceController;
 use App\Http\Controllers\StudentServicesController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentImportController;
-use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+Route::get('/', function (Request $request) {
+    return redirect()->route($request->user() ? 'dashboard' : 'login');
 });
 
 Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group(function () {
