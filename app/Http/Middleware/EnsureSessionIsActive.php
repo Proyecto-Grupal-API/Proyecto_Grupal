@@ -40,6 +40,10 @@ class EnsureSessionIsActive
                     'ip_address' => $request->ip(),
                 ]);
 
+                if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+                    return response()->json(['message' => 'Tu sesión fue cerrada. Vuelve a iniciar sesión.', 'redirect' => route('login')], 401);
+                }
+
                 return redirect()->route('login')
                     ->with('status', 'Tu sesión fue cerrada de forma remota desde otro dispositivo.');
             }

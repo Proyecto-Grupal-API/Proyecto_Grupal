@@ -7,6 +7,7 @@ use App\Models\SecurityEvent;
 use App\Models\UserSession;
 use App\Services\IdentityService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 /**
@@ -22,9 +23,7 @@ class SecurityDeviceController extends Controller
 {
     private const EVENTS_PAGE_SIZE = 20;
 
-    public function __construct(private IdentityService $identity)
-    {
-    }
+    public function __construct(private IdentityService $identity) {}
 
     public function index(Request $request)
     {
@@ -112,7 +111,7 @@ class SecurityDeviceController extends Controller
 
         $this->identity->revokeSession($request->user(), $userSession, 'manual');
 
-        return back()->with('success', 'Sesión revocada correctamente.');
+        return $this->actionResponse($request, 'Sesión revocada correctamente.');
     }
 
     public function revokeOthers(Request $request)
@@ -129,7 +128,7 @@ class SecurityDeviceController extends Controller
             $this->identity->revokeSession($user, $session, 'revoke_others');
         }
 
-        return back()->with('success', 'Se cerraron todas las demás sesiones activas.');
+        return $this->actionResponse($request, 'Se cerraron todas las demás sesiones activas.');
     }
 
     public function trust(Request $request, string $device)
@@ -142,7 +141,7 @@ class SecurityDeviceController extends Controller
 
         $this->identity->setDeviceTrust($request->user(), $deviceModel, $data['trusted']);
 
-        return back()->with('success', $data['trusted']
+        return $this->actionResponse($request, $data['trusted']
             ? 'Dispositivo marcado como confiable.'
             : 'Dispositivo marcado como no confiable.');
     }
@@ -159,7 +158,24 @@ class SecurityDeviceController extends Controller
 
         $this->identity->forgetDevice($request->user(), $deviceModel);
 
-        return back()->with('success', 'Dispositivo eliminado.');
+        return $this->actionResponse($request, 'Dispositivo eliminado.');
+    }
+
+    private function actionResponse(Request $request, string $message)
+    {
+        $session = UserSession::find($request->session()->get('cd_session_id'));
+        $closed = $session && $session->isRevoked();
+        if ($closed) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true, 'message' => $message, 'redirect' => $closed ? route('login') : null])
+                ->header('Cache-Control', 'private, no-store');
+        }
+
+        return $closed ? redirect()->route('login')->with('status', $message) : back()->with('success', $message);
     }
 
     private function eventsQuery($user)

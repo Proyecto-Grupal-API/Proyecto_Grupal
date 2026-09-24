@@ -14,6 +14,14 @@ use Inertia\Response;
 
 class ProfileController extends Controller
 {
+    public function authentication(Request $request): Response
+    {
+        return Inertia::render('Profile/Authentication', [
+            'twoFactorEnabled' => ! is_null($request->user()->two_factor_confirmed_at),
+            'twoFactorConfigurationPending' => ! is_null($request->user()->two_factor_secret) && is_null($request->user()->two_factor_confirmed_at),
+        ]);
+    }
+
     /**
      * Display the user's profile form.
      */

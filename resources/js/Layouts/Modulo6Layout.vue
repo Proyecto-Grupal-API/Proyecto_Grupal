@@ -62,7 +62,7 @@ const enlaces = computed(() =>
     esPerfil.value
         ? [
               { nombre: "Perfil", icono: "👤", href: "/profile", activo: currentUrl.value === "/profile" },
-              { nombre: "Autenticación", icono: "🔐", href: "/profile#seguridad" },
+              { nombre: "Autenticación", icono: "🔐", href: "/profile/authentication" },
               { nombre: "Mi condición", icono: "🎓", href: "/student-services" },
               { nombre: "Identidad QR", icono: "📱", href: "/identidad/qr" },
               { nombre: "Dispositivos y sesiones", icono: "💻", href: "/seguridad/dispositivos" },

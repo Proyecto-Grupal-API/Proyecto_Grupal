@@ -45,6 +45,8 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
     // --------------------------------------------------------------
     // Perfil
     // --------------------------------------------------------------
+    Route::get('/profile/authentication', [ProfileController::class, 'authentication'])->name('profile.authentication');
+
     Route::get('/profile', [ProfileController::class, 'edit'])
         ->name('profile.edit');
 

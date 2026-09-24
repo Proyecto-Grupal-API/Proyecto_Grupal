@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -22,7 +23,7 @@ class EnsureRecentlyReauthenticated
         $validMinutes = (int) env('REAUTH_VALID_MINUTES', 5);
         $reauthAt = $request->session()->get('reauth_at');
 
-        $isFresh = $reauthAt && now()->diffInMinutes($reauthAt) <= $validMinutes;
+        $isFresh = $reauthAt && Carbon::parse($reauthAt)->betweenIncluded(now()->subMinutes($validMinutes), now());
 
         if (! $isFresh) {
             if ($request->expectsJson() || $request->header('X-Inertia')) {

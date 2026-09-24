@@ -100,3 +100,11 @@ Validado con compilación Vite y navegación en navegador: login del equipo 1 en
 ## Entrada y cierre de sesión
 
 La página principal `/` redirige al login cuando no hay sesión y a Comunidad cuando hay sesión. Cerrar sesión redirige directamente al login del equipo 1; se retiró la página de bienvenida de Laravel. Comprobado en navegador con el botón de cierre de sesión y el bloqueo posterior de vistas privadas; 9 pruebas de autenticación/entrada aprobadas y compilación Vite correcta.
+
+## Autenticación y administración de sesiones
+
+El enlace **Autenticación** abre `/profile/authentication`, con los controles de contraseña y verificación en dos pasos dentro del diseño integrado. Las acciones de dispositivos y sesiones devuelven JSON para las peticiones de la pantalla, muestran sus resultados y cierran inmediatamente la sesión local si se revoca o se elimina su dispositivo. La confirmación de contraseña vence tras el intervalo configurado y debe repetirse para continuar.
+
+Se reparó el propietario de los archivos generados en esta integración. Ejecutar pruebas, Artisan y compilaciones con `docker compose -f compose.integracion.yaml exec -T --user sail app ...` para evitar archivos de caché creados como root. La caché de archivos de pruebas usa `storage/framework/cache/testing`; la aplicación usa `storage/framework/cache/data`, de modo que las pruebas no interfieran con los límites de intentos de la aplicación.
+
+Validación de esta corrección: **38 pruebas aprobadas, 289 aserciones**, compilación Vite correcta y verificación en Edge con una cuenta temporal eliminada al terminar. Se comprobó el acceso a Autenticación, el inicio de configuración de 2FA, el aviso de contraseña incorrecta, la revocación de otra sesión, el bloqueo posterior de esa sesión y el regreso al login al eliminar el dispositivo actual. Sin errores JavaScript ni respuestas 5xx. Registros locales: `storage/logs/sesiones-tests.log`, `storage/logs/sesiones-build.log` y `storage/logs/sesiones-browser.log`.

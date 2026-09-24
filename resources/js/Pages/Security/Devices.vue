@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
 const props = defineProps({
     devices: { type: Array, default: () => [] },
@@ -15,6 +15,22 @@ const events = ref(props.events);
 const eventsOffset = ref(props.events.length);
 const eventsHasMore = ref(props.events.length >= props.eventsPageSize);
 const eventsLoading = ref(false);
+const actionError = ref('');
+const actionSuccess = ref('');
+const actionBusy = ref(false);
+watch(() => props.events, value => {
+    events.value = value;
+    eventsOffset.value = value.length;
+    eventsHasMore.value = value.length >= props.eventsPageSize;
+});
+function errorMessage(e) {
+    const status = e.response?.status;
+    if (status === 429) return 'Demasiados intentos. Espera un momento y vuelve a intentarlo.';
+    if (status === 403) return 'No tienes permiso para realizar esta acción.';
+    if (status === 404) return 'La sesión o dispositivo ya no está disponible. Actualiza la página.';
+    if (status === 422) return e.response.data?.message || 'Revisa los datos ingresados.';
+    return 'No se pudo completar la acción. Intenta nuevamente.';
+}
 
 async function loadMoreEvents() {
     eventsLoading.value = true;
@@ -54,20 +70,33 @@ async function confirmReauth() {
         pendingAction = null;
         if (action) await action();
     } catch (e) {
-        reauthError.value = e.response?.data?.message ?? 'No se pudo confirmar tu contraseña.';
+        if ([401, 419].includes(e.response?.status)) window.location.assign(route('login'));
+        else reauthError.value = errorMessage(e);
     } finally {
         reauthLoading.value = false;
     }
 }
 
 async function runSensitive(method, url, payload = {}) {
+    if (actionBusy.value) return;
+    actionBusy.value = true;
+    actionError.value = '';
+    actionSuccess.value = '';
     try {
-        await window.axios({ method, url, data: payload });
+        const { data } = await window.axios({ method, url, data: payload, headers: { Accept: 'application/json' } });
+        if (data?.ok !== true) throw new Error('Respuesta inesperada');
+        if (data.redirect) {
+            window.location.assign(data.redirect);
+            return;
+        }
+        actionSuccess.value = data.message;
         router.reload({ only: ['devices', 'events'] });
     } catch (e) {
-        if (e.response?.status === 428) {
-            requestReauth(() => runSensitive(method, url, payload));
-        }
+        if (e.response?.status === 428) requestReauth(() => runSensitive(method, url, payload));
+        else if ([401, 419].includes(e.response?.status)) window.location.assign(route('login'));
+        else actionError.value = errorMessage(e);
+    } finally {
+        actionBusy.value = false;
     }
 }
 
@@ -125,7 +154,7 @@ const eventLabels = {
                     <h2 class="mt-1 text-2xl font-bold tracking-tight text-[#00338D]">Dispositivos y sesiones confiables</h2>
                 </div>
                 <button
-                    @click="revokeOthers"
+                    @click="revokeOthers" :disabled="actionBusy"
                     class="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-[#0284C7] hover:text-[#0284C7]"
                 >
                     Cerrar todas las demás sesiones
@@ -135,6 +164,8 @@ const eventLabels = {
 
         <div class="min-h-[calc(100vh-9rem)] bg-[#F5F8FC] px-4 py-8 sm:px-6 lg:px-8">
             <div class="mx-auto max-w-6xl">
+                <p v-if="actionError" role="alert" class="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-800">{{ actionError }}</p>
+                <p v-if="actionSuccess" role="status" class="mb-4 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">{{ actionSuccess }}</p>
                 <p class="mb-6 max-w-2xl text-sm text-slate-500">
                     Administra desde dónde ha ingresado tu cuenta y revoca el acceso a cualquier dispositivo que ya no
                     reconozcas. Como máximo se permiten {{ maxActiveSessions }} sesiones activas a la vez; si abres una
@@ -164,10 +195,10 @@ const eventLabels = {
                                 <div class="flex flex-col items-end gap-2">
                                     <span v-if="device.is_trusted" class="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">Confiable</span>
                                     <span v-else class="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">No confiable</span>
-                                    <button @click="toggleTrust(device)" class="text-xs font-semibold text-[#0284C7] hover:underline">
+                                    <button @click="toggleTrust(device)" :disabled="actionBusy" class="text-xs font-semibold text-[#0284C7] hover:underline">
                                         {{ device.is_trusted ? 'Quitar confianza' : 'Marcar como confiable' }}
                                     </button>
-                                    <button @click="removeDevice(device)" class="text-xs font-semibold text-rose-600 hover:underline">
+                                    <button @click="removeDevice(device)" :disabled="actionBusy" class="text-xs font-semibold text-rose-600 hover:underline">
                                         Eliminar dispositivo
                                     </button>
                                 </div>
@@ -190,7 +221,7 @@ const eventLabels = {
                                     </div>
                                     <button
                                         v-if="!session.is_current"
-                                        @click="revoke(session.id)"
+                                        @click="revoke(session.id)" :disabled="actionBusy"
                                         class="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"
                                     >
                                         Cerrar sesión

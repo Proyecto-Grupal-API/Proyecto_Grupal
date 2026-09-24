@@ -48,8 +48,8 @@ return [
 
         'file' => [
             'driver' => 'file',
-            'path' => storage_path('framework/cache/data'),
-            'lock_path' => storage_path('framework/cache/data'),
+            'path' => storage_path('framework/cache/'.(env('APP_ENV') === 'testing' ? 'testing' : 'data')),
+            'lock_path' => storage_path('framework/cache/'.(env('APP_ENV') === 'testing' ? 'testing' : 'data')),
         ],
 
         'memcached' => [
