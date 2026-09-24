@@ -2,6 +2,7 @@
 import { Head, Link, usePage } from "@inertiajs/vue3";
 import { ref, computed, onMounted } from "vue";
 import axios from "axios";
+import CondicionIdentidad from "@/Components/CondicionIdentidad.vue";
 import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
 const page = usePage(),
     datos = ref(null),
@@ -73,6 +74,7 @@ const ocupacion = computed(() =>
     <Head title="Dashboard — Campus Digital" /><Modulo6Layout
         headerTitle="Panel de Comunidad"
         ><div class="campus-page space-y-6">
+            <CondicionIdentidad />
             <div class="flex flex-wrap justify-between gap-3 items-center">
                 <div>
                     <h1 class="text-2xl font-bold">

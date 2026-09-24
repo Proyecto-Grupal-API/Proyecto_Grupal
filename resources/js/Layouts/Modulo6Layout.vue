@@ -22,7 +22,7 @@ const props = defineProps({
 
 const page = usePage();
 const currentUrl = computed(() => page.url.split("?")[0].split("#")[0]);
-const esPerfil = computed(() => currentUrl.value === "/profile");
+const esPerfil = computed(() => !currentUrl.value.startsWith("/modulo6"));
 const menuAbierto = ref(false);
 const cuentaAbierta = ref(false);
 const botonMenu = ref(null);
@@ -61,8 +61,14 @@ const modulos = [
 const enlaces = computed(() =>
     esPerfil.value
         ? [
-              { nombre: "Perfil", icono: "👤", href: "/profile", activo: true },
-              { nombre: "Seguridad", icono: "🔐", href: "/profile#seguridad" },
+              { nombre: "Perfil", icono: "👤", href: "/profile", activo: currentUrl.value === "/profile" },
+              { nombre: "Autenticación", icono: "🔐", href: "/profile#seguridad" },
+              { nombre: "Mi condición", icono: "🎓", href: "/student-services" },
+              { nombre: "Identidad QR", icono: "📱", href: "/identidad/qr" },
+              { nombre: "Dispositivos y sesiones", icono: "💻", href: "/seguridad/dispositivos" },
+              { nombre: "Tarjetas NFC", icono: "💳", href: "/nfc-cards" },
+              ...(page.props.auth.user?.roles?.some(r => ['admin', 'maestro', 'student_manager'].includes(r.name) && !r.scope_type) ? [{ nombre: "Estudiantes", icono: "👥", href: "/students" }] : []),
+              { nombre: "Roles y permisos", icono: "🛡️", href: "/roles" },
           ]
         : [
               {
@@ -167,6 +173,15 @@ const mostrarNotificaciones = ref(false);
 const notificaciones = ref([]);
 const noLeidas = ref(0);
 let timerNotificaciones;
+let heartbeatTimer;
+async function checkHeartbeat() {
+    try {
+        const response = await axios.get('/seguridad/latido', {headers: {Accept: 'application/json'}, validateStatus: () => true});
+        if ([401, 419].includes(response.status) || (response.status === 200 && response.data?.ok !== true)) {
+            window.location.assign('/login');
+        }
+    } catch { /* Retry on the next heartbeat after a network interruption. */ }
+}
 
 const cargarNotificaciones = async () => {
     try {
@@ -179,6 +194,7 @@ const cargarNotificaciones = async () => {
 };
 
 onMounted(() => {
+    heartbeatTimer = setInterval(checkHeartbeat, 8000);
     mostrarModuloActivo();
     window.addEventListener("resize", mostrarModuloActivo);
     cargarNotificaciones();
@@ -190,6 +206,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
     window.removeEventListener("resize", mostrarModuloActivo);
     clearInterval(timerNotificaciones);
+    clearInterval(heartbeatTimer);
     window.removeEventListener("bandeja-actualizada", cargarNotificaciones);
 });
 
@@ -386,6 +403,9 @@ const eliminarLeidas = async () => {
                 class="campus-content"
                 :aria-label="headerTitle"
             >
+                <div v-if="page.props.flash?.error || page.props.flash?.success || page.props.flash?.status" role="status" class="mx-6 mt-4 rounded-lg border bg-white p-4 text-sm">
+                    {{ page.props.flash.error || page.props.flash.success || page.props.flash.status }}
+                </div>
                 <slot />
             </main>
         </div>

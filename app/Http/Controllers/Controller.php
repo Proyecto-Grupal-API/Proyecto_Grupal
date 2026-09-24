@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Gate;
 
 abstract class Controller
 {
+    use \Illuminate\Foundation\Auth\Access\AuthorizesRequests;
     protected function organizacion(Request $request, bool $editar = false): Organizacion
     {
         $organizacion = $request->attributes->get('organizacion');

@@ -1,0 +1,35 @@
+name: campus_integracion_e1
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/integracion/Dockerfile
+    image: campus-integracion-php:local
+    environment:
+      WWWUSER: '1000'
+      LARAVEL_SAIL: 1
+      PHP_CLI_SERVER_WORKERS: 4
+    ports:
+      - '127.0.0.1:8086:80'
+    volumes:
+      - '.:/var/www/html'
+    depends_on:
+      - mongodb
+  worker:
+    image: campus-integracion-php:local
+    environment:
+      WWWUSER: '1000'
+      LARAVEL_SAIL: 1
+    command: ['php', 'artisan', 'queue:work', 'comunidad', '--queue=comunidad', '--sleep=2', '--tries=3', '--timeout=45']
+    volumes:
+      - '.:/var/www/html'
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+  mongodb:
+    image: mongo@sha256:5d7043a4ffe02b9ed1b6e0bab057546981af5ca0a79107e9c461e49bc44c0a7b
+    command: ['mongod', '--replSet', 'rs0', '--bind_ip_all']
+    volumes:
+      - integration-mongo:/data/db
+volumes:
+  integration-mongo:

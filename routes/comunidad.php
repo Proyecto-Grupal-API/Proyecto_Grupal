@@ -112,3 +112,5 @@ Route::prefix('gestion-organizaciones')->group(function () {
     Route::post('/{id}/completar', [GestionOrganizacionesController::class, 'completar'])->where('id', '[a-fA-F0-9]{24}');
     Route::post('/{id}/estado', [GestionOrganizacionesController::class, 'estado'])->where('id', '[a-fA-F0-9]{24}');
 });
+
+Route::get('/identidad/mi-condicion', \App\Http\Controllers\IdentidadComunidadController::class);

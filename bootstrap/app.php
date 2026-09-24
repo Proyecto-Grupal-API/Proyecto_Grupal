@@ -17,7 +17,14 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        //
+        // Registrar los alias de los middlewares
+        $middleware->alias([
+            'session.active' => \App\Http\Middleware\EnsureSessionIsActive::class,
+            'device.track' => \App\Http\Middleware\TrackDeviceSession::class,
+            'role.context' => \App\Http\Middleware\EnsureHasContextualRole::class,
+            'oauth.service' => \App\Http\Middleware\ValidateServiceToken::class,
+            'reauth' => \App\Http\Middleware\EnsureRecentlyReauthenticated::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

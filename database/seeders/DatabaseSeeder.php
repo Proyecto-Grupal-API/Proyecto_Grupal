@@ -10,12 +10,17 @@ use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
+    public static function allowsDemoBootstrap(string $environment): bool
+    {
+        return in_array($environment, ['local', 'testing'], true);
+    }
+
     public function run(): void
     {
         if (! app()->environment(['local', 'testing'])) {
             throw new \RuntimeException('Los usuarios de demostración solo se crean en local o testing.');
         }
-        $this->call(TipoBeneficioSeeder::class);
+        $this->call([TipoBeneficioSeeder::class, RoleSeeder::class, StudentCatalogSeeder::class]);
         $personas = [
             ['name' => 'Presidencia Sistemas', 'email' => 'presidencia@campus.test', 'matricula' => '20260001'],
             ['name' => 'Estudiante Demo', 'email' => 'estudiante@campus.test', 'matricula' => '20260002'],

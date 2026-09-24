@@ -20,6 +20,7 @@
         "vue": "^3.4.0"
     },
     "dependencies": {
+        "@zxing/library": "^0.21.3",
         "jsqr": "^1.4.0",
         "qrcode": "^1.5.4"
     }

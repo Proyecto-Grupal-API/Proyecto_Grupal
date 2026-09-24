@@ -3,9 +3,12 @@ import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
 import DeleteUserForm from "./Partials/DeleteUserForm.vue";
 import UpdatePasswordForm from "./Partials/UpdatePasswordForm.vue";
 import UpdateProfileInformationForm from "./Partials/UpdateProfileInformationForm.vue";
+import TwoFactorAuthenticationForm from "@/Components/TwoFactorAuthenticationForm.vue";
 import { Head } from "@inertiajs/vue3";
 
 defineProps({
+    twoFactorEnabled: Boolean,
+    twoFactorConfigurationPending: Boolean,
     mustVerifyEmail: {
         type: Boolean,
     },
@@ -66,6 +69,9 @@ defineProps({
                         />
                     </div>
 
+                    <div class="campus-profile-card">
+                        <TwoFactorAuthenticationForm :initially-enabled="twoFactorEnabled" :initially-pending="twoFactorConfigurationPending" />
+                    </div>
                     <div class="campus-profile-card">
                         <DeleteUserForm class="max-w-xl" />
                     </div>

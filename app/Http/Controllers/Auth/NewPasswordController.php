@@ -49,7 +49,13 @@ class NewPasswordController extends Controller
                 $user->forceFill([
                     'password' => Hash::make($request->password),
                     'remember_token' => Str::random(60),
-                ])->save();
+                ]);
+
+                if ($user->account_activation_pending === true) {
+                    $user->account_activation_pending = false;
+                }
+
+                $user->save();
 
                 event(new PasswordReset($user));
             }

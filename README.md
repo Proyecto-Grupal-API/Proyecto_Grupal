@@ -1,3 +1,5 @@
+> **Copia de integración Equipo 1 + Comunidad:** consulta [la guía del entorno aislado](docs/integration/COMUNIDAD-EQUIPO-1.md) antes de arrancar. Usa `compose.integracion.yaml` y el puerto 8086.
+
 # Campus Digital — Comunidad (equipo 6)
 
 Laravel 12, Vue 3/Inertia y MongoDB, sobre Docker/WSL.
