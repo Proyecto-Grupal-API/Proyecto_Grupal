@@ -30,7 +30,7 @@ No usar `down -v` salvo que se pretenda borrar los datos de esta copia. No ejecu
 
 - Laravel 13 y dependencias del equipo 1. Imagen PHP derivada independiente con extensión MongoDB actualizada.
 - Autenticación y activación de cuentas, 2FA, perfiles, gestión de estudiantes, QR de identidad, NFC, dispositivos, sesiones y roles del equipo 1.
-- Navegación compartida con el diseño de Comunidad; acceso a Identidad desde Mi Perfil.
+- Identidad conserva sus pantallas, layouts, logotipo y tipografía del equipo 1, incluidos bienvenida, login, inicio y perfil/2FA. Comunidad mantiene sus vistas y su diseño. Ambos módulos se conectan con enlaces de navegación; al iniciar sesión se muestra el inicio del equipo 1.
 - Revocación de sesiones aplicada también a vistas y endpoints de Comunidad.
 - Eliminación de cuenta mantiene las restricciones y la limpieza de responsabilidades del módulo 6.
 - Eventos, Staff, becas, comunicación, participación, transparencia y registro de organizaciones conservan las reglas del módulo 6.
@@ -89,3 +89,9 @@ Las pruebas usan únicamente `campus_digital_testing` en el MongoDB aislado; el 
 - La consulta real de Comunidad a Identidad respondió HTTP 200 con OAuth. El QR dinámico se generó con vigencia de 30 segundos.
 
 Registros locales (ignorados por Git): `storage/logs/integracion-tests.log` y `storage/logs/integracion-indice-tests.log`.
+
+### Vistas originales de Identidad
+
+Se restauraron las vistas del equipo 1 (`7a30c3f`) para bienvenida, login, inicio, perfil y autenticación, junto con sus layouts, logotipo y tipografía. Las adaptaciones visuales de integración se limitan a enlaces hacia Comunidad/NFC y al texto de eliminación de cuenta para describir las responsabilidades que conserva el sistema. Las pantallas de Comunidad mantienen su diseño propio.
+
+Validación de esta corrección: compilación Vite correcta; **26 pruebas de autenticación, 2FA y perfil aprobadas (228 aserciones)**; navegación de login a inicio del equipo 1 y de ahí a Comunidad comprobada en escritorio y móvil, sin errores JavaScript. Los archivos del login, layout de invitados, logotipo, bienvenida y perfil principal coinciden con los del equipo 1.

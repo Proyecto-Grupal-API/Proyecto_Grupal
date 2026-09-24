@@ -27,7 +27,7 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group(function () {
     Route::get('/dashboard', function () {
-        return redirect()->route('modulo6.asociacion');
+        return Inertia::render('Dashboard');
     })->name('dashboard');
 
     Route::get('/student-services', [StudentServicesController::class, 'index'])

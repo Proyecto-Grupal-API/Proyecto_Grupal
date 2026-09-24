@@ -1,11 +1,11 @@
 <script setup>
-import Checkbox from "@/Components/Checkbox.vue";
-import GuestLayout from "@/Layouts/GuestLayout.vue";
-import InputError from "@/Components/InputError.vue";
-import InputLabel from "@/Components/InputLabel.vue";
-import PrimaryButton from "@/Components/PrimaryButton.vue";
-import TextInput from "@/Components/TextInput.vue";
-import { Head, Link, useForm } from "@inertiajs/vue3";
+import Checkbox from '@/Components/Checkbox.vue';
+import GuestLayout from '@/Layouts/GuestLayout.vue';
+import InputError from '@/Components/InputError.vue';
+import InputLabel from '@/Components/InputLabel.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
+import TextInput from '@/Components/TextInput.vue';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 
 defineProps({
     canResetPassword: {
@@ -17,33 +17,29 @@ defineProps({
 });
 
 const form = useForm({
-    email: "",
-    password: "",
+    email: '',
+    password: '',
     remember: false,
 });
 
 const submit = () => {
-    form.post(route("login"), {
-        onFinish: () => form.reset("password"),
+    form.post(route('login'), {
+        onFinish: () => form.reset('password'),
     });
 };
 </script>
 
 <template>
     <GuestLayout>
-        <Head title="Iniciar sesión" />
+        <Head title="Log in" />
 
         <div v-if="status" class="mb-4 text-sm font-medium text-green-600">
             {{ status }}
         </div>
 
-        <h2 class="campus-auth-title">Iniciar sesión</h2>
-        <p class="campus-auth-description">
-            Ingresa con tu cuenta para continuar.
-        </p>
         <form @submit.prevent="submit">
             <div>
-                <InputLabel for="email" value="Correo electrónico" />
+                <InputLabel for="email" value="Email" />
 
                 <TextInput
                     id="email"
@@ -59,7 +55,7 @@ const submit = () => {
             </div>
 
             <div class="mt-4">
-                <InputLabel for="password" value="Contraseña" />
+                <InputLabel for="password" value="Password" />
 
                 <TextInput
                     id="password"
@@ -76,25 +72,27 @@ const submit = () => {
             <div class="mt-4 block">
                 <label class="flex items-center">
                     <Checkbox name="remember" v-model:checked="form.remember" />
-                    <span class="ms-2 text-sm text-gray-600">Recordarme</span>
+                    <span class="ms-2 text-sm text-gray-600"
+                        >Remember me</span
+                    >
                 </label>
             </div>
 
-            <div class="mt-6 flex flex-wrap items-center justify-between gap-4">
+            <div class="mt-4 flex items-center justify-end">
                 <Link
                     v-if="canResetPassword"
                     :href="route('password.request')"
                     class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
-                    ¿Olvidaste tu contraseña?
+                    Forgot your password?
                 </Link>
 
                 <PrimaryButton
-                    class="campus-login-submit"
+                    class="ms-4"
                     :class="{ 'opacity-25': form.processing }"
                     :disabled="form.processing"
                 >
-                    Iniciar sesión
+                    Log in
                 </PrimaryButton>
             </div>
         </form>
