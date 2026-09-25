@@ -112,20 +112,29 @@ return [
     'sslmode' => env('PGSQL_SSLMODE', 'prefer'),
 ],
 
-        'sqlsrv' => [
-            'driver' => 'sqlsrv',
-            'url' => env('DB_URL'),
-            'host' => env('DB_HOST', 'localhost'),
-            'port' => env('DB_PORT', '1433'),
-            'database' => env('DB_DATABASE', 'laravel'),
-            'username' => env('DB_USERNAME', 'root'),
-            'password' => env('DB_PASSWORD', ''),
-            'charset' => env('DB_CHARSET', 'utf8'),
-            'prefix' => '',
-            'prefix_indexes' => true,
-            // 'encrypt' => env('DB_ENCRYPT', 'yes'),
-            // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
-        ],
+       'sqlsrv' => [
+    'driver' => 'sqlsrv',
+    'url' => env('SQLSRV_URL'),
+    'host' => env('SQLSRV_HOST', 'localhost'),
+    'port' => env('SQLSRV_PORT', '1433'),
+    'database' => env(
+        'SQLSRV_DATABASE',
+        'campus_digital_financial'
+    ),
+    'username' => env(
+        'SQLSRV_USERNAME',
+        'campus_financial'
+    ),
+    'password' => env('SQLSRV_PASSWORD', ''),
+    'charset' => 'utf8',
+    'prefix' => '',
+    'prefix_indexes' => true,
+    'encrypt' => env('SQLSRV_ENCRYPT', 'yes'),
+    'trust_server_certificate' => env(
+        'SQLSRV_TRUST_SERVER_CERTIFICATE',
+        'true'
+    ),
+],
 
     ],
 

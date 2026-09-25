@@ -6,11 +6,11 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    protected $connection = 'pgsql';
+    protected $connection = 'sqlsrv';
 
     public function up(): void
     {
-        Schema::connection('pgsql')->create(
+       Schema::connection('sqlsrv')->create(
             'financial_transactions',
             function (Blueprint $table) {
                 $table->id();
@@ -26,7 +26,7 @@ return new class extends Migration
 
                 $table->uuid('original_transaction_id')->nullable();
 
-                $table->jsonb('metadata')->nullable();
+                $table->json('metadata')->nullable();
 
                 $table->timestamps();
 
@@ -44,7 +44,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::connection('pgsql')
+       Schema::connection('sqlsrv')
             ->dropIfExists('financial_transactions');
     }
 };

@@ -28,7 +28,7 @@ class LedgerService
             );
         }
 
-        return DB::connection('pgsql')->transaction(
+        return DB::connection('sqlsrv')->transaction(
             function () use (
                 $wallet,
                 $amountCents,
@@ -96,7 +96,7 @@ class LedgerService
             );
         }
 
-        return DB::connection('pgsql')->transaction(
+        return DB::connection('sqlsrv')->transaction(
             function () use (
                 $wallet,
                 $amountCents,

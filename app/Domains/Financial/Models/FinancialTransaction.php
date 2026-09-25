@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class FinancialTransaction extends Model
 {
-    protected $connection = 'pgsql';
+    protected $connection = 'sqlsrv';
 
     protected $table = 'financial_transactions';
 

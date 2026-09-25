@@ -3,13 +3,13 @@
 namespace App\Domains\Financial\Models;
 
 use App\Domains\Financial\Enums\MovementType;
-use MongoDB\Laravel\Eloquent\Model;
+use Illuminate\Database\Eloquent\Model;
 
 class LedgerEntry extends Model
 {
-    protected $connection = 'mongodb';
+    protected $connection = 'sqlsrv';
 
-    protected $collection = 'ledger_entries';
+    protected $table = 'ledger_entries';
 
     protected $fillable = [
         'public_id',

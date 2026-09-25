@@ -26,11 +26,12 @@
         <env name="DB_CONNECTION" value="mongodb"/>
         <env name="DB_DATABASE" value="campus_virtual_testing"/>
         <env name="MONGODB_DSN" value="mongodb://127.0.0.1:27017"/>
-        <env name="PGSQL_HOST" value="127.0.0.1"/>
-        <env name="PGSQL_PORT" value="5432"/>
-        <env name="PGSQL_DATABASE" value="campus_digital_financial_testing"/>
-        <env name="PGSQL_USERNAME" value="campus_financial"/>
-        <env name="PGSQL_SSLMODE" value="prefer"/>
+        <env name="SQLSRV_HOST" value="localhost"/>
+        <env name="SQLSRV_PORT" value="1433"/>
+        <env name="SQLSRV_DATABASE" value="campus_digital_financial_testing"/>
+        <env name="SQLSRV_USERNAME" value="campus_financial"/>
+        <env name="SQLSRV_ENCRYPT" value="yes"/>
+        <env name="SQLSRV_TRUST_SERVER_CERTIFICATE" value="true"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

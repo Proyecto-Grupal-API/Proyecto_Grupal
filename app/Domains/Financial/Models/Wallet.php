@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Wallet extends Model
 {
-    protected $connection = 'pgsql';
+    protected $connection = 'sqlsrv';
 
     protected $table = 'wallets';
 

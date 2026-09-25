@@ -6,11 +6,11 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    protected $connection = 'pgsql';
+    protected $connection = 'sqlsrv';
 
     public function up(): void
     {
-        Schema::connection('pgsql')->create('wallets', function (Blueprint $table) {
+       Schema::connection('sqlsrv')->create('wallets', function (Blueprint $table) {
             $table->id();
 
             $table->uuid('public_id')->unique();
@@ -40,6 +40,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::connection('pgsql')->dropIfExists('wallets');
+        Schema::connection('sqlsrv')->dropIfExists('wallets');
     }
 };

@@ -80,7 +80,8 @@ test('credits a wallet and records the operation in the ledger', function () {
 
     $wallet->refresh();
 
-    expect($sameTransaction->public_id)->toBe($transaction->public_id)
+    expect(strtolower($sameTransaction->public_id))
+    ->toBe(strtolower($transaction->public_id))
         ->and($wallet->available_balance_cents)->toBe(10050)
         ->and(
             LedgerEntry::where(

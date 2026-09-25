@@ -6,11 +6,11 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    protected $connection = 'pgsql';
+    protected $connection = 'sqlsrv';
 
     public function up(): void
     {
-        Schema::connection('pgsql')->create(
+        Schema::connection('sqlsrv')->create(
             'ledger_entries',
             function (Blueprint $table) {
                 $table->id();
@@ -29,13 +29,13 @@ return new class extends Migration
 
                 $table->foreign('transaction_id')
                     ->references('public_id')
-                    ->on('financial_transactions')
-                    ->restrictOnDelete();
+                    ->on('financial_transactions');
+                    
 
                 $table->foreign('wallet_id')
                     ->references('public_id')
-                    ->on('wallets')
-                    ->restrictOnDelete();
+                    ->on('wallets');
+                    
 
                 $table->index('transaction_id');
                 $table->index('wallet_id');
@@ -46,7 +46,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::connection('pgsql')
+        Schema::connection('sqlsrv')
             ->dropIfExists('ledger_entries');
     }
 };
