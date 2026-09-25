@@ -1,0 +1,51 @@
+services:
+  app:
+    build:
+      context: ./docker/php
+    container_name: campus_digital_app
+    volumes:
+      - ./src:/var/www
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  webserver:
+    image: nginx:stable-alpine
+    container_name: campus_digital_webserver
+    ports:
+      - "8000:80"
+    volumes:
+      - ./src:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+
+  mongodb:
+    image: mongo:7
+    container_name: campus_digital_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: secret
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  node:
+    image: node:20
+    container_name: campus_digital_node
+    working_dir: /var/www
+    volumes:
+      - ./src:/var/www
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host"
+
+volumes:
+  mongodb_data:
