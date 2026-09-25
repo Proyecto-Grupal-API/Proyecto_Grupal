@@ -46,7 +46,7 @@ class NfcCardController extends Controller
             'cards' => $cards,
             'canManage' => $canManage,
             'availableTransitions' => $canManage ? $cards->mapWithKeys(function (NfcCard $card): array {
-                $status = NfcCardStatus::tryFrom((string) $card->status);
+                $status = $card->user ? NfcCardStatus::tryFrom((string) $card->status) : null;
 
                 return [(string) $card->getKey() => array_map(
                     fn (NfcCardStatus $target) => $target->value,
@@ -119,6 +119,13 @@ class NfcCardController extends Controller
 
         try {
             $this->mongoTransaction(function () use ($validated, $actorId): void {
+                if (! User::whereKey((string) $validated['user_id'])->exists()
+                    || ! StudentProfile::where('user_id', (string) $validated['user_id'])->exists()) {
+                    throw ValidationException::withMessages([
+                        'user_id' => 'El estudiante seleccionado ya no tiene una cuenta activa.',
+                    ]);
+                }
+
                 $card = NfcCard::create([
                     'user_id' => (string) $validated['user_id'],
                     'uid' => $validated['uid'],

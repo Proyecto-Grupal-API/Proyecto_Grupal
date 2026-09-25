@@ -66,7 +66,7 @@ class ImportStudents
 
             $profile = $enrollment !== '' ? StudentProfile::where('enrollment_number', 'regex', $this->canonicalMatch($enrollment))->first() : null;
             $student = $profile?->user;
-            $emailOwner = $email !== '' ? User::where('email', 'regex', $this->canonicalMatch($email))->first() : null;
+            $emailOwner = $email !== '' ? User::withTrashed()->where('email', 'regex', $this->canonicalMatch($email))->first() : null;
 
             $validator = Validator::make($data, [
                 'name' => ['required', 'string', 'max:120'],

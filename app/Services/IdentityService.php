@@ -43,6 +43,7 @@ class IdentityService
      */
     public function issueDynamicQrToken(User $user, ?string $purpose = null): IssuedQrToken
     {
+        $this->assertActiveOwner($user);
         $ttl = (int) env('QR_IDENTITY_TTL_SECONDS', 30);
         $code = QrToken::generateCode();
         $codeHash = QrLookupHash::code($code);
@@ -108,6 +109,7 @@ class IdentityService
      */
     public function issueIdentificationQrToken(User $user): IssuedQrToken
     {
+        $this->assertActiveOwner($user);
         $existing = QrToken::where('user_id', (string) $user->_id)
             ->where('type', 'identification')
             ->whereNull('revoked_at')
@@ -300,6 +302,16 @@ class IdentityService
             default => 'valid',
         };
 
+        // A token can outlive a hard-deleted legacy owner or an account
+        // closed through soft deletion. Never consume it or report success.
+        $owner = null;
+        if ($result === 'valid') {
+            $owner = $token->user;
+            if ($owner === null) {
+                $result = 'revoked';
+            }
+        }
+
         // Consumo atomico: solo el primer request que llega a marcar
         // consumed_at "gana"; si otro ya lo hizo entre el match() de
         // arriba y este update, aqui se detecta y se corrige el
@@ -321,11 +333,18 @@ class IdentityService
             return [
                 'ok' => true,
                 'result' => 'valid',
-                'identity' => $token->user->displayIdentity(),
+                'identity' => $owner->displayIdentity(),
             ];
         }
 
         return ['ok' => false, 'result' => $result, 'identity' => null];
+    }
+
+    private function assertActiveOwner(User $user): void
+    {
+        if ($user->trashed() || ! User::whereKey($user->getKey())->exists()) {
+            throw new RuntimeException('La cuenta no está activa para emitir credenciales QR.');
+        }
     }
 
     private function resolveCode(string $code): ?QrToken

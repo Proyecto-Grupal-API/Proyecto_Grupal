@@ -51,7 +51,7 @@ class StoreStudentRequest extends FormRequest
     protected function validateBusinessRules(): void
     {
         validator([], [])->after(function ($validator): void {
-            if (User::where('email', $this->input('email'))->exists()) {
+            if (User::withTrashed()->where('email', $this->input('email'))->exists()) {
                 $validator->errors()->add('email', 'El correo institucional ya está registrado.');
             }
             if (StudentProfile::where('enrollment_number', $this->input('enrollment_number'))->exists()) {

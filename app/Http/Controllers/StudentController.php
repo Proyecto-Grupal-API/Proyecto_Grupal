@@ -19,7 +19,9 @@ class StudentController extends Controller
     public function index(Request $request)
     {
         $this->authorize('viewAny', StudentProfile::class);
-        $profiles = StudentProfile::with(['user', 'campus', 'academicProgram'])->get();
+        $profiles = StudentProfile::with(['user', 'campus', 'academicProgram'])->get()
+            ->filter(fn (StudentProfile $profile): bool => $profile->user !== null);
+        $operationalProfiles = $profiles;
         $search = trim((string) $request->input('search'));
         $status = $request->input('status');
         $campus = $request->input('campus');
@@ -39,10 +41,10 @@ class StudentController extends Controller
             'campuses' => Campus::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'statuses' => StudentStatus::options(),
             'statistics' => [
-                'total' => StudentProfile::count(),
-                'active' => StudentProfile::where('academic_status', StudentStatus::Active->value)->count(),
-                'incomplete' => StudentProfile::whereNull('photo_path')->orWhereNull('phone')->count(),
-                'recent' => StudentProfile::where('updated_at', '>=', now()->subDays(7))->count(),
+                'total' => $operationalProfiles->count(),
+                'active' => $operationalProfiles->filter(fn (StudentProfile $profile): bool => $profile->academic_status === StudentStatus::Active)->count(),
+                'incomplete' => $operationalProfiles->filter(fn (StudentProfile $profile): bool => $profile->photo_path === null || $profile->phone === null)->count(),
+                'recent' => $operationalProfiles->filter(fn (StudentProfile $profile): bool => $profile->updated_at?->gte(now()->subDays(7)) ?? false)->count(),
             ],
         ]);
     }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\StudentProfile;
+use App\Models\User;
 
 class StudentStatusService
 {
@@ -12,6 +13,7 @@ class StudentStatusService
      */
     public function forUserId(string $userId, bool $includeHistory = false): array
     {
+        User::findOrFail($userId);
         $profile = StudentProfile::where('user_id', $userId)->firstOrFail();
 
         return $this->build($profile, $includeHistory);

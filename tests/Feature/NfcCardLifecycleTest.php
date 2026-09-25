@@ -6,6 +6,7 @@ use App\Models\CredentialEvent;
 use App\Models\EventOutbox;
 use App\Models\NfcCard;
 use App\Models\Role;
+use App\Models\StudentProfile;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 
@@ -14,6 +15,11 @@ beforeEach(function () {
     $this->nfcLifecycleAdmin = User::factory()->create();
     $this->nfcLifecycleAdmin->assignRole(Role::ADMIN);
     $this->nfcLifecycleOwner = User::factory()->create();
+    StudentProfile::create([
+        'user_id' => (string) $this->nfcLifecycleOwner->getKey(),
+        'enrollment_number' => 'NFC-LIFECYCLE-'.(string) $this->nfcLifecycleOwner->getKey(),
+        'academic_status' => 'active',
+    ]);
 });
 
 function lifecycleCard($test, string $status): NfcCard

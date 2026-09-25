@@ -26,7 +26,7 @@ class UpdateStudentRequest extends StoreStudentRequest
     {
         validator([], [])->after(function ($validator): void {
             $student = $this->route('student');
-            if (User::where('email', $this->input('email'))->where('_id', '!=', $student?->getKey())->exists()) {
+            if (User::withTrashed()->where('email', $this->input('email'))->where('_id', '!=', $student?->getKey())->exists()) {
                 $validator->errors()->add('email', 'El correo institucional ya está registrado.');
             }
             if (StudentProfile::where('enrollment_number', $this->input('enrollment_number'))->where('_id', '!=', $student?->studentProfile?->getKey())->exists()) {

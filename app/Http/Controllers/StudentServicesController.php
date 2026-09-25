@@ -9,6 +9,7 @@ use App\Events\StudentProfileChanged;
 use App\Models\CommunicationPreference;
 use App\Models\Consent;
 use App\Models\StudentProfile;
+use App\Models\User;
 use App\Services\StudentStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -137,7 +138,13 @@ class StudentServicesController extends Controller
         return $this->success(['student_id' => (string) $profile->getKey(), 'preferences' => $this->preferenceValues($profile), 'updated_at' => $preferences->updated_at?->toISOString()]);
     }
 
-    private function profile(string $id): StudentProfile { return StudentProfile::where('_id', $id)->orWhere('user_id', $id)->firstOrFail(); }
+    private function profile(string $id): StudentProfile
+    {
+        $profile = StudentProfile::where('_id', $id)->orWhere('user_id', $id)->firstOrFail();
+        User::findOrFail((string) $profile->user_id);
+
+        return $profile;
+    }
     private function profileForUser($user): StudentProfile { return StudentProfile::where('user_id', (string) $user->getKey())->firstOrFail(); }
     private function authorizeServiceView(Request $request, StudentProfile $profile): void { if ($request->user()) $this->authorize('viewServices', $profile); }
     private function preferenceValues(StudentProfile $profile): array { $p = CommunicationPreference::where('user_id', (string) $profile->user_id)->first(); return ['email' => $p?->email ?? false, 'push' => $p?->push ?? false, 'sms' => $p?->sms ?? false]; }

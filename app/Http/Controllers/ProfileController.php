@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Users\DeleteUserAccount;
 use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use App\Models\User;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -48,7 +50,7 @@ class ProfileController extends Controller
     /**
      * Delete the user's account.
      */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request, DeleteUserAccount $deleteAccount): RedirectResponse
     {
         $request->validate([
             'password' => ['required', 'current_password'],
@@ -56,9 +58,12 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
-        Auth::logout();
+        $deleteAccount->execute($user);
 
-        $user->delete();
+        Auth::logout();
+        // SessionGuard rotates remember_token during logout. Clear that
+        // post-logout value too; a closed account must retain no remember key.
+        User::withTrashed()->whereKey($user->getKey())->update(['remember_token' => null]);
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

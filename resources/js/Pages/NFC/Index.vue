@@ -295,7 +295,7 @@ const updateStatus = () => {
                                                 Reportar pérdida
                                             </button>
                                             <button
-                                                v-if="['active', 'blocked', 'suspended'].includes(card.status)"
+                                                v-if="card.user && ['active', 'blocked', 'suspended'].includes(card.status)"
                                                 type="button"
                                                 @click="openStatusModal(card, card.status, false, true)"
                                                 class="rounded-md bg-gray-100 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-200"
