@@ -166,4 +166,148 @@ class LedgerService
             }
         );
     }
+
+    public function transfer(
+        Wallet $sourceWallet,
+        Wallet $destinationWallet,
+        int $amountCents,
+        string $idempotencyKey,
+        ?string $referenceType = null,
+        ?string $referenceId = null,
+        array $metadata = []
+    ): FinancialTransaction {
+        if ($amountCents <= 0) {
+            throw new InvalidArgumentException(
+                'El monto debe ser mayor que cero.'
+            );
+        }
+
+        if (
+            strtolower($sourceWallet->public_id)
+            === strtolower($destinationWallet->public_id)
+        ) {
+            throw new InvalidArgumentException(
+                'La wallet de origen y destino deben ser diferentes.'
+            );
+        }
+
+        if ($sourceWallet->currency !== $destinationWallet->currency) {
+            throw new InvalidArgumentException(
+                'Las wallets deben utilizar la misma moneda.'
+            );
+        }
+
+        return DB::connection('sqlsrv')->transaction(
+            function () use (
+                $sourceWallet,
+                $destinationWallet,
+                $amountCents,
+                $idempotencyKey,
+                $referenceType,
+                $referenceId,
+                $metadata
+            ) {
+                $existingTransaction = FinancialTransaction::where(
+                    'idempotency_key',
+                    $idempotencyKey
+                )->first();
+
+                if ($existingTransaction) {
+                    return $existingTransaction;
+                }
+
+                $walletIds = [
+                    $sourceWallet->public_id,
+                    $destinationWallet->public_id,
+                ];
+
+                sort($walletIds);
+
+                $lockedWallets = Wallet::whereIn(
+                    'public_id',
+                    $walletIds
+                )
+                    ->orderBy('public_id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy(function (Wallet $wallet) {
+                        return strtolower($wallet->public_id);
+                    });
+
+                $lockedSource = $lockedWallets->get(
+                    strtolower($sourceWallet->public_id)
+                );
+
+                $lockedDestination = $lockedWallets->get(
+                    strtolower($destinationWallet->public_id)
+                );
+
+                if (!$lockedSource || !$lockedDestination) {
+                    throw new InvalidArgumentException(
+                        'No fue posible localizar las wallets.'
+                    );
+                }
+
+                if (
+                    $lockedSource->available_balance_cents
+                    < $amountCents
+                ) {
+                    throw new InvalidArgumentException(
+                        'Saldo insuficiente.'
+                    );
+                }
+
+                $transaction = FinancialTransaction::create([
+                    'public_id' => (string) Str::uuid(),
+                    'idempotency_key' => $idempotencyKey,
+                    'status' => TransactionStatus::PENDIENTE,
+                    'reference_type' => $referenceType,
+                    'reference_id' => $referenceId,
+                    'metadata' => $metadata,
+                ]);
+
+                $lockedSource->decrement(
+                    'available_balance_cents',
+                    $amountCents
+                );
+
+                $lockedDestination->increment(
+                    'available_balance_cents',
+                    $amountCents
+                );
+
+                $lockedSource->refresh();
+                $lockedDestination->refresh();
+
+                LedgerEntry::create([
+                    'public_id' => (string) Str::uuid(),
+                    'transaction_id' => $transaction->public_id,
+                    'wallet_id' => $lockedSource->public_id,
+                    'movement_type' =>
+                        MovementType::TRANSFERENCIA_SALIDA,
+                    'amount_cents' => -$amountCents,
+                    'balance_after_cents' =>
+                        $lockedSource->available_balance_cents,
+                ]);
+
+                LedgerEntry::create([
+                    'public_id' => (string) Str::uuid(),
+                    'transaction_id' => $transaction->public_id,
+                    'wallet_id' => $lockedDestination->public_id,
+                    'movement_type' =>
+                        MovementType::TRANSFERENCIA_ENTRADA,
+                    'amount_cents' => $amountCents,
+                    'balance_after_cents' =>
+                        $lockedDestination->available_balance_cents,
+                ]);
+
+                $transaction->status =
+                    TransactionStatus::COMPLETADA;
+
+                $transaction->save();
+
+                return $transaction;
+            }
+        );
+    }
 }
