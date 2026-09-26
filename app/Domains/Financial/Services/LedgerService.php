@@ -56,25 +56,32 @@ class LedgerService
                     'metadata' => $metadata,
                 ]);
 
-                $wallet->increment(
+                $lockedWallet = Wallet::where(
+                    'public_id',
+                    $wallet->public_id
+                )
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $lockedWallet->increment(
                     'available_balance_cents',
                     $amountCents
                 );
 
-                $wallet->refresh();
+                $lockedWallet->refresh();
 
                 LedgerEntry::create([
                     'public_id' => (string) Str::uuid(),
                     'transaction_id' => $transaction->public_id,
-                    'wallet_id' => $wallet->public_id,
+                    'wallet_id' => $lockedWallet->public_id,
                     'movement_type' => $movementType,
                     'amount_cents' => $amountCents,
                     'balance_after_cents' =>
-                        $wallet->available_balance_cents,
+                        $lockedWallet->available_balance_cents,
                     'available_balance_after_cents' =>
-                        $wallet->available_balance_cents,
+                        $lockedWallet->available_balance_cents,
                     'held_balance_after_cents' =>
-                        $wallet->held_balance_cents,
+                        $lockedWallet->held_balance_cents,
                 ]);
 
                 $transaction->status = TransactionStatus::COMPLETADA;
