@@ -81,11 +81,13 @@ test('credits a wallet and records the operation in the ledger', function () {
         $transaction->public_id
     )->first();
 
-    expect($entry)->not->toBeNull()
-        ->and($entry->wallet_id)->toBe($wallet->public_id)
-        ->and($entry->movement_type)->toBe(MovementType::RECARGA)
-        ->and($entry->amount_cents)->toBe(10050)
-        ->and($entry->balance_after_cents)->toBe(10050);
+   expect($entry)->not->toBeNull()
+    ->and($entry->wallet_id)->toBe($wallet->public_id)
+    ->and($entry->movement_type)->toBe(MovementType::RECARGA)
+    ->and($entry->amount_cents)->toBe(10050)
+    ->and($entry->balance_after_cents)->toBe(10050)
+    ->and($entry->available_balance_after_cents)->toBe(10050)
+    ->and($entry->held_balance_after_cents)->toBe(0);
 
     $sameTransaction = $ledger->credit(
         $wallet,
@@ -167,7 +169,9 @@ test('debits a wallet and records a negative ledger entry', function () {
         ->and($entry->wallet_id)->toBe($wallet->public_id)
         ->and($entry->movement_type)->toBe(MovementType::RETIRO)
         ->and($entry->amount_cents)->toBe(-3000)
-        ->and($entry->balance_after_cents)->toBe(7000);
+        ->and($entry->balance_after_cents)->toBe(7000)
+        ->and($entry->available_balance_after_cents)->toBe(7000)
+        ->and($entry->held_balance_after_cents)->toBe(0);
 });
 
 test('rejects a debit when the wallet has insufficient balance', function () {
@@ -277,15 +281,23 @@ test('transfers money between wallets and records both ledger entries', function
     );
 
     expect($outgoing)->not->toBeNull()
-        ->and($outgoing->amount_cents)
+    ->and($outgoing->amount_cents)
         ->toBe(-30000)
-        ->and($outgoing->balance_after_cents)
+    ->and($outgoing->balance_after_cents)
         ->toBe(70000)
-        ->and($incoming)->not->toBeNull()
-        ->and($incoming->amount_cents)
+    ->and($outgoing->available_balance_after_cents)
+        ->toBe(70000)
+    ->and($outgoing->held_balance_after_cents)
+        ->toBe(0)
+    ->and($incoming)->not->toBeNull()
+    ->and($incoming->amount_cents)
         ->toBe(30000)
-        ->and($incoming->balance_after_cents)
-        ->toBe(30000);
+    ->and($incoming->balance_after_cents)
+        ->toBe(30000)
+    ->and($incoming->available_balance_after_cents)
+        ->toBe(30000)
+    ->and($incoming->held_balance_after_cents)
+        ->toBe(0);
 
 });
 

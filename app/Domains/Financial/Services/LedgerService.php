@@ -71,6 +71,10 @@ class LedgerService
                     'amount_cents' => $amountCents,
                     'balance_after_cents' =>
                         $wallet->available_balance_cents,
+                    'available_balance_after_cents' =>
+                        $wallet->available_balance_cents,
+                    'held_balance_after_cents' =>
+                        $wallet->held_balance_cents,
                 ]);
 
                 $transaction->status = TransactionStatus::COMPLETADA;
@@ -155,6 +159,10 @@ class LedgerService
                     'amount_cents' => -$amountCents,
                     'balance_after_cents' =>
                         $lockedWallet->available_balance_cents,
+                    'available_balance_after_cents' =>
+                        $lockedWallet->available_balance_cents,
+                    'held_balance_after_cents' =>
+                        $lockedWallet->held_balance_cents,
                 ]);
 
                 $transaction->status =
@@ -288,6 +296,10 @@ class LedgerService
                     'amount_cents' => -$amountCents,
                     'balance_after_cents' =>
                         $lockedSource->available_balance_cents,
+                    'available_balance_after_cents' =>
+                        $lockedSource->available_balance_cents,
+                    'held_balance_after_cents' =>
+                        $lockedSource->held_balance_cents,
                 ]);
 
                 LedgerEntry::create([
@@ -299,6 +311,10 @@ class LedgerService
                     'amount_cents' => $amountCents,
                     'balance_after_cents' =>
                         $lockedDestination->available_balance_cents,
+                    'available_balance_after_cents' =>
+                        $lockedDestination->available_balance_cents,
+                    'held_balance_after_cents' =>
+                        $lockedDestination->held_balance_cents,
                 ]);
 
                 $transaction->status =
