@@ -46,3 +46,15 @@ function something()
 {
     // ..
 }
+
+/** Give an existing fixture a confirmed factor when testing a different feature. */
+function withConfirmedTestTwoFactor(\App\Models\User $user): \App\Models\User
+{
+    $user->forceFill([
+        'two_factor_secret' => \Laravel\Fortify\Fortify::currentEncrypter()->encrypt('JBSWY3DPEHPK3PXP'),
+        'two_factor_recovery_codes' => \Laravel\Fortify\Fortify::currentEncrypter()->encrypt(json_encode(['fixture-recovery-code'])),
+        'two_factor_confirmed_at' => now(),
+    ])->save();
+
+    return $user;
+}

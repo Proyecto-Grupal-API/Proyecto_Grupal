@@ -23,7 +23,7 @@ class ConfirmablePasswordController extends Controller
     /**
      * Confirm the user's password.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): \Symfony\Component\HttpFoundation\Response
     {
         if (! Auth::guard('web')->validate([
             'email' => $request->user()->email,
@@ -35,6 +35,12 @@ class ConfirmablePasswordController extends Controller
         }
 
         $request->session()->put('auth.password_confirmed_at', time());
+
+        // The enrollment form calls this endpoint with Axios. A JSON request
+        // should not follow the normal dashboard redirect while access is limited.
+        if ($request->expectsJson()) {
+            return response()->noContent();
+        }
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

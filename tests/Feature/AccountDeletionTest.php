@@ -62,6 +62,7 @@ test('account closure is logical, requires the password, and excludes the owner 
     ]);
     $admin = User::factory()->create();
     $admin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($admin);
 
     $this->actingAs($user)->from('/profile')->delete('/profile', ['password' => 'wrong-password'])
         ->assertSessionHasErrors('password')->assertRedirect('/profile');
@@ -252,6 +253,7 @@ test('a closed owner cannot receive a new NFC card or have an existing card reac
     [$owner] = deletionStudent();
     $admin = User::factory()->create();
     $admin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($admin);
     $card = NfcCard::create([
         'user_id' => (string) $owner->getKey(), 'uid' => 'DEL-CLOSED-NFC',
         'registered_by' => (string) $admin->getKey(), 'registered_at' => now(), 'status' => 'active',

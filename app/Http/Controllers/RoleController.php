@@ -31,6 +31,7 @@ class RoleController extends Controller
                 : [],
             'userRoles' => $user->roles ?? [],
             'twoFactorEnabled' => $user->two_factor_enabled,
+            'twoFactorRequired' => $user->requiresTwoFactorAuthentication(),
             'twoFactorConfigurationPending' => ! is_null($user->two_factor_secret)
                 && is_null($user->two_factor_confirmed_at),
             'canAssignRoles' => $canAssignRoles,

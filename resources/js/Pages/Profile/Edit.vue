@@ -17,6 +17,10 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    twoFactorRequired: {
+        type: Boolean,
+        default: false,
+    },
     twoFactorConfigurationPending: {
         type: Boolean,
         default: false,
@@ -60,6 +64,7 @@ defineProps({
                     <TwoFactorAuthenticationForm
                         :initially-enabled="twoFactorEnabled"
                         :initially-pending="twoFactorConfigurationPending"
+                        :required="twoFactorRequired"
                         class="max-w-2xl"
                     />
                 </div>

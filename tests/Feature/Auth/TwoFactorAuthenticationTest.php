@@ -217,7 +217,8 @@ test('fortify setup requires a recent password confirmation', function () {
     $this->postJson('/user/two-factor-authentication')->assertStatus(423);
     expect($user->fresh()->two_factor_secret)->toBeNull();
 
-    $this->postJson('/confirm-password', ['password' => 'password'])->assertRedirect();
+    $this->postJson('/confirm-password', ['password' => 'password'])
+        ->assertNoContent()->assertSessionHas('auth.password_confirmed_at');
     $this->postJson('/user/two-factor-authentication')->assertSuccessful();
     expect($user->fresh()->two_factor_secret)->not->toBeNull();
 });

@@ -27,6 +27,10 @@ const props = defineProps({
         type: Boolean,
         default: false
     },
+    twoFactorRequired: {
+        type: Boolean,
+        default: false
+    },
     twoFactorConfigurationPending: {
         type: Boolean,
         default: false
@@ -115,6 +119,7 @@ const revokeRole = role => {
                     <TwoFactorAuthenticationForm
                         :initially-enabled="twoFactorEnabled"
                         :initially-pending="twoFactorConfigurationPending"
+                        :required="twoFactorRequired"
                     />
                 </div>
 

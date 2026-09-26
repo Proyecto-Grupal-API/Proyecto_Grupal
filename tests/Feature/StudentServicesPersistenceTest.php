@@ -27,6 +27,7 @@ it('returns each persisted academic status instead of a hardcoded status', funct
 it('changes status with an actor, reason, and a persistent history entry', function () {
     [$manager] = studentWithStatus();
     $manager->assignRole('student_manager');
+    withConfirmedTestTwoFactor($manager);
     expect($manager->fresh()->hasRole('student_manager'))->toBeTrue();
     [, $profile] = studentWithStatus();
 
@@ -40,6 +41,7 @@ it('changes status with an actor, reason, and a persistent history entry', funct
 
 it('does not create duplicate academic history when status is unchanged', function () {
     [$manager] = studentWithStatus(); $manager->assignRole('student_manager');
+    withConfirmedTestTwoFactor($manager);
     expect($manager->fresh()->hasRole('student_manager'))->toBeTrue();
     [, $profile] = studentWithStatus();
     $before = AcademicStatusHistory::where('student_profile_id', (string) $profile->getKey())->count();

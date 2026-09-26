@@ -14,6 +14,7 @@ beforeEach(function () {
     $this->artisan('migrate')->assertSuccessful();
     $this->nfcLifecycleAdmin = User::factory()->create();
     $this->nfcLifecycleAdmin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($this->nfcLifecycleAdmin);
     $this->nfcLifecycleOwner = User::factory()->create();
     StudentProfile::create([
         'user_id' => (string) $this->nfcLifecycleOwner->getKey(),

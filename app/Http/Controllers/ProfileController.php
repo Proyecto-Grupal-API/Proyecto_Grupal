@@ -26,6 +26,7 @@ class ProfileController extends Controller
             // Only confirmation state is exposed to Inertia, never TOTP secrets
             // or recovery codes.
             'twoFactorEnabled' => ! is_null($request->user()->two_factor_confirmed_at),
+            'twoFactorRequired' => $request->user()->requiresTwoFactorAuthentication(),
             'twoFactorConfigurationPending' => ! is_null($request->user()->two_factor_secret)
                 && is_null($request->user()->two_factor_confirmed_at),
         ]);

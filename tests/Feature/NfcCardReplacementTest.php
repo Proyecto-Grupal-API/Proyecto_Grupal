@@ -14,6 +14,7 @@ beforeEach(function () {
     $this->artisan('migrate')->assertSuccessful();
     $this->replacementAdmin = User::factory()->create();
     $this->replacementAdmin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($this->replacementAdmin);
     $this->replacementStudent = User::factory()->create();
     StudentProfile::create([
         'user_id' => (string) $this->replacementStudent->getKey(),

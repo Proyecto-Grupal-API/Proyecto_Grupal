@@ -23,6 +23,7 @@ function webQrStudent(): User
 test('a global admin can validate another student QR and the authenticated actor is recorded', function () {
     $admin = User::factory()->create(['name' => 'Administrador QR']);
     $admin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($admin);
     $student = webQrStudent();
     $identity = app(IdentityService::class);
     $token = $identity->issueDynamicQrToken($student);
@@ -70,6 +71,7 @@ test('a student cannot validate another student QR or cause validation side effe
 test('a contextual admin role does not grant global web QR validation', function () {
     $actor = User::factory()->create();
     $actor->assignRole(Role::ADMIN, 'service', 'service-1');
+    withConfirmedTestTwoFactor($actor);
     $student = webQrStudent();
     $identity = app(IdentityService::class);
     $token = $identity->issueDynamicQrToken($student);
@@ -86,6 +88,7 @@ test('a contextual admin role does not grant global web QR validation', function
 test('the QR page exposes the policy result without hiding the owner QR and history', function () {
     $admin = User::factory()->create();
     $admin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($admin);
     $student = webQrStudent();
     $student->assignRole(Role::ESTUDIANTE);
 

@@ -22,7 +22,15 @@ Route::get('/', function () {
     ]);
 });
 
-Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group(function () {
+Route::get('/security/two-factor-enrollment', function (\Illuminate\Http\Request $request) {
+    return Inertia::render('Security/TwoFactorEnrollment', [
+        'twoFactorEnabled' => $request->user()->two_factor_enabled,
+        'twoFactorConfigurationPending' => ! is_null($request->user()->two_factor_secret)
+            && is_null($request->user()->two_factor_confirmed_at),
+    ]);
+})->middleware('auth')->name('two-factor.enrollment');
+
+Route::middleware(['auth', 'verified', 'device.track'])->group(function () {
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');

@@ -8,7 +8,7 @@ function roleAdministrator(): User
     $admin = User::factory()->create();
     $admin->assignRole(Role::ADMIN);
 
-    return $admin;
+    return withConfirmedTestTwoFactor($admin);
 }
 
 test('admin must identify a real target and cannot assign to self by omission', function () {
@@ -61,6 +61,9 @@ test('assignment rejects invalid role and invalid or incomplete scope', function
 test('only a global admin may assign or revoke roles', function (string $actorRole, ?string $scopeType, ?string $scopeId) {
     $actor = User::factory()->create();
     $actor->assignRole($actorRole, $scopeType, $scopeId);
+    if ($actor->requiresTwoFactorAuthentication()) {
+        withConfirmedTestTwoFactor($actor);
+    }
     $target = User::factory()->create();
     $target->assignRole(Role::ESTUDIANTE);
     $payload = ['user_id' => (string) $target->getKey(), 'role_name' => Role::ESTUDIANTE];

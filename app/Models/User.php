@@ -48,6 +48,23 @@ class User extends Authenticatable
         return ! is_null($this->two_factor_confirmed_at);
     }
 
+    public function requiresTwoFactorAuthentication(): bool
+    {
+        $required = config('security.two_factor_required_roles', []);
+
+        if (! is_array($required) || array_diff($required, Role::VALID_ROLES)) {
+            throw new \LogicException('The required two-factor roles must belong to the canonical role catalog.');
+        }
+
+        foreach ($this->roles ?? [] as $assignment) {
+            if (in_array($assignment['name'] ?? null, $required, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     protected function casts(): array
     {
         return [

@@ -14,6 +14,7 @@ beforeEach(function () {
     $this->artisan('migrate')->assertSuccessful();
     $this->importAdmin = User::factory()->create();
     $this->importAdmin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($this->importAdmin);
     $this->importCampus = Campus::create(['code' => 'CEN', 'name' => 'Central', 'is_active' => true]);
     $this->importProgram = AcademicProgram::create([
         'campus_id' => (string) $this->importCampus->getKey(),
