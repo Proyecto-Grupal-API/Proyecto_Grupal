@@ -2,13 +2,16 @@
 
 namespace App\Services;
 
+use App\Enums\NfcCardStatus;
 use App\Models\Device;
+use App\Models\NfcCard;
 use App\Models\QrToken;
 use App\Models\QrValidation;
 use App\Models\SecurityEvent;
 use App\Models\User;
 use App\Models\UserSession;
 use App\Support\QrLookupHash;
+use App\Support\NfcUid;
 use App\Support\IssuedQrToken;
 use App\Support\QrSecretIntegrityException;
 use Illuminate\Contracts\Encryption\DecryptException;
@@ -30,6 +33,71 @@ use RuntimeException;
  */
 class IdentityService
 {
+    /** Resolve a presented NFC UID without changing the credential or its lifecycle. */
+    public function validateNfcUid(string $uid, ?string $validatorLabel, ?string $ip): array
+    {
+        $canonicalUid = NfcUid::normalize($uid);
+        $cards = NfcCard::where('uid', 'regex', NfcUid::legacyMatch($canonicalUid))
+            ->limit(2)
+            ->get();
+
+        if ($cards->count() !== 1) {
+            return $this->nfcValidationResult('not_found', null, null, $validatorLabel, $ip);
+        }
+
+        $card = $cards->first();
+        $status = NfcCardStatus::tryFrom((string) $card->status);
+
+        if ($status !== NfcCardStatus::Active) {
+            return $this->nfcValidationResult(
+                $status?->value ?? 'revoked',
+                $status?->value,
+                null,
+                $validatorLabel,
+                $ip,
+                (string) $card->getKey(),
+            );
+        }
+
+        // Normal User queries exclude soft-deleted owners. An orphaned card
+        // cannot become a successful identity lookup.
+        $owner = User::whereKey((string) $card->user_id)->first();
+        $owner?->load('studentProfile.campus', 'studentProfile.academicProgram');
+
+        if ($owner?->studentProfile === null) {
+            return $this->nfcValidationResult('revoked', null, null, $validatorLabel, $ip, (string) $card->getKey());
+        }
+
+        return $this->nfcValidationResult('valid', NfcCardStatus::Active->value, $owner, $validatorLabel, $ip, (string) $card->getKey());
+    }
+
+    private function nfcValidationResult(
+        string $result,
+        ?string $status,
+        ?User $owner,
+        ?string $validatorLabel,
+        ?string $ip,
+        ?string $credentialId = null,
+    ): array {
+        $valid = $result === 'valid';
+
+        SecurityEvent::log([
+            'user_id' => $owner ? (string) $owner->getKey() : null,
+            'type' => $valid ? 'nfc_validated' : 'nfc_validation_failed',
+            'severity' => $valid ? 'info' : 'warning',
+            'ip_address' => $ip,
+            'metadata' => ['result' => $result, 'validator_label' => $validatorLabel, 'credential_id' => $credentialId],
+        ]);
+
+        return [
+            'ok' => $valid,
+            'result' => $result,
+            'credential' => $status ? ['status' => $status] : null,
+            'student_id' => $owner ? (string) $owner->getKey() : null,
+            'identity' => $owner?->displayIdentity(),
+        ];
+    }
+
     /**
      * ---------------------------------------------------------------
      * Modulo 1.6 - Identidad QR

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Identity\QrValidationController;
+use App\Http\Controllers\Api\Identity\NfcValidationController;
 use App\Http\Controllers\StudentServicesController;
 use App\Http\Controllers\OAuthTokenController;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,9 @@ Route::prefix('v1')->middleware('oauth.service:students:read')->group(function (
 
 Route::post('/v1/identity/qr-validate', QrValidationController::class)
     ->middleware(['oauth.service:identity:qr:validate', 'throttle:30,1']);
+
+Route::post('/v1/identity/nfc-validate', NfcValidationController::class)
+    ->middleware(['oauth.service:identity:nfc:validate', 'throttle:30,1']);
 
 Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/students/{studentId}/consents', [StudentServicesController::class, 'consents']);

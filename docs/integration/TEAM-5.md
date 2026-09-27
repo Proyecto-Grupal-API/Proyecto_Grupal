@@ -1,4 +1,4 @@
-# Equipo 5 — QR disponible; API NFC pendiente
+# Equipo 5 — Validación de identidad QR y NFC
 
 Integre sobre su código existente. La referencia contractual es [Team 1](TEAM-1-INTEGRATION.md).
 
@@ -10,6 +10,8 @@ Integre sobre su código existente. La referencia contractual es [Team 1](TEAM-1
 
 El QR dinámico es single-use; el de identificación es reutilizable mientras esté vigente. No almacene ni consulte `qr_tokens` para validar, ni replique firma, short-code o hashes. No consulte `qr_validations` como bus de integración.
 
-## Dependencia NFC aún no disponible
+## Validación NFC disponible
 
-El flujo **web** NFC ya incluye registro, bloqueo, pérdida, suspensión, reactivación y reemplazo old→new con historial y motivo. La nueva tarjeta hereda el estado operativo y la anterior queda terminal como `replaced`. Esto **no proporciona una API interequipos de validación NFC**. No leer `nfc_cards`, no usar `identity.credential.changed.v1` como lookup del titular actual y no crear una API paralela de identidad. Si el servicio de Equipo 5 necesita validar UID antes de avanzar, reporte esa dependencia a Team 1 y detenga sólo la parte NFC.
+Si una operación presenta una tarjeta NFC, obtenga un Bearer `client_credentials` con el scope **distinto** `identity:nfc:validate` y envíe `POST /api/v1/identity/nfc-validate` con JSON `{"credential_uid":"{PRESENTED_UID}"}`. Un 200 devuelve `ok=true`, `result=valid`, `credential.status=active`, `student_id=User._id` e `identity` mínima. Un 422 devuelve `ok=false` e identidad nula: `not_found`, `revoked`, `blocked`, `suspended` o `replaced`; para los tres estados explícitos se informa `credential.status`, pero nunca el titular. Sin token: 401; sin scope NFC: 403. Consulte el esquema completo en [Team 1](TEAM-1-INTEGRATION.md).
+
+La nueva tarjeta reemplazante hereda el estado operativo y la anterior queda terminal como `replaced`. La validación NFC no consume ni cambia la tarjeta. **Identificación no autoriza** automáticamente préstamo, reserva, acceso físico ni beneficio; aplique las reglas de Equipo 5. No lea `nfc_cards` ni use `identity.credential.changed.v1` como lookup de titularidad o elegibilidad. La consulta de permisos contextuales es un contrato futuro distinto.

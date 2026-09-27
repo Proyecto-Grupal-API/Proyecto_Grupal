@@ -5,9 +5,9 @@ Esta guía describe el **working tree actual** del Equipo 1 para integrarlo con 
 ## Estado del snapshot
 
 - Baseline verificado antes de esta documentación: 234 tests, 1449 assertions, 0 failures; build y comprobación de diff correctos.
-- Disponibles: cuentas y perfiles estudiantiles (1.1); autenticación/2FA y roles contextuales; registro NFC (1.4); ciclo NFC con bloqueo, pérdida, suspensión, reactivación y reemplazo (1.5); estado académico OAuth; validación QR OAuth y web con expiración, revocación, código corto y consumo único; eventos versionados publicados mediante outbox.
-- Parcial: identidad QR (1.6: quedan fases de secretos legacy y reglas operativas). El ciclo de vida NFC (1.5) incluye reemplazo real; esto no crea una API NFC interequipos.
-- Pendientes para consumidores: API de validación NFC, QR-B.4B/retirada final de plaintext legacy, uso autorizativo de `purpose`, elegibilidad académica integrada en QR y contextos operativos QR. No hay fecha comprometida.
+- Disponibles: cuentas y perfiles estudiantiles (1.1); autenticación/2FA y roles contextuales; registro NFC (1.4); ciclo NFC con bloqueo, pérdida, suspensión, reactivación y reemplazo (1.5); estado académico OAuth; validación QR OAuth y web con expiración, revocación, código corto y consumo único; validación NFC OAuth; eventos versionados publicados mediante outbox.
+- Parcial: identidad QR (1.6: quedan fases de secretos legacy y reglas operativas). El ciclo de vida NFC (1.5) incluye reemplazo real; la consulta OAuth de UID se describe abajo y no administra el ciclo de vida.
+- Pendientes para consumidores: contrato OAuth de roles/permisos contextuales, QR-B.4B/retirada final de plaintext legacy, uso autorizativo de `purpose`, elegibilidad académica integrada en QR y contextos operativos QR. No hay fecha comprometida.
 
 ## Regla de identificadores
 
@@ -19,7 +19,7 @@ La API Sanctum de consentimientos/preferencias conserva una búsqueda histórica
 
 `POST /api/oauth/token` acepta `grant_type=client_credentials`, `client_id`, `client_secret` y `scope` (cadena de scopes separados por espacios). Devuelve `access_token`, `token_type=Bearer`, `expires_in` y `scope`. Los scopes solicitados deben estar asignados al cliente; una solicitud con alguno no permitido devuelve `400 invalid_scope`. Credenciales inválidas devuelven 401. Un token sin el scope exigido por la ruta recibe 403; sin Bearer válido, 401.
 
-Scopes de servicio actualmente usados por las rutas públicas: **`students:read`** e **`identity:qr:validate`**. Son nombres literales; no existe alias con puntos. No compartir ni registrar secretos de cliente. Este OAuth de servicios es independiente del login web, de Sanctum y de los roles embebidos de usuario.
+Scopes de servicio usados por las rutas públicas: **`students:read`**, **`identity:qr:validate`** e **`identity:nfc:validate`**. Son nombres literales; no existe alias con puntos. Cada cliente debe recibir explícitamente los scopes que necesita. No compartir ni registrar secretos de cliente. Este OAuth de servicios es independiente del login web, de Sanctum y de los roles embebidos de usuario.
 
 ## Estado académico
 
@@ -46,9 +46,15 @@ La web autenticada ofrece `/identidad/qr` para mostrar/generar QR e historial. L
 
 ## NFC
 
-Disponible **sólo como flujo web**, bajo `/nfc-cards`: registro por admin global para un usuario con `StudentProfile`, UID canónico (trim + uppercase), historial inicial, bloqueo, reporte explícito de pérdida, suspensión, reactivación y `POST /nfc-cards/{nfcCard}/replace`. El reemplazo crea una tarjeta nueva para el mismo `User._id`, enlaza ambas credenciales y hereda `active`, `blocked` o `suspended` sin reactivar implícitamente. `active`, `blocked`, `suspended`, `replaced` son los estados persistidos; `replaced` es terminal y el endpoint genérico no lo crea. El dueño puede ver sus tarjetas/historial; admin puede administrar. Registro, cambios y reemplazo persisten tarjetas, historial con motivos y outbox en una transacción MongoDB.
+El flujo **web** bajo `/nfc-cards` permite registro por admin global para un usuario con `StudentProfile`, UID canónico (trim + uppercase), historial inicial, bloqueo, reporte explícito de pérdida, suspensión, reactivación y `POST /nfc-cards/{nfcCard}/replace`. El reemplazo crea una tarjeta nueva para el mismo `User._id`, enlaza ambas credenciales y hereda `active`, `blocked` o `suspended` sin reactivar implícitamente. `active`, `blocked`, `suspended`, `replaced` son los estados persistidos; `replaced` es terminal y el endpoint genérico no lo crea. El dueño puede ver sus tarjetas/historial; admin puede administrar. Registro, cambios y reemplazo persisten tarjetas, historial con motivos y outbox en una transacción MongoDB.
 
-**Pendiente para integración:** API interequipos para validar UID/propietario/estado. No hay ruta `/api/v1/.../nfc-validate` ni equivalente. No derivar la titularidad actual a partir de eventos ni consultar `nfc_cards` desde otro equipo.
+`POST /api/v1/identity/nfc-validate` es el contrato **interequipos** de consulta. Exige Bearer OAuth `client_credentials` con **`identity:nfc:validate`**, independiente de `students:read` e `identity:qr:validate`, y tiene límite de 30 solicitudes/minuto. Envíe JSON `{"credential_uid":"04AABBCC"}`; el UID se normaliza con trim + uppercase y se admiten representaciones legacy equivalentes. No coloque el UID en la URL.
+
+Una tarjeta `active` con propietario activo y `StudentProfile` devuelve HTTP 200 y, por ejemplo, `{"ok":true,"result":"valid","credential":{"status":"active"},"student_id":"{USER_ID}","identity":{"user_id":"{USER_ID}","name":"Nombre de ejemplo","student":{"enrollment_number":"ABC-123","campus":null,"academic_program":null,"academic_status":"active"}}}`. `student_id` y `identity.user_id` son **`User._id`**, nunca `StudentProfile._id`. La proyección `identity` usa `User::displayIdentity()`; `academic_status` es información de estado, no una decisión de elegibilidad.
+
+Una credencial no usable responde HTTP 422 con `ok=false`, `student_id=null` e `identity=null`. UID desconocido o ambiguo: `result=not_found`, `credential=null`; `blocked`, `suspended` o `replaced`: `result` y `credential.status` indican el estado, **sin** identidad del titular; propietario inexistente/desactivado o perfil inexistente: `result=revoked`, `credential=null`. Payload vacío, no textual o mayor a 255 caracteres produce 422 de validación. Sin Bearer válido: 401; sin el scope NFC: 403. El estado concreto se comunica sólo al cliente OAuth autorizado para que distinga una tarjeta bloqueada/suspendida/reemplazada; no se publica identidad en esos casos. No se devuelve UID ni identificador interno de tarjeta.
+
+Esta consulta registra el resultado, el cliente autenticado y, cuando se encontró una tarjeta, su `NfcCard._id` interno en `security_events` **sin guardar el UID**. No altera la tarjeta, no crea `CredentialEvent` ni publica `identity.credential.changed.v1`. **Identificación NFC no es autorización del servicio consumidor:** Equipo 1 confirma identidad y estado de credencial, no saldo, compra, beneficio, acceso físico ni permisos contextuales. La consulta/validación externa de roles y permisos queda para un contrato separado; no inferirlos de `identity.student` ni del scope OAuth. No derivar titularidad de eventos ni consultar `nfc_cards` desde otro equipo.
 
 ## Roles y contextos
 
@@ -74,7 +80,7 @@ No hay API OAuth pública para consultar/asignar roles contextuales. La represen
 
 ## DO NOT DEPEND DIRECTLY ON TEAM 1 STORAGE
 
-No consultar ni escribir directamente `users`, `student_profiles`, `academic_status_history`, `nfc_cards`, `credential_events`, `qr_tokens`, `qr_validations`, `security_events`, roles embebidos ni `event_outbox` como workaround de integración. Son persistencia de Team 1; sus índices, documentos y procesos de backfill pueden evolucionar sin ser API pública. Si falta una operación (por ejemplo, validación NFC o roles contextuales para servicios), **registrar la dependencia con Team 1 y detener esa parte**.
+No consultar ni escribir directamente `users`, `student_profiles`, `academic_status_history`, `nfc_cards`, `credential_events`, `qr_tokens`, `qr_validations`, `security_events`, roles embebidos ni `event_outbox` como workaround de integración. Son persistencia de Team 1; sus índices, documentos y procesos de backfill pueden evolucionar sin ser API pública. Si falta una operación (por ejemplo, roles contextuales para servicios), **registrar la dependencia con Team 1 y detener esa parte**.
 
 ## Integración con trabajo existente
 
