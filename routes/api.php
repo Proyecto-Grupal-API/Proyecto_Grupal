@@ -15,13 +15,18 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
     Route::delete('/students/{studentId}/consents/{consentId}', [StudentServicesController::class, 'revokeConsent']);
     Route::get('/students/{studentId}/preferences', [StudentServicesController::class, 'preferences']);
     Route::patch('/students/{studentId}/preferences', [StudentServicesController::class, 'updatePreferences']);
-   
+
       Route::prefix('financial')
         ->middleware('oauth.service:financial:read')
         ->group(function () {
             Route::get(
                 '/wallets/{walletId}',
                 [WalletController::class, 'show']
+            );
+
+            Route::get(
+                '/wallets/{walletId}/ledger',
+                [WalletController::class, 'ledger']
             );
         });
 });

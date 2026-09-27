@@ -3,17 +3,34 @@
 use App\Domains\Financial\Enums\WalletType;
 use App\Domains\Financial\Models\Wallet;
 use App\Domains\Financial\Services\WalletService;
+use App\Domains\Financial\Enums\MovementType;
+use App\Domains\Financial\Services\LedgerService;
+use App\Domains\Financial\Models\FinancialTransaction;
+use App\Domains\Financial\Models\LedgerEntry;
 use App\Http\Middleware\ValidateServiceToken;
 use App\Models\ServiceClient;
 use Illuminate\Support\Facades\Hash;
 
 afterEach(function () {
+    $transactions = FinancialTransaction::where(
+        'idempotency_key',
+        'test-financial-api-ledger-credit'
+    )->get();
+
+    foreach ($transactions as $transaction) {
+        LedgerEntry::where(
+            'transaction_id',
+            $transaction->public_id
+        )->delete();
+
+        $transaction->delete();
+    }
+
     Wallet::where(
         'owner_id',
         'test-financial-api-user'
     )->delete();
 });
-
 test('financial api requires a service access token', function () {
     $response = $this->getJson(
         '/api/v1/financial/wallets/test-wallet'
@@ -163,6 +180,60 @@ test('financial api accepts a token with financial read scope', function () {
         ->assertJsonPath(
             'data.owner_id',
             'test-financial-api-user'
+        )
+        ->assertJsonPath(
+            'meta.api_version',
+            'v1'
+        );
+});
+
+test('returns wallet ledger entries through the financial api', function () {
+    $this->withoutMiddleware(
+        ValidateServiceToken::class
+    );
+
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'test-financial-api-user',
+        WalletType::USUARIO
+    );
+
+    app(LedgerService::class)->credit(
+        $wallet,
+        50000,
+        MovementType::AJUSTE_CREDITO,
+        'test-financial-api-ledger-credit'
+    );
+
+    $response = $this->getJson(
+        '/api/v1/financial/wallets/' .
+        $wallet->public_id .
+        '/ledger'
+    );
+
+    $response
+        ->assertOk()
+        ->assertJsonPath(
+            'data.wallet_id',
+            fn ($id) =>
+                strtolower($id)
+                === strtolower($wallet->public_id)
+        )
+        ->assertJsonPath(
+            'data.items.0.movement_type',
+            MovementType::AJUSTE_CREDITO->value
+        )
+        ->assertJsonPath(
+            'data.items.0.amount_cents',
+            50000
+        )
+        ->assertJsonPath(
+            'data.items.0.available_balance_after_cents',
+            50000
+        )
+        ->assertJsonPath(
+            'data.items.0.held_balance_after_cents',
+            0
         )
         ->assertJsonPath(
             'meta.api_version',
