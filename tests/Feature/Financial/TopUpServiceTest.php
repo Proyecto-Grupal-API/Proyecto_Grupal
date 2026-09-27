@@ -361,3 +361,57 @@ test('does not allow duplicate non null top up folios', function () {
     expect(fn () => $secondTopUp->save())
         ->toThrow(\Illuminate\Database\QueryException::class);
 });
+test('allows retrying the same top up with the same idempotency key', function () {
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'test-topup-user',
+        WalletType::USUARIO
+    );
+
+    $service = app(TopUpService::class);
+
+    $topUp = $service->create(
+        $wallet,
+        10050,
+        TopUpMethod::EFECTIVO,
+        'test-agent-001',
+        'test-reference-retry'
+    );
+
+    $service->complete(
+        $topUp,
+        'test-topup-same-idempotency-key'
+    );
+
+    $service->complete(
+        $topUp,
+        'test-topup-same-idempotency-key'
+    );
+
+    $wallet->refresh();
+    $topUp->refresh();
+
+    expect($wallet->available_balance_cents)
+        ->toBe(10050)
+        ->and($topUp->status)
+        ->toBe(TopUpStatus::COMPLETADA);
+
+    expect(
+        FinancialTransaction::where(
+            'idempotency_key',
+            'test-topup-same-idempotency-key'
+        )->count()
+    )->toBe(1);
+
+    $transaction = FinancialTransaction::where(
+        'idempotency_key',
+        'test-topup-same-idempotency-key'
+    )->first();
+
+    expect(
+        LedgerEntry::where(
+            'transaction_id',
+            $transaction->public_id
+        )->count()
+    )->toBe(1);
+});

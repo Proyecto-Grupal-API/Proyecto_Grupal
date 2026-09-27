@@ -6,6 +6,7 @@ use App\Domains\Financial\Enums\MovementType;
 use App\Domains\Financial\Enums\TopUpMethod;
 use App\Domains\Financial\Enums\TopUpStatus;
 use App\Domains\Financial\Enums\WalletStatus;
+use App\Domains\Financial\Models\FinancialTransaction;
 use App\Domains\Financial\Models\TopUp;
 use App\Domains\Financial\Models\Wallet;
 use Illuminate\Support\Facades\DB;
@@ -65,11 +66,32 @@ class TopUpService
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                if ($lockedTopUp->status !== TopUpStatus::PENDIENTE) {
-                    throw new InvalidArgumentException(
-                        'Solo una recarga pendiente puede completarse.'
-                    );
-                }
+               if ($lockedTopUp->status !== TopUpStatus::PENDIENTE) {
+    $existingTransaction = FinancialTransaction::where(
+        'idempotency_key',
+        $idempotencyKey
+    )
+        ->where(
+            'reference_type',
+            'TOPUP'
+        )
+        ->where(
+            'reference_id',
+            $lockedTopUp->public_id
+        )
+        ->first();
+
+    if (
+        $lockedTopUp->status === TopUpStatus::COMPLETADA
+        && $existingTransaction
+    ) {
+        return $lockedTopUp;
+    }
+
+    throw new InvalidArgumentException(
+        'Solo una recarga pendiente puede completarse.'
+    );
+}
 
                 $wallet = Wallet::where(
                     'public_id',
