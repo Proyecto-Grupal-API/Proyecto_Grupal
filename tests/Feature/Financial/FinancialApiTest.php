@@ -729,3 +729,89 @@ test('top up completion rejects a different idempotency key after completion', f
             ->count()
     )->toBe(1);
 });
+
+test('returns a top up through the financial api', function () {
+    $this->withoutMiddleware(
+        ValidateServiceToken::class
+    );
+
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'test-financial-api-topup-user',
+        WalletType::USUARIO
+    );
+
+    $topUp = app(
+        \App\Domains\Financial\Services\TopUpService::class
+    )->create(
+        $wallet,
+        25000,
+        \App\Domains\Financial\Enums\TopUpMethod::EFECTIVO,
+        'test-agent-show',
+        'test-api-topup-show'
+    );
+
+    $response = $this->getJson(
+        '/api/v1/financial/topups/'
+            . $topUp->public_id
+    );
+
+    $response
+        ->assertOk()
+        ->assertJsonPath(
+            'data.amount_cents',
+            25000
+        )
+        ->assertJsonPath(
+            'data.currency',
+            'MXN'
+        )
+        ->assertJsonPath(
+            'data.method',
+            'EFECTIVO'
+        )
+        ->assertJsonPath(
+            'data.status',
+            TopUpStatus::PENDIENTE->value
+        )
+        ->assertJsonPath(
+            'data.agent_id',
+            'test-agent-show'
+        )
+        ->assertJsonPath(
+            'data.external_reference',
+            'test-api-topup-show'
+        )
+        ->assertJsonPath(
+            'meta.api_version',
+            'v1'
+        );
+    expect(
+        strtolower($response->json('data.id'))
+    )->toBe(
+        strtolower($topUp->public_id)
+    );
+
+    expect(
+        strtolower($response->json('data.wallet_id'))
+    )->toBe(
+        strtolower($wallet->public_id)
+    );
+
+    $wallet->refresh();
+
+    expect($wallet->available_balance_cents)
+        ->toBe(0);
+});
+test('returns not found when the top up does not exist', function () {
+    $this->withoutMiddleware(
+        ValidateServiceToken::class
+    );
+
+    $response = $this->getJson(
+        '/api/v1/financial/topups/'
+            . '00000000-0000-0000-0000-000000000000'
+    );
+
+    $response->assertNotFound();
+});

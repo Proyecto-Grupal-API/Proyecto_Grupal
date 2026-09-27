@@ -58,6 +58,11 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
                 '/wallets/{walletId}/ledger',
                 [WalletController::class, 'ledger']
             );
+
+            Route::get(
+                '/topups/{topUpId}',
+                [TopUpController::class, 'show']
+            );
         });
 
         Route::middleware(

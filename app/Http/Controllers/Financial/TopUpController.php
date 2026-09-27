@@ -12,7 +12,42 @@ use Illuminate\Validation\Rule;
 
 class TopUpController extends Controller
 {
-    public function store(
+public function show(
+    Request $request,
+    string $topUpId
+): JsonResponse {
+    $topUp = \App\Domains\Financial\Models\TopUp::where(
+        'public_id',
+        $topUpId
+    )->firstOrFail();
+
+    return response()->json([
+        'data' => [
+            'id' => $topUp->public_id,
+            'wallet_id' => $topUp->wallet_id,
+            'folio' => $topUp->folio,
+            'amount_cents' => $topUp->amount_cents,
+            'currency' => $topUp->currency,
+            'method' => $topUp->method->value,
+            'status' => $topUp->status->value,
+            'agent_id' => $topUp->agent_id,
+            'external_reference' =>
+                $topUp->external_reference,
+            'created_at' =>
+                $topUp->created_at?->toISOString(),
+            'updated_at' =>
+                $topUp->updated_at?->toISOString(),
+        ],
+        'meta' => [
+            'request_id' => $request->header(
+                'X-Request-Id',
+                (string) str()->uuid()
+            ),
+            'api_version' => 'v1',
+        ],
+    ]);
+}
+ public function store(
         Request $request,
         TopUpService $topUpService
     ): JsonResponse {
@@ -79,7 +114,7 @@ class TopUpController extends Controller
             ],
         ], 201);
     }
- 
+
 public function complete(
     Request $request,
     string $topUpId,
