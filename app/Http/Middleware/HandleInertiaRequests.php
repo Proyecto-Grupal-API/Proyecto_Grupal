@@ -33,6 +33,7 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
+                'hasStudentProfile' => $request->user()?->studentProfile()->exists() ?? false,
             ],
             // Antes estos mensajes se generaban (p. ej. al forzar el
             // logout por sesion revocada) pero nunca llegaban al

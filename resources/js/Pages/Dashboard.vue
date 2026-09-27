@@ -1,6 +1,10 @@
 <script setup>
+import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
+
+const page = usePage();
+const hasStudentProfile = computed(() => page.props.auth?.hasStudentProfile === true);
 </script>
 
 <template>
@@ -22,13 +26,13 @@ import { Head } from '@inertiajs/vue3';
                     <p class="mt-4 max-w-2xl leading-7 text-blue-100">Consulta tu condición estudiantil y administra tus preferencias de comunicación.</p>
                 </section>
                 <div class="mt-6 grid gap-5 md:grid-cols-2">
-                    <a :href="route('student-services.index')" class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-[#0284C7]">
+                    <a v-if="hasStudentProfile" :href="route('student-services.index')" class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-[#0284C7]">
                         <span class="text-xs font-bold uppercase tracking-[0.18em] text-[#0284C7]">Módulo 1.8</span>
                         <h2 class="mt-3 text-xl font-bold text-[#00338D]">Condición estudiantil</h2>
                         <p class="mt-2 text-sm leading-6 text-slate-500">Revisa tu estado académico, matrícula y restricciones.</p>
                         <span class="mt-6 inline-block text-sm font-bold text-[#00338D] group-hover:text-[#0284C7]">Consultar estado →</span>
                     </a>
-                    <a :href="route('student-services.index')" class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-[#10B981]">
+                    <a v-if="hasStudentProfile" :href="route('student-services.index')" class="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-[#10B981]">
                         <span class="text-xs font-bold uppercase tracking-[0.18em] text-[#10B981]">Módulo 1.9</span>
                         <h2 class="mt-3 text-xl font-bold text-[#00338D]">Privacidad y preferencias</h2>
                         <p class="mt-2 text-sm leading-6 text-slate-500">Administra tus consentimientos y canales de comunicación.</p>

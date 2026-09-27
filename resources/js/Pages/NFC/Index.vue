@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
-import { Link, router, usePage } from '@inertiajs/vue3'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 
 const props = defineProps({
     cards: {
@@ -116,6 +117,8 @@ const updateStatus = () => {
 </script>
 
 <template>
+    <Head title="Tarjetas NFC" />
+    <AuthenticatedLayout>
     <div class="min-h-screen bg-gray-100 py-10">
         <div class="mx-auto max-w-7xl px-6">
 
@@ -417,4 +420,5 @@ const updateStatus = () => {
             </div>
         </div>
     </div>
+    </AuthenticatedLayout>
 </template>

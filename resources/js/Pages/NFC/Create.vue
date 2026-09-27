@@ -1,5 +1,6 @@
 <script setup>
-import { useForm, Link } from '@inertiajs/vue3'
+import { Head, useForm, Link } from '@inertiajs/vue3'
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 
 defineProps({
     users: {
@@ -19,6 +20,8 @@ const submit = () => {
 </script>
 
 <template>
+    <Head title="Registrar tarjeta NFC" />
+    <AuthenticatedLayout>
     <div class="min-h-screen bg-gray-100 py-10">
         <div class="mx-auto max-w-3xl px-6">
 
@@ -134,4 +137,5 @@ const submit = () => {
             </div>
         </div>
     </div>
+    </AuthenticatedLayout>
 </template>

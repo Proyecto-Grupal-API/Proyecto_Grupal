@@ -1,5 +1,6 @@
 <script setup>
-import { Link } from '@inertiajs/vue3'
+import { Head, Link } from '@inertiajs/vue3'
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 
 defineProps({
     card: {
@@ -48,6 +49,8 @@ const formatDate = (date) => {
 </script>
 
 <template>
+    <Head title="Historial de credencial NFC" />
+    <AuthenticatedLayout>
     <div class="min-h-screen bg-gray-100 py-10">
         <div class="mx-auto max-w-6xl px-6">
 
@@ -258,4 +261,5 @@ const formatDate = (date) => {
 
         </div>
     </div>
+    </AuthenticatedLayout>
 </template>

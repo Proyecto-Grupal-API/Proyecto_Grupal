@@ -18,6 +18,20 @@ function studentWithStatus(string $status = 'active'): array
     return [$user, $profile];
 }
 
+it('shares student profile availability on the dashboard for contextual navigation', function () {
+    [$student] = studentWithStatus();
+
+    $this->actingAs($student)->get('/dashboard')->assertOk()
+        ->assertInertia(fn ($page) => $page->where('auth.hasStudentProfile', true));
+
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+    withConfirmedTestTwoFactor($admin);
+
+    $this->actingAs($admin)->get('/dashboard')->assertOk()
+        ->assertInertia(fn ($page) => $page->where('auth.hasStudentProfile', false));
+});
+
 it('returns each persisted academic status instead of a hardcoded status', function (string $status) {
     [, $profile] = studentWithStatus($status);
     $service = app(\App\Services\StudentStatusService::class);
