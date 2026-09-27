@@ -4,6 +4,7 @@ use App\Http\Controllers\StudentServicesController;
 use App\Http\Controllers\OAuthTokenController;
 use App\Http\Controllers\Financial\WalletController;
 use App\Http\Controllers\Financial\TopUpController;
+use App\Http\Controllers\Financial\WithdrawalController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/oauth/token', OAuthTokenController::class)
@@ -53,7 +54,10 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
                 '/wallets/{walletId}',
                 [WalletController::class, 'show']
             );
-
+            Route::get(
+                '/withdrawals/{withdrawalId}',
+                 [WithdrawalController::class, 'show']
+            );
             Route::get(
                 '/wallets/{walletId}/ledger',
                 [WalletController::class, 'ledger']
@@ -76,6 +80,11 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
             Route::post(
                 '/topups/{topUpId}/complete',
                 [TopUpController::class, 'complete']
+            );
+
+            Route::post(
+                '/withdrawals',
+                [WithdrawalController::class, 'store']
             );
         });
     });

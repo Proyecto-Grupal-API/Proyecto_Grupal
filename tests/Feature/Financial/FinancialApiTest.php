@@ -9,6 +9,7 @@ use App\Domains\Financial\Models\FinancialTransaction;
 use App\Domains\Financial\Models\LedgerEntry;
 use App\Domains\Financial\Enums\TopUpStatus;
 use App\Domains\Financial\Models\TopUp;
+use App\Domains\Financial\Models\Withdrawal;
 use App\Http\Middleware\ValidateServiceToken;
 use App\Models\ServiceClient;
 use Illuminate\Support\Facades\Hash;
@@ -71,6 +72,26 @@ afterEach(function () {
 
     $topUpWallet->delete();
 }
+    $withdrawalOwnerIds = [
+        'test-financial-api-withdrawal-user',
+        'test-financial-api-withdrawal-show-user',
+        'test-financial-api-withdrawal-read-user',
+        'test-financial-api-withdrawal-write-user',
+    ];
+
+    $withdrawalWallets = Wallet::whereIn(
+        'owner_id',
+        $withdrawalOwnerIds
+    )->get();
+
+    foreach ($withdrawalWallets as $wallet) {
+        Withdrawal::where(
+            'wallet_id',
+            $wallet->public_id
+        )->delete();
+
+        $wallet->delete();
+    }
 });
 test('financial api requires a service access token', function () {
     $response = $this->getJson(
@@ -814,4 +835,296 @@ test('returns not found when the top up does not exist', function () {
     );
 
     $response->assertNotFound();
+});
+test('creates a pending withdrawal through the financial api', function () {
+    $this->withoutMiddleware(
+        ValidateServiceToken::class
+    );
+
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'test-financial-api-withdrawal-user',
+        WalletType::USUARIO
+    );
+
+    $response = $this->postJson(
+        '/api/v1/financial/withdrawals',
+        [
+            'wallet_id' => $wallet->public_id,
+            'amount_cents' => 10000,
+            'method' => 'EFECTIVO',
+            'agent_id' => 'test-withdrawal-agent',
+            'external_reference' =>
+                'test-withdrawal-reference',
+        ]
+    );
+
+    $response
+        ->assertCreated()
+        ->assertJsonPath(
+            'data.amount_cents',
+            10000
+        )
+        ->assertJsonPath(
+            'data.currency',
+            'MXN'
+        )
+        ->assertJsonPath(
+            'data.method',
+            'EFECTIVO'
+        )
+        ->assertJsonPath(
+            'data.status',
+            'PENDIENTE'
+        )
+        ->assertJsonPath(
+            'data.agent_id',
+            'test-withdrawal-agent'
+        )
+        ->assertJsonPath(
+            'data.external_reference',
+            'test-withdrawal-reference'
+        )
+        ->assertJsonPath(
+            'meta.api_version',
+            'v1'
+        );
+
+    expect(
+        strtolower($response->json('data.wallet_id'))
+    )->toBe(
+        strtolower($wallet->public_id)
+    );
+
+    $wallet->refresh();
+
+    expect($wallet->available_balance_cents)
+        ->toBe(0);
+
+    expect($wallet->held_balance_cents)
+        ->toBe(0);
+});
+test('returns a withdrawal through the financial api', function () {
+    $this->withoutMiddleware(
+        ValidateServiceToken::class
+    );
+
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'test-financial-api-withdrawal-show-user',
+        WalletType::USUARIO
+    );
+
+    $withdrawal = app(
+        \App\Domains\Financial\Services\WithdrawalService::class
+    )->create(
+        $wallet,
+        15000,
+        \App\Domains\Financial\Enums\WithdrawalMethod::EFECTIVO,
+        'test-agent-withdrawal-show',
+        'test-api-withdrawal-show'
+    );
+
+    $response = $this->getJson(
+        '/api/v1/financial/withdrawals/'
+            . $withdrawal->public_id
+    );
+
+    $response
+        ->assertOk()
+        ->assertJsonPath(
+            'data.amount_cents',
+            15000
+        )
+        ->assertJsonPath(
+            'data.currency',
+            'MXN'
+        )
+        ->assertJsonPath(
+            'data.method',
+            'EFECTIVO'
+        )
+        ->assertJsonPath(
+            'data.status',
+            'PENDIENTE'
+        )
+        ->assertJsonPath(
+            'data.agent_id',
+            'test-agent-withdrawal-show'
+        )
+        ->assertJsonPath(
+            'data.external_reference',
+            'test-api-withdrawal-show'
+        )
+        ->assertJsonPath(
+            'meta.api_version',
+            'v1'
+        );
+
+    expect(
+        strtolower($response->json('data.id'))
+    )->toBe(
+        strtolower($withdrawal->public_id)
+    );
+
+    expect(
+        strtolower($response->json('data.wallet_id'))
+    )->toBe(
+        strtolower($wallet->public_id)
+    );
+
+    $wallet->refresh();
+
+    expect($wallet->available_balance_cents)
+        ->toBe(0);
+
+    expect($wallet->held_balance_cents)
+        ->toBe(0);
+});
+test('returns not found when the withdrawal does not exist', function () {
+    $this->withoutMiddleware(
+        ValidateServiceToken::class
+    );
+
+    $response = $this->getJson(
+        '/api/v1/financial/withdrawals/'
+            . '00000000-0000-0000-0000-000000000000'
+    );
+
+    $response->assertNotFound();
+});
+test('financial read scope cannot create a withdrawal', function () {
+    $client = ServiceClient::create([
+        'name' => 'Financial API read withdrawal client',
+        'client_id' => 'svc_financial_read_withdrawal',
+        'secret_hash' => Hash::make('test-secret'),
+        'scopes' => ['financial:read'],
+        'active' => true,
+    ]);
+
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'test-financial-api-withdrawal-read-user',
+        WalletType::USUARIO
+    );
+
+    $tokenResponse = $this->postJson(
+        '/api/oauth/token',
+        [
+            'grant_type' => 'client_credentials',
+            'client_id' => $client->client_id,
+            'client_secret' => 'test-secret',
+            'scope' => 'financial:read',
+        ]
+    );
+
+    $tokenResponse
+        ->assertOk()
+        ->assertJsonPath(
+            'scope',
+            'financial:read'
+        );
+
+    $token = $tokenResponse->json(
+        'access_token'
+    );
+
+    $response = $this->postJson(
+        '/api/v1/financial/withdrawals',
+        [
+            'wallet_id' => $wallet->public_id,
+            'amount_cents' => 10000,
+            'method' => 'EFECTIVO',
+        ],
+        [
+            'Authorization' => "Bearer {$token}",
+        ]
+    );
+
+    $response->assertForbidden();
+
+    expect(
+        \App\Domains\Financial\Models\Withdrawal::where(
+            'wallet_id',
+            $wallet->public_id
+        )->exists()
+    )->toBeFalse();
+});
+test('financial write scope can create a withdrawal', function () {
+    $client = ServiceClient::create([
+        'name' => 'Financial API write withdrawal client',
+        'client_id' => 'svc_financial_write_withdrawal',
+        'secret_hash' => Hash::make('test-secret'),
+        'scopes' => ['financial:write'],
+        'active' => true,
+    ]);
+
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'test-financial-api-withdrawal-write-user',
+        WalletType::USUARIO
+    );
+
+    $tokenResponse = $this->postJson(
+        '/api/oauth/token',
+        [
+            'grant_type' => 'client_credentials',
+            'client_id' => $client->client_id,
+            'client_secret' => 'test-secret',
+            'scope' => 'financial:write',
+        ]
+    );
+
+    $tokenResponse
+        ->assertOk()
+        ->assertJsonPath(
+            'scope',
+            'financial:write'
+        );
+
+    $token = $tokenResponse->json(
+        'access_token'
+    );
+
+    $response = $this->postJson(
+        '/api/v1/financial/withdrawals',
+        [
+            'wallet_id' => $wallet->public_id,
+            'amount_cents' => 10000,
+            'method' => 'EFECTIVO',
+            'agent_id' => 'test-write-agent',
+            'external_reference' =>
+                'test-write-withdrawal',
+        ],
+        [
+            'Authorization' => "Bearer {$token}",
+        ]
+    );
+
+    $response
+        ->assertCreated()
+        ->assertJsonPath(
+            'data.amount_cents',
+            10000
+        )
+        ->assertJsonPath(
+            'data.method',
+            'EFECTIVO'
+        )
+        ->assertJsonPath(
+            'data.status',
+            'PENDIENTE'
+        );
+
+    expect(
+        \App\Domains\Financial\Models\Withdrawal::where(
+            'external_reference',
+            'test-write-withdrawal'
+        )->exists()
+    )->toBeTrue();
+
+    $wallet->refresh();
+
+    expect($wallet->available_balance_cents)
+        ->toBe(0);
 });
