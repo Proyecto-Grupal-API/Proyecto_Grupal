@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\FinancialController;
 use App\Http\Controllers\NfcCardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QrController;
@@ -26,6 +27,9 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
+
+    Route::get('/finanzas', [FinancialController::class, 'index'])
+        ->name('financial.dashboard');
 
     Route::get('/student-services', [StudentServicesController::class, 'index'])
         ->name('student-services.index');
