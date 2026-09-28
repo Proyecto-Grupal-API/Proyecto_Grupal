@@ -1,13 +1,26 @@
 # Team 1 — Identity Integration Contract
 
-Esta guía describe el **working tree actual** del Equipo 1 para integrarlo con ramas que ya contienen trabajo propio. No es una instrucción de instalación limpia ni de merge automático. Las guías específicas están en este directorio.
+Esta guía describe los contratos implementados por el Equipo 1 y sus límites para integrarlos con ramas que ya contienen trabajo propio. No es una instrucción de instalación limpia ni de merge automático. Las guías específicas están en este directorio.
 
 ## Estado del snapshot
 
-- Baseline verificado antes de esta documentación: 234 tests, 1449 assertions, 0 failures; build y comprobación de diff correctos.
-- Disponibles: cuentas y perfiles estudiantiles (1.1); autenticación/2FA y roles contextuales; registro NFC (1.4); ciclo NFC con bloqueo, pérdida, suspensión, reactivación y reemplazo (1.5); estado académico OAuth; validación QR OAuth y web con expiración, revocación, código corto y consumo único; validación NFC OAuth; eventos versionados publicados mediante outbox.
-- Parcial: identidad QR (1.6: quedan fases de secretos legacy y reglas operativas). El ciclo de vida NFC (1.5) incluye reemplazo real; la consulta OAuth de UID se describe abajo y no administra el ciclo de vida.
-- Pendientes para consumidores: contrato OAuth de roles/permisos contextuales, QR-B.4B/retirada final de plaintext legacy, uso autorizativo de `purpose`, elegibilidad académica integrada en QR y contextos operativos QR. No hay fecha comprometida.
+- Evidencia fechada de INT-1C.1B-R (28-09-2026): 368 tests, 2502 assertions, 0 failures; lint, build y comprobación de diff correctos. No es un conteo permanente.
+- Funcionalidad interna 1.1–1.9 cubierta; 1.3 incluye roles contextuales **internos**, no un contrato externo. QR de identificación y temporal, NFC y estado académico disponen de los contratos de consulta descritos abajo.
+- 1.10 **parcial**: validación NFC/QR y estado académico por OAuth implementados; consulta externa de roles/permisos pendiente de acuerdo interequipos. El transporte outbox local está implementado, pero su despliegue con Equipo 7 no está acordado ni probado.
+- Deuda separada de la funcionalidad QR: existen rutas de compatibilidad con códigos plaintext legacy y quedan decisiones operativas sobre `purpose` y elegibilidad. No afirmar que todos los códigos históricos fueron migrados. No hay fecha comprometida.
+
+| Requisito formal | Estado | Evidencia actual | Pendiente separado |
+| --- | --- | --- | --- |
+| 1.1 Cuentas y perfil | CUMPLIDO | `User`, `StudentProfile`, alta/edición/importación y UI `/students` | Deudas de datos/seeders no equivalen a falta de la función |
+| 1.2 Autenticación | CUMPLIDO | Fortify, 2FA por política de rol, sesiones y recuperación | Configuración segura de cada despliegue |
+| 1.3 Roles contextuales | CUMPLIDO | `Role::VALID_ROLES`, `User::hasRole()`, Policies/Gates y administración web internos | Contrato externo INT-1B en 1.10 |
+| 1.4 Registro NFC | CUMPLIDO | Registro web, UID canónico, unicidad, propietario e historial | Ninguno funcional identificado |
+| 1.5 Ciclo NFC | CUMPLIDO | Bloqueo, suspensión, pérdida, reactivación y reemplazo enlazado | Ninguno funcional identificado |
+| 1.6 Identidad QR | CUMPLIDO | QR de identificación y dinámico/temporal, validación web/OAuth | Compatibilidad plaintext legacy y reglas operativas futuras |
+| 1.7 Dispositivos y sesiones | CUMPLIDO | Dispositivos, sesiones, revocación, eventos y reautenticación | Operación de retención en despliegue |
+| 1.8 Condición estudiantil | CUMPLIDO | Perfil/historial y API OAuth `students:read` | Elegibilidad de beneficios pertenece al consumidor |
+| 1.9 Consentimientos y preferencias | CUMPLIDO | UI y API Sanctum, versiones/historial y outbox transaccional | No es una API OAuth interequipos |
+| 1.10 Servicio de identidad | PARCIAL | API OAuth académica, QR y NFC; outbox local | INT-1B pendiente de acuerdo y entrega externa a Equipo 7 pendiente |
 
 ## Regla de identificadores
 
@@ -58,9 +71,9 @@ Esta consulta registra el resultado, el cliente autenticado y, cuando se encontr
 
 ## Roles y contextos
 
-Catálogo: `admin`, `maestro`, `estudiante`, `servicio_cafeteria`, `consejo_estudiantil`, `student_manager`. `User::assignRole()`/`hasRole()` admiten asignación global (`scope_type=null`, `scope_id=null`) o contextual con ambos valores. Tipos válidos: `business`, `association`, `service`, `council`. **No existe contexto `campus`**. Las rutas administrativas actuales evalúan autorización en backend; la UI no es la autoridad.
+Catálogo **implementado**: `admin`, `maestro`, `estudiante`, `servicio_cafeteria`, `consejo_estudiantil`, `student_manager`. Este último permanece por compatibilidad; no se ha eliminado. `User::assignRole()`/`hasRole()` admiten asignación global (`scope_type=null`, `scope_id=null`) o contextual con ambos valores. `hasRole()` contextual exige coincidencia exacta de rol, tipo e ID: un rol global no satisface automáticamente una consulta contextual. Tipos válidos: `business`, `association`, `service`, `council`. **No existen contextos de rol `campus` ni `department`**. Las rutas administrativas actuales evalúan autorización en backend; la UI no es la autoridad.
 
-No hay API OAuth pública para consultar/asignar roles contextuales. La representación `roles` embebida en `users` es interna; solicitar a Team 1 el contrato necesario, no copiar/escribir esa estructura.
+INT-1B está en **WAITING_FOR_INTERTEAM_CONTRACT**: falta acordar catálogo comercial/inventario, ownership, aprovisionamiento, revocación y la cadena de confianza entre actor humano, servicio OAuth y sujeto consultado. Los nombres candidatos de roles comerciales no están en `Role::VALID_ROLES`. No hay API OAuth pública `role-check` ni scope `identity:roles:check`. La representación `roles` embebida en `users` es interna; solicitar el contrato necesario, no copiar/escribir esa estructura. `client_credentials` autentica al servicio, no al actor humano. El consumidor no debe aceptar un `subject_id` arbitrario del navegador como prueba de identidad; sus Policies y reglas de negocio siguen siendo propias.
 
 ## Consentimientos y preferencias
 
@@ -68,7 +81,7 @@ No hay API OAuth pública para consultar/asignar roles contextuales. La represen
 
 ## Eventos publicados
 
-`StoreDomainEvent` almacena los eventos en la colección interna `event_outboxes`; `events:publish` entrega al sink configurado un sobre con `event_id`, `event_name`, `aggregate_id`, `occurred_at`, `payload`. El consumidor recibe eventos **publicados** por el transporte acordado; no consulta el outbox directamente. Los payloads actuales son:
+`StoreDomainEvent` almacena los eventos en la colección interna `event_outboxes`; `events:publish` puede entregar al sink configurado un sobre con `event_id`, `event_name`, `aggregate_id`, `occurred_at`, `payload`. **No existe aún un sink externo acordado con Equipo 7**; la persistencia interna no es una API para consumidores. Los payloads actuales son:
 
 | Evento | Productor/cuándo | Payload | ID del sujeto / límite |
 | --- | --- | --- | --- |
@@ -78,7 +91,17 @@ No hay API OAuth pública para consultar/asignar roles contextuales. La represen
 
 `CredentialEvent`, `QrValidation` y `SecurityEvent` son historial/auditoría, **no** eventos de integración. El consumidor debe tolerar campos adicionales futuros, deduplicar por `event_id` y no inferir orden global. Solicitar contrato de consulta si el payload no basta.
 
-**Transporte local implementado, despliegue externo pendiente.** Un índice único versionado protege `event_id` una vez aplicada su migración en el entorno; no se aplicó automáticamente a development. Cada evento se reclama mediante una operación atómica con lease recuperable. El scheduler registra `events:publish` cada minuto, pero la infraestructura debe ejecutar `php artisan schedule:run` cada minuto. Sin `EVENTS_SINK_URL` no se envía nada. `EVENTS_SINK_TOKEN` permite Bearer estático provisional; URL, autenticación y semántica de HTTP 409 requieren acuerdo con Equipo 7. Cualquier 2xx confirma el evento; 409 sigue siendo error. El transporte es **at-least-once**: si el ACK se pierde, el mismo `event_id` puede llegar varias veces. Equipo 7 debe deduplicarlo. No hay garantía de orden global ni por sujeto, ni prueba de entrega a un sink de Equipo 7. Los fallos HTTP guardan `http_<status>`; red/timeout guardan `connection_error`; errores inesperados, `transport_error`, sin persistir cuerpos de respuesta ni excepciones crudas. 429/5xx/red aplican backoff de `min(60, 2^attempts)` segundos; otros no-2xx esperan 300 segundos y requieren revisión, sin descartar eventos. El estado operativo puede inspeccionarse en pendientes, `attempts`, `last_error`, `next_attempt_at` y `occurred_at` dentro del dominio de Equipo 1.
+**Transporte local implementado, despliegue externo pendiente.** La migración `2026_09_27_000100_add_event_outbox_delivery_indexes.php` crea el índice único de `event_id`; en development figura `Ran`, batch 7 (28-09-2026), sin implicar estado de producción. Cada evento se reclama mediante una operación atómica con lease recuperable. El scheduler registra `events:publish` cada minuto con `withoutOverlapping(30)`, pero la infraestructura debe ejecutar `php artisan schedule:run` cada minuto; no hay evidencia de cron de producción. Sin `EVENTS_SINK_URL` no se envía nada. `EVENTS_SINK_TOKEN` permite Bearer estático provisional; URL, autenticación y semántica de HTTP 409 requieren acuerdo con Equipo 7. Cualquier 2xx confirma el evento; 409 sigue siendo error. El transporte es **at-least-once**: si el ACK se pierde, el mismo `event_id` puede llegar varias veces. Equipo 7 debe deduplicarlo. No hay garantía de orden global ni por sujeto, ni prueba de entrega a un sink de Equipo 7. Los fallos HTTP guardan `http_<status>`; red/timeout guardan `connection_error`; errores inesperados, `transport_error`, sin persistir cuerpos de respuesta ni excepciones crudas. 429/5xx/red aplican backoff de `min(60, 2^attempts)` segundos; otros no-2xx esperan 300 segundos y requieren revisión, sin descartar eventos. El estado operativo puede inspeccionarse en pendientes, `attempts`, `last_error`, `next_attempt_at` y `occurred_at` dentro del dominio de Equipo 1.
+
+## Estado de integración por consumidor
+
+| Consumidor | Contrato implementado por Equipo 1 | Estado / pendiente |
+| --- | --- | --- |
+| Equipo 2 | Estado académico OAuth; identificación QR/NFC cuando se presenta credencial | IMPLEMENTED para identidad; saldo, pago, recarga y retiro son decisiones de Equipo 2 |
+| Equipos 3/4 | Identidad QR/NFC y roles internos de Equipo 1 | WAITING AGREEMENT: no hay role-check externo ni catálogo comercial acordado |
+| Equipo 5 | Validación QR y NFC OAuth | IMPLEMENTED para identificación; acceso/beneficio es autorización de Equipo 5 |
+| Equipo 6 | Estado/historial académico OAuth y evento `student.profile.changed.v1` persistido | PARTIAL: consumo externo de eventos pendiente; cargos con vigencia/delegación son de Equipo 6 o requieren acuerdo |
+| Equipo 7 | Sobre versionado, outbox y publicador local probado con HTTP real | EXTERNAL DEPLOYMENT PENDING: URL, auth, 409, scheduler y prueba contra su sink |
 
 ## DO NOT DEPEND DIRECTLY ON TEAM 1 STORAGE
 
