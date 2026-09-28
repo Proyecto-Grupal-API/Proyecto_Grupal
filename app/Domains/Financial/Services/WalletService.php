@@ -25,4 +25,15 @@ class WalletService
             'held_balance_cents' => 0,
         ]);
     }
+
+    public function findByOwner(
+        string $ownerType,
+        string $ownerId,
+        WalletType $walletType
+    ): ?Wallet {
+        return Wallet::where('owner_type', $ownerType)
+            ->where('owner_id', $ownerId)
+            ->where('type', $walletType->value)
+            ->first();
+    }
 }

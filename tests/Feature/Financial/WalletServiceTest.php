@@ -27,3 +27,37 @@ test('creates a user wallet with the correct initial values', function () {
         ->and($wallet->available_balance_cents)->toBe(0)
         ->and($wallet->held_balance_cents)->toBe(0);
 });
+test('finds a user wallet by owner', function () {
+    $service = app(WalletService::class);
+
+    $createdWallet = $service->create(
+        'USER',
+        'test-wallet-user',
+        WalletType::USUARIO
+    );
+
+    $foundWallet = $service->findByOwner(
+        'USER',
+        'test-wallet-user',
+        WalletType::USUARIO
+    );
+
+    expect($foundWallet)->not->toBeNull()
+        ->and(strtolower($foundWallet->public_id))
+        ->toBe(strtolower($createdWallet->public_id))
+        ->and($foundWallet->owner_type)->toBe('USER')
+        ->and($foundWallet->owner_id)->toBe('test-wallet-user')
+        ->and($foundWallet->type)->toBe(WalletType::USUARIO);
+});
+
+test('returns null when the owner wallet does not exist', function () {
+    $service = app(WalletService::class);
+
+    $wallet = $service->findByOwner(
+        'USER',
+        'test-wallet-user',
+        WalletType::USUARIO
+    );
+
+    expect($wallet)->toBeNull();
+});
