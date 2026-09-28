@@ -222,9 +222,11 @@ curl -X POST http://127.0.0.1:8002/api/oauth/token \
 
 Usa el token como `Authorization: Bearer <access_token>` para las rutas `/api/v1`. Los tokens son JWT firmados, tienen issuer/audience, expiración y scopes. En producción define `OAUTH2_SIGNING_KEY` independiente de `APP_KEY` y rota los clientes periódicamente.
 
-Los cambios de dominio implementan un contrato de eventos versionado (`*.v1`) y se guardan en la colección MongoDB `event_outbox` para que un publicador externo pueda entregarlos a otros servicios sin acoplarlos a las colecciones internas. El contrato de integración y las guías de Equipos 2–7 están en [docs/integration/TEAM-1-INTEGRATION.md](docs/integration/TEAM-1-INTEGRATION.md).
+Los cambios de dominio implementan un contrato de eventos versionado (`*.v1`) y se guardan en la colección MongoDB interna `event_outboxes` para que un publicador pueda entregarlos a otros servicios sin acoplarlos a las colecciones internas. El contrato de integración y las guías de Equipos 2–7 están en [docs/integration/TEAM-1-INTEGRATION.md](docs/integration/TEAM-1-INTEGRATION.md).
 
-El publicador incluido se ejecuta con `php artisan events:publish`. Configura `EVENTS_SINK_URL` y, si el receptor lo requiere, `EVENTS_SINK_TOKEN`. Los eventos publicados reciben `published_at`; los fallidos conservan `attempts` y `last_error` para reintentos. En producción se recomienda ejecutarlo mediante scheduler o worker.
+El publicador se registra cada minuto en el scheduler Laravel. Para operarlo, la infraestructura debe ejecutar `php artisan schedule:run` cada minuto y configurar `EVENTS_SINK_URL` hacia un destino controlado. `EVENTS_SINK_TOKEN` añade un Bearer estático provisional si el receptor lo requiere; destino y autenticación definitivos siguen pendientes de acuerdo con Equipo 7. Sin URL, `events:publish` falla sin enviar. El índice único `event_id` de la nueva migración debe aplicarse en cada entorno antes de desplegar el transporte; esta implementación no migra development automáticamente.
+
+La entrega es **at-least-once**, no exactly-once: se publica un evento por POST, `published_at` sólo se guarda después de un ACK 2xx, y una respuesta perdida puede causar otro envío del mismo `event_id`. El consumidor debe deduplicar ese ID. Los fallos conservan el evento pendiente, incrementan `attempts` y guardan un código de error controlado; 429/5xx/red esperan entre 2 y 60 segundos según intentos, mientras cualquier otro non-2xx (incluido 409) espera 5 minutos e implica revisión operativa antes del siguiente intento. No se garantiza orden global ni por sujeto. La prueba E2E incluida usa exclusivamente un receptor HTTP temporal en `127.0.0.1` y datos de testing; no demuestra recepción por Equipo 7.
 
 ## Cambios Recientes
 
@@ -238,7 +240,7 @@ El publicador incluido se ejecuta con `php artisan events:publish`. Configura `E
 - **Módulo 1.6 parcial:** validación QR disponible; limpieza final de secretos legacy y reglas operativas pendientes. **1.7:** dispositivos, sesiones confiables y reautenticación.
 - **Módulos 1.8 y 1.9:** estado académico persistente e historial; consentimientos y preferencias persistentes mediante sesión/Sanctum.
 - **Integración entre servicios:** OAuth 2.0 `client_credentials`, JWT, scopes y middleware Bearer.
-- **Eventos de dominio:** eventos versionados, outbox MongoDB idempotente y comando `events:publish` con reintentos.
+- **Eventos de dominio:** eventos versionados, outbox MongoDB con `event_id` estable y único tras aplicar su migración, y publicador programado con lease atómico y reintentos. La deduplicación del efecto corresponde al consumidor.
 - **Calidad:** pruebas automatizadas y build frontend disponibles; véase el baseline del snapshot en la guía de integración.
 
 La guía [Team 1 — Identity Integration Contract](docs/integration/TEAM-1-INTEGRATION.md) distingue las APIs OAuth para servicios de las rutas Sanctum y web, y enumera las capacidades todavía pendientes.

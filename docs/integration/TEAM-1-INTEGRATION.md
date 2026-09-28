@@ -68,7 +68,7 @@ No hay API OAuth pública para consultar/asignar roles contextuales. La represen
 
 ## Eventos publicados
 
-`StoreDomainEvent` almacena los eventos en `event_outbox`; `events:publish` entrega al sink configurado un sobre con `event_id`, `event_name`, `aggregate_id`, `occurred_at`, `payload`. El consumidor recibe eventos **publicados** por el transporte acordado; no consulta `event_outbox` directamente. Los payloads actuales son:
+`StoreDomainEvent` almacena los eventos en la colección interna `event_outboxes`; `events:publish` entrega al sink configurado un sobre con `event_id`, `event_name`, `aggregate_id`, `occurred_at`, `payload`. El consumidor recibe eventos **publicados** por el transporte acordado; no consulta el outbox directamente. Los payloads actuales son:
 
 | Evento | Productor/cuándo | Payload | ID del sujeto / límite |
 | --- | --- | --- | --- |
@@ -78,9 +78,11 @@ No hay API OAuth pública para consultar/asignar roles contextuales. La represen
 
 `CredentialEvent`, `QrValidation` y `SecurityEvent` son historial/auditoría, **no** eventos de integración. El consumidor debe tolerar campos adicionales futuros, deduplicar por `event_id` y no inferir orden global. Solicitar contrato de consulta si el payload no basta.
 
+**Transporte local implementado, despliegue externo pendiente.** Un índice único versionado protege `event_id` una vez aplicada su migración en el entorno; no se aplicó automáticamente a development. Cada evento se reclama mediante una operación atómica con lease recuperable. El scheduler registra `events:publish` cada minuto, pero la infraestructura debe ejecutar `php artisan schedule:run` cada minuto. Sin `EVENTS_SINK_URL` no se envía nada. `EVENTS_SINK_TOKEN` permite Bearer estático provisional; URL, autenticación y semántica de HTTP 409 requieren acuerdo con Equipo 7. Cualquier 2xx confirma el evento; 409 sigue siendo error. El transporte es **at-least-once**: si el ACK se pierde, el mismo `event_id` puede llegar varias veces. Equipo 7 debe deduplicarlo. No hay garantía de orden global ni por sujeto, ni prueba de entrega a un sink de Equipo 7. Los fallos HTTP guardan `http_<status>`; red/timeout guardan `connection_error`; errores inesperados, `transport_error`, sin persistir cuerpos de respuesta ni excepciones crudas. 429/5xx/red aplican backoff de `min(60, 2^attempts)` segundos; otros no-2xx esperan 300 segundos y requieren revisión, sin descartar eventos. El estado operativo puede inspeccionarse en pendientes, `attempts`, `last_error`, `next_attempt_at` y `occurred_at` dentro del dominio de Equipo 1.
+
 ## DO NOT DEPEND DIRECTLY ON TEAM 1 STORAGE
 
-No consultar ni escribir directamente `users`, `student_profiles`, `academic_status_history`, `nfc_cards`, `credential_events`, `qr_tokens`, `qr_validations`, `security_events`, roles embebidos ni `event_outbox` como workaround de integración. Son persistencia de Team 1; sus índices, documentos y procesos de backfill pueden evolucionar sin ser API pública. Si falta una operación (por ejemplo, roles contextuales para servicios), **registrar la dependencia con Team 1 y detener esa parte**.
+No consultar ni escribir directamente `users`, `student_profiles`, `academic_status_history`, `nfc_cards`, `credential_events`, `qr_tokens`, `qr_validations`, `security_events`, roles embebidos ni `event_outboxes` como workaround de integración. Son persistencia de Team 1; sus índices, documentos y procesos de backfill pueden evolucionar sin ser API pública. Si falta una operación (por ejemplo, roles contextuales para servicios), **registrar la dependencia con Team 1 y detener esa parte**.
 
 ## Integración con trabajo existente
 

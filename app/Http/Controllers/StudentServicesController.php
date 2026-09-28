@@ -11,6 +11,7 @@ use App\Models\Consent;
 use App\Models\StudentProfile;
 use App\Models\User;
 use App\Services\StudentStatusService;
+use App\Support\ExecutesMongoAtomically;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,6 +19,8 @@ use Inertia\Response;
 
 class StudentServicesController extends Controller
 {
+    use ExecutesMongoAtomically;
+
     public function index(Request $request): Response
     {
         $profile = $this->profileForUser($request->user());
@@ -102,8 +105,10 @@ class StudentServicesController extends Controller
         $type = ConsentType::tryFrom($data['consent_id']);
         abort_unless($type && array_key_exists($type->value, config('student_services.consents')), 422, 'Tipo de consentimiento inválido.');
         if ($type->requiresVersion() && empty($data['consent_version'])) abort(422, 'La versión del consentimiento es obligatoria.');
-        $consent = Consent::create(['user_id' => (string) $profile->user_id, 'student_profile_id' => (string) $profile->getKey(), 'type' => $type->value, 'version' => $data['consent_version'] ?? null, 'status' => 'accepted', 'accepted_at' => now(), 'actor_id' => (string) $request->user()->getKey()]);
-        StudentConsentChanged::dispatch((string) $profile->user_id, $type->value, 'accepted', (string) ($consent->version ?? ''), (string) $request->user()->getKey());
+        $this->mongoTransaction(function () use ($profile, $type, $data, $request): void {
+            $consent = Consent::create(['user_id' => (string) $profile->user_id, 'student_profile_id' => (string) $profile->getKey(), 'type' => $type->value, 'version' => $data['consent_version'] ?? null, 'status' => 'accepted', 'accepted_at' => now(), 'actor_id' => (string) $request->user()->getKey()]);
+            StudentConsentChanged::dispatch((string) $profile->user_id, $type->value, 'accepted', (string) ($consent->version ?? ''), (string) $request->user()->getKey());
+        });
         return $this->success($this->consentItem($profile, $type), 201);
     }
 
@@ -121,8 +126,10 @@ class StudentServicesController extends Controller
             ->first();
         abort_unless($accepted, 422, 'No existe el consentimiento aceptado indicado.');
         abort_if(Consent::where('revokes_consent_id', (string) $accepted->getKey())->exists(), 422, 'El consentimiento indicado ya fue revocado.');
-        $consent = Consent::create(['user_id' => (string) $profile->user_id, 'student_profile_id' => (string) $profile->getKey(), 'type' => $type->value, 'version' => $accepted->version, 'status' => 'revoked', 'revoked_at' => now(), 'actor_id' => (string) $request->user()->getKey(), 'revokes_consent_id' => (string) $accepted->getKey()]);
-        StudentConsentChanged::dispatch((string) $profile->user_id, $type->value, 'revoked', (string) ($consent->version ?? ''), (string) $request->user()->getKey());
+        $this->mongoTransaction(function () use ($profile, $type, $accepted, $request): void {
+            $consent = Consent::create(['user_id' => (string) $profile->user_id, 'student_profile_id' => (string) $profile->getKey(), 'type' => $type->value, 'version' => $accepted->version, 'status' => 'revoked', 'revoked_at' => now(), 'actor_id' => (string) $request->user()->getKey(), 'revokes_consent_id' => (string) $accepted->getKey()]);
+            StudentConsentChanged::dispatch((string) $profile->user_id, $type->value, 'revoked', (string) ($consent->version ?? ''), (string) $request->user()->getKey());
+        });
         return $this->success($this->consentItem($profile, $type));
     }
 
@@ -132,9 +139,13 @@ class StudentServicesController extends Controller
         $this->authorize('viewServices', $profile);
         $data = $request->validate(['email' => ['sometimes', 'boolean'], 'push' => ['sometimes', 'boolean'], 'sms' => ['sometimes', 'boolean']]);
         abort_if($data === [], 422, 'Indica al menos una preferencia.');
-        $preferences = CommunicationPreference::firstOrNew(['user_id' => (string) $profile->user_id]);
-        $preferences->fill($data); $preferences->updated_by = (string) $request->user()->getKey(); $preferences->save();
-        StudentProfileChanged::dispatch((string) $profile->user_id, 'communication_preferences_changed', array_keys($data), (string) $request->user()->getKey());
+        $preferences = $this->mongoTransaction(function () use ($profile, $data, $request): CommunicationPreference {
+            $preferences = CommunicationPreference::firstOrNew(['user_id' => (string) $profile->user_id]);
+            $preferences->fill($data); $preferences->updated_by = (string) $request->user()->getKey(); $preferences->save();
+            StudentProfileChanged::dispatch((string) $profile->user_id, 'communication_preferences_changed', array_keys($data), (string) $request->user()->getKey());
+
+            return $preferences;
+        });
         return $this->success(['student_id' => (string) $profile->getKey(), 'preferences' => $this->preferenceValues($profile), 'updated_at' => $preferences->updated_at?->toISOString()]);
     }
 

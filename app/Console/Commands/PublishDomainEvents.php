@@ -2,8 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Models\EventOutbox;
+use App\Services\OutboxDelivery;
 use Illuminate\Console\Command;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -12,7 +13,7 @@ class PublishDomainEvents extends Command
     protected $signature = 'events:publish {--limit= : Maximum number of events to attempt}';
     protected $description = 'Publish pending domain events to the configured service sink';
 
-    public function handle(): int
+    public function handle(OutboxDelivery $delivery): int
     {
         $sink = config('events.sink_url');
         if (! $sink) {
@@ -21,15 +22,30 @@ class PublishDomainEvents extends Command
         }
 
         $limit = (int) ($this->option('limit') ?: config('events.batch_size'));
-        $events = EventOutbox::whereNull('published_at')->orderBy('occurred_at')->limit($limit)->get();
+        $timeout = (int) config('events.timeout');
+        $lease = (int) config('events.claim_lease_seconds');
+        if ($limit < 1 || $timeout < 1 || $lease <= $timeout) {
+            $this->error('Invalid outbox batch, timeout, or claim lease configuration.');
+            return self::FAILURE;
+        }
+
         $published = 0;
         $failed = 0;
+        $inspected = 0;
 
-        foreach ($events as $event) {
+        foreach ($delivery->candidates($limit) as $candidate) {
+            $inspected++;
+            $claim = $delivery->claim($candidate, $lease);
+            if (! $claim) {
+                continue;
+            }
+            ['event' => $event, 'token' => $claimToken] = $claim;
             try {
-                $request = Http::timeout(config('events.timeout'))
+                $request = Http::timeout($timeout)
                     ->acceptJson()
-                    ->asJson();
+                    ->asJson()
+                    ->withoutRedirecting()
+                    ->withOptions(['verify' => true]);
                 if ($token = config('events.sink_token')) {
                     $request = $request->withToken($token);
                 }
@@ -38,28 +54,37 @@ class PublishDomainEvents extends Command
                     'event_id' => $event->event_id,
                     'event_name' => $event->event_name,
                     'aggregate_id' => $event->aggregate_id,
-                    'occurred_at' => $event->occurred_at?->toISOString(),
+                    'occurred_at' => $event->occurred_at?->toDateTime()->format('Y-m-d\TH:i:s.u\Z'),
                     'payload' => $event->payload?->getArrayCopy() ?? [],
                 ]);
 
                 if ($response->successful()) {
-                    $event->forceFill(['published_at' => now(), 'last_error' => null])->save();
-                    $published++;
+                    if ($delivery->acknowledge($event, $claimToken)) {
+                        $published++;
+                    } else {
+                        $failed++;
+                        $this->warn("Event {$event->event_id} could not be acknowledged by this claim.");
+                    }
                     continue;
                 }
 
-                throw new \RuntimeException('Sink returned HTTP '.$response->status());
-            } catch (Throwable $exception) {
-                $event->forceFill([
-                    'attempts' => ((int) ($event->attempts ?? 0)) + 1,
-                    'last_error' => mb_substr($exception->getMessage(), 0, 1000),
-                ])->save();
+                $status = $response->status();
+                $retryable = $status === 429 || $status >= 500;
+                $delivery->fail($event, $claimToken, 'http_'.$status, $retryable);
                 $failed++;
-                $this->warn("Event {$event->event_id} failed: {$exception->getMessage()}");
+                $this->warn("Event {$event->event_id} failed: HTTP {$status}.");
+            } catch (ConnectionException $exception) {
+                $delivery->fail($event, $claimToken, 'connection_error', true);
+                $failed++;
+                $this->warn("Event {$event->event_id} failed: connection_error.");
+            } catch (Throwable $exception) {
+                $delivery->fail($event, $claimToken, 'transport_error', true);
+                $failed++;
+                $this->warn("Event {$event->event_id} failed: transport_error.");
             }
         }
 
-        $this->info("Published: {$published}; failed: {$failed}; inspected: {$events->count()}.");
+        $this->info("Published: {$published}; failed: {$failed}; inspected: {$inspected}.");
         return $failed > 0 ? self::FAILURE : self::SUCCESS;
     }
 }
