@@ -37,6 +37,7 @@ class User extends Authenticatable
         'remember_token',
         'two_factor_recovery_codes',
         'two_factor_secret',
+        'must_change_password',
     ];
 
     protected $appends = [
@@ -71,7 +72,14 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'account_activation_pending' => 'boolean',
+            'must_change_password' => 'boolean',
         ];
+    }
+
+    public function getMustChangePasswordAttribute(mixed $value): bool
+    {
+        // Historical Mongo documents do not have this field.
+        return (bool) $value;
     }
 
     protected function roles(): Attribute

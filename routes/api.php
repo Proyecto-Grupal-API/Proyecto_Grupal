@@ -19,7 +19,7 @@ Route::post('/v1/identity/qr-validate', QrValidationController::class)
 Route::post('/v1/identity/nfc-validate', NfcValidationController::class)
     ->middleware(['oauth.service:identity:nfc:validate', 'throttle:30,1']);
 
-Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
+Route::prefix('v1')->middleware(['auth:sanctum', 'initial.password'])->group(function () {
     Route::get('/students/{studentId}/consents', [StudentServicesController::class, 'consents']);
     Route::post('/students/{studentId}/consents', [StudentServicesController::class, 'acceptConsent']);
     Route::delete('/students/{studentId}/consents/{consentId}', [StudentServicesController::class, 'revokeConsent']);

@@ -19,6 +19,8 @@ class EnsureRequiredTwoFactorAuthentication
         'password.confirm.custom.store',
         'password.confirm.store',
         'logout',
+        'password.initial.edit',
+        'password.initial.update',
     ];
 
     public function handle(Request $request, Closure $next): Response

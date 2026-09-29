@@ -9,6 +9,8 @@ use App\Models\StudentProfile;
 use App\Http\Requests\StoreStudentRequest;
 use App\Http\Requests\UpdateStudentRequest;
 use App\Actions\Students\UpsertStudentProfile;
+use App\Services\TemporaryPasswordGenerator;
+use App\Actions\Students\ReissueTemporaryPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -55,9 +57,21 @@ class StudentController extends Controller
         return Inertia::render('Students/Create', $this->formOptions());
     }
 
-    public function store(StoreStudentRequest $request, UpsertStudentProfile $upsert)
+    public function store(StoreStudentRequest $request, UpsertStudentProfile $upsert, TemporaryPasswordGenerator $generator)
     {
+        // The existing Inertia form has no one-time receipt yet. Keep its legacy
+        // pending/reset path until AUTH-INIT-2B rather than issue an unseen secret.
+        if ($request->expectsJson() && ! $request->headers->has('X-Inertia')) {
+            $result = $upsert->createWithTemporaryPassword($request->validated(), $request->user(), $generator);
+
+            return response()->json([
+                'student_id' => (string) $result->student->getKey(),
+                'temporary_password' => $result->temporaryPassword,
+            ], 201)->header('Cache-Control', 'no-store, private');
+        }
+
         $upsert->execute($request->validated(), null, $request->user());
+
         return to_route('students.index')->with('success', 'La cuenta del estudiante se creó correctamente.');
     }
 
@@ -71,6 +85,20 @@ class StudentController extends Controller
     {
         $upsert->execute($request->validated(), $student, $request->user());
         return to_route('students.index')->with('success', 'El perfil se actualizó correctamente.');
+    }
+
+    public function reissueTemporaryPassword(Request $request, \App\Models\User $student, ReissueTemporaryPassword $reissue)
+    {
+        abort_unless($student->studentProfile, 404);
+        $this->authorize('update', $student->studentProfile);
+        abort_unless($request->expectsJson() && ! $request->headers->has('X-Inertia'), 406);
+
+        $result = $reissue->execute($student, $request->user());
+
+        return response()->json([
+            'student_id' => (string) $result->student->getKey(),
+            'temporary_password' => $result->temporaryPassword,
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     private function formOptions(): array

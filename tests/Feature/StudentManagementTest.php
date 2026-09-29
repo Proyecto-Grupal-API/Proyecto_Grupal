@@ -54,6 +54,7 @@ it('creates an administrative student with normalized identifiers, initial histo
     $history = AcademicStatusHistory::where('student_profile_id', (string) $profile->getKey())->firstOrFail();
 
     expect($student->account_activation_pending)->toBeTrue()
+        ->and($student->must_change_password)->toBeFalse()
         ->and($student->password)->toBeNull()
         ->and($profile->enrollment_number)->toBe('ABC-123')
         ->and($profile->personal_email)->toBe('personal@example.com')

@@ -49,6 +49,8 @@ Route::middleware(['auth', 'verified', 'device.track'])->group(function () {
     Route::get('/students/create', [StudentController::class, 'create'])->name('students.create');
     Route::post('/students', [StudentController::class, 'store'])->name('students.store');
     Route::post('/students/import', [StudentImportController::class, 'store'])->name('students.import');
+    Route::post('/students/{student}/temporary-password', [StudentController::class, 'reissueTemporaryPassword'])
+        ->name('students.temporary-password.reissue');
     Route::get('/students/{student}/edit', [StudentController::class, 'edit'])->name('students.edit');
     Route::patch('/students/{student}', [StudentController::class, 'update'])->name('students.update');
 

@@ -8,11 +8,14 @@ use App\Models\AcademicStatusHistory;
 use App\Models\Role;
 use App\Models\StudentProfile;
 use App\Models\User;
+use App\Models\SecurityEvent;
+use App\Services\TemporaryPasswordGenerator;
 use App\Support\ExecutesMongoAtomically;
 use App\Support\StudentIdentityInput;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
@@ -23,6 +26,20 @@ class UpsertStudentProfile
 
     public function execute(array $data, ?User $student = null, ?User $actor = null): User
     {
+        return $this->persistStudent($data, $student, $actor, null);
+    }
+
+    public function createWithTemporaryPassword(array $data, User $actor, TemporaryPasswordGenerator $generator): StudentWithTemporaryPassword
+    {
+        $temporaryPassword = $generator->generate();
+        $student = $this->persistStudent($data, null, $actor, $temporaryPassword);
+
+        // No caller receives this value until the Mongo transaction has committed.
+        return new StudentWithTemporaryPassword($student, $temporaryPassword);
+    }
+
+    private function persistStudent(array $data, ?User $student, ?User $actor, ?string $temporaryPassword): User
+    {
         $data = StudentIdentityInput::normalize($data);
         $isNewStudent = ! ($student?->exists ?? false);
         $operation = $isNewStudent ? 'created' : 'updated';
@@ -30,15 +47,16 @@ class UpsertStudentProfile
         $oldPhotoPath = $student->studentProfile?->photo_path;
         $student->fill(Arr::only($data, ['name', 'email']));
         if ($isNewStudent) {
-            $student->password = null;
-            $student->account_activation_pending = true;
+            $student->password = $temporaryPassword === null ? null : Hash::make($temporaryPassword);
+            $student->account_activation_pending = $temporaryPassword === null;
+            $student->must_change_password = $temporaryPassword !== null;
         }
         $photo = ($data['photo'] ?? null) instanceof UploadedFile ? $data['photo'] : null;
         $newPhotoPath = $photo?->store('student-photos', 'public');
         if ($photo && ! $newPhotoPath) {
             throw new RuntimeException('No se pudo guardar la fotografía del estudiante.');
         }
-        $persist = function () use ($student, $data, $newPhotoPath, $operation, $actor, $isNewStudent): array {
+        $persist = function () use ($student, $data, $newPhotoPath, $operation, $actor, $isNewStudent, $temporaryPassword): array {
             $student->save();
 
             $profile = $student->studentProfile ?? new StudentProfile(['user_id' => (string) $student->getKey()]);
@@ -85,6 +103,14 @@ class UpsertStudentProfile
             }
             if ($isNewStudent) {
                 $student->assignRole(Role::ESTUDIANTE);
+                if ($temporaryPassword !== null) {
+                    SecurityEvent::log([
+                        'user_id' => (string) $student->getKey(),
+                        'type' => 'temporary_credential_issued',
+                        'severity' => 'info',
+                        'metadata' => ['issued_by' => $actor?->getKey() ? (string) $actor->getKey() : null],
+                    ]);
+                }
             }
 
             return $changedFields;

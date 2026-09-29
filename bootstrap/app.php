@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\EnsureSessionIsActive::class,
+            \App\Http\Middleware\EnsureInitialPasswordChanged::class,
             \App\Http\Middleware\EnsureRequiredTwoFactorAuthentication::class,
         ]);
 
@@ -26,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role.context' => \App\Http\Middleware\EnsureHasContextualRole::class,
             'oauth.service' => \App\Http\Middleware\ValidateServiceToken::class,
             'reauth' => \App\Http\Middleware\EnsureRecentlyReauthenticated::class,
+            'initial.password' => \App\Http\Middleware\EnsureInitialPasswordChanged::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
