@@ -1,6 +1,9 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import TemporaryPasswordModal from '@/Components/TemporaryPasswordModal.vue';
+import Modal from '@/Components/Modal.vue';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { onBeforeUnmount, ref } from 'vue';
 
 const props = defineProps({
     student: { type: Object, default: null },
@@ -23,10 +26,106 @@ const form = useForm({
 });
 
 const selectedCampus = () => props.campuses.find((campus) => String(campus.id) === String(form.campus_id));
-function submit() {
-    const options = { forceFormData: true, preserveScroll: true };
-    props.student ? form.patch(`/students/${props.student.id}`, options) : form.post('/students', options);
+const createSubmitting = ref(false);
+const reissueSubmitting = ref(false);
+const showReissueConfirmation = ref(false);
+const temporaryPassword = ref(null);
+const temporaryMode = ref(null);
+const requestError = ref('');
+const reissueError = ref('');
+
+function receiptFrom(response, expectedStatus) {
+    const data = response?.data;
+    return response?.status === expectedStatus
+        && data && typeof data === 'object'
+        && typeof data.student_id === 'string' && data.student_id.length > 0
+        && typeof data.temporary_password === 'string' && data.temporary_password.length > 0
+        ? data.temporary_password : null;
 }
+
+async function submit() {
+    if (props.student) {
+        form.patch(`/students/${props.student.id}`, { forceFormData: true, preserveScroll: true });
+        return;
+    }
+    if (createSubmitting.value || temporaryPassword.value !== null) return;
+
+    createSubmitting.value = true;
+    requestError.value = '';
+    form.clearErrors();
+    const data = new FormData();
+    for (const [key, value] of Object.entries(form.data())) {
+        if (value !== null && value !== undefined) data.append(key, value);
+    }
+
+    try {
+        const response = await window.axios.post(route('students.store'), data, {
+            headers: { Accept: 'application/json' },
+        });
+        const password = receiptFrom(response, 201);
+        if (password === null) {
+            requestError.value = 'La cuenta pudo haberse creado, pero no se pudo mostrar la credencial. Verifica el registro antes de intentar otra alta.';
+            return;
+        }
+        temporaryPassword.value = password;
+        temporaryMode.value = 'created';
+    } catch (error) {
+        if (error.response?.status === 422 && error.response.data?.errors) {
+            form.setError(Object.fromEntries(
+                Object.entries(error.response.data.errors).map(([field, messages]) => [
+                    field, Array.isArray(messages) ? messages[0] : String(messages),
+                ]),
+            ));
+        } else if (error.response?.status === 403) {
+            requestError.value = 'No tienes permiso para crear esta cuenta.';
+        } else if (error.response?.status === 419) {
+            requestError.value = 'La sesión expiró. Verifica si la cuenta fue creada antes de intentarlo nuevamente.';
+        } else {
+            requestError.value = 'No se pudo confirmar la entrega de la credencial. Verifica si la cuenta fue creada antes de intentarlo nuevamente.';
+        }
+    } finally {
+        createSubmitting.value = false;
+    }
+}
+
+async function reissue() {
+    if (!props.student || reissueSubmitting.value) return;
+    showReissueConfirmation.value = false;
+    reissueSubmitting.value = true;
+    reissueError.value = '';
+
+    try {
+        const response = await window.axios.post(route('students.temporary-password.reissue', props.student.id), null, {
+            headers: { Accept: 'application/json' },
+        });
+        const password = receiptFrom(response, 200);
+        if (password === null) {
+            reissueError.value = 'La credencial pudo haberse reemitido, pero no se pudo mostrar. Verifica el estado antes de volver a intentarlo.';
+            return;
+        }
+        temporaryPassword.value = password;
+        temporaryMode.value = 'reissued';
+    } catch (error) {
+        const status = error.response?.status;
+        if (status === 403) reissueError.value = 'No tienes permiso para realizar esta acción.';
+        else if (status === 404) reissueError.value = 'El estudiante ya no está disponible.';
+        else if (status === 409) reissueError.value = 'La cuenta ya no admite la reemisión de una contraseña temporal. Su estado pudo haber cambiado.';
+        else if (status === 422) reissueError.value = 'La solicitud de reemisión no es válida.';
+        else if (status === 419) reissueError.value = 'La sesión expiró. Verifica el estado antes de volver a intentarlo.';
+        else reissueError.value = 'No se pudo confirmar la reemisión. Verifica el estado antes de volver a intentarlo.';
+    } finally {
+        reissueSubmitting.value = false;
+    }
+}
+
+function closeReceipt() {
+    const wasCreated = temporaryMode.value === 'created';
+    temporaryPassword.value = null;
+    temporaryMode.value = null;
+    if (wasCreated) router.visit(route('students.index'));
+}
+
+onBeforeUnmount(() => { temporaryPassword.value = null; });
 </script>
 
 <template>
@@ -50,8 +149,28 @@ function submit() {
                     <label class="block"><span class="text-sm font-semibold text-slate-700">Motivo del cambio de estatus</span><input v-model="form.status_reason" class="mt-1 w-full rounded-lg border-slate-300" /></label>
                     <label class="block md:col-span-2"><span class="text-sm font-semibold text-slate-700">Fotografía</span><input type="file" accept="image/*" class="mt-1 block" @change="form.photo = $event.target.files[0]" /></label>
                 </div>
-                <div class="flex justify-end gap-3 border-t border-slate-100 pt-5"><Link href="/students" class="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600">Cancelar</Link><button type="submit" class="rounded-lg bg-[#00338D] px-5 py-2 text-sm font-semibold text-white" :disabled="form.processing">Guardar perfil</button></div>
+                <p v-if="requestError" role="alert" class="text-sm text-rose-700">{{ requestError }}</p>
+                <div class="flex justify-end gap-3 border-t border-slate-100 pt-5"><Link href="/students" class="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600">Cancelar</Link><button type="submit" class="rounded-lg bg-[#00338D] px-5 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="form.processing || createSubmitting || temporaryPassword !== null">{{ createSubmitting ? 'Guardando...' : 'Guardar perfil' }}</button></div>
             </form>
+            <section v-if="student" class="mx-auto mt-6 max-w-5xl rounded-2xl bg-white p-6 shadow-sm sm:p-8">
+                <h3 class="text-lg font-semibold text-[#00338D]">Acceso inicial</h3>
+                <p class="mt-2 text-sm text-slate-600">Si la contraseña temporal se perdió antes del primer cambio, puedes reemitir una nueva. La cuenta debe seguir siendo elegible.</p>
+                <p v-if="reissueError" role="alert" class="mt-3 text-sm text-rose-700">{{ reissueError }}</p>
+                <button type="button" class="mt-4 rounded-lg border border-[#00338D] px-4 py-2 text-sm font-semibold text-[#00338D] disabled:opacity-50" :disabled="reissueSubmitting || temporaryPassword !== null" @click="showReissueConfirmation = true">
+                    {{ reissueSubmitting ? 'Reemitiendo...' : 'Reemitir contraseña temporal' }}
+                </button>
+            </section>
         </div>
+        <Modal :show="showReissueConfirmation" max-width="md" @close="showReissueConfirmation = false">
+            <div class="p-6">
+                <h3 class="text-lg font-semibold text-[#00338D]">Confirmar reemisión</h3>
+                <p class="mt-3 text-sm text-slate-600">Se invalidará la contraseña temporal anterior. Si la cuenta ya no admite reemisión, la operación será rechazada.</p>
+                <div class="mt-6 flex flex-wrap justify-end gap-3">
+                    <button type="button" class="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600" @click="showReissueConfirmation = false">Cancelar</button>
+                    <button type="button" class="rounded-lg bg-[#00338D] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="reissueSubmitting" @click="reissue">Reemitir</button>
+                </div>
+            </div>
+        </Modal>
+        <TemporaryPasswordModal :show="temporaryPassword !== null" :password="temporaryPassword ?? ''" :mode="temporaryMode" :student-label="student?.name ?? form.name" @close="closeReceipt" />
     </AuthenticatedLayout>
 </template>

@@ -307,6 +307,25 @@ it('rejects a stale reissue after a definitive password was set before the condi
         ->and(SecurityEvent::where('type', 'temporary_credential_reissued')->count())->toBe(0);
 });
 
+it('returns HTTP 409 without a credential when reissue is no longer eligible', function () {
+    $admin = initialPasswordAdmin();
+    $created = $this->actingAs($admin)->postJson('/students', initialPasswordStudentData())->assertCreated();
+    $student = User::findOrFail($created->json('student_id'));
+    $definitivePassword = 'Definitive-password-123';
+    $student->forceFill([
+        'password' => Hash::make($definitivePassword),
+        'account_activation_pending' => false,
+        'must_change_password' => false,
+    ])->save();
+
+    $response = $this->postJson('/students/'.$student->getKey().'/temporary-password')->assertStatus(409);
+
+    expect($response->json())->not->toHaveKey('temporary_password');
+    expect(Hash::check($definitivePassword, $student->fresh()->password))->toBeTrue()
+        ->and($student->fresh()->must_change_password)->toBeFalse()
+        ->and(SecurityEvent::where('type', 'temporary_credential_reissued')->count())->toBe(0);
+});
+
 it('allows a pending legacy account to receive a temporary credential through authorized reissue', function () {
     $admin = initialPasswordAdmin();
     $this->actingAs($admin)->post('/students', initialPasswordStudentData())->assertRedirect();
