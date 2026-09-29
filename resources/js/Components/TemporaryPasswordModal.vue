@@ -36,7 +36,7 @@ async function copyPassword() {
     <Modal :show="show" :closeable="false" max-width="lg" aria-labelledby="temporary-password-title">
         <div class="p-6 sm:p-8">
             <h3 id="temporary-password-title" class="text-xl font-semibold text-[#00338D]">
-                {{ mode === 'reissued' ? 'Contraseña temporal reemitida' : 'Cuenta creada correctamente' }}
+                {{ mode === 'reissued' ? 'Contraseña temporal generada' : 'Cuenta creada correctamente' }}
             </h3>
             <p v-if="studentLabel" class="mt-2 text-sm text-slate-600">Estudiante: {{ studentLabel }}</p>
             <p class="mt-4 text-sm text-slate-700">Esta contraseña sólo se mostrará una vez. Entrégala al estudiante por un medio seguro. En su primer acceso deberá cambiarla.</p>

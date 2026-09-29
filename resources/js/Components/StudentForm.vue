@@ -100,7 +100,7 @@ async function reissue() {
         });
         const password = receiptFrom(response, 200);
         if (password === null) {
-            reissueError.value = 'La credencial pudo haberse reemitido, pero no se pudo mostrar. Verifica el estado antes de volver a intentarlo.';
+            reissueError.value = 'La credencial pudo haberse generado, pero no se pudo mostrar. Verifica el estado antes de volver a intentarlo.';
             return;
         }
         temporaryPassword.value = password;
@@ -109,10 +109,10 @@ async function reissue() {
         const status = error.response?.status;
         if (status === 403) reissueError.value = 'No tienes permiso para realizar esta acción.';
         else if (status === 404) reissueError.value = 'El estudiante ya no está disponible.';
-        else if (status === 409) reissueError.value = 'La cuenta ya no admite la reemisión de una contraseña temporal. Su estado pudo haber cambiado.';
-        else if (status === 422) reissueError.value = 'La solicitud de reemisión no es válida.';
+        else if (status === 409) reissueError.value = 'La cuenta ya no admite una contraseña temporal inicial. Su estado pudo haber cambiado.';
+        else if (status === 422) reissueError.value = 'La solicitud de contraseña temporal no es válida.';
         else if (status === 419) reissueError.value = 'La sesión expiró. Verifica el estado antes de volver a intentarlo.';
-        else reissueError.value = 'No se pudo confirmar la reemisión. Verifica el estado antes de volver a intentarlo.';
+        else reissueError.value = 'No se pudo confirmar la generación. Verifica el estado antes de volver a intentarlo.';
     } finally {
         reissueSubmitting.value = false;
     }
@@ -154,20 +154,20 @@ onBeforeUnmount(() => { temporaryPassword.value = null; });
             </form>
             <section v-if="student" class="mx-auto mt-6 max-w-5xl rounded-2xl bg-white p-6 shadow-sm sm:p-8">
                 <h3 class="text-lg font-semibold text-[#00338D]">Acceso inicial</h3>
-                <p class="mt-2 text-sm text-slate-600">Si la contraseña temporal se perdió antes del primer cambio, puedes reemitir una nueva. La cuenta debe seguir siendo elegible.</p>
+                <p class="mt-2 text-sm text-slate-600">Puedes generar una contraseña temporal para una cuenta pendiente o sustituir una credencial inicial aún no cambiada. La cuenta debe seguir siendo elegible.</p>
                 <p v-if="reissueError" role="alert" class="mt-3 text-sm text-rose-700">{{ reissueError }}</p>
                 <button type="button" class="mt-4 rounded-lg border border-[#00338D] px-4 py-2 text-sm font-semibold text-[#00338D] disabled:opacity-50" :disabled="reissueSubmitting || temporaryPassword !== null" @click="showReissueConfirmation = true">
-                    {{ reissueSubmitting ? 'Reemitiendo...' : 'Reemitir contraseña temporal' }}
+                    {{ reissueSubmitting ? 'Generando...' : 'Generar contraseña temporal' }}
                 </button>
             </section>
         </div>
         <Modal :show="showReissueConfirmation" max-width="md" @close="showReissueConfirmation = false">
             <div class="p-6">
-                <h3 class="text-lg font-semibold text-[#00338D]">Confirmar reemisión</h3>
-                <p class="mt-3 text-sm text-slate-600">Se invalidará la contraseña temporal anterior. Si la cuenta ya no admite reemisión, la operación será rechazada.</p>
+                <h3 class="text-lg font-semibold text-[#00338D]">Confirmar contraseña temporal</h3>
+                <p class="mt-3 text-sm text-slate-600">Se generará una contraseña temporal que sólo se mostrará una vez. Si ya existe una credencial inicial, dejará de ser válida. Si la cuenta ya no es elegible, la operación será rechazada.</p>
                 <div class="mt-6 flex flex-wrap justify-end gap-3">
                     <button type="button" class="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600" @click="showReissueConfirmation = false">Cancelar</button>
-                    <button type="button" class="rounded-lg bg-[#00338D] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="reissueSubmitting" @click="reissue">Reemitir</button>
+                    <button type="button" class="rounded-lg bg-[#00338D] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="reissueSubmitting" @click="reissue">Generar</button>
                 </div>
             </div>
         </Modal>

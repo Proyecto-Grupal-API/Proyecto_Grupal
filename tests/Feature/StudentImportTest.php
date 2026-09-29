@@ -6,9 +6,11 @@ use App\Models\AcademicStatusHistory;
 use App\Models\Campus;
 use App\Models\EventOutbox;
 use App\Models\Role;
+use App\Models\SecurityEvent;
 use App\Models\StudentProfile;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 
 beforeEach(function () {
     $this->artisan('migrate')->assertSuccessful();
@@ -60,7 +62,7 @@ function postStudentImport($test, array $rows)
 }
 
 it('imports multiple normalized students with profiles, initial histories, global roles, pending activation, and outbox events', function () {
-    postStudentImport($this, [
+    $response = postStudentImport($this, [
         importStudentRow([
             'matricula' => ' a-001 ',
             'correo_institucional' => ' A@Example.COM ',
@@ -74,6 +76,7 @@ it('imports multiple normalized students with profiles, initial histories, globa
         ]),
     ])->assertSessionHasNoErrors()
         ->assertSessionHas('success', 'Importación completada: 2 altas y 0 actualizaciones.');
+    $response->assertDontSee('temporary_password')->assertDontSee('generated_password');
 
     foreach (['a@example.com' => ['A-001', 'active'], 'b@example.com' => ['B-002', 'graduated']] as $email => [$enrollment, $status]) {
         $student = User::where('email', $email)->firstOrFail();
@@ -81,6 +84,7 @@ it('imports multiple normalized students with profiles, initial histories, globa
         $history = AcademicStatusHistory::where('student_profile_id', (string) $profile->getKey())->firstOrFail();
         expect($student->password)->toBeNull()
             ->and($student->account_activation_pending)->toBeTrue()
+            ->and($student->must_change_password)->toBeFalse()
             ->and($student->email_verified_at)->toBeNull()
             ->and($student->hasRole(Role::ESTUDIANTE))->toBeTrue()
             ->and($profile->enrollment_number)->toBe($enrollment)
@@ -206,6 +210,66 @@ it('updates a matched enrollment when its new email is not owned by another user
     expect($existing->fresh()->email)->toBe('new@example.com')
         ->and(StudentProfile::count())->toBe(1)
         ->and(User::count())->toBe(2);
+});
+
+it('preserves an existing account credential and access states during CSV update', function () {
+    $existing = User::factory()->create([
+        'email' => 'old@example.com',
+        'password' => Hash::make('Existing-password-123'),
+        'account_activation_pending' => false,
+        'must_change_password' => true,
+        'remember_token' => 'existing-remember-token',
+    ]);
+    StudentProfile::create(['user_id' => (string) $existing->getKey(), 'enrollment_number' => 'A-001', 'academic_status' => 'active']);
+    $originalHash = $existing->password;
+
+    postStudentImport($this, [importStudentRow(['correo_institucional' => 'new@example.com'])])
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Importación completada: 0 altas y 1 actualizaciones.');
+
+    $existing = $existing->fresh();
+    expect($existing->email)->toBe('new@example.com')
+        ->and($existing->password)->toBe($originalHash)
+        ->and($existing->account_activation_pending)->toBeFalse()
+        ->and($existing->must_change_password)->toBeTrue()
+        ->and($existing->remember_token)->toBe('existing-remember-token')
+        ->and(SecurityEvent::where('type', 'temporary_credential_issued')->count())->toBe(0)
+        ->and(SecurityEvent::where('type', 'temporary_credential_reissued')->count())->toBe(0);
+});
+
+it('issues an initial temporary credential individually after CSV without returning one during import', function () {
+    $import = postStudentImport($this, [importStudentRow()])
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Importación completada: 1 altas y 0 actualizaciones.');
+    $import->assertDontSee('temporary_password')->assertDontSee('generated_password');
+
+    $student = User::where('email', 'a@example.com')->firstOrFail();
+    expect($student->password)->toBeNull()
+        ->and($student->account_activation_pending)->toBeTrue()
+        ->and($student->must_change_password)->toBeFalse()
+        ->and(SecurityEvent::where('type', 'temporary_credential_reissued')->count())->toBe(0);
+
+    $response = $this->actingAs($this->importAdmin)
+        ->postJson('/students/'.$student->getKey().'/temporary-password')
+        ->assertOk()
+        ->assertJsonStructure(['student_id', 'temporary_password'])
+        ->assertHeader('Cache-Control', 'no-store, private');
+    $temporary = $response->json('temporary_password');
+    $student = $student->fresh();
+
+    expect($response->json('student_id'))->toBe((string) $student->getKey())
+        ->and($student->password)->not->toBeNull()
+        ->and($student->password)->not->toBe($temporary)
+        ->and(Hash::check($temporary, $student->password))->toBeTrue()
+        ->and($student->account_activation_pending)->toBeFalse()
+        ->and($student->must_change_password)->toBeTrue()
+        ->and(SecurityEvent::where('type', 'temporary_credential_reissued')->count())->toBe(1);
+    foreach (SecurityEvent::all() as $event) {
+        expect(json_encode($event->getAttributes()))->not->toContain($temporary);
+    }
+    foreach (EventOutbox::all() as $event) {
+        expect(json_encode($event->getAttributes()))->not->toContain($temporary);
+    }
 });
 
 it('rolls back every student, history, role, and outbox entry if a later row fails to persist', function () {

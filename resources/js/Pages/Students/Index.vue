@@ -8,10 +8,12 @@ watch([search, status, campus], () => { clearTimeout(timer); timer = setTimeout(
 const importForm = useForm({ file: null });
 const importFileInput = ref(null);
 const showImportErrors = ref(true);
+const showImportGuidance = ref(false);
 function selectImportFile(event) {
     importForm.file = event.target.files?.[0] ?? null;
     importForm.clearErrors();
     showImportErrors.value = false;
+    showImportGuidance.value = false;
 }
 function submitImport() {
     if (importForm.processing) return;
@@ -22,10 +24,11 @@ function submitImport() {
     importForm.post('/students/import', {
         forceFormData: true,
         preserveScroll: true,
-        onError: () => { showImportErrors.value = true; },
+        onError: () => { showImportErrors.value = true; showImportGuidance.value = false; },
         onSuccess: () => {
             importForm.reset('file');
             showImportErrors.value = false;
+            showImportGuidance.value = true;
             if (importFileInput.value) importFileInput.value.value = '';
         },
     });
@@ -58,6 +61,7 @@ function submitImport() {
                         <ul class="mt-1 list-disc pl-5"><li v-for="(error, index) in importErrors" :key="index">{{ error }}</li></ul>
                     </div>
                     <p v-else-if="importForm.errors.file" role="alert" class="mt-3 text-sm text-red-700">{{ importForm.errors.file }}</p>
+                    <p v-if="showImportGuidance" role="status" class="mt-3 text-sm text-slate-700">Las cuentas nuevas importadas quedan pendientes de acceso. La importación no genera contraseñas. Para habilitar a un estudiante, abre su perfil y genera una contraseña temporal individual.</p>
                 </section>
                 <section class="rounded-2xl bg-white p-5 shadow-sm"><div class="mb-5 grid gap-3 md:grid-cols-[1fr_220px_220px]"><input v-model="search" placeholder="Buscar nombre, matrícula o correo" class="rounded-lg border-slate-300" /><select v-model="status" class="rounded-lg border-slate-300"><option value="">Todos los estatus</option><option v-for="item in statuses" :key="item.value" :value="item.value">{{ item.label }}</option></select><select v-model="campus" class="rounded-lg border-slate-300"><option value="">Todos los campus</option><option v-for="item in campuses" :key="item.id" :value="item.id">{{ item.name }}</option></select></div><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="border-b text-xs uppercase text-slate-500"><tr><th class="p-3">Estudiante</th><th class="p-3">Matrícula</th><th class="p-3">Campus</th><th class="p-3">Carrera</th><th class="p-3">Estatus</th><th /></tr></thead><tbody><tr v-for="profile in students.data" :key="profile.id" class="border-b last:border-0"><td class="p-3"><strong>{{ profile.user?.name }}</strong><small class="block text-slate-500">{{ profile.user?.email }}</small></td><td class="p-3">{{ profile.enrollment_number }}</td><td class="p-3">{{ profile.campus?.name }}</td><td class="p-3">{{ profile.academic_program?.name }}</td><td class="p-3">{{ profile.academic_status?.label ?? profile.academic_status }}</td><td class="p-3"><Link :href="`/students/${profile.user_id}/edit`" class="font-semibold text-[#0284C7]">Editar</Link></td></tr><tr v-if="!students.data.length"><td colspan="6" class="p-8 text-center text-slate-500">No hay perfiles registrados.</td></tr></tbody></table></div><div class="mt-5 flex flex-wrap gap-2"><Link v-for="link in students.links" :key="link.label" :href="link.url ?? ''" v-html="link.label" class="rounded border px-3 py-1 text-sm" :class="{ 'bg-[#00338D] text-white': link.active, 'pointer-events-none opacity-40': !link.url }" /></div></section>
             </div>
