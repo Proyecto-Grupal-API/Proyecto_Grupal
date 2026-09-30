@@ -11,6 +11,9 @@ use App\Models\StudentProfile;
 use App\Models\User;
 use App\Models\UserSession;
 use App\Services\TemporaryPasswordGenerator;
+use App\Services\ConditionalPasswordUpdater;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Laravel\Fortify\Fortify;
@@ -51,6 +54,81 @@ function initialPasswordAdmin(): User
 
     return $admin;
 }
+
+function interleaveCredentialWrite(Closure $write): void
+{
+    $updater = new class extends ConditionalPasswordUpdater {
+        public ?Closure $beforeReplace = null;
+
+        public function replace(User $user, ?string $observedHash, array $changes, ?Closure $eligibility = null): bool
+        {
+            if ($this->beforeReplace !== null) {
+                $write = $this->beforeReplace;
+                $this->beforeReplace = null;
+                $write();
+            }
+
+            return parent::replace($user, $observedHash, $changes, $eligibility);
+        }
+    };
+    $updater->beforeReplace = $write;
+    app()->instance(ConditionalPasswordUpdater::class, $updater);
+}
+
+function fixedTemporaryPassword(string $password): TemporaryPasswordGenerator
+{
+    return new class($password) extends TemporaryPasswordGenerator {
+        public function __construct(private string $password) {}
+
+        public function generate(): string
+        {
+            return $this->password;
+        }
+    };
+}
+
+function interleavingTemporaryPassword(string $password, Closure $write): TemporaryPasswordGenerator
+{
+    return new class($password, $write) extends TemporaryPasswordGenerator {
+        public function __construct(private string $password, private Closure $write) {}
+
+        public function generate(): string
+        {
+            ($this->write)();
+
+            return $this->password;
+        }
+    };
+}
+
+function interleaveBeforeInitialTransaction(Closure $write): void
+{
+    app()->bind(\App\Http\Controllers\Auth\InitialPasswordController::class, function () use ($write) {
+        return new class($write) extends \App\Http\Controllers\Auth\InitialPasswordController {
+            private bool $interleaved = false;
+
+            public function __construct(private Closure $write) {}
+
+            protected function mongoTransaction(Closure $callback): mixed
+            {
+                if (! $this->interleaved) {
+                    $this->interleaved = true;
+                    ($this->write)();
+                }
+
+                return parent::mongoTransaction($callback);
+            }
+        };
+    });
+}
+
+it('matches the exact persisted password version in a conditional update', function () {
+    $user = User::factory()->create(['must_change_password' => true]);
+    $observedHash = $user->password;
+    expect(User::query()->whereKey($user->getKey())->whereNull('deleted_at')->count())->toBe(1)
+        ->and(User::query()->whereKey($user->getKey())->whereNull('deleted_at')->where('password', $observedHash)->count())->toBe(1)
+        ->and(app(ConditionalPasswordUpdater::class)->replace($user, $observedHash, ['password' => Hash::make('new-password-123')], fn ($query) => $query->where('must_change_password', true)))->toBeTrue();
+});
 
 it('creates an individual student with a one-time CSPRNG credential and no persisted plaintext', function () {
     $admin = initialPasswordAdmin();
@@ -269,6 +347,7 @@ it('reissues only an unfinished initial credential, without disclosing or retain
     $student = User::findOrFail($created->json('student_id'));
     $old = $created->json('temporary_password');
 
+
     $reissued = $this->postJson('/students/'.$student->getKey().'/temporary-password')
         ->assertOk()->assertJsonStructure(['student_id', 'temporary_password']);
     $new = $reissued->json('temporary_password');
@@ -297,7 +376,7 @@ it('rejects a stale reissue after a definitive password was set before the condi
             return 'Generated-but-rejected-123';
         }
     };
-    expect(fn () => (new ReissueTemporaryPassword($generator))->execute($staleStudent, $admin))
+    expect(fn () => (new ReissueTemporaryPassword($generator, app(ConditionalPasswordUpdater::class)))->execute($staleStudent, $admin))
         ->toThrow(ConflictHttpException::class);
 
     $persisted = $staleStudent->fresh();
@@ -391,4 +470,196 @@ it('rolls back the individual account if writing its issuance audit record fails
     } finally {
         SecurityEvent::flushEventListeners();
     }
+});
+
+it('allows only one reissue to consume an observed temporary hash', function () {
+    $admin = initialPasswordAdmin();
+    $created = $this->actingAs($admin)->postJson('/students', initialPasswordStudentData())->assertCreated();
+    $student = User::findOrFail($created->json('student_id'));
+    $losingSecret = 'Losing-temporary-credential-123';
+    $winningSecret = 'Winning-temporary-credential-123';
+    app()->instance(TemporaryPasswordGenerator::class, interleavingTemporaryPassword($losingSecret, function () use ($student, $admin, $winningSecret): void {
+        (new ReissueTemporaryPassword(fixedTemporaryPassword($winningSecret), app(ConditionalPasswordUpdater::class)))
+            ->execute($student->fresh(), $admin);
+    }));
+
+    $response = $this->postJson('/students/'.$student->getKey().'/temporary-password')->assertStatus(409);
+    $persisted = $student->fresh();
+    expect($response->json())->not->toHaveKey('temporary_password');
+    expect(Hash::check($winningSecret, $persisted->password))->toBeTrue()
+        ->and(Hash::check($losingSecret, $persisted->password))->toBeFalse()
+        ->and($persisted->must_change_password)->toBeTrue()
+        ->and(SecurityEvent::where('type', 'temporary_credential_reissued')->count())->toBe(1);
+});
+
+it('allows only one pending account issue to consume a null password', function () {
+    $admin = initialPasswordAdmin();
+    $this->actingAs($admin)->post('/students', initialPasswordStudentData())->assertRedirect();
+    $student = User::where('email', 'initial@example.test')->firstOrFail();
+    $losingSecret = 'Losing-pending-credential-123';
+    $winningSecret = 'Winning-pending-credential-123';
+    app()->instance(TemporaryPasswordGenerator::class, interleavingTemporaryPassword($losingSecret, function () use ($student, $admin, $winningSecret): void {
+        (new ReissueTemporaryPassword(fixedTemporaryPassword($winningSecret), app(ConditionalPasswordUpdater::class)))
+            ->execute($student->fresh(), $admin);
+    }));
+
+    $response = $this->postJson('/students/'.$student->getKey().'/temporary-password')->assertStatus(409);
+    $persisted = $student->fresh();
+    expect($response->json())->not->toHaveKey('temporary_password');
+    expect(Hash::check($winningSecret, $persisted->password))->toBeTrue()
+        ->and(Hash::check($losingSecret, $persisted->password))->toBeFalse()
+        ->and($persisted->account_activation_pending)->toBeFalse()
+        ->and($persisted->must_change_password)->toBeTrue()
+        ->and(SecurityEvent::where('type', 'temporary_credential_reissued')->count())->toBe(1);
+});
+
+it('rejects an initial change validated before a concurrent reissue', function () {
+    $admin = initialPasswordAdmin();
+    $created = $this->actingAs($admin)->postJson('/students', initialPasswordStudentData())->assertCreated();
+    $student = User::findOrFail($created->json('student_id'));
+    $old = $created->json('temporary_password');
+    $winner = 'Reissued-before-initial-write-123';
+    $definitive = 'Definitive-after-stale-temp-123';
+    $otherSession = UserSession::create(['user_id' => (string) $student->getKey(), 'device_id' => 'other-device', 'started_at' => now()]);
+
+    interleaveBeforeInitialTransaction(function () use ($student, $admin, $winner): void {
+        (new ReissueTemporaryPassword(fixedTemporaryPassword($winner), app(ConditionalPasswordUpdater::class)))
+            ->execute($student->fresh(), $admin);
+    });
+
+    $this->actingAs($student)->put('/password/initial', [
+        'current_password' => $old,
+        'password' => $definitive,
+        'password_confirmation' => $definitive,
+    ])->assertSessionHasErrors('current_password');
+
+    $persisted = $student->fresh();
+    expect(Hash::check($winner, $persisted->password))->toBeTrue()
+        ->and(Hash::check($old, $persisted->password))->toBeFalse()
+        ->and(Hash::check($definitive, $persisted->password))->toBeFalse()
+        ->and($persisted->must_change_password)->toBeTrue()
+        ->and($otherSession->fresh()->revoked_at)->toBeNull()
+        ->and(SecurityEvent::where('type', 'mandatory_password_changed')->count())->toBe(0);
+});
+
+it('preserves a reissued credential when a valid reset observed the old hash', function () {
+    $admin = initialPasswordAdmin();
+    $created = $this->actingAs($admin)->postJson('/students', initialPasswordStudentData())->assertCreated();
+    $student = User::findOrFail($created->json('student_id'));
+    $token = Password::createToken($student);
+    $winner = 'Reissued-before-reset-write-123';
+    $resetPassword = 'Reset-after-stale-temp-123';
+    $this->post('/logout');
+    Event::fake([PasswordReset::class]);
+
+    interleaveCredentialWrite(function () use ($student, $admin, $winner): void {
+        (new ReissueTemporaryPassword(fixedTemporaryPassword($winner), app(ConditionalPasswordUpdater::class)))
+            ->execute($student->fresh(), $admin);
+    });
+
+    $this->post('/reset-password', [
+        'token' => $token,
+        'email' => $student->email,
+        'password' => $resetPassword,
+        'password_confirmation' => $resetPassword,
+    ])->assertSessionHasErrors('email');
+
+    $persisted = $student->fresh();
+    expect(Hash::check($winner, $persisted->password))->toBeTrue()
+        ->and(Hash::check($resetPassword, $persisted->password))->toBeFalse()
+        ->and($persisted->must_change_password)->toBeTrue()
+        ->and(Password::tokenExists($persisted, $token))->toBeTrue();
+    Event::assertNotDispatched(PasswordReset::class);
+});
+
+it('preserves first issue when a pending-account reset observed null', function () {
+    $admin = initialPasswordAdmin();
+    $this->actingAs($admin)->post('/students', initialPasswordStudentData())->assertRedirect();
+    $student = User::where('email', 'initial@example.test')->firstOrFail();
+    $token = Password::createToken($student);
+    $winner = 'Issued-before-pending-reset-123';
+    $resetPassword = 'Reset-after-pending-issue-123';
+    $this->post('/logout');
+    Event::fake([PasswordReset::class]);
+
+    interleaveCredentialWrite(function () use ($student, $admin, $winner): void {
+        (new ReissueTemporaryPassword(fixedTemporaryPassword($winner), app(ConditionalPasswordUpdater::class)))
+            ->execute($student->fresh(), $admin);
+    });
+
+    $this->post('/reset-password', [
+        'token' => $token,
+        'email' => $student->email,
+        'password' => $resetPassword,
+        'password_confirmation' => $resetPassword,
+    ])->assertSessionHasErrors('email');
+
+    $persisted = $student->fresh();
+    expect(Hash::check($winner, $persisted->password))->toBeTrue()
+        ->and(Hash::check($resetPassword, $persisted->password))->toBeFalse()
+        ->and($persisted->account_activation_pending)->toBeFalse()
+        ->and($persisted->must_change_password)->toBeTrue()
+        ->and(Password::tokenExists($persisted, $token))->toBeTrue();
+    Event::assertNotDispatched(PasswordReset::class);
+});
+
+it('rejects a stale normal password update after another normal replacement', function () {
+    $user = User::factory()->create();
+    $winner = 'First-normal-change-123';
+    $loser = 'Second-stale-change-123';
+    interleaveCredentialWrite(function () use ($user, $winner): void {
+        app(ConditionalPasswordUpdater::class)->replace($user, $user->password, ['password' => Hash::make($winner)]);
+    });
+
+    $this->actingAs($user)->from('/profile')->put('/password', [
+        'current_password' => 'password',
+        'password' => $loser,
+        'password_confirmation' => $loser,
+    ])->assertSessionHasErrors('current_password');
+
+    expect(Hash::check($winner, $user->fresh()->password))->toBeTrue()
+        ->and(Hash::check($loser, $user->fresh()->password))->toBeFalse();
+});
+
+it('rejects a stale normal change after a valid reset wins', function () {
+    $user = User::factory()->create();
+    $token = Password::createToken($user);
+    $winner = 'Reset-before-normal-write-123';
+    $loser = 'Normal-after-stale-reset-123';
+    interleaveCredentialWrite(function () use ($user, $token, $winner): void {
+        $status = Password::reset(['email' => $user->email, 'token' => $token, 'password' => $winner],
+            function (User $resetUser, string $password): void {
+                app(ConditionalPasswordUpdater::class)->replace($resetUser, $resetUser->password, ['password' => Hash::make($password)]);
+            });
+        expect($status)->toBe(Password::PASSWORD_RESET);
+    });
+
+    $this->actingAs($user)->from('/profile')->put('/password', [
+        'current_password' => 'password',
+        'password' => $loser,
+        'password_confirmation' => $loser,
+    ])->assertSessionHasErrors('current_password');
+
+    expect(Hash::check($winner, $user->fresh()->password))->toBeTrue()
+        ->and(Hash::check($loser, $user->fresh()->password))->toBeFalse();
+});
+
+it('rejects a stale Fortify password update without its success event', function () {
+    $user = User::factory()->create();
+    $winner = 'Reset-before-fortify-write-123';
+    $loser = 'Fortify-after-stale-reset-123';
+    Event::fake([\Laravel\Fortify\Events\PasswordUpdatedViaController::class]);
+    interleaveCredentialWrite(function () use ($user, $winner): void {
+        app(ConditionalPasswordUpdater::class)->replace($user, $user->password, ['password' => Hash::make($winner)]);
+    });
+
+    $this->actingAs($user)->put('/user/password', [
+        'current_password' => 'password',
+        'password' => $loser,
+        'password_confirmation' => $loser,
+    ])->assertSessionHasErrorsIn('updatePassword', ['current_password']);
+
+    expect(Hash::check($winner, $user->fresh()->password))->toBeTrue()
+        ->and(Hash::check($loser, $user->fresh()->password))->toBeFalse();
+    Event::assertNotDispatched(\Laravel\Fortify\Events\PasswordUpdatedViaController::class);
 });

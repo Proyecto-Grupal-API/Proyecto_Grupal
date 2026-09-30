@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\SecurityEvent;
 use App\Models\UserSession;
+use App\Services\ConditionalPasswordUpdater;
 use App\Support\ExecutesMongoAtomically;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,7 @@ use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class InitialPasswordController extends Controller
 {
@@ -28,7 +30,7 @@ class InitialPasswordController extends Controller
         return Inertia::render('Auth/InitialPassword');
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request, ConditionalPasswordUpdater $passwordUpdater): RedirectResponse
     {
         abort_unless($request->user()->must_change_password === true, 409);
 
@@ -38,6 +40,7 @@ class InitialPasswordController extends Controller
         ]);
 
         $user = $request->user();
+        $observedHash = $user->password;
         if (Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'password' => 'La nueva contraseña debe ser diferente de la contraseña actual.',
@@ -46,12 +49,22 @@ class InitialPasswordController extends Controller
 
         $currentSessionId = $request->session()->get('cd_session_id');
 
-        $this->mongoTransaction(function () use ($user, $validated, $currentSessionId, $request): void {
-            $user->forceFill([
+        $this->mongoTransaction(function () use ($user, $validated, $currentSessionId, $request, $passwordUpdater, $observedHash): void {
+            $updated = $passwordUpdater->replace($user, $observedHash, [
                 'password' => Hash::make($validated['password']),
                 'must_change_password' => false,
+                'account_activation_pending' => false,
                 'remember_token' => Str::random(60),
-            ])->save();
+            ], fn ($query) => $query->where('must_change_password', true));
+            if (! $updated) {
+                if ($request->expectsJson() && ! $request->headers->has('X-Inertia')) {
+                    throw new ConflictHttpException('La credencial temporal cambió. Verifica el estado antes de intentarlo de nuevo.');
+                }
+
+                throw ValidationException::withMessages([
+                    'current_password' => 'La credencial temporal cambió. Verifica el estado antes de intentarlo de nuevo.',
+                ]);
+            }
 
             $otherSessions = UserSession::where('user_id', (string) $user->getKey())
                 ->whereNull('revoked_at');
@@ -69,6 +82,7 @@ class InitialPasswordController extends Controller
             ]);
         });
 
+        $user->refresh();
         $request->session()->regenerate();
 
         return redirect()->route($user->requiresTwoFactorAuthentication() && ! $user->two_factor_enabled

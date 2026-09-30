@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\ConditionalPasswordUpdater;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,7 @@ use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class NewPasswordController extends Controller
 {
@@ -32,7 +34,7 @@ class NewPasswordController extends Controller
      *
      * @throws ValidationException
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, ConditionalPasswordUpdater $passwordUpdater): RedirectResponse
     {
         $request->validate([
             'token' => 'required',
@@ -45,20 +47,24 @@ class NewPasswordController extends Controller
         // database. Otherwise we will parse the error and return the response.
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
-            function ($user) use ($request) {
-                $user->forceFill([
+            function ($user) use ($request, $passwordUpdater) {
+                $updated = $passwordUpdater->replace($user, $user->password, [
                     'password' => Hash::make($request->password),
                     'remember_token' => Str::random(60),
                     'must_change_password' => false,
+                    'account_activation_pending' => false,
                 ]);
+                if (! $updated) {
+                    if ($request->expectsJson() && ! $request->headers->has('X-Inertia')) {
+                        throw new ConflictHttpException('La credencial cambió durante la recuperación. Solicita un nuevo enlace si es necesario.');
+                    }
 
-                if ($user->account_activation_pending === true) {
-                    $user->account_activation_pending = false;
+                    throw ValidationException::withMessages([
+                        'email' => 'La credencial cambió durante la recuperación. Verifica el estado antes de intentarlo de nuevo.',
+                    ]);
                 }
 
-                $user->save();
-
-                event(new PasswordReset($user));
+                event(new PasswordReset($user->fresh()));
             }
         );
 
