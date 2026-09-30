@@ -48,9 +48,10 @@ afterEach(function () {
             $wallet->public_id
         )->delete();
 
-        $wallet->delete();
+        $wallet->delete();  
     }
 });
+
 test('creates a pending top up without changing the wallet balance', function () {
     $wallet = app(WalletService::class)->create(
         'USER',
@@ -414,4 +415,36 @@ test('allows retrying the same top up with the same idempotency key', function (
             $transaction->public_id
         )->count()
     )->toBe(1);
+});
+
+test('does not complete a different top up with an already used idempotency key', function () {
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'test-topup-user',
+        WalletType::USUARIO
+    );
+
+    $service = app(TopUpService::class);
+
+    $firstTopUp = $service->create(
+        $wallet,
+        10000,
+        TopUpMethod::EFECTIVO
+    );
+
+    $service->complete(
+        $firstTopUp,
+        'test-topup-collision-key'
+    );
+
+    $secondTopUp = $service->create(
+        $wallet,
+        50000,
+        TopUpMethod::EFECTIVO
+    );
+
+    expect(fn () => $service->complete(
+        $secondTopUp,
+        'test-topup-collision-key'
+    ))->toThrow(InvalidArgumentException::class);
 });

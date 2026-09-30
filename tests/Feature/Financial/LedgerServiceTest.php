@@ -15,6 +15,7 @@ afterEach(function () {
         [
             'test-ledger-credit',
             'test-ledger-debit',
+            'test-ledger-debit-collision',
             'test-ledger-insufficient',
             'test-ledger-invalid-debit',
             'test-transfer-success',
@@ -23,6 +24,7 @@ afterEach(function () {
             'test-transfer-invalid-amount',
             'test-transfer-currency',
             'test-transfer-idempotency',
+            'test-transfer-idempotency-collision',
         ]
     )->get();
 
@@ -46,6 +48,8 @@ afterEach(function () {
             'transfer-same-wallet',
             'transfer-invalid-source',
             'transfer-invalid-destination',
+            'transfer-collision-source',
+            'transfer-collision-destination',
             'transfer-currency-source',
             'transfer-currency-destination',
             'transfer-idempotency-source',
@@ -172,6 +176,43 @@ test('debits a wallet and records a negative ledger entry', function () {
         ->and($entry->balance_after_cents)->toBe(7000)
         ->and($entry->available_balance_after_cents)->toBe(7000)
         ->and($entry->held_balance_after_cents)->toBe(0);
+});
+
+test('rejects a debit when the idempotency key belongs to another operation', function () {
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'test-ledger-user',
+        WalletType::USUARIO
+    );
+
+    $wallet->update([
+        'available_balance_cents' => 10000,
+    ]);
+
+    $ledger = app(LedgerService::class);
+
+    $ledger->debit(
+        $wallet,
+        3000,
+        MovementType::RETIRO,
+        'test-ledger-debit-collision',
+        'WITHDRAWAL',
+        'withdrawal-001'
+    );
+
+    expect(
+        fn () => $ledger->debit(
+            $wallet,
+            2000,
+            MovementType::RETIRO,
+            'test-ledger-debit-collision',
+            'WITHDRAWAL',
+            'withdrawal-002'
+        )
+    )->toThrow(
+        InvalidArgumentException::class,
+        'La clave de idempotencia ya pertenece a otra operación.'
+    );
 });
 
 test('rejects a debit when the wallet has insufficient balance', function () {
@@ -551,4 +592,48 @@ test('does not execute the same transfer twice', function () {
                 $firstTransaction->public_id
             )->count()
         )->toBe(2);
+});
+
+test('rejects a transfer when the idempotency key belongs to another operation', function () {
+    $walletService = app(WalletService::class);
+    $ledger = app(LedgerService::class);
+
+    $source = $walletService->create(
+        'USER',
+        'transfer-collision-source',
+        WalletType::USUARIO
+    );
+
+    $destination = $walletService->create(
+        'USER',
+        'transfer-collision-destination',
+        WalletType::USUARIO
+    );
+
+    $source->update([
+        'available_balance_cents' => 100000,
+    ]);
+
+    $ledger->transfer(
+        $source,
+        $destination,
+        30000,
+        'test-transfer-idempotency-collision',
+        'TRANSFER',
+        'transfer-001'
+    );
+
+    expect(
+        fn () => $ledger->transfer(
+            $source,
+            $destination,
+            20000,
+            'test-transfer-idempotency-collision',
+            'TRANSFER',
+            'transfer-002'
+        )
+    )->toThrow(
+        InvalidArgumentException::class,
+        'La clave de idempotencia ya pertenece a otra operación.'
+    );
 });

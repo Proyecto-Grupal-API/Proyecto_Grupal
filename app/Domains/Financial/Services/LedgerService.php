@@ -42,8 +42,20 @@ class LedgerService
                     'idempotency_key',
                     $idempotencyKey
                 )->first();
-
                 if ($existingTransaction) {
+                    $sameReferenceType =
+                        $existingTransaction->reference_type === $referenceType;
+
+                    $sameReferenceId =
+                        strtolower((string) $existingTransaction->reference_id)
+                        === strtolower((string) $referenceId);
+
+                    if (!$sameReferenceType || !$sameReferenceId) {
+                        throw new InvalidArgumentException(
+                            'La clave de idempotencia ya pertenece a otra operación.'
+                        );
+                    }
+
                     return $existingTransaction;
                 }
 
@@ -121,8 +133,20 @@ class LedgerService
                     'idempotency_key',
                     $idempotencyKey
                 )->first();
-
                 if ($existingTransaction) {
+                    $sameReferenceType =
+                        $existingTransaction->reference_type === $referenceType;
+
+                    $sameReferenceId =
+                        strtolower((string) $existingTransaction->reference_id)
+                        === strtolower((string) $referenceId);
+
+                    if (!$sameReferenceType || !$sameReferenceId) {
+                        throw new InvalidArgumentException(
+                            'La clave de idempotencia ya pertenece a otra operación.'
+                        );
+                    }
+
                     return $existingTransaction;
                 }
 
@@ -226,8 +250,20 @@ class LedgerService
                     'idempotency_key',
                     $idempotencyKey
                 )->first();
-
                 if ($existingTransaction) {
+                    $sameReferenceType =
+                        $existingTransaction->reference_type === $referenceType;
+
+                    $sameReferenceId =
+                        strtolower((string) $existingTransaction->reference_id)
+                        === strtolower((string) $referenceId);
+
+                    if (!$sameReferenceType || !$sameReferenceId) {
+                        throw new InvalidArgumentException(
+                            'La clave de idempotencia ya pertenece a otra operación.'
+                        );
+                    }
+
                     return $existingTransaction;
                 }
 
