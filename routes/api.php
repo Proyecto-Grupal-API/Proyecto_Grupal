@@ -1,11 +1,17 @@
 <?php
 
+use App\Http\Controllers\Api\Community\OrganizationSummaryController;
 use App\Http\Controllers\Api\Identity\QrValidationController;
 use App\Http\Controllers\StudentServicesController;
 use App\Http\Controllers\OAuthTokenController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/oauth/token', OAuthTokenController::class)->middleware('throttle:60,1');
+
+Route::get('/v1/organizations/{organizationId}/summary', OrganizationSummaryController::class)
+    ->where('organizationId', '[a-fA-F0-9]{24}')
+    ->middleware(['oauth.service:community:organizations:read', 'throttle:120,1,community-organizations-summary:'])
+    ->name('api.community.organizations.summary');
 
 Route::prefix('v1')->middleware('oauth.service:students:read')->group(function () {
     Route::get('/students/{studentId}/status', [StudentServicesController::class, 'status']);

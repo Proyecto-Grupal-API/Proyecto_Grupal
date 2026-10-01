@@ -60,7 +60,7 @@ El equipo 1 todavía debe acordar/publicar el contrato de directorio por matríc
 
 El QR de identidad no reemplaza el boleto de un evento: el boleto y su control de acceso siguen bajo las reglas de Comunidad. No hay cobros simulados: las reservas con costo siguen pendientes de Wallet.
 
-No se publicó esta integración a GitHub ni se modificaron `Modulo6_Comunidad`, `Testings` o `main`.
+El avance previo se publicó en `integracion/equipo1-comunidad` mediante la [solicitud #2](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/pull/2) dirigida a `Testings`. Los nuevos cambios locales no se publican automáticamente.
 
 ## Configuración de API
 
@@ -108,3 +108,7 @@ El enlace **Autenticación** abre `/profile/authentication`, con los controles d
 Se reparó el propietario de los archivos generados en esta integración. Ejecutar pruebas, Artisan y compilaciones con `docker compose -f compose.integracion.yaml exec -T --user sail app ...` para evitar archivos de caché creados como root. La caché de archivos de pruebas usa `storage/framework/cache/testing`; la aplicación usa `storage/framework/cache/data`, de modo que las pruebas no interfieran con los límites de intentos de la aplicación.
 
 Validación de esta corrección: **38 pruebas aprobadas, 289 aserciones**, compilación Vite correcta y verificación en Edge con una cuenta temporal eliminada al terminar. Se comprobó el acceso a Autenticación, el inicio de configuración de 2FA, el aviso de contraseña incorrecta, la revocación de otra sesión, el bloqueo posterior de esa sesión y el regreso al login al eliminar el dispositivo actual. Sin errores JavaScript ni respuestas 5xx. Registros locales: `storage/logs/sesiones-tests.log`, `storage/logs/sesiones-build.log` y `storage/logs/sesiones-browser.log`.
+
+## Primer contrato de Comunidad para Equipo 7
+
+Se implementó `GET /api/v1/organizations/{organizationId}/summary`, protegido por OAuth y `community:organizations:read`. Devuelve el estado real de asociaciones y Consejo sin miembros ni datos privados. Contrato, configuración y pendientes de notificaciones/auditoría en [API_Integracion_Equipo_7.md](../API_Integracion_Equipo_7.md). La validación de servicios verifica también que el cliente siga activo y conserve el permiso solicitado.
