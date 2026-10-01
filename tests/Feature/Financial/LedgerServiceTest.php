@@ -25,6 +25,9 @@ afterEach(function () {
             'test-transfer-currency',
             'test-transfer-idempotency',
             'test-transfer-idempotency-collision',
+            'test-history-credit',
+            'test-history-debit',
+            'test-history-other-credit',
         ]
     )->get();
 
@@ -53,7 +56,9 @@ afterEach(function () {
             'transfer-currency-source',
             'transfer-currency-destination',
             'transfer-idempotency-source',
-            'transfer-idempotency-destination',
+            'transfer-idempotency-destination', 
+            'history-user',
+            'history-other-user',
         ]
     )->delete();
 });
@@ -636,4 +641,56 @@ test('rejects a transfer when the idempotency key belongs to another operation',
         InvalidArgumentException::class,
         'La clave de idempotencia ya pertenece a otra operación.'
     );
+});
+
+test('returns only the requested wallet history from newest to oldest', function () {
+    $walletService = app(WalletService::class);
+    $ledger = app(LedgerService::class);
+
+    $wallet = $walletService->create(
+        'USER',
+        'history-user',
+        WalletType::USUARIO
+    );
+
+    $otherWallet = $walletService->create(
+        'USER',
+        'history-other-user',
+        WalletType::USUARIO
+    );
+
+    $ledger->credit(
+        $wallet,
+        10000,
+        MovementType::RECARGA,
+        'test-history-credit',
+        'TOPUP',
+        'history-topup-001'
+    );
+
+    $ledger->debit(
+        $wallet,
+        3000,
+        MovementType::RETIRO,
+        'test-history-debit',
+        'WITHDRAWAL',
+        'history-withdrawal-001'
+    );
+
+    $ledger->credit(
+        $otherWallet,
+        50000,
+        MovementType::RECARGA,
+        'test-history-other-credit',
+        'TOPUP',
+        'history-topup-002'
+    );
+
+    $history = $ledger->getWalletHistory($wallet);
+
+    expect($history)->toHaveCount(2)
+        ->and($history->first()->movement_type)
+        ->toBe(MovementType::RETIRO)
+        ->and($history->last()->movement_type)
+        ->toBe(MovementType::RECARGA);
 });

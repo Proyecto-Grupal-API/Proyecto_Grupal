@@ -7,6 +7,11 @@ defineProps({
         type: Object,
         default: null,
     },
+
+    history: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const formatMoney = (cents, currency = 'MXN') => {
@@ -14,6 +19,16 @@ const formatMoney = (cents, currency = 'MXN') => {
         style: 'currency',
         currency,
     }).format(cents / 100);
+};
+const formatDate = (date) => {
+    if (!date) {
+        return '';
+    }
+
+    return new Intl.DateTimeFormat('es-MX', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(new Date(date));
 };
 </script>
 
@@ -83,6 +98,89 @@ const formatMoney = (cents, currency = 'MXN') => {
                             Disponible para operaciones autorizadas.
                         </p>
                     </section>
+
+                    <section
+    class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:col-span-2"
+>
+    <div
+        class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+    >
+        <div>
+            <p
+                class="text-xs font-bold uppercase tracking-[0.18em] text-[#0284C7]"
+            >
+                Actividad
+            </p>
+
+            <h2 class="mt-1 text-xl font-bold text-[#00338D]">
+                Movimientos recientes
+            </h2>
+        </div>
+
+        <p class="text-sm text-slate-500">
+            {{ history.length }} movimiento(s)
+        </p>
+    </div>
+
+    <div v-if="history.length" class="mt-5 divide-y divide-slate-100">
+        <div
+            v-for="entry in history"
+            :key="entry.id"
+            class="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+            <div>
+                <p class="font-bold text-slate-800">
+                    {{ entry.movement_type }}
+                </p>
+
+                <p class="mt-1 text-sm text-slate-500">
+                    {{ formatDate(entry.created_at) }}
+                </p>
+            </div>
+
+            <div class="sm:text-right">
+                <p
+                    class="text-lg font-bold"
+                    :class="
+                        entry.amount_cents >= 0
+                            ? 'text-[#10B981]'
+                            : 'text-red-600'
+                    "
+                >
+                    {{
+                        entry.amount_cents >= 0
+                            ? '+'
+                            : ''
+                    }}{{
+                        formatMoney(
+                            entry.amount_cents,
+                            wallet.currency
+                        )
+                    }}
+                </p>
+
+                <p class="mt-1 text-sm text-slate-500">
+                    Saldo:
+                    {{
+                        formatMoney(
+                            entry.available_balance_after_cents,
+                            wallet.currency
+                        )
+                    }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div
+        v-else
+        class="mt-5 rounded-xl border border-dashed border-slate-200 p-6 text-center"
+    >
+        <p class="text-sm text-slate-500">
+            Aún no hay movimientos registrados en esta wallet.
+        </p>
+    </div>
+</section>
 
                     <section
                         class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"

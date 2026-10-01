@@ -42,6 +42,7 @@ class LedgerService
                     'idempotency_key',
                     $idempotencyKey
                 )->first();
+
                 if ($existingTransaction) {
                     $sameReferenceType =
                         $existingTransaction->reference_type === $referenceType;
@@ -133,6 +134,7 @@ class LedgerService
                     'idempotency_key',
                     $idempotencyKey
                 )->first();
+
                 if ($existingTransaction) {
                     $sameReferenceType =
                         $existingTransaction->reference_type === $referenceType;
@@ -250,6 +252,7 @@ class LedgerService
                     'idempotency_key',
                     $idempotencyKey
                 )->first();
+
                 if ($existingTransaction) {
                     $sameReferenceType =
                         $existingTransaction->reference_type === $referenceType;
@@ -368,5 +371,16 @@ class LedgerService
                 return $transaction;
             }
         );
+    }
+
+    public function getWalletHistory(Wallet $wallet)
+    {
+        return LedgerEntry::where(
+            'wallet_id',
+            $wallet->public_id
+        )
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get();
     }
 }

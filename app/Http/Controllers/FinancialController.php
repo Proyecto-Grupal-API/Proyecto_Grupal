@@ -1,8 +1,8 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use App\Domains\Financial\Enums\WalletType;
+use App\Domains\Financial\Services\LedgerService;
 use App\Domains\Financial\Services\WalletService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,7 +12,8 @@ class FinancialController extends Controller
 {
     public function index(
         Request $request,
-        WalletService $walletService
+        WalletService $walletService,
+        LedgerService $ledgerService
     ): Response {
         $userId = (string) $request->user()->getKey();
 
@@ -21,6 +22,10 @@ class FinancialController extends Controller
             $userId,
             WalletType::USUARIO
         );
+
+        $history = $wallet
+            ? $ledgerService->getWalletHistory($wallet)
+            : collect();
 
         return Inertia::render('Financial/Dashboard', [
             'wallet' => $wallet ? [
@@ -33,6 +38,19 @@ class FinancialController extends Controller
                 'held_balance_cents' =>
                     $wallet->held_balance_cents,
             ] : null,
+
+            'history' => $history->map(function ($entry) {
+                return [
+                    'id' => $entry->public_id,
+                    'movement_type' => $entry->movement_type->value,
+                    'amount_cents' => $entry->amount_cents,
+                    'available_balance_after_cents' =>
+                        $entry->available_balance_after_cents,
+                    'held_balance_after_cents' =>
+                        $entry->held_balance_after_cents,
+                    'created_at' => $entry->created_at?->toISOString(),
+                ];
+            })->values(),
         ]);
     }
 }
