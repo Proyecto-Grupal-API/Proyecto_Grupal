@@ -2252,4 +2252,726 @@ public function test_it_rejects_consumption_when_required_category_context_is_mi
             ->count()
     );
 }
+public function test_it_consumes_multiple_combinable_bonuses(): void
+{
+    $service = app(BonusService::class);
+
+    $validFrom = now();
+    $expiresAt = $validFrom->copy()->addDay();
+
+    $bonusA = $service->issue(
+        'STUDENT',
+        'student-test-001',
+        'ADMIN',
+        'admin-test-001',
+        BonusType::BECA,
+        60000,
+        $validFrom,
+        $expiresAt,
+        true,
+        true,
+        'TEST-BONUS-001'
+    );
+
+    $bonusB = $service->issue(
+        'STUDENT',
+        'student-test-001',
+        'ADMIN',
+        'admin-test-001',
+        BonusType::BENEFICIO,
+        40000,
+        $validFrom,
+        $expiresAt,
+        true,
+        true,
+        'TEST-BONUS-001'
+    );
+
+    $service->consumeMultiple(
+        [
+            [
+                'bonus_id' => $bonusA->public_id,
+                'amount_cents' => 60000,
+            ],
+            [
+                'bonus_id' => $bonusB->public_id,
+                'amount_cents' => 40000,
+            ],
+        ]
+    );
+
+    $bonusA->refresh();
+    $bonusB->refresh();
+
+    $this->assertSame(
+        0,
+        $bonusA->remaining_amount_cents
+    );
+
+    $this->assertSame(
+        BonusStatus::AGOTADO,
+        $bonusA->status
+    );
+
+    $this->assertSame(
+        0,
+        $bonusB->remaining_amount_cents
+    );
+
+    $this->assertSame(
+        BonusStatus::AGOTADO,
+        $bonusB->status
+    );
+
+    $this->assertSame(
+        1,
+        $bonusA->ledgerEntries()
+            ->where(
+                'movement_type',
+                BonusMovementType::CONSUMO
+            )
+            ->count()
+    );
+
+    $this->assertSame(
+        1,
+        $bonusB->ledgerEntries()
+            ->where(
+                'movement_type',
+                BonusMovementType::CONSUMO
+            )
+            ->count()
+    );
+}
+public function test_it_rolls_back_all_consumptions_when_one_bonus_fails(): void
+{
+    $service = app(BonusService::class);
+
+    $validFrom = now();
+    $expiresAt = $validFrom->copy()->addDay();
+
+    $bonusA = $service->issue(
+        'STUDENT',
+        'student-test-001',
+        'ADMIN',
+        'admin-test-001',
+        BonusType::BECA,
+        60000,
+        $validFrom,
+        $expiresAt,
+        true,
+        true,
+        'TEST-BONUS-001'
+    );
+
+    $bonusB = $service->issue(
+        'STUDENT',
+        'student-test-001',
+        'ADMIN',
+        'admin-test-001',
+        BonusType::BENEFICIO,
+        40000,
+        $validFrom,
+        $expiresAt,
+        false,
+        true,
+        'TEST-BONUS-001'
+    );
+
+    try {
+        $service->consumeMultiple(
+            [
+                [
+                    'bonus_id' => $bonusA->public_id,
+                    'amount_cents' => 60000,
+                ],
+                [
+                    'bonus_id' => $bonusB->public_id,
+                    'amount_cents' => 40000,
+                ],
+            ]
+        );
+
+        $this->fail(
+            'Se esperaba InvalidArgumentException.'
+        );
+    } catch (\InvalidArgumentException $exception) {
+        $this->assertSame(
+            'Todos los bonos deben permitir combinación.',
+            $exception->getMessage()
+        );
+    }
+
+    $bonusA->refresh();
+    $bonusB->refresh();
+
+    $this->assertSame(
+        60000,
+        $bonusA->remaining_amount_cents
+    );
+
+    $this->assertSame(
+        BonusStatus::ACTIVO,
+        $bonusA->status
+    );
+
+    $this->assertSame(
+        40000,
+        $bonusB->remaining_amount_cents
+    );
+
+    $this->assertSame(
+        BonusStatus::ACTIVO,
+        $bonusB->status
+    );
+
+    $this->assertSame(
+        0,
+        $bonusA->ledgerEntries()
+            ->where(
+                'movement_type',
+                BonusMovementType::CONSUMO
+            )
+            ->count()
+    );
+
+    $this->assertSame(
+        0,
+        $bonusB->ledgerEntries()
+            ->where(
+                'movement_type',
+                BonusMovementType::CONSUMO
+            )
+            ->count()
+    );
+}
+public function test_it_rejects_combining_bonuses_from_different_beneficiaries(): void
+{
+    $service = app(BonusService::class);
+
+    $validFrom = now();
+    $expiresAt = $validFrom->copy()->addDay();
+
+    $bonusA = $service->issue(
+        'STUDENT',
+        'student-test-001',
+        'ADMIN',
+        'admin-test-001',
+        BonusType::BECA,
+        60000,
+        $validFrom,
+        $expiresAt,
+        true,
+        true,
+        'TEST-BONUS-001'
+    );
+
+    $bonusB = $service->issue(
+        'STUDENT',
+        'student-test-002',
+        'ADMIN',
+        'admin-test-001',
+        BonusType::BENEFICIO,
+        40000,
+        $validFrom,
+        $expiresAt,
+        true,
+        true,
+        'TEST-BONUS-001'
+    );
+
+    try {
+        $service->consumeMultiple(
+            [
+                [
+                    'bonus_id' => $bonusA->public_id,
+                    'amount_cents' => 60000,
+                ],
+                [
+                    'bonus_id' => $bonusB->public_id,
+                    'amount_cents' => 40000,
+                ],
+            ]
+        );
+
+        $this->fail(
+            'Se esperaba InvalidArgumentException.'
+        );
+    } catch (\InvalidArgumentException $exception) {
+        $this->assertSame(
+            'Todos los bonos deben pertenecer al mismo beneficiario.',
+            $exception->getMessage()
+        );
+    }
+
+    $bonusA->refresh();
+    $bonusB->refresh();
+
+    $this->assertSame(
+        60000,
+        $bonusA->remaining_amount_cents
+    );
+
+    $this->assertSame(
+        40000,
+        $bonusB->remaining_amount_cents
+    );
+
+    $this->assertSame(
+        0,
+        $bonusA->ledgerEntries()
+            ->where(
+                'movement_type',
+                BonusMovementType::CONSUMO
+            )
+            ->count()
+    );
+
+    $this->assertSame(
+        0,
+        $bonusB->ledgerEntries()
+            ->where(
+                'movement_type',
+                BonusMovementType::CONSUMO
+            )
+            ->count()
+    );
+}
+public function test_it_rejects_combined_consumption_when_business_restriction_does_not_match(): void
+{
+    $service = app(BonusService::class);
+
+    $validFrom = now();
+    $expiresAt = $validFrom->copy()->addDay();
+
+    $bonusA = $service->issue(
+        'STUDENT',
+        'student-test-001',
+        'ADMIN',
+        'admin-test-001',
+        BonusType::BECA,
+        60000,
+        $validFrom,
+        $expiresAt,
+        true,
+        true,
+        'TEST-BONUS-001'
+    );
+
+    $bonusB = $service->issue(
+        'STUDENT',
+        'student-test-001',
+        'ADMIN',
+        'admin-test-001',
+        BonusType::BENEFICIO,
+        40000,
+        $validFrom,
+        $expiresAt,
+        true,
+        true,
+        'TEST-BONUS-001'
+    );
+
+    $service->addRestriction(
+        $bonusB->public_id,
+        BonusRestrictionType::NEGOCIO,
+        'negocio-permitido'
+    );
+
+    try {
+        $service->consumeMultiple(
+            [
+                [
+                    'bonus_id' => $bonusA->public_id,
+                    'amount_cents' => 60000,
+                ],
+                [
+                    'bonus_id' => $bonusB->public_id,
+                    'amount_cents' => 40000,
+                ],
+            ],
+            'negocio-no-permitido'
+        );
+
+        $this->fail(
+            'Se esperaba InvalidArgumentException.'
+        );
+    } catch (\InvalidArgumentException $exception) {
+        $this->assertSame(
+            'El bono no puede utilizarse en este negocio.',
+            $exception->getMessage()
+        );
+    }
+
+    $bonusA->refresh();
+    $bonusB->refresh();
+
+    $this->assertSame(
+        60000,
+        $bonusA->remaining_amount_cents
+    );
+
+    $this->assertSame(
+        40000,
+        $bonusB->remaining_amount_cents
+    );
+
+    $this->assertSame(
+        0,
+        $bonusA->ledgerEntries()
+            ->where(
+                'movement_type',
+                BonusMovementType::CONSUMO
+            )
+            ->count()
+    );
+
+    $this->assertSame(
+        0,
+        $bonusB->ledgerEntries()
+            ->where(
+                'movement_type',
+                BonusMovementType::CONSUMO
+            )
+            ->count()
+    );
+}
+public function test_it_rejects_combined_consumption_when_category_restriction_does_not_match(): void
+{
+    $service = app(BonusService::class);
+
+    $validFrom = now();
+    $expiresAt = $validFrom->copy()->addDay();
+
+    $bonusA = $service->issue(
+        'STUDENT',
+        'student-test-001',
+        'ADMIN',
+        'admin-test-001',
+        BonusType::BECA,
+        60000,
+        $validFrom,
+        $expiresAt,
+        true,
+        true,
+        'TEST-BONUS-001'
+    );
+
+    $bonusB = $service->issue(
+        'STUDENT',
+        'student-test-001',
+        'ADMIN',
+        'admin-test-001',
+        BonusType::BENEFICIO,
+        40000,
+        $validFrom,
+        $expiresAt,
+        true,
+        true,
+        'TEST-BONUS-001'
+    );
+
+    $service->addRestriction(
+        $bonusB->public_id,
+        BonusRestrictionType::CATEGORIA,
+        'alimentos'
+    );
+
+    try {
+        $service->consumeMultiple(
+            [
+                [
+                    'bonus_id' => $bonusA->public_id,
+                    'amount_cents' => 60000,
+                ],
+                [
+                    'bonus_id' => $bonusB->public_id,
+                    'amount_cents' => 40000,
+                ],
+            ],
+            null,
+            'transporte'
+        );
+
+        $this->fail(
+            'Se esperaba InvalidArgumentException.'
+        );
+    } catch (\InvalidArgumentException $exception) {
+        $this->assertSame(
+            'El bono no puede utilizarse en esta categoría.',
+            $exception->getMessage()
+        );
+    }
+
+    $bonusA->refresh();
+    $bonusB->refresh();
+
+    $this->assertSame(
+        60000,
+        $bonusA->remaining_amount_cents
+    );
+
+    $this->assertSame(
+        40000,
+        $bonusB->remaining_amount_cents
+    );
+
+    $this->assertSame(
+        0,
+        $bonusA->ledgerEntries()
+            ->where(
+                'movement_type',
+                BonusMovementType::CONSUMO
+            )
+            ->count()
+    );
+
+    $this->assertSame(
+        0,
+        $bonusB->ledgerEntries()
+            ->where(
+                'movement_type',
+                BonusMovementType::CONSUMO
+            )
+            ->count()
+    );
+}
+public function test_it_persists_expiration_when_combined_consumption_contains_an_expired_bonus(): void
+{
+    $service = app(BonusService::class);
+
+    $activeBonus = $service->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'student-test-001',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 50000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-BONUS-001'
+    );
+
+    $expiredBonus = $service->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'student-test-001',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 30000,
+        validFrom: now()->subDays(2),
+        expiresAt: now()->subDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-BONUS-001'
+    );
+
+    try {
+        $service->consumeMultiple([
+            [
+                'bonus_id' => $activeBonus->public_id,
+                'amount_cents' => 10000,
+            ],
+            [
+                'bonus_id' => $expiredBonus->public_id,
+                'amount_cents' => 10000,
+            ],
+        ]);
+
+        $this->fail(
+            'Se esperaba que el consumo combinado fuera rechazado.'
+        );
+    } catch (\InvalidArgumentException $exception) {
+        $this->assertSame(
+            'El bono ha expirado.',
+            $exception->getMessage()
+        );
+    }
+
+    $expiredBonus->refresh();
+
+    $this->assertSame(
+        BonusStatus::EXPIRADO,
+        $expiredBonus->status
+    );
+
+    $this->assertSame(
+        0,
+        $expiredBonus->remaining_amount_cents
+    );
+
+    $this->assertSame(
+        1,
+        BonusLedgerEntry::where(
+            'bonus_id',
+            $expiredBonus->public_id
+        )
+            ->where(
+                'movement_type',
+                BonusMovementType::EXPIRACION->value
+            )
+            ->count()
+    );
+}
+public function test_it_rejects_duplicate_bonus_in_combined_consumption(): void
+{
+    $service = app(BonusService::class);
+
+    $bonus = $service->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'student-test-001',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 50000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-BONUS-001'
+    );
+
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage(
+        'Un bono no puede repetirse en la misma combinación.'
+    );
+
+    $service->consumeMultiple([
+        [
+            'bonus_id' => $bonus->public_id,
+            'amount_cents' => 10000,
+        ],
+        [
+            'bonus_id' => $bonus->public_id,
+            'amount_cents' => 10000,
+        ],
+    ]);
+}
+public function test_it_rejects_combination_with_less_than_two_bonuses(): void
+{
+    $service = app(BonusService::class);
+
+    $bonus = $service->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'student-test-001',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 50000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-BONUS-001'
+    );
+
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage(
+        'La combinación requiere al menos dos bonos.'
+    );
+
+    $service->consumeMultiple([
+        [
+            'bonus_id' => $bonus->public_id,
+            'amount_cents' => 10000,
+        ],
+    ]);
+}
+public function test_it_rejects_incomplete_combined_consumption_item(): void
+{
+    $service = app(BonusService::class);
+
+    $bonusA = $service->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'student-test-001',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 50000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-BONUS-001'
+    );
+
+    $bonusB = $service->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'student-test-001',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 30000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-BONUS-001'
+    );
+
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage(
+        'Cada consumo debe indicar bono y monto.'
+    );
+
+    $service->consumeMultiple([
+        [
+            'bonus_id' => $bonusA->public_id,
+            'amount_cents' => 10000,
+        ],
+        [
+            'bonus_id' => $bonusB->public_id,
+        ],
+    ]);
+}
+public function test_it_rejects_invalid_amount_in_combined_consumption(): void
+{
+    $service = app(BonusService::class);
+
+    $bonusA = $service->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'student-test-001',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 50000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-BONUS-001'
+    );
+
+    $bonusB = $service->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'student-test-001',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 30000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-BONUS-001'
+    );
+
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage(
+        'El monto a consumir debe ser mayor que cero.'
+    );
+
+    $service->consumeMultiple([
+        [
+            'bonus_id' => $bonusA->public_id,
+            'amount_cents' => 10000,
+        ],
+        [
+            'bonus_id' => $bonusB->public_id,
+            'amount_cents' => 0,
+        ],
+    ]);
+}
 }

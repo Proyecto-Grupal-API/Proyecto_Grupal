@@ -195,47 +195,14 @@ public function consume(
                     'El bono no permite consumos parciales.'
                 );
             }
-            $businessRestrictions = $bonus->restrictions()
-                ->where(
-                    'restriction_type',
-                    BonusRestrictionType::NEGOCIO->value
-                )
-                ->get();
+           
+             $this->validateRestrictions(
+                 $bonus,
+                 $businessId,
+                 $categoryId
+             );
 
-          if ($businessRestrictions->isNotEmpty()) {
-              $businessAllowed = $businessRestrictions->contains(
-                  function (BonusRestriction $restriction) use ($businessId): bool {
-                        return $restriction->target_id === $businessId;
-                  }
-              );
-
-              if (!$businessAllowed) {
-                  throw new InvalidArgumentException(
-                      'El bono no puede utilizarse en este negocio.'
-                  );
-              }
-           }
-           $categoryRestrictions = $bonus->restrictions()
-               ->where(
-                   'restriction_type',
-                   BonusRestrictionType::CATEGORIA->value
-               )
-               ->get();
-
-          if ($categoryRestrictions->isNotEmpty()) {
-              $categoryAllowed = $categoryRestrictions->contains(
-                  function (BonusRestriction $restriction) use ($categoryId): bool {
-                      return $restriction->target_id === $categoryId;
-                  }
-              );
-
-              if (!$categoryAllowed) {
-                  throw new InvalidArgumentException(
-                      'El bono no puede utilizarse en esta categoría.'
-                  );
-              }
-           }
- 
+          
             $newRemainingCents =
                 $bonus->remaining_amount_cents - $amountCents;
 
@@ -261,7 +228,218 @@ public function consume(
 
             return $bonus->fresh();
 
-            return $bonus;
+        }
+    );
+}
+public function consumeMultiple(
+    array $consumptions,
+    ?string $businessId = null,
+    ?string $categoryId = null
+): array
+{
+   if (count($consumptions) < 2) {
+    throw new InvalidArgumentException(
+        'La combinación requiere al menos dos bonos.'
+    );
+}
+
+$bonusIds = [];
+
+foreach ($consumptions as $consumption) {
+    if (
+        !isset($consumption['bonus_id'])
+        || !isset($consumption['amount_cents'])
+    ) {
+        throw new InvalidArgumentException(
+            'Cada consumo debe indicar bono y monto.'
+        );
+    }
+
+    if ($consumption['amount_cents'] <= 0) {
+        throw new InvalidArgumentException(
+            'El monto a consumir debe ser mayor que cero.'
+        );
+    }
+
+    $bonusIds[] = $consumption['bonus_id'];
+}
+
+if (count($bonusIds) !== count(array_unique($bonusIds))) {
+    throw new InvalidArgumentException(
+        'Un bono no puede repetirse en la misma combinación.'
+    );
+}
+
+foreach ($bonusIds as $bonusPublicId) {
+    $this->expireIfNeeded(
+        $bonusPublicId
+    );
+}
+
+    return DB::connection('sqlsrv')->transaction(
+        function () use (
+            $consumptions,
+            $businessId,
+            $categoryId,
+            $bonusIds
+        ): array {
+            
+            $sortedBonusIds = $bonusIds;
+            sort($sortedBonusIds);
+
+            $bonuses = [];
+
+            foreach ($sortedBonusIds as $bonusPublicId) {
+                $bonus = Bonus::where(
+                    'public_id',
+                    $bonusPublicId
+                )
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$bonus) {
+                    throw new InvalidArgumentException(
+                        'Uno de los bonos solicitados no existe.'
+                    );
+                }
+
+                $bonuses[$bonus->public_id] = $bonus;
+            }
+
+            $firstBonus = $bonuses[
+                $consumptions[0]['bonus_id']
+            ];
+
+            foreach ($bonuses as $bonus) {
+                if (
+                    $bonus->beneficiary_type
+                        !== $firstBonus->beneficiary_type
+                    || $bonus->beneficiary_id
+                        !== $firstBonus->beneficiary_id
+                ) {
+                   throw new InvalidArgumentException(
+                       'Todos los bonos deben pertenecer al mismo beneficiario.'
+                    );
+                }
+             }         
+
+            foreach ($consumptions as $consumption) {
+    $bonus = $bonuses[
+        $consumption['bonus_id']
+    ];
+
+    if (!$bonus->combinable) {
+        throw new InvalidArgumentException(
+            'Todos los bonos deben permitir combinación.'
+        );
+    }
+
+    if ($bonus->status === BonusStatus::CANCELADO) {
+        throw new InvalidArgumentException(
+            'No se puede consumir un bono cancelado.'
+        );
+    }
+
+    if ($bonus->status === BonusStatus::AGOTADO) {
+        throw new InvalidArgumentException(
+            'No se puede consumir un bono agotado.'
+        );
+    }
+
+    $temporalStatus =
+        $this->resolveTemporalStatus($bonus);
+
+    if ($temporalStatus === BonusStatus::PENDIENTE) {
+        throw new InvalidArgumentException(
+            'El bono todavía no ha iniciado su vigencia.'
+        );
+    }
+
+    if ($temporalStatus === BonusStatus::EXPIRADO) {
+        throw new InvalidArgumentException(
+            'El bono ha expirado.'
+        );
+    }
+
+    $this->validateRestrictions(
+        $bonus,
+        $businessId,
+        $categoryId
+    );
+
+    $amountCents =
+        $consumption['amount_cents'];
+
+    if (
+        $amountCents
+        > $bonus->remaining_amount_cents
+    ) {
+        throw new InvalidArgumentException(
+            'El monto solicitado supera el saldo disponible del bono.'
+        );
+    }
+
+    if (
+        !$bonus->allows_partial_use
+        && $amountCents
+            < $bonus->remaining_amount_cents
+    ) {
+        throw new InvalidArgumentException(
+            'El bono no permite consumos parciales.'
+        );
+    }
+}
+
+/*
+ * Todos los bonos ya fueron validados.
+ * A partir de aquí se aplican los cambios.
+ */
+foreach ($consumptions as $consumption) {
+    $bonus = $bonuses[
+        $consumption['bonus_id']
+    ];
+
+    $amountCents =
+        $consumption['amount_cents'];
+
+    if ($bonus->status === BonusStatus::PENDIENTE) {
+        $bonus->status = BonusStatus::ACTIVO;
+    }
+
+    $newRemainingCents =
+        $bonus->remaining_amount_cents
+        - $amountCents;
+
+    $bonus->remaining_amount_cents =
+        $newRemainingCents;
+
+    if ($newRemainingCents === 0) {
+        $bonus->status =
+            BonusStatus::AGOTADO;
+    }
+
+    $bonus->save();
+
+    BonusLedgerEntry::create([
+        'public_id' => (string) Str::uuid(),
+        'bonus_id' => $bonus->public_id,
+        'movement_type' =>
+            BonusMovementType::CONSUMO,
+        'amount_cents' => -$amountCents,
+        'remaining_after_cents' =>
+            $newRemainingCents,
+        'reference_type' =>
+            'BONUS_COMBINED_CONSUMPTION',
+        'reference_id' => null,
+        'actor_id' => null,
+        'reason' =>
+            'Consumo combinado de bonos.',
+    ]);
+}
+            return Bonus::whereIn(
+                'public_id',
+                $bonusIds
+            )->get()->all();
         }
     );
 }
@@ -414,6 +592,54 @@ public function expireIfNeeded(
 return $bonus->fresh();
         }
     );
+}
+private function validateRestrictions(
+    Bonus $bonus,
+    ?string $businessId,
+    ?string $categoryId
+): void
+{
+    $businessRestrictions = $bonus->restrictions()
+        ->where(
+            'restriction_type',
+            BonusRestrictionType::NEGOCIO->value
+        )
+        ->get();
+
+    if ($businessRestrictions->isNotEmpty()) {
+        $businessAllowed = $businessRestrictions->contains(
+            function (BonusRestriction $restriction) use ($businessId): bool {
+                return $restriction->target_id === $businessId;
+            }
+        );
+
+        if (!$businessAllowed) {
+            throw new InvalidArgumentException(
+                'El bono no puede utilizarse en este negocio.'
+            );
+        }
+    }
+
+    $categoryRestrictions = $bonus->restrictions()
+        ->where(
+            'restriction_type',
+            BonusRestrictionType::CATEGORIA->value
+        )
+        ->get();
+
+    if ($categoryRestrictions->isNotEmpty()) {
+        $categoryAllowed = $categoryRestrictions->contains(
+            function (BonusRestriction $restriction) use ($categoryId): bool {
+                return $restriction->target_id === $categoryId;
+            }
+        );
+
+        if (!$categoryAllowed) {
+            throw new InvalidArgumentException(
+                'El bono no puede utilizarse en esta categoría.'
+            );
+        }
+    }
 }
   private function resolveTemporalStatus(
     Bonus $bonus
