@@ -16,6 +16,7 @@ class PurchasePayment extends Model
     'idempotency_key',
     'wallet_id',
     'bonus_id',
+    'requested_bonus_ids',
     'business_id',
     'category_id',
     'currency',
@@ -29,6 +30,7 @@ class PurchasePayment extends Model
         'total_amount_cents' => 'integer',
         'bonus_amount_cents' => 'integer',
         'wallet_amount_cents' => 'integer',
+        'requested_bonus_ids' => 'array',
     ];
 
     public function bonuses(): HasMany

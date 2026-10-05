@@ -44,6 +44,7 @@ afterEach(function () {
             'TEST-MIXED-PAYMENT-BONUS',
             'TEST-MULTI-PAYMENT-BONUS-A',
             'TEST-MULTI-PAYMENT-BONUS-B',
+            'TEST-MULTI-PAYMENT-BONUS-C',
         ]
     )->get();
 
@@ -1143,4 +1144,328 @@ test('rejects multiple bonus idempotency key reuse with different payment data',
                 'test-multi-payment'
             )->count()
         )->toBe(1);
+});
+test('rejects duplicate bonuses in a multiple bonus payment', function () {
+    $wallet = Wallet::create([
+        'public_id' => (string) Str::uuid(),
+        'owner_type' => 'STUDENT',
+        'owner_id' => 'mixed-payment-student',
+        'type' => 'WALLET_USUARIO',
+        'currency' => 'MXN',
+        'status' => 'ACTIVA',
+        'available_balance_cents' => 100000,
+        'held_balance_cents' => 0,
+    ]);
+
+    $bonusService = app(BonusService::class);
+
+    $bonusA = $bonusService->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'mixed-payment-student',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 30000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-MULTI-PAYMENT-BONUS-A'
+    );
+
+    $service = app(PurchasePaymentService::class);
+
+    expect(fn () =>
+        $service->payWithMultipleBonuses(
+            wallet: $wallet,
+            totalAmountCents: 50000,
+            bonusPublicIds: [
+                $bonusA->public_id,
+                $bonusA->public_id,
+            ],
+            idempotencyKey: 'test-multi-payment'
+        )
+    )->toThrow(
+        InvalidArgumentException::class,
+        'No se puede utilizar el mismo bono más de una vez en un pago combinado.'
+    );
+
+    $bonusA->refresh();
+    $wallet->refresh();
+
+    expect($bonusA->remaining_amount_cents)->toBe(30000)
+        ->and($wallet->available_balance_cents)->toBe(100000)
+        ->and(
+            PurchasePayment::where(
+                'idempotency_key',
+                'test-multi-payment'
+            )->count()
+        )->toBe(0)
+        ->and(PurchasePaymentBonus::count())->toBe(0)
+        ->and(
+            FinancialTransaction::where(
+                'idempotency_key',
+                'test-multi-payment'
+            )->count()
+        )->toBe(0);
+});
+test('rolls back multiple payment when a bonus does not allow partial use', function () {
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'mixed-payment-student',
+        WalletType::USUARIO
+    );
+
+    $wallet->update([
+        'available_balance_cents' => 100000,
+    ]);
+
+    $bonusService = app(BonusService::class);
+
+    $bonusA = $bonusService->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'mixed-payment-student',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 30000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-MULTI-PAYMENT-BONUS-A'
+    );
+
+    $bonusB = $bonusService->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'mixed-payment-student',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 50000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: false,
+        externalReference: 'TEST-MULTI-PAYMENT-BONUS-B'
+    );
+
+    $service = app(PurchasePaymentService::class);
+
+    expect(fn () =>
+        $service->payWithMultipleBonuses(
+            wallet: $wallet,
+            totalAmountCents: 40000,
+            bonusPublicIds: [
+                $bonusA->public_id,
+                $bonusB->public_id,
+            ],
+            idempotencyKey: 'test-multi-payment'
+        )
+    )->toThrow(
+        InvalidArgumentException::class,
+        'El bono no permite consumos parciales.'
+    );
+
+    $bonusA->refresh();
+    $bonusB->refresh();
+    $wallet->refresh();
+
+    expect($bonusA->remaining_amount_cents)->toBe(30000)
+        ->and($bonusB->remaining_amount_cents)->toBe(50000)
+        ->and($wallet->available_balance_cents)->toBe(100000)
+        ->and(
+            PurchasePayment::where(
+                'idempotency_key',
+                'test-multi-payment'
+            )->count()
+        )->toBe(0)
+        ->and(PurchasePaymentBonus::count())->toBe(0)
+        ->and(
+            FinancialTransaction::where(
+                'idempotency_key',
+                'test-multi-payment'
+            )->count()
+        )->toBe(0);
+});
+test('rolls back multiple payment when a bonus is not combinable', function () {
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'mixed-payment-student',
+        WalletType::USUARIO
+    );
+
+    $wallet->update([
+        'available_balance_cents' => 100000,
+    ]);
+
+    $bonusService = app(BonusService::class);
+
+    $bonusA = $bonusService->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'mixed-payment-student',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 30000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-MULTI-PAYMENT-BONUS-A'
+    );
+
+    $bonusB = $bonusService->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'mixed-payment-student',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 20000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: false,
+        allowsPartialUse: true,
+        externalReference: 'TEST-MULTI-PAYMENT-BONUS-B'
+    );
+
+    $service = app(PurchasePaymentService::class);
+
+    expect(fn () =>
+        $service->payWithMultipleBonuses(
+            wallet: $wallet,
+            totalAmountCents: 80000,
+            bonusPublicIds: [
+                $bonusA->public_id,
+                $bonusB->public_id,
+            ],
+            idempotencyKey: 'test-multi-payment'
+        )
+    )->toThrow(
+        InvalidArgumentException::class
+    );
+
+    $bonusA->refresh();
+    $bonusB->refresh();
+    $wallet->refresh();
+
+    expect($bonusA->remaining_amount_cents)->toBe(30000)
+        ->and($bonusB->remaining_amount_cents)->toBe(20000)
+        ->and($wallet->available_balance_cents)->toBe(100000)
+        ->and(
+            PurchasePayment::where(
+                'idempotency_key',
+                'test-multi-payment'
+            )->count()
+        )->toBe(0)
+        ->and(PurchasePaymentBonus::count())->toBe(0)
+        ->and(
+            FinancialTransaction::where(
+                'idempotency_key',
+                'test-multi-payment'
+            )->count()
+        )->toBe(0);
+});
+test('retries correctly when more bonuses were requested than consumed', function () {
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'mixed-payment-student',
+        WalletType::USUARIO
+    );
+
+    $wallet->update([
+        'available_balance_cents' => 100000,
+    ]);
+
+    $bonusService = app(BonusService::class);
+
+    $bonusA = $bonusService->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'mixed-payment-student',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 30000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-MULTI-PAYMENT-BONUS-A'
+    );
+
+    $bonusB = $bonusService->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'mixed-payment-student',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 20000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-MULTI-PAYMENT-BONUS-B'
+    );
+
+    $bonusC = $bonusService->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'mixed-payment-student',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 40000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-MULTI-PAYMENT-BONUS-C'
+    );
+
+    $service = app(PurchasePaymentService::class);
+
+    $bonusIds = [
+        $bonusA->public_id,
+        $bonusB->public_id,
+        $bonusC->public_id,
+    ];
+
+    $firstResult = $service->payWithMultipleBonuses(
+        wallet: $wallet,
+        totalAmountCents: 50000,
+        bonusPublicIds: $bonusIds,
+        idempotencyKey: 'test-multi-payment'
+    );
+
+    $secondResult = $service->payWithMultipleBonuses(
+        wallet: $wallet,
+        totalAmountCents: 50000,
+        bonusPublicIds: $bonusIds,
+        idempotencyKey: 'test-multi-payment'
+    );
+
+    $bonusA->refresh();
+    $bonusB->refresh();
+    $bonusC->refresh();
+    $wallet->refresh();
+
+    $payment = PurchasePayment::where(
+        'idempotency_key',
+        'test-multi-payment'
+    )->first();
+
+    expect($secondResult)->toBe($firstResult)
+        ->and($firstResult['consumptions'])->toHaveCount(2)
+        ->and($bonusA->remaining_amount_cents)->toBe(0)
+        ->and($bonusB->remaining_amount_cents)->toBe(0)
+        ->and($bonusC->remaining_amount_cents)->toBe(40000)
+        ->and($wallet->available_balance_cents)->toBe(100000)
+        ->and($payment)->not->toBeNull()
+        ->and($payment->requested_bonus_ids)->toHaveCount(3)
+        ->and($payment->bonuses()->count())->toBe(2)
+        ->and(
+            FinancialTransaction::where(
+                'idempotency_key',
+                'test-multi-payment'
+            )->count()
+        )->toBe(0);
 });

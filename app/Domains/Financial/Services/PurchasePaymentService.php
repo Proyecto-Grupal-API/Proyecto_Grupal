@@ -173,6 +173,15 @@ public function payWithMultipleBonuses(
         );
     }
 
+    $normalizedBonusIds = collect($bonusPublicIds)
+        ->map(fn ($id) => strtolower((string) $id));
+
+    if ($normalizedBonusIds->unique()->count() !== $normalizedBonusIds->count()) {
+        throw new InvalidArgumentException(
+            'No se puede utilizar el mismo bono más de una vez en un pago combinado.'
+       );
+    }
+
     return DB::connection('sqlsrv')->transaction(
         function () use (
             $wallet,
@@ -188,9 +197,9 @@ public function payWithMultipleBonuses(
             )->lockForUpdate()->first();
 
             if ($existingPayment) {
-                $existingBonusIds = $existingPayment
-                    ->bonuses()
-                    ->pluck('bonus_id')
+                $existingBonusIds = collect(
+                    $existingPayment->requested_bonus_ids ?? []
+                )
                     ->map(
                         fn ($id) =>
                             strtolower((string) $id)
@@ -307,6 +316,11 @@ public function payWithMultipleBonuses(
                 'idempotency_key' => $idempotencyKey,
                 'wallet_id' => $wallet->public_id,
                 'bonus_id' => $consumptions[0]['bonus_id'],
+                'requested_bonus_ids' => collect($bonusPublicIds)
+                    ->map(fn ($id) => strtolower((string) $id))
+                    ->sort()
+                    ->values()
+                    ->all(),
                 'business_id' => $businessId,
                 'category_id' => $categoryId,
                 'currency' => strtoupper($wallet->currency),
