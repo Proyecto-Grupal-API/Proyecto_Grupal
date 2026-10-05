@@ -5,6 +5,8 @@ use App\Http\Controllers\OAuthTokenController;
 use App\Http\Controllers\Financial\WalletController;
 use App\Http\Controllers\Financial\TopUpController;
 use App\Http\Controllers\Financial\WithdrawalController;
+use App\Http\Controllers\Financial\BonusController;
+
 use Illuminate\Support\Facades\Route;
 
 Route::post('/oauth/token', OAuthTokenController::class)
@@ -66,6 +68,11 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
             Route::get(
                 '/topups/{topUpId}',
                 [TopUpController::class, 'show']
+            );
+ 
+            Route::get(
+                '/bonuses/{bonusId}',
+                [BonusController::class, 'show']
             );
         });
 

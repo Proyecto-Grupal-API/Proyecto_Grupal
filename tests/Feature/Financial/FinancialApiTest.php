@@ -13,6 +13,26 @@ use App\Domains\Financial\Models\Withdrawal;
 use App\Http\Middleware\ValidateServiceToken;
 use App\Models\ServiceClient;
 use Illuminate\Support\Facades\Hash;
+use App\Domains\Financial\Enums\BonusType;
+use App\Domains\Financial\Models\Bonus;
+use App\Domains\Financial\Models\BonusLedgerEntry;
+use App\Domains\Financial\Services\BonusService;
+use App\Domains\Financial\Contracts\BonusAuthorizationProvider;
+
+beforeEach(function () {
+    $authorization = $this->createMock(
+        BonusAuthorizationProvider::class
+    );
+
+    $authorization
+        ->method('canIssueBonus')
+        ->willReturn(true);
+
+    $this->app->instance(
+        BonusAuthorizationProvider::class,
+        $authorization
+    );
+});
 
 afterEach(function () {
     $transactions = FinancialTransaction::where(
@@ -91,6 +111,22 @@ afterEach(function () {
         )->delete();
 
         $wallet->delete();
+    }
+
+    $apiBonus = Bonus::where(
+        'external_reference',
+        'TEST-FINANCIAL-API-BONUS'
+    )->first();
+
+    if ($apiBonus) {
+        BonusLedgerEntry::where(
+            'bonus_id',
+            $apiBonus->public_id
+        )->delete();
+
+        $apiBonus->restrictions()->delete();
+
+        $apiBonus->delete();
     }
 });
 test('financial api requires a service access token', function () {
@@ -1127,4 +1163,197 @@ test('financial write scope can create a withdrawal', function () {
 
     expect($wallet->available_balance_cents)
         ->toBe(0);
+});
+test('returns a bonus through the financial api', function () {
+    $this->withoutMiddleware(
+        ValidateServiceToken::class
+    );
+
+    $bonus = app(BonusService::class)->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'test-financial-api-bonus-user',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 50000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-FINANCIAL-API-BONUS'
+    );
+
+    $response = $this->getJson(
+        '/api/v1/financial/bonuses/' .
+        $bonus->public_id
+    );
+
+    $response
+        ->assertOk()
+        ->assertJsonPath(
+            'data.id',
+            fn ($id) =>
+                strtolower($id)
+                === strtolower($bonus->public_id)
+        )
+        ->assertJsonPath(
+            'data.beneficiary_type',
+            'STUDENT'
+        )
+        ->assertJsonPath(
+            'data.beneficiary_id',
+            'test-financial-api-bonus-user'
+        )
+        ->assertJsonPath(
+            'data.type',
+            BonusType::BENEFICIO->value
+        )
+        ->assertJsonPath(
+            'data.original_amount_cents',
+            50000
+        )
+        ->assertJsonPath(
+            'data.remaining_amount_cents',
+            50000
+        )
+        ->assertJsonPath(
+            'data.currency',
+            'MXN'
+        )
+        ->assertJsonPath(
+            'data.status',
+            'ACTIVO'
+        )
+        ->assertJsonPath(
+            'data.combinable',
+            true
+        )
+        ->assertJsonPath(
+            'data.allows_partial_use',
+            true
+        )
+        ->assertJsonPath(
+            'data.external_reference',
+            'TEST-FINANCIAL-API-BONUS'
+        )
+        ->assertJsonPath(
+            'meta.api_version',
+            'v1'
+        );
+});
+test('returns not found when the bonus does not exist', function () {
+    $this->withoutMiddleware(
+        ValidateServiceToken::class
+    );
+
+    $response = $this->getJson(
+        '/api/v1/financial/bonuses/' .
+        '00000000-0000-0000-0000-000000000000'
+    );
+
+    $response->assertNotFound();
+});
+test('financial read scope can access a bonus', function () {
+    $client = ServiceClient::create([
+        'name' => 'Financial API bonus read client',
+        'client_id' => 'svc_financial_bonus_read',
+        'secret_hash' => Hash::make('test-secret'),
+        'scopes' => ['financial:read'],
+        'active' => true,
+    ]);
+
+    $bonus = app(BonusService::class)->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'test-financial-api-bonus-user',
+        issuerType: 'SYSTEM',
+        issuerId: 'system-test',
+        type: BonusType::BENEFICIO,
+        amountCents: 50000,
+        validFrom: now()->subDay(),
+        expiresAt: now()->addDay(),
+        combinable: true,
+        allowsPartialUse: true,
+        externalReference: 'TEST-FINANCIAL-API-BONUS'
+    );
+
+    $tokenResponse = $this->postJson(
+        '/api/oauth/token',
+        [
+            'grant_type' => 'client_credentials',
+            'client_id' => $client->client_id,
+            'client_secret' => 'test-secret',
+            'scope' => 'financial:read',
+        ]
+    );
+
+    $tokenResponse
+        ->assertOk()
+        ->assertJsonPath(
+            'scope',
+            'financial:read'
+        );
+
+    $token = $tokenResponse->json(
+        'access_token'
+    );
+
+    $response = $this->getJson(
+        '/api/v1/financial/bonuses/' .
+        $bonus->public_id,
+        [
+            'Authorization' => "Bearer {$token}",
+        ]
+    );
+
+    $response
+        ->assertOk()
+        ->assertJsonPath(
+            'data.id',
+            fn ($id) =>
+                strtolower($id)
+                === strtolower($bonus->public_id)
+        )
+        ->assertJsonPath(
+            'data.beneficiary_id',
+            'test-financial-api-bonus-user'
+        )
+        ->assertJsonPath(
+            'meta.api_version',
+            'v1'
+        );
+});
+test('financial api rejects bonus access without financial read scope', function () {
+    $client = ServiceClient::create([
+        'name' => 'Financial API bonus without read scope',
+        'client_id' => 'svc_financial_bonus_without_read',
+        'secret_hash' => Hash::make('test-secret'),
+        'scopes' => ['students:read'],
+        'active' => true,
+    ]);
+
+    $tokenResponse = $this->postJson(
+        '/api/oauth/token',
+        [
+            'grant_type' => 'client_credentials',
+            'client_id' => $client->client_id,
+            'client_secret' => 'test-secret',
+            'scope' => 'students:read',
+        ]
+    );
+
+    $tokenResponse->assertOk();
+
+    $token = $tokenResponse->json(
+        'access_token'
+    );
+
+    $response = $this->getJson(
+        '/api/v1/financial/bonuses/' .
+        '00000000-0000-0000-0000-000000000000',
+        [
+            'Authorization' => "Bearer {$token}",
+        ]
+    );
+
+    $response->assertForbidden();
 });

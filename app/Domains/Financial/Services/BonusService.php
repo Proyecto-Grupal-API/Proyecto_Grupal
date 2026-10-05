@@ -9,6 +9,7 @@ use App\Domains\Financial\Enums\BonusRestrictionType;
 use App\Domains\Financial\Models\Bonus;
 use App\Domains\Financial\Models\BonusLedgerEntry;
 use App\Domains\Financial\Models\BonusRestriction;
+use App\Domains\Financial\Contracts\BonusAuthorizationProvider;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -16,7 +17,12 @@ use InvalidArgumentException;
 
 class BonusService
 {
-public function issue(
+    public function __construct(
+        private readonly BonusAuthorizationProvider $bonusAuthorization
+    ) {
+    }
+
+    public function issue(
     string $beneficiaryType,
     string $beneficiaryId,
     string $issuerType,
@@ -38,6 +44,16 @@ public function issue(
     if ($beneficiaryType === '' || $beneficiaryId === '') {
         throw new InvalidArgumentException(
             'El beneficiario del bono es obligatorio.'
+        );
+    }
+
+    if (!$this->bonusAuthorization->canIssueBonus(
+        $issuerType,
+        $issuerId,
+        $type
+    )) {
+        throw new InvalidArgumentException(
+            'El emisor no está autorizado para asignar este tipo de bono.'
         );
     }
 

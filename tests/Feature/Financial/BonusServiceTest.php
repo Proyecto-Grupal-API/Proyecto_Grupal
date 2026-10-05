@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Financial;
 
+use App\Domains\Financial\Contracts\BonusAuthorizationProvider;
 use App\Domains\Financial\Enums\BonusMovementType;
 use App\Domains\Financial\Enums\BonusStatus;
 use App\Domains\Financial\Enums\BonusType;
@@ -14,6 +15,24 @@ use Tests\TestCase;
 
 class BonusServiceTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $authorization = $this->createMock(
+            BonusAuthorizationProvider::class
+        );
+
+        $authorization
+            ->method('canIssueBonus')
+            ->willReturn(true);
+
+        $this->app->instance(
+            BonusAuthorizationProvider::class,
+            $authorization
+        );
+    }
+
     protected function tearDown(): void
 {
     $bonuses = Bonus::where(
@@ -2973,5 +2992,44 @@ public function test_it_rejects_invalid_amount_in_combined_consumption(): void
             'amount_cents' => 0,
         ],
     ]);
+}
+public function test_it_rejects_an_unauthorized_bonus_issuer(): void
+{
+    $authorization = $this->createMock(
+        BonusAuthorizationProvider::class
+    );
+
+    $authorization
+        ->method('canIssueBonus')
+        ->willReturn(false);
+
+    $this->app->instance(
+        BonusAuthorizationProvider::class,
+        $authorization
+    );
+
+    $service = app(BonusService::class);
+
+    $this->expectException(
+        \InvalidArgumentException::class
+    );
+
+    $this->expectExceptionMessage(
+        'El emisor no está autorizado para asignar este tipo de bono.'
+    );
+
+    $service->issue(
+        beneficiaryType: 'STUDENT',
+        beneficiaryId: 'student-test-001',
+        issuerType: 'STUDENT',
+        issuerId: 'student-unauthorized-001',
+        type: BonusType::BECA,
+        amountCents: 50000,
+        validFrom: now(),
+        expiresAt: now()->addDays(30),
+        combinable: false,
+        allowsPartialUse: true,
+        externalReference: 'TEST-BONUS-001'
+    );
 }
 }

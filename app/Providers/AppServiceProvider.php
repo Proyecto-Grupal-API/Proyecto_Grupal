@@ -23,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
             IdentityProvider::class,
             Module1IdentityAdapter::class
         );
+
     }
 
     /**
