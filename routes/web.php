@@ -31,6 +31,12 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
     Route::get('/finanzas', [FinancialController::class, 'index'])
         ->name('financial.dashboard');
 
+    Route::get('/finanzas/ajustes', [FinancialController::class, 'adjustments'])
+        ->name('financial.adjustments');
+
+    Route::post('/finanzas/ajustes/{transactionId}/devolucion', [FinancialController::class, 'requestRefund'])
+        ->name('financial.refunds.request');
+
     Route::get('/student-services', [StudentServicesController::class, 'index'])
         ->name('student-services.index');
 
