@@ -12,6 +12,7 @@ class RoleAssignment extends AuthorizationLifecycleRecord
     protected $fillable = [
         'user_id', 'role_key', 'scope_type', 'scope_id', 'campus_id', 'status',
         'starts_at', 'ends_at', 'assigned_at', 'assigned_by', 'reason',
+        'origin', 'source_key', 'source_fingerprint',
     ];
 
     protected function identityFields(): array
@@ -23,7 +24,20 @@ class RoleAssignment extends AuthorizationLifecycleRecord
     {
         $this->scope_type ??= null;
         $this->scope_id ??= null;
-        $this->assigned_at ??= now();
+        if ($this->origin === 'legacy_backfill') {
+            Validator::make($this->getAttributes(), [
+                'role_key' => ['required', Rule::in(Role::VALID_ROLES)],
+                'scope_type' => ['nullable', Rule::in(Role::VALID_SCOPE_TYPES)],
+                'source_key' => ['required', 'regex:/^[a-f0-9]{64}$/'],
+                'source_fingerprint' => ['required', 'regex:/^[a-f0-9]{64}$/'],
+            ])->validate();
+            // An absent historical timestamp is unknown, not the time of migration.
+        } else {
+            $this->assigned_at ??= now();
+            if ($this->source_key !== null || $this->source_fingerprint !== null) {
+                throw ValidationException::withMessages(['origin' => 'La procedencia legacy requiere un origen explícito.']);
+            }
+        }
         Validator::make($this->getAttributes(), [
             'role_key' => ['required', Rule::in(Role::FOUNDATION_ROLES)],
             'scope_type' => ['nullable', Rule::in(Role::FOUNDATION_SCOPE_TYPES)],
