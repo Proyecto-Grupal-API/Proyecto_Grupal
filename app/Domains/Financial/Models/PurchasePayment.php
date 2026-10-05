@@ -3,6 +3,7 @@
 namespace App\Domains\Financial\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PurchasePayment extends Model
 {
@@ -29,4 +30,13 @@ class PurchasePayment extends Model
         'bonus_amount_cents' => 'integer',
         'wallet_amount_cents' => 'integer',
     ];
+
+    public function bonuses(): HasMany
+    {
+        return $this->hasMany(
+            PurchasePaymentBonus::class,
+            'purchase_payment_id',
+            'public_id'
+        );
+    }
 }
