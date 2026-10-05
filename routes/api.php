@@ -5,6 +5,7 @@ use App\Http\Controllers\OAuthTokenController;
 use App\Http\Controllers\Financial\WalletController;
 use App\Http\Controllers\Financial\TopUpController;
 use App\Http\Controllers\Financial\WithdrawalController;
+use App\Http\Controllers\Financial\FinancialAdjustmentController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/oauth/token', OAuthTokenController::class)
@@ -85,6 +86,26 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
             Route::post(
                 '/withdrawals',
                 [WithdrawalController::class, 'store']
+            );
+
+            Route::post(
+                '/wallets/{walletId}/holds',
+                [FinancialAdjustmentController::class, 'hold']
+            );
+
+            Route::post(
+                '/holds/{transactionId}/release',
+                [FinancialAdjustmentController::class, 'release']
+            );
+
+            Route::post(
+                '/transactions/{transactionId}/refund',
+                [FinancialAdjustmentController::class, 'refund']
+            );
+
+            Route::post(
+                '/transactions/{transactionId}/reverse',
+                [FinancialAdjustmentController::class, 'reverse']
             );
         });
     });

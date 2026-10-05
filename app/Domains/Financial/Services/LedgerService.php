@@ -7,6 +7,7 @@ use App\Domains\Financial\Enums\TransactionStatus;
 use App\Domains\Financial\Models\FinancialTransaction;
 use App\Domains\Financial\Models\LedgerEntry;
 use App\Domains\Financial\Models\Wallet;
+use App\Domains\Financial\Enums\WalletStatus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -366,6 +367,257 @@ class LedgerService
                 $transaction->status =
                     TransactionStatus::COMPLETADA;
 
+                $transaction->save();
+
+                return $transaction;
+            }
+        );
+    }
+
+    public function hold(
+        Wallet $wallet,
+        int $amountCents,
+        string $idempotencyKey,
+        ?string $referenceType = null,
+        ?string $referenceId = null,
+        array $metadata = []
+    ): FinancialTransaction {
+        if ($amountCents <= 0) {
+            throw new InvalidArgumentException(
+                'El monto debe ser mayor que cero.'
+            );
+        }
+
+        return DB::connection('sqlsrv')->transaction(
+            function () use (
+                $wallet,
+                $amountCents,
+                $idempotencyKey,
+                $referenceType,
+                $referenceId,
+                $metadata
+            ) {
+                $existingTransaction = FinancialTransaction::where(
+                    'idempotency_key',
+                    $idempotencyKey
+                )->first();
+
+                if ($existingTransaction) {
+                    $sameReferenceType =
+                        $existingTransaction->reference_type === $referenceType;
+
+                    $sameReferenceId =
+                        strtolower((string) $existingTransaction->reference_id)
+                        === strtolower((string) $referenceId);
+
+                    if (!$sameReferenceType || !$sameReferenceId) {
+                        throw new InvalidArgumentException(
+                            'La clave de idempotencia ya pertenece a otra operación.'
+                        );
+                    }
+
+                    return $existingTransaction;
+                }
+
+                $lockedWallet = Wallet::where(
+                    'public_id',
+                    $wallet->public_id
+                )
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($lockedWallet->status !== WalletStatus::ACTIVA) {
+                    throw new InvalidArgumentException(
+                        'La wallet debe estar activa para crear una retención.'
+                    );
+                }
+
+                if ($lockedWallet->available_balance_cents < $amountCents) {
+                    throw new InvalidArgumentException(
+                        'Saldo insuficiente para crear la retención.'
+                    );
+                }
+
+                $transaction = FinancialTransaction::create([
+                    'public_id' => (string) Str::uuid(),
+                    'idempotency_key' => $idempotencyKey,
+                    'status' => TransactionStatus::PENDIENTE,
+                    'reference_type' => $referenceType,
+                    'reference_id' => $referenceId,
+                    'metadata' => array_merge($metadata, [
+                        'operation' => 'HOLD',
+                        'amount_cents' => $amountCents,
+                    ]),
+                ]);
+
+                $lockedWallet->decrement(
+                    'available_balance_cents',
+                    $amountCents
+                );
+
+                $lockedWallet->increment(
+                    'held_balance_cents',
+                    $amountCents
+                );
+
+                $lockedWallet->refresh();
+
+                LedgerEntry::create([
+                    'public_id' => (string) Str::uuid(),
+                    'transaction_id' => $transaction->public_id,
+                    'wallet_id' => $lockedWallet->public_id,
+                    'movement_type' => MovementType::RETENCION,
+                    'amount_cents' => -$amountCents,
+                    'balance_after_cents' =>
+                        $lockedWallet->available_balance_cents,
+                    'available_balance_after_cents' =>
+                        $lockedWallet->available_balance_cents,
+                    'held_balance_after_cents' =>
+                        $lockedWallet->held_balance_cents,
+                ]);
+
+                $transaction->status = TransactionStatus::COMPLETADA;
+                $transaction->save();
+
+                return $transaction;
+            }
+        );
+    }
+
+    public function release(
+        FinancialTransaction $holdTransaction,
+        string $idempotencyKey,
+        array $metadata = []
+    ): FinancialTransaction {
+        return DB::connection('sqlsrv')->transaction(
+            function () use (
+                $holdTransaction,
+                $idempotencyKey,
+                $metadata
+            ) {
+                $existingTransaction = FinancialTransaction::where(
+                    'idempotency_key',
+                    $idempotencyKey
+                )->first();
+
+                if ($existingTransaction) {
+                    $sameReferenceType =
+                        $existingTransaction->reference_type === 'HOLD_RELEASE';
+
+                    $sameReferenceId =
+                        strtolower((string) $existingTransaction->reference_id)
+                        === strtolower((string) $holdTransaction->public_id);
+
+                    if (!$sameReferenceType || !$sameReferenceId) {
+                        throw new InvalidArgumentException(
+                            'La clave de idempotencia ya pertenece a otra operación.'
+                        );
+                    }
+
+                    return $existingTransaction;
+                }
+
+                $lockedHold = FinancialTransaction::where(
+                    'public_id',
+                    $holdTransaction->public_id
+                )
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($lockedHold->status !== TransactionStatus::COMPLETADA) {
+                    throw new InvalidArgumentException(
+                        'La retención debe estar completada para poder liberarse.'
+                    );
+                }
+
+                if ($lockedHold->reference_type === 'HOLD_RELEASE') {
+                    throw new InvalidArgumentException(
+                        'La operación indicada no es una retención.'
+                    );
+                }
+
+                $alreadyReleased = FinancialTransaction::where(
+                    'original_transaction_id',
+                    $lockedHold->public_id
+                )
+                    ->where('reference_type', 'HOLD_RELEASE')
+                    ->exists();
+
+                if ($alreadyReleased) {
+                    throw new InvalidArgumentException(
+                        'La retención ya fue liberada.'
+                    );
+                }
+
+                $entry = LedgerEntry::where(
+                    'transaction_id',
+                    $lockedHold->public_id
+                )
+                    ->where('movement_type', MovementType::RETENCION->value)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$entry || $entry->amount_cents >= 0) {
+                    throw new InvalidArgumentException(
+                        'No se encontró una retención válida para liberar.'
+                    );
+                }
+
+                $amountCents = abs($entry->amount_cents);
+
+                $lockedWallet = Wallet::where(
+                    'public_id',
+                    $entry->wallet_id
+                )
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($lockedWallet->held_balance_cents < $amountCents) {
+                    throw new InvalidArgumentException(
+                        'El saldo retenido es insuficiente para liberar la retención.'
+                    );
+                }
+
+                $transaction = FinancialTransaction::create([
+                    'public_id' => (string) Str::uuid(),
+                    'idempotency_key' => $idempotencyKey,
+                    'status' => TransactionStatus::PENDIENTE,
+                    'reference_type' => 'HOLD_RELEASE',
+                    'reference_id' => $lockedHold->public_id,
+                    'original_transaction_id' => $lockedHold->public_id,
+                    'metadata' => array_merge($metadata, [
+                        'operation' => 'HOLD_RELEASE',
+                        'amount_cents' => $amountCents,
+                    ]),
+                ]);
+
+                $lockedWallet->increment(
+                    'available_balance_cents',
+                    $amountCents
+                );
+
+                $lockedWallet->decrement(
+                    'held_balance_cents',
+                    $amountCents
+                );
+
+                $lockedWallet->refresh();
+
+                LedgerEntry::create([
+                    'public_id' => (string) Str::uuid(),
+                    'transaction_id' => $transaction->public_id,
+                    'wallet_id' => $lockedWallet->public_id,
+                    'movement_type' => MovementType::LIBERACION,
+                    'amount_cents' => $amountCents,
+                    'balance_after_cents' =>
+                        $lockedWallet->available_balance_cents,
+                    'available_balance_after_cents' =>
+                        $lockedWallet->available_balance_cents,
+                    'held_balance_after_cents' =>
+                        $lockedWallet->held_balance_cents,
+                ]);
+
+                $transaction->status = TransactionStatus::COMPLETADA;
                 $transaction->save();
 
                 return $transaction;
