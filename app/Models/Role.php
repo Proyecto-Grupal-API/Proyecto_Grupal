@@ -49,6 +49,24 @@ class Role extends Model
         'council',
     ];
 
+    // Foundation catalog only: legacy assignment, UI and 2FA retain VALID_ROLES.
+    public const NEW_ROLES = [
+        'business_owner', 'business_manager', 'cashier', 'inventory_manager', 'buyer',
+        'rewards_admin', 'auditor', 'organization_manager', 'career_coordinator', 'department_head',
+    ];
+
+    public const FOUNDATION_ROLES = [...self::VALID_ROLES, ...self::NEW_ROLES];
+
+    public const FOUNDATION_SCOPE_TYPES = [...self::VALID_SCOPE_TYPES, 'campus', 'academic_program', 'department'];
+
+    public const FOUNDATION_ROLE_SCOPES = [
+        'business_owner' => 'business', 'business_manager' => 'business', 'cashier' => 'business',
+        'inventory_manager' => 'business', 'buyer' => 'business',
+        'rewards_admin' => null, 'auditor' => null,
+        'organization_manager' => 'campus', 'career_coordinator' => 'academic_program',
+        'department_head' => 'department',
+    ];
+
     /**
      * Roles que, además de "admin", pueden gestionar el perfil y
      * ciclo de vida de estudiantes (alta, edición, importación).
