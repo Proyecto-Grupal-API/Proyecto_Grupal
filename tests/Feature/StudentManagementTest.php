@@ -65,8 +65,7 @@ it('creates an administrative student with normalized identifiers, initial histo
         ->and($history->changed_at)->not->toBeNull()
         ->and($student->fresh()->hasRole(Role::ESTUDIANTE))->toBeTrue();
 
-    $studentRoles = array_values(array_filter($student->fresh()->roles, fn (array $role) =>
-        $role['name'] === Role::ESTUDIANTE
+    $studentRoles = array_values(array_filter($student->fresh()->effectiveRoles(), fn (array $role) => $role['name'] === Role::ESTUDIANTE
         && ($role['scope_type'] ?? null) === null
         && ($role['scope_id'] ?? null) === null
     ));
@@ -98,7 +97,7 @@ it('rolls back a newly created user when the profile violates a unique enrollmen
     $failed = false;
     try {
         app(UpsertStudentProfile::class)->execute(studentManagementData());
-    } catch (\Throwable) {
+    } catch (Throwable) {
         $failed = true;
     }
 

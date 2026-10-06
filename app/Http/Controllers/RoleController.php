@@ -26,10 +26,10 @@ class RoleController extends Controller
                     'id' => (string) $target->getKey(),
                     'name' => $target->name,
                     'email' => $target->email,
-                    'roles' => $target->roles ?? [],
+                    'roles' => $target->effectiveRoles(),
                 ])->values()->all()
                 : [],
-            'userRoles' => $user->roles ?? [],
+            'userRoles' => $user->effectiveRoles(),
             'twoFactorEnabled' => $user->two_factor_enabled,
             'twoFactorRequired' => $user->requiresTwoFactorAuthentication(),
             'twoFactorConfigurationPending' => ! is_null($user->two_factor_secret)

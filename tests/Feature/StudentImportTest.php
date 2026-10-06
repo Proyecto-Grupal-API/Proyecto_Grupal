@@ -92,8 +92,7 @@ it('imports multiple normalized students with profiles, initial histories, globa
             ->and($history->from_status)->toBeNull()
             ->and($history->to_status->value)->toBe($status)
             ->and((string) $history->changed_by)->toBe((string) $this->importAdmin->getKey());
-        $studentRoles = array_filter($student->roles, fn (array $role) =>
-            $role['name'] === Role::ESTUDIANTE && $role['scope_type'] === null && $role['scope_id'] === null
+        $studentRoles = array_filter($student->effectiveRoles(), fn (array $role) => $role['name'] === Role::ESTUDIANTE && $role['scope_type'] === null && $role['scope_id'] === null
         );
         expect($studentRoles)->toHaveCount(1);
     }

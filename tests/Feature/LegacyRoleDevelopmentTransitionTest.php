@@ -71,7 +71,8 @@ test('valid confirmed transition preserves source provenance and never repeats g
 test('wrong count and stale source or inventory reject the whole confirmed plan', function (string $change) {
     $plan = $this->transition->developmentPlan();
     if ($change === 'source') {
-        $this->subject->assignRole('maestro');
+        $this->subject->roles = [...$this->subject->roles, ['name' => 'maestro']];
+        $this->subject->save();
     } elseif ($change === 'metadata') {
         $this->subject->roles = [['name' => 'estudiante', 'assigned_at' => '2020-01-01']];
         $this->subject->save();

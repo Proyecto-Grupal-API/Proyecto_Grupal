@@ -95,9 +95,9 @@ test('alternate ObjectId spelling cannot create duplicate canonical subjects', f
     foundationAssertDuplicate(fn () => foundationMembership($this->subject));
 });
 
-test('existing contextual types remain representable without entering legacy authorization', function (string $scope) {
+test('existing contextual legacy types authorize their exact assignment after cutover', function (string $scope) {
     $assignment = foundationAssignment($this->subject, ['role_key' => 'estudiante', 'scope_type' => $scope]);
-    expect($assignment->scope_type)->toBe($scope)->and($this->subject->fresh()->hasRole('estudiante', $scope, $assignment->scope_id))->toBeFalse();
+    expect($assignment->scope_type)->toBe($scope)->and($this->subject->fresh()->hasRole('estudiante', $scope, $assignment->scope_id))->toBeTrue();
 })->with(['business', 'association', 'service', 'council']);
 
 test('invalid assignment data is rejected', function (array $changes) {
@@ -252,7 +252,7 @@ test('bootstrap and migrations are idempotent without changing users or backfill
     $this->seed(AuthorizationFoundationSeeder::class);
     expect(Role::count())->toBe(16)->and(Permission::count())->toBe(8)->and(RolePermission::count())->toBe(13)
         ->and(User::count())->toBe(1)->and($this->subject->fresh()->getAttributes())->toEqual($before)
-        ->and(RoleAssignment::count())->toBe(0)->and(BusinessMembership::count())->toBe(0);
+        ->and(RoleAssignment::count())->toBe(1)->and(BusinessMembership::count())->toBe(0);
 });
 
 test('legacy role assignment exact lookup and revocation remain unchanged', function () {
@@ -261,11 +261,12 @@ test('legacy role assignment exact lookup and revocation remain unchanged', func
     $this->subject->assignRole(Role::MAESTRO, 'business', 'legacy-business');
     expect($this->subject->hasRole(Role::ESTUDIANTE))->toBeTrue()
         ->and($this->subject->hasRole(Role::MAESTRO, 'business', 'legacy-business'))->toBeTrue()
-        ->and($this->subject->hasRole(Role::MAESTRO))->toBeFalse()->and($this->subject->roles)->toHaveCount(2);
+        ->and($this->subject->hasRole(Role::MAESTRO))->toBeFalse()->and($this->subject->effectiveRoles())->toHaveCount(2)
+        ->and($this->subject->roles)->toBe([]);
     expect($this->subject->revokeRole(Role::MAESTRO, 'business', 'legacy-business'))->toBeTrue()
         ->and($this->subject->hasRole(Role::ESTUDIANTE))->toBeTrue()
         ->and($this->subject->revokeRole(Role::MAESTRO, 'business', 'legacy-business'))->toBeFalse()
-        ->and(RoleAssignment::count())->toBe(0)->and(BusinessMembership::count())->toBe(0);
+        ->and(RoleAssignment::count())->toBe(2)->and(BusinessMembership::count())->toBe(0);
 });
 
 test('new catalog roles are unavailable through legacy model and HTTP assignment', function (string $role) {
@@ -276,7 +277,7 @@ test('new catalog roles are unavailable through legacy model and HTTP assignment
     $this->actingAs($admin)->postJson('/roles/assign', [
         'user_id' => (string) $this->subject->getKey(), 'role_name' => $role,
     ])->assertUnprocessable()->assertJsonValidationErrors('role_name');
-    expect($this->subject->fresh()->roles)->toBe([])->and(RoleAssignment::count())->toBe(0);
+    expect($this->subject->fresh()->roles)->toBe([])->and(RoleAssignment::where('user_id', (string) $this->subject->getKey())->count())->toBe(0);
 })->with(Role::NEW_ROLES);
 
 test('legacy UI exposes only existing roles and contexts after foundation bootstrap', function () {
@@ -288,12 +289,12 @@ test('legacy UI exposes only existing roles and contexts after foundation bootst
         ->where('assignableScopes', ['business', 'association', 'service', 'council'])->etc());
 });
 
-test('foundation records neither grant nor revoke legacy authorization or required 2fa', function () {
+test('legacy assignments authorize after cutover independently of business membership', function () {
     foundationAssignment($this->subject, ['role_key' => 'admin', 'scope_type' => null, 'scope_id' => null]);
     $membership = foundationMembership($this->subject);
-    expect($this->subject->fresh()->hasRole(Role::ADMIN))->toBeFalse()
-        ->and($this->subject->fresh()->requiresTwoFactorAuthentication())->toBeFalse();
-    $this->actingAs($this->subject)->post('/roles/assign', ['user_id' => (string) $this->subject->getKey(), 'role_name' => Role::ADMIN])->assertForbidden();
+    expect($this->subject->fresh()->hasRole(Role::ADMIN))->toBeTrue()
+        ->and($this->subject->fresh()->requiresTwoFactorAuthentication())->toBeTrue();
+    $this->actingAs($this->subject)->post('/roles/assign', ['user_id' => (string) $this->subject->getKey(), 'role_name' => Role::ADMIN])->assertRedirect(route('two-factor.enrollment'));
     $this->subject->assignRole(Role::MAESTRO, 'business', 'external-business-1');
     $membership->transitionTo('suspended');
     expect($this->subject->fresh()->hasRole(Role::MAESTRO, 'business', 'external-business-1'))->toBeTrue()
@@ -316,5 +317,5 @@ test('artisan migration flow runs safely and can be repeated without touching le
     $this->artisan('migrate', ['--path' => 'database/migrations/2026_10_05_000100_create_authorization_foundation_indexes.php', '--force' => true])->assertSuccessful();
     $this->artisan('migrate', ['--path' => 'database/migrations/2026_10_05_000100_create_authorization_foundation_indexes.php', '--force' => true])->assertSuccessful();
     expect($this->subject->fresh()->roles)->toBe($roles)
-        ->and(RoleAssignment::count())->toBe(0)->and(BusinessMembership::count())->toBe(0);
+        ->and(RoleAssignment::count())->toBe(1)->and(BusinessMembership::count())->toBe(0);
 });

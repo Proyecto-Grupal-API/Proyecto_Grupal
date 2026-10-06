@@ -21,7 +21,13 @@ class LegacyRoleParityService
         if ($invalid) {
             return ['status' => 'NOT_COMPARABLE_INVALID_LEGACY', 'legacy' => null, 'shadow' => null];
         }
-        $legacy = $user->hasRole($role, $type, $id);
+        // Offline historical comparison only: never call the post-cutover authority as legacy.
+        $legacy = (($type === null) === ($id === null))
+            && ($type === null || in_array($type, Role::VALID_SCOPE_TYPES, true))
+            && collect($decisions)->contains(fn ($d) => $d['decision'] === 'MIGRATE'
+                && $d['attributes']['role_key'] === $role
+                && $d['attributes']['scope_type'] === $type
+                && $d['attributes']['scope_id'] === $id);
         $shadow = false;
         if (($type === null) === ($id === null) && ($type === null || in_array($type, Role::VALID_SCOPE_TYPES, true))) {
             $shadow = RoleAssignment::where('user_id', (string) $user->getKey())
@@ -57,6 +63,7 @@ class LegacyRoleParityService
                         $report['reconciliation'][$category]++;
                         $queries[] = [$decision['role'] ?? '__invalid_legacy__', null, null];
                     }
+
                     continue;
                 }
                 $attributes = $decision['attributes'];
@@ -96,6 +103,7 @@ class LegacyRoleParityService
                 $result = $this->compare($user, ...json_decode($query, true));
                 if ($result['status'] === 'NOT_COMPARABLE_INVALID_LEGACY') {
                     $report['not_comparable']++;
+
                     continue;
                 }
                 $report['queries_compared']++;

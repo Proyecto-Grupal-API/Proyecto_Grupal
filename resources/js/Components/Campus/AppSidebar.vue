@@ -8,7 +8,7 @@ defineEmits(['close']);
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user ?? {});
-const roles = computed(() => user.value.roles ?? []);
+const roles = computed(() => user.value.effective_roles ?? []);
 const hasGlobalRole = name => roles.value.some(role => role.name === name && role.scope_type == null && role.scope_id == null);
 const canManageStudents = computed(() => ['admin', 'maestro', 'student_manager'].some(hasGlobalRole));
 const hasConfirmedStudentProfile = computed(() => page.props.auth?.hasStudentProfile === true);

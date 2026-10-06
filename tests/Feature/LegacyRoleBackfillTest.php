@@ -178,7 +178,8 @@ test('stale shadow revisions and revoked history are conflicts not new generatio
 test('precomputed stale legacy plan is rejected before persistence', function () {
     $user = legacyBackfillUser([['name' => 'estudiante']]);
     $plan = $this->analyzer->analyze($user)[0];
-    $user->revokeRole('estudiante');
+    $user->roles = [];
+    $user->save();
     expect($this->backfill->materialize($user, $plan))->toBe('STALE_LEGACY_SOURCE')->and(RoleAssignment::count())->toBe(0);
 });
 
@@ -201,17 +202,19 @@ test('overlapping materializers resolve an insert winner without duplicate curre
     expect(RoleAssignment::count())->toBe(1)->and(RoleAssignment::first()->generation)->toBe(1);
 });
 
-test('legacy writers remain single source while rerun incorporates additions and reports removals', function () {
+test('offline legacy source drift reports additions and removals without changing authority', function () {
     $user = legacyBackfillUser([['name' => 'estudiante']]);
     $this->backfill->run(true);
-    $user->assignRole('maestro', 'service', 'new');
+    $user->roles = [...$user->roles, ['name' => 'maestro', 'scope_type' => 'service', 'scope_id' => 'new']];
+    $user->save();
     expect(RoleAssignment::count())->toBe(1)->and($this->parity->report()['reconciliation']['LEGACY_PRESENT_SHADOW_MISSING'])->toBe(1);
     expect($this->backfill->run(true)['created'])->toBe(1)->and($this->parity->report()['mismatches'])->toBe(0);
-    $user->revokeRole('estudiante');
+    $user->roles = array_values(array_filter($user->roles, fn ($role) => $role['name'] !== 'estudiante'));
+    $user->save();
     $report = $this->parity->report();
     expect($report['reconciliation']['LEGACY_REMOVED_SHADOW_PRESENT'])->toBe(1)
         ->and($report['legacy_false_shadow_true'])->toBe(1)
-        ->and($user->fresh()->hasRole('estudiante'))->toBeFalse()->and(RoleAssignment::count())->toBe(2);
+        ->and($user->fresh()->hasRole('estudiante'))->toBeTrue()->and(RoleAssignment::count())->toBe(2);
     $this->backfill->run(true);
     expect(RoleAssignment::count())->toBe(2)->and(RoleAssignment::where('role_key', 'estudiante')->first()->status)->toBe('active');
 });
@@ -274,8 +277,9 @@ test('apply without prerequisite indexes fails before creating shadows', functio
 
 test('permission catalog cannot grant legacy roles and new roles remain nonassignable', function () {
     $user = legacyBackfillUser([]);
+    expect($user->hasRole('admin'))->toBeFalse()->and($user->requiresTwoFactorAuthentication())->toBeFalse();
     RoleAssignment::create(['user_id' => (string) $user->getKey(), 'role_key' => 'admin', 'status' => 'active']);
-    expect($user->hasRole('admin'))->toBeFalse()->and($user->requiresTwoFactorAuthentication())->toBeFalse()
+    expect($user->hasRole('admin'))->toBeTrue()->and($user->requiresTwoFactorAuthentication())->toBeTrue()
         ->and($this->parity->compare($user, 'admin')['shadow'])->toBeFalse();
     foreach (Role::NEW_ROLES as $role) {
         expect(fn () => $user->assignRole($role))->toThrow(InvalidArgumentException::class);

@@ -139,7 +139,7 @@ test('admin Inertia contract exposes canonical roles, four scopes and minimal ta
     $users = $response->viewData('page')['props']['assignableUsers'];
     $projected = collect($users)->firstWhere('id', (string) $target->getKey());
     expect(array_keys($projected))->toBe(['id', 'name', 'email', 'roles'])
-        ->and($projected['roles'][0]['name'])->toBe('business_owner');
+        ->and($projected['roles'])->toBe([]);
 });
 
 test('non-admin Inertia contract does not expose other users', function () {

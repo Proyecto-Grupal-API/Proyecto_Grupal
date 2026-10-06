@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Services\EffectiveRoleAssignments;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use MongoDB\Laravel\Auth\User as Authenticatable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use MongoDB\Laravel\Auth\User as Authenticatable;
 use MongoDB\Model\BSONArray;
 use MongoDB\Model\BSONDocument;
 
@@ -38,10 +39,12 @@ class User extends Authenticatable
         'two_factor_recovery_codes',
         'two_factor_secret',
         'must_change_password',
+        'roles',
     ];
 
     protected $appends = [
         'two_factor_enabled',
+        'effective_roles',
     ];
 
     public function getTwoFactorEnabledAttribute(): bool
@@ -57,7 +60,7 @@ class User extends Authenticatable
             throw new \LogicException('The required two-factor roles must belong to the canonical role catalog.');
         }
 
-        foreach ($this->roles ?? [] as $assignment) {
+        foreach ($this->effectiveRoles() as $assignment) {
             if (in_array($assignment['name'] ?? null, $required, true)) {
                 return true;
             }
@@ -181,6 +184,7 @@ class User extends Authenticatable
     {
         return $this->hasMany(QrToken::class, 'user_id');
     }
+
     /**
      * Tarjetas NFC pertenecientes al usuario.
      */
@@ -207,121 +211,26 @@ class User extends Authenticatable
 
     public function assignRole(string $roleName, ?string $scopeType = null, ?string $scopeId = null): void
     {
-        // Defensa en profundidad: nunca persistir un rol que no exista en el
-        // catálogo oficial, sin importar qué controlador llame a este método.
-        if (! in_array($roleName, Role::VALID_ROLES, true)) {
-            throw new \InvalidArgumentException("El rol '{$roleName}' no es un rol válido.");
-        }
-
-        $scopeId = $scopeId === null ? null : (string) $scopeId;
-
-        if (($scopeType === null) !== ($scopeId === null)) {
-            throw new \InvalidArgumentException('Una asignación de rol debe ser global o incluir tipo e identificador de contexto.');
-        }
-
-        if ($scopeType !== null && ! in_array($scopeType, Role::VALID_SCOPE_TYPES, true)) {
-            throw new \InvalidArgumentException("El contexto '{$scopeType}' no es válido.");
-        }
-
-        if ($scopeId !== null && $scopeId === '') {
-            throw new \InvalidArgumentException('El identificador de contexto no puede estar vacío.');
-        }
-
-        $roles = $this->roles ?? [];
-
-        foreach ($roles as $role) {
-            if (
-                ($role['name'] ?? null) === $roleName &&
-                ($role['scope_type'] ?? null) === $scopeType &&
-                ($role['scope_id'] ?? null) === $scopeId
-            ) {
-                return;
-            }
-        }
-
-        $roles[] = [
-            'name' => $roleName,
-            'scope_type' => $scopeType,
-            'scope_id' => $scopeId,
-            'assigned_at' => now()->toDateTimeString(),
-        ];
-
-        $this->roles = $roles;
-        $this->save();
+        app(EffectiveRoleAssignments::class)->assign($this, $roleName, $scopeType, $scopeId);
     }
 
     public function revokeRole(string $roleName, ?string $scopeType = null, ?string $scopeId = null): bool
     {
-        if (! in_array($roleName, Role::VALID_ROLES, true)) {
-            throw new \InvalidArgumentException("El rol '{$roleName}' no es un rol válido.");
-        }
-
-        $scopeId = $scopeId === null ? null : (string) $scopeId;
-
-        if (($scopeType === null) !== ($scopeId === null)) {
-            throw new \InvalidArgumentException('Una asignación de rol debe ser global o incluir tipo e identificador de contexto.');
-        }
-
-        if ($scopeType !== null && ! in_array($scopeType, Role::VALID_SCOPE_TYPES, true)) {
-            throw new \InvalidArgumentException("El contexto '{$scopeType}' no es válido.");
-        }
-
-        $roles = $this->roles ?? [];
-        $remaining = array_values(array_filter($roles, static function (array $role) use ($roleName, $scopeType, $scopeId): bool {
-            $storedScopeId = ($role['scope_id'] ?? null) === null ? null : (string) $role['scope_id'];
-
-            return ($role['name'] ?? null) !== $roleName
-                || ($role['scope_type'] ?? null) !== $scopeType
-                || $storedScopeId !== $scopeId;
-        }));
-
-        if (count($remaining) === count($roles)) {
-            return false;
-        }
-
-        $this->roles = $remaining;
-        $this->save();
-
-        return true;
+        return app(EffectiveRoleAssignments::class)->revoke($this, $roleName, $scopeType, $scopeId);
     }
 
     public function hasRole(string $roleName, ?string $scopeType = null, ?string $scopeId = null): bool
     {
-        $scopeId = $scopeId === null ? null : (string) $scopeId;
+        return app(EffectiveRoleAssignments::class)->has($this, $roleName, $scopeType, $scopeId);
+    }
 
-        if (($scopeType === null) !== ($scopeId === null)) {
-            return false;
-        }
+    public function effectiveRoles(): array
+    {
+        return app(EffectiveRoleAssignments::class)->display($this);
+    }
 
-        if ($scopeType !== null && ! in_array($scopeType, Role::VALID_SCOPE_TYPES, true)) {
-            return false;
-        }
-
-        $roles = $this->roles ?? [];
-
-        foreach ($roles as $role) {
-            if (($role['name'] ?? null) !== $roleName) {
-                continue;
-            }
-
-            $storedScopeType = $role['scope_type'] ?? null;
-            $storedScopeId = ($role['scope_id'] ?? null) === null
-                ? null
-                : (string) $role['scope_id'];
-
-            if ($scopeType === null && $storedScopeType === null && $storedScopeId === null) {
-                return true;
-            }
-
-            if (
-                $scopeType !== null &&
-                $storedScopeType === $scopeType &&
-                $storedScopeId === $scopeId
-            ) {
-                return true;
-            }
-        }
-
-        return false;
+    public function getEffectiveRolesAttribute(): array
+    {
+        return $this->effectiveRoles();
     }
 }
