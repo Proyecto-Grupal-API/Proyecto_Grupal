@@ -6,7 +6,7 @@ Esta guía describe los contratos implementados por el Equipo 1 y sus límites p
 
 - Evidencia fechada de INT-1C.1B-R (28-09-2026): 368 tests, 2502 assertions, 0 failures; lint, build y comprobación de diff correctos. No es un conteo permanente.
 - Funcionalidad interna 1.1–1.9 cubierta; 1.3 incluye roles contextuales **internos**, no un contrato externo. QR de identificación y temporal, NFC y estado académico disponen de los contratos de consulta descritos abajo.
-- 1.10 **parcial**: validación NFC/QR y estado académico por OAuth implementados; consulta externa de roles/permisos pendiente de acuerdo interequipos. El transporte outbox local está implementado, pero su despliegue con Equipo 7 no está acordado ni probado.
+- 1.10 **parcial en publicación externa**: NFC/QR y estado académico por OAuth implementados; contratos business INT-1B.5 implementados localmente y pendientes de publicación. El transporte outbox local está implementado, pero su despliegue con Equipo 7 no está acordado ni probado.
 - Deuda separada de la funcionalidad QR: existen rutas de compatibilidad con códigos plaintext legacy y quedan decisiones operativas sobre `purpose` y elegibilidad. No afirmar que todos los códigos históricos fueron migrados. No hay fecha comprometida.
 
 | Requisito formal | Estado | Evidencia actual | Pendiente separado |
@@ -20,7 +20,7 @@ Esta guía describe los contratos implementados por el Equipo 1 y sus límites p
 | 1.7 Dispositivos y sesiones | CUMPLIDO | Dispositivos, sesiones, revocación, eventos y reautenticación | Operación de retención en despliegue |
 | 1.8 Condición estudiantil | CUMPLIDO | Perfil/historial y API OAuth `students:read` | Elegibilidad de beneficios pertenece al consumidor |
 | 1.9 Consentimientos y preferencias | CUMPLIDO | UI y API Sanctum, versiones/historial y outbox transaccional | No es una API OAuth interequipos |
-| 1.10 Servicio de identidad | PARCIAL | API OAuth académica, QR y NFC; outbox local | INT-1B pendiente de acuerdo y entrega externa a Equipo 7 pendiente |
+| 1.10 Servicio de identidad | PARCIAL | API OAuth académica, QR y NFC; business INT-1B.5 local; outbox local | Publicación business y entrega externa a Equipo 7 pendientes |
 
 ## Regla de identificadores
 
@@ -73,7 +73,41 @@ Esta consulta registra el resultado, el cliente autenticado y, cuando se encontr
 
 Catálogo **implementado**: `admin`, `maestro`, `estudiante`, `servicio_cafeteria`, `consejo_estudiantil`, `student_manager`. Este último permanece por compatibilidad; no se ha eliminado. `User::assignRole()`/`hasRole()` admiten asignación global (`scope_type=null`, `scope_id=null`) o contextual con ambos valores. `hasRole()` contextual exige coincidencia exacta de rol, tipo e ID: un rol global no satisface automáticamente una consulta contextual. Tipos válidos: `business`, `association`, `service`, `council`. **No existen contextos de rol `campus` ni `department`**. Las rutas administrativas actuales evalúan autorización en backend; la UI no es la autoridad.
 
-INT-1B está en **WAITING_FOR_INTERTEAM_CONTRACT**: falta acordar catálogo comercial/inventario, ownership, aprovisionamiento, revocación y la cadena de confianza entre actor humano, servicio OAuth y sujeto consultado. Los nombres candidatos de roles comerciales no están en `Role::VALID_ROLES`. No hay API OAuth pública `role-check` ni scope `identity:roles:check`. La representación `roles` embebida en `users` es interna; solicitar el contrato necesario, no copiar/escribir esa estructura. `client_credentials` autentica al servicio, no al actor humano. El consumidor no debe aceptar un `subject_id` arbitrario del navegador como prueba de identidad; sus Policies y reglas de negocio siguen siendo propias.
+Desde INT-1B.3, `RoleAssignment` es la autoridad; `User.roles` es histórico sin fallback. La administración legacy sigue limitada a seis roles. El motor business INT-1B.4 exige membership y asignación efectivas en el mismo negocio; `admin` global no evita ese requisito. Roles comerciales: `business_owner`, `business_manager`, `cashier`, `inventory_manager`, `buyer`. No existe alias `business_cashier` ni scope `identity:roles:check`.
+
+## Contratos business INT-1B.5 — IMPLEMENTED_NOT_YET_PUBLISHED
+
+Implementación **local**, no AVAILABLE_NOW. Referencia publicada sin cambios: `7a30c3f12722a4e2c6d4caef870f90309a11ae62`; no se ha realizado push. Las declaraciones históricas de disponibilidad en otras secciones no amplían este contrato.
+
+| Método | Ruta | Scope requerido | Restricción adicional |
+| --- | --- | --- | --- |
+| POST | `/api/v1/identity/authorization/check` | `identity:authorization:check` | Cliente activo con grant persistente vigente |
+| GET | `/api/v1/identity/assignments` | `identity:assignments:read` | Cliente activo con grant persistente vigente |
+| POST | `/api/v1/identity/business-owner/provision` | `identity:business-owner:provision` | Además, cliente Team 3 en `OAUTH2_BUSINESS_OWNER_CLIENTS` |
+
+Reutilizan `POST /api/oauth/token`, `client_credentials` y Bearer. Los tres scopes son independientes y requieren concesión explícita al cliente. La allowlist de provisioning está vacía por defecto: configurar IDs exactos verificados de Team 3 separados por comas. No conceder por nombre descriptivo del cliente. Cada ruta aplica 30 solicitudes/minuto. Sin token válido: 401; sin scope/grant/cliente permitido: 403; campos inválidos: 422; límite: 429. No registrar tokens ni secretos.
+
+**Trust model:** `subject_id` es el sujeto objetivo, **no** un actor humano autenticado. OAuth autentica al servicio. `X-User-ID`, `X-Actor-ID` y `X-Employee-ID` no conceden autoridad. El consumidor debe vincular confiablemente su sesión humana antes de aplicar una decisión. No hay endpoints OAuth genéricos para asignar/revocar roles.
+
+### Authorization check
+
+JSON: `{"subject_id":"{USER_ID}","capability":"business.manage","scope_type":"business","scope_id":"{BUSINESS_ID}"}`. Respuesta 200 exactamente `{"authorized":true}` o `{"authorized":false}`. Consulta sintácticamente válida con sujeto inexistente, falta de membership/grant, capability desconocida o contexto no soportado: misma decisión negativa, sin enumeración de identidad. Campos requeridos: strings sin espacios/control, máximo 100. Delega en `BusinessAuthorizationService`; no replica RBAC.
+
+### Assignment read
+
+Query: `subject_id={USER_ID}&scope_type=business&scope_id={BUSINESS_ID}`. Respuesta 200: `{"subject_id":"{USER_ID}","scope_type":"business","scope_id":"{BUSINESS_ID}","membership_status":"active","roles":[{"role_key":"cashier","status":"active","starts_at":null,"ends_at":null,"assigned_at":"2026-10-06T12:00:00+00:00"}]}`. Fechas ISO-8601 o null. `membership_status` es el último estado persistido: active/pending/suspended/revoked, o null si no existe. `roles` sólo incluye asignaciones efectivas actuales con vigencia de membership y rol y cuenta elegible. Membership active futura/expirada puede tener roles vacíos. No expone historial, IDs internos de registros, revisiones, fingerprints, nombres o emails. Sujeto inexistente o sin vínculo: estado null y roles vacíos. Contexto no-business: 422. Negocio A nunca devuelve B.
+
+### Initial Owner provisioning (sólo Team 3)
+
+JSON: `{"business_id":"{BUSINESS_ID}","subject_id":"{REQUESTER_USER_ID}","operation_id":"{STABLE_OPERATION_ID}"}`. Tras aprobación/creación del negocio, Team 3 determina al **solicitante original**, no al administrador aprobador, como Owner. E1 no mantiene el catálogo comercial: confía en ese cliente explícitamente autorizado para este workflow estrecho.
+
+201 al registrar una nueva operación; 200 para retry exacto. Ambos: `{"subject_id":"{REQUESTER_USER_ID}","business_id":"{BUSINESS_ID}","result":"provisioned"}`. Retry devuelve el resultado original, no reactiva ni garantiza efectividad tras una revocación posterior; consultar estado actual con read/check.
+
+`operation_id` es único globalmente. Recibo vinculado a cliente/sujeto/negocio: reutilización distinta devuelve 409. Mantenerlo estable tras errores de red. Reserva única por negocio impide dos propietarios iniciales concurrentes. Mismo Owner válido con otra operación registra recibo sin duplicar membership/rol/generaciones. Owner diferente o previo no efectivo, membership pending/suspended/revoked/futura/expirada: 409 sin reactivación ni transferencia. Sujeto inexistente/eliminado/no elegible: 422. Membership activa y Owner válido existentes se conservan.
+
+Reserva, membership, asignación y recibo se confirman en una **transacción MongoDB**; requiere replica set y migrations authorization más `2026_10_06_000100_create_business_owner_provision_indexes`. Schema de provisioning ausente/incompatible: 503 sin escrituras. La migration idempotente sólo crea índices únicos en dos colecciones nuevas, sin migrar datos legacy. El recibo audita cliente/sujeto/negocio/operación/resultado/fecha, sin credenciales OAuth, y no es autoridad. No hay eventos nuevos ni outbox. Ownership transfer deferred; administración interna continúa rechazando `business_owner`.
+
+Equipo 2 sigue `PENDING_CLARIFICATION`, sin capabilities Bonos. Permisos finos de inventario/ventas pertenecen a Equipo 4; las ocho capabilities E1 y trece mappings no conceden permisos comerciales adicionales.
 
 ## Consentimientos y preferencias
 
@@ -98,7 +132,7 @@ INT-1B está en **WAITING_FOR_INTERTEAM_CONTRACT**: falta acordar catálogo come
 | Consumidor | Contrato implementado por Equipo 1 | Estado / pendiente |
 | --- | --- | --- |
 | Equipo 2 | Estado académico OAuth; identificación QR/NFC cuando se presenta credencial | IMPLEMENTED para identidad; saldo, pago, recarga y retiro son decisiones de Equipo 2 |
-| Equipos 3/4 | Identidad QR/NFC y roles internos de Equipo 1 | WAITING AGREEMENT: no hay role-check externo ni catálogo comercial acordado |
+| Equipos 3/4 | Identidad QR/NFC; check/read business y Owner inicial restringido | Contratos business locales IMPLEMENTED_NOT_YET_PUBLISHED; ver INT-1B.5 |
 | Equipo 5 | Validación QR y NFC OAuth | IMPLEMENTED para identificación; acceso/beneficio es autorización de Equipo 5 |
 | Equipo 6 | Estado/historial académico OAuth y evento `student.profile.changed.v1` persistido | PARTIAL: consumo externo de eventos pendiente; cargos con vigencia/delegación son de Equipo 6 o requieren acuerdo |
 | Equipo 7 | Sobre versionado, outbox y publicador local probado con HTTP real | EXTERNAL DEPLOYMENT PENDING: URL, auth, 409, scheduler y prueba contra su sink |

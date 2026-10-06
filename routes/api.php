@@ -1,10 +1,19 @@
 <?php
 
-use App\Http\Controllers\Api\Identity\QrValidationController;
+use App\Http\Controllers\Api\Identity\BusinessAuthorizationController;
 use App\Http\Controllers\Api\Identity\NfcValidationController;
-use App\Http\Controllers\StudentServicesController;
+use App\Http\Controllers\Api\Identity\QrValidationController;
 use App\Http\Controllers\OAuthTokenController;
+use App\Http\Controllers\StudentServicesController;
+use App\Http\Middleware\AuthorizeIdentityService;
 use Illuminate\Support\Facades\Route;
+
+foreach (['authorization/check' => ['post', 'check', 'identity:authorization:check'],
+    'assignments' => ['get', 'assignments', 'identity:assignments:read'],
+    'business-owner/provision' => ['post', 'provision', 'identity:business-owner:provision']] as $path => [$method, $action, $scope]) {
+    Route::$method('/v1/identity/'.$path, [BusinessAuthorizationController::class, $action])
+        ->middleware(['oauth.service:'.$scope, AuthorizeIdentityService::class.':'.$scope, 'throttle:30,1']);
+}
 
 Route::post('/oauth/token', OAuthTokenController::class)->middleware('throttle:60,1');
 
