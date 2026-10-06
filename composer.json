@@ -53,7 +53,20 @@
             "@php artisan dev"
         ],
         "test": [
+            "Composer\\Config::disableProcessTimeout",
             "@php artisan config:clear --ansi @no_additional_args",
+            "@php artisan test"
+        ],
+        "test:fast": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan test --testsuite=Unit"
+        ],
+        "test:focused": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan test"
+        ],
+        "test:full": [
+            "Composer\\Config::disableProcessTimeout",
             "@php artisan test"
         ],
         "post-autoload-dump": [

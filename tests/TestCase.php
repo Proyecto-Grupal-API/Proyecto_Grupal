@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\ParallelTesting;
 use RuntimeException;
+use Tests\Support\MongoSchemaCache;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -16,7 +17,14 @@ abstract class TestCase extends BaseTestCase
         $this->assertSafeMongoTestTarget();
         ParallelTesting::callSetUpTestCaseCallbacks($this);
         $this->assertSafeMongoTestTarget();
-        DB::connection('mongodb')->getDatabase()->drop();
+        $database = DB::connection('mongodb')->getDatabase();
+        if (in_array('reusable-mongo-schema', $this->groups(), true)) {
+            MongoSchemaCache::reset($database, static::class);
+        } else {
+            // Migration/index tests and all non-opted-in classes retain physical isolation.
+            MongoSchemaCache::forget();
+            $database->drop();
+        }
 
         parent::setUp();
 

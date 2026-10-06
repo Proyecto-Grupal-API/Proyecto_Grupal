@@ -16,6 +16,18 @@ use Tests\TestCase;
 pest()->extend(TestCase::class)
     ->in('Feature');
 
+// These integration classes use the full schema but do not test migration/index creation.
+// Their existing migrate assertions remain; only immutable schema is reused within a class.
+pest()->group('reusable-mongo-schema')->in(
+    'Feature/AccountDeletionTest.php',
+    'Feature/InitialPasswordLifecycleTest.php',
+    'Feature/NfcCardLifecycleTest.php',
+    'Feature/NfcCardRegistrationTest.php',
+    'Feature/QrLegacySecretBackfillTest.php',
+    'Feature/StudentImportTest.php',
+    'Feature/StudentPhotoTest.php',
+);
+
 /*
 |--------------------------------------------------------------------------
 | Expectations
