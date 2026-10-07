@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\FinancialController;
+use App\Http\Controllers\Financial\FinancialReceiptController;
 use App\Http\Controllers\NfcCardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QrController;
@@ -30,6 +31,12 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
 
     Route::get('/finanzas', [FinancialController::class, 'index'])
         ->name('financial.dashboard');
+
+    Route::get('/finanzas/comprobantes', [FinancialReceiptController::class, 'index'])
+        ->name('financial.receipts.index');
+
+    Route::get('/finanzas/comprobantes/{transactionId}', [FinancialReceiptController::class, 'show'])
+        ->name('financial.receipts.show');
 
     Route::get('/student-services', [StudentServicesController::class, 'index'])
         ->name('student-services.index');

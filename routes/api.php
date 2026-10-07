@@ -6,6 +6,7 @@ use App\Http\Controllers\Financial\WalletController;
 use App\Http\Controllers\Financial\TopUpController;
 use App\Http\Controllers\Financial\WithdrawalController;
 use App\Http\Controllers\Financial\BonusController;
+use App\Http\Controllers\Financial\ReceiptController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -73,6 +74,11 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
             Route::get(
                 '/bonuses/{bonusId}',
                 [BonusController::class, 'show']
+            );
+
+            Route::get(
+                '/transactions/{transactionId}/receipt',
+                [ReceiptController::class, 'show']
             );
         });
 
