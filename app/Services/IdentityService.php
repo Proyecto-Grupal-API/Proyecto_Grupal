@@ -2,14 +2,17 @@
 
 namespace App\Services;
 
+use App\Enums\NfcCardStatus;
 use App\Models\Device;
+use App\Models\NfcCard;
 use App\Models\QrToken;
 use App\Models\QrValidation;
 use App\Models\SecurityEvent;
 use App\Models\User;
 use App\Models\UserSession;
-use App\Support\QrLookupHash;
 use App\Support\IssuedQrToken;
+use App\Support\NfcUid;
+use App\Support\QrLookupHash;
 use App\Support\QrSecretIntegrityException;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
@@ -30,6 +33,71 @@ use RuntimeException;
  */
 class IdentityService
 {
+    /** Resolve a presented NFC UID without changing the credential or its lifecycle. */
+    public function validateNfcUid(string $uid, ?string $validatorLabel, ?string $ip): array
+    {
+        $canonicalUid = NfcUid::normalize($uid);
+        $cards = NfcCard::where('uid', 'regex', NfcUid::legacyMatch($canonicalUid))
+            ->limit(2)
+            ->get();
+
+        if ($cards->count() !== 1) {
+            return $this->nfcValidationResult('not_found', null, null, $validatorLabel, $ip);
+        }
+
+        $card = $cards->first();
+        $status = NfcCardStatus::tryFrom((string) $card->status);
+
+        if ($status !== NfcCardStatus::Active) {
+            return $this->nfcValidationResult(
+                $status?->value ?? 'revoked',
+                $status?->value,
+                null,
+                $validatorLabel,
+                $ip,
+                (string) $card->getKey(),
+            );
+        }
+
+        // Normal User queries exclude soft-deleted owners. An orphaned card
+        // cannot become a successful identity lookup.
+        $owner = User::whereKey((string) $card->user_id)->first();
+        $owner?->load('studentProfile.campus', 'studentProfile.academicProgram');
+
+        if ($owner?->studentProfile === null) {
+            return $this->nfcValidationResult('revoked', null, null, $validatorLabel, $ip, (string) $card->getKey());
+        }
+
+        return $this->nfcValidationResult('valid', NfcCardStatus::Active->value, $owner, $validatorLabel, $ip, (string) $card->getKey());
+    }
+
+    private function nfcValidationResult(
+        string $result,
+        ?string $status,
+        ?User $owner,
+        ?string $validatorLabel,
+        ?string $ip,
+        ?string $credentialId = null,
+    ): array {
+        $valid = $result === 'valid';
+
+        SecurityEvent::log([
+            'user_id' => $owner ? (string) $owner->getKey() : null,
+            'type' => $valid ? 'nfc_validated' : 'nfc_validation_failed',
+            'severity' => $valid ? 'info' : 'warning',
+            'ip_address' => $ip,
+            'metadata' => ['result' => $result, 'validator_label' => $validatorLabel, 'credential_id' => $credentialId],
+        ]);
+
+        return [
+            'ok' => $valid,
+            'result' => $result,
+            'credential' => $status ? ['status' => $status] : null,
+            'student_id' => $owner ? (string) $owner->getKey() : null,
+            'identity' => $owner?->displayIdentity(),
+        ];
+    }
+
     /**
      * ---------------------------------------------------------------
      * Modulo 1.6 - Identidad QR
@@ -43,6 +111,7 @@ class IdentityService
      */
     public function issueDynamicQrToken(User $user, ?string $purpose = null): IssuedQrToken
     {
+        $this->assertActiveOwner($user);
         $ttl = (int) env('QR_IDENTITY_TTL_SECONDS', 30);
         $code = QrToken::generateCode();
         $codeHash = QrLookupHash::code($code);
@@ -108,6 +177,7 @@ class IdentityService
      */
     public function issueIdentificationQrToken(User $user): IssuedQrToken
     {
+        $this->assertActiveOwner($user);
         $existing = QrToken::where('user_id', (string) $user->_id)
             ->where('type', 'identification')
             ->whereNull('revoked_at')
@@ -268,7 +338,6 @@ class IdentityService
      * El consumo del token dinamico es atomico (update condicionado)
      * para que dos validaciones casi simultaneas del mismo QR no
      * puedan resolver ambas como "valid".
-     *
      */
     public function validateQrCode(
         string $input,
@@ -300,6 +369,16 @@ class IdentityService
             default => 'valid',
         };
 
+        // A token can outlive a hard-deleted legacy owner or an account
+        // closed through soft deletion. Never consume it or report success.
+        $owner = null;
+        if ($result === 'valid') {
+            $owner = $token->user;
+            if ($owner === null) {
+                $result = 'revoked';
+            }
+        }
+
         // Consumo atomico: solo el primer request que llega a marcar
         // consumed_at "gana"; si otro ya lo hizo entre el match() de
         // arriba y este update, aqui se detecta y se corrige el
@@ -321,11 +400,18 @@ class IdentityService
             return [
                 'ok' => true,
                 'result' => 'valid',
-                'identity' => $token->user->displayIdentity(),
+                'identity' => $owner->displayIdentity(),
             ];
         }
 
         return ['ok' => false, 'result' => $result, 'identity' => null];
+    }
+
+    private function assertActiveOwner(User $user): void
+    {
+        if ($user->trashed() || ! User::whereKey($user->getKey())->exists()) {
+            throw new RuntimeException('La cuenta no está activa para emitir credenciales QR.');
+        }
     }
 
     private function resolveCode(string $code): ?QrToken
@@ -339,6 +425,7 @@ class IdentityService
             if ($candidates->count() > 1) {
                 Log::warning('Ambiguous QR code representation', ['candidate_count' => $candidates->count()]);
             }
+
             return null;
         }
 
@@ -353,6 +440,7 @@ class IdentityService
             ($token->type === 'identification' && $storedHash !== null && $encrypted === null && $storedCode === null) ||
             ($token->type === 'identification' && $encrypted !== null && ! $this->encryptedCodeMatches($encrypted, $code))) {
             $this->recordSecretAnomaly($token, 'lookup_integrity');
+
             return null;
         }
 
@@ -390,8 +478,10 @@ class IdentityService
             $candidate = $usable->first();
             if (! $this->shortCodeMatches($candidate, $shortCode, $shortCodeHash)) {
                 $this->recordSecretAnomaly($candidate, 'short_lookup_integrity');
+
                 return [null, 'not_found'];
             }
+
             return [$candidate, null];
         }
 
@@ -406,8 +496,10 @@ class IdentityService
             $candidate = $historical->first();
             if (! $this->shortCodeMatches($candidate, $shortCode, $shortCodeHash)) {
                 $this->recordSecretAnomaly($candidate, 'short_lookup_integrity');
+
                 return [null, 'not_found'];
             }
+
             return [$candidate, null];
         }
 

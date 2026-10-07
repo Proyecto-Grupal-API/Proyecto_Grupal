@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Users\DeleteUserAccount;
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\User;
 use App\Services\ResponsabilidadesComunidad;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -18,6 +20,7 @@ class ProfileController extends Controller
     {
         return Inertia::render('Profile/Authentication', [
             'twoFactorEnabled' => ! is_null($request->user()->two_factor_confirmed_at),
+            'twoFactorRequired' => $request->user()->requiresTwoFactorAuthentication(),
             'twoFactorConfigurationPending' => ! is_null($request->user()->two_factor_secret) && is_null($request->user()->two_factor_confirmed_at),
         ]);
     }
@@ -31,7 +34,9 @@ class ProfileController extends Controller
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
             'twoFactorEnabled' => ! is_null($request->user()->two_factor_confirmed_at),
-            'twoFactorConfigurationPending' => ! is_null($request->user()->two_factor_secret) && is_null($request->user()->two_factor_confirmed_at),
+            'twoFactorRequired' => $request->user()->requiresTwoFactorAuthentication(),
+            'twoFactorConfigurationPending' => ! is_null($request->user()->two_factor_secret)
+                && is_null($request->user()->two_factor_confirmed_at),
         ]);
     }
 
@@ -54,7 +59,7 @@ class ProfileController extends Controller
     /**
      * Delete the user's account.
      */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request, DeleteUserAccount $deleteAccount): RedirectResponse
     {
         $request->validate([
             'password' => ['required', 'current_password'],
@@ -62,7 +67,12 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
-        app(ResponsabilidadesComunidad::class)->eliminarCuenta($user, fn () => Auth::logout());
+        app(ResponsabilidadesComunidad::class)->eliminarCuenta($user, fn () => $deleteAccount->execute($user));
+
+        Auth::logout();
+        // SessionGuard rotates remember_token during logout. Clear that
+        // post-logout value too; a closed account must retain no remember key.
+        User::withTrashed()->whereKey($user->getKey())->update(['remember_token' => null]);
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

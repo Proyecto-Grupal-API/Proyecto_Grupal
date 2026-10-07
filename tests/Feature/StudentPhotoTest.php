@@ -16,6 +16,7 @@ beforeEach(function () {
     Storage::fake('public');
     $this->photoAdmin = User::factory()->create();
     $this->photoAdmin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($this->photoAdmin);
     $this->photoCampus = Campus::create(['code' => 'CEN', 'name' => 'Central', 'is_active' => true]);
     $this->photoProgram = AcademicProgram::create([
         'campus_id' => (string) $this->photoCampus->getKey(),

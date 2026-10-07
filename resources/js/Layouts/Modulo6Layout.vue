@@ -61,13 +61,14 @@ const modulos = [
 const enlaces = computed(() =>
     esPerfil.value
         ? [
+              { nombre: "Inicio", icono: "🏠", href: "/dashboard", activo: currentUrl.value === "/dashboard" },
               { nombre: "Perfil", icono: "👤", href: "/profile", activo: currentUrl.value === "/profile" },
               { nombre: "Autenticación", icono: "🔐", href: "/profile/authentication" },
-              { nombre: "Mi condición", icono: "🎓", href: "/student-services" },
+              ...(page.props.auth.hasStudentProfile ? [{ nombre: "Mi condición", icono: "🎓", href: "/student-services" }] : []),
               { nombre: "Identidad QR", icono: "📱", href: "/identidad/qr" },
               { nombre: "Dispositivos y sesiones", icono: "💻", href: "/seguridad/dispositivos" },
               { nombre: "Tarjetas NFC", icono: "💳", href: "/nfc-cards" },
-              ...(page.props.auth.user?.roles?.some(r => ['admin', 'maestro', 'student_manager'].includes(r.name) && !r.scope_type) ? [{ nombre: "Estudiantes", icono: "👥", href: "/students" }] : []),
+              ...(page.props.auth.user?.effective_roles?.some(r => ['admin', 'maestro', 'student_manager'].includes(r.name) && !r.scope_type) ? [{ nombre: "Estudiantes", icono: "👥", href: "/students" }] : []),
               { nombre: "Roles y permisos", icono: "🛡️", href: "/roles" },
           ]
         : [
@@ -258,7 +259,7 @@ const eliminarLeidas = async () => {
             @keydown="tecladoMenu"
         >
             <Link
-                href="/modulo6"
+                :href="route('dashboard')"
                 class="campus-brand-link"
                 aria-label="Campus Digital · Inicio"
                 ><CampusBrand

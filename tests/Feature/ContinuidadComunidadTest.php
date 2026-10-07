@@ -58,7 +58,8 @@ class ContinuidadComunidadTest extends TestCase
         $staff = StaffEvento::create(['organizacion_id' => (string) $this->org->id, 'usuario_id' => (string) $this->estudiante->id, 'evento_id' => 'evento-prueba']);
         $this->actingAs($this->estudiante)->delete('/profile', ['password' => 'CampusDemo2026!'])->assertRedirect('/')->assertSessionHasNoErrors();
         $this->assertGuest();
-        $this->assertNull($this->estudiante->fresh());
+        $this->assertNull(User::find($this->estudiante->id));
+        $this->assertTrue(User::withTrashed()->findOrFail($this->estudiante->id)->trashed());
         $this->assertFalse(MiembroOrganizacion::activos()->where('usuario_id', (string) $this->estudiante->id)->exists());
         $this->assertSame(2, MiembroOrganizacion::where('usuario_id', (string) $this->estudiante->id)->count());
         $this->assertNotNull($rol->fresh()->eliminado_en);

@@ -73,6 +73,7 @@ test('a guest cannot hit the role assignment endpoint', function () {
 test('an admin can assign a valid role to another user', function () {
     $admin = User::factory()->create();
     $admin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($admin);
 
     $target = User::factory()->create();
 
@@ -88,6 +89,7 @@ test('an admin can assign a valid role to another user', function () {
 test('an arbitrary role name outside the catalog is rejected even for an admin', function () {
     $admin = User::factory()->create();
     $admin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($admin);
 
     $response = $this->actingAs($admin)->post('/roles/assign', [
         'role_name' => 'super-root',
@@ -124,6 +126,7 @@ test('User::assignRole rejects an empty contextual scope id', function () {
 test('an admin can assign a council contextual role', function () {
     $admin = User::factory()->create();
     $admin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($admin);
     $target = User::factory()->create();
 
     $this->actingAs($admin)->post('/roles/assign', [
@@ -139,6 +142,7 @@ test('an admin can assign a council contextual role', function () {
 test('the role assignment endpoint rejects an incomplete context', function (array $payload, string $field) {
     $admin = User::factory()->create();
     $admin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($admin);
 
     $this->actingAs($admin)->postJson('/roles/assign', [
         'role_name' => Role::ESTUDIANTE,
@@ -152,6 +156,7 @@ test('the role assignment endpoint rejects an incomplete context', function (arr
 test('a request scope id does not alter a global middleware role check', function () {
     $admin = User::factory()->create();
     $admin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($admin);
 
     $this->actingAs($admin)->postJson('/roles/assign', [
         'role_name' => Role::ESTUDIANTE,

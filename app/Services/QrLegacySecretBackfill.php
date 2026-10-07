@@ -132,6 +132,7 @@ class QrLegacySecretBackfill
             if ($this->isActive($document) && $document['short_code_claimed'] !== true) {
                 return $this->result('CONFLICT', reason: 'active_unclaimed_short_code');
             }
+
             return $this->result('NEW_SECURE');
         }
 
@@ -202,6 +203,7 @@ class QrLegacySecretBackfill
             if ($codeHash === null || $encrypted === null) {
                 return $this->result('INCOMPLETE', reason: 'missing_identification_representation');
             }
+
             return $this->result('NEW_SECURE');
         }
 
@@ -229,6 +231,7 @@ class QrLegacySecretBackfill
     private function isActive(array $document): bool
     {
         $expires = $document['expires_at'] ?? null;
+
         return ($document['consumed_at'] ?? null) === null
             && ($document['revoked_at'] ?? null) === null
             && $expires instanceof UTCDateTime

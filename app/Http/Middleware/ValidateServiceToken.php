@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\ServiceClient;
 use App\Services\OAuthTokenService;
 use Closure;
 use Illuminate\Http\Request;
@@ -31,17 +30,6 @@ class ValidateServiceToken
         }
         if ($requiredScope && ! in_array($requiredScope, preg_split('/\s+/', trim((string) ($claims->scope ?? '')), -1, PREG_SPLIT_NO_EMPTY), true)) {
             abort(403, 'The service token does not have the required scope.');
-        }
-
-        $clientId = $claims->sub ?? null;
-        $client = is_string($clientId) ? ServiceClient::where('client_id', $clientId)->where('active', true)->first() : null;
-        if (! $client) {
-            throw new UnauthorizedHttpException('Bearer', 'The service client is unavailable or inactive.');
-        }
-        $allowedScopes = $client->scopes ?? [];
-        $allowedScopes = is_array($allowedScopes) ? $allowedScopes : iterator_to_array($allowedScopes);
-        if ($requiredScope && ! in_array($requiredScope, $allowedScopes, true)) {
-            abort(403, 'The service client no longer has the required scope.');
         }
 
         $request->attributes->set('oauth_client_id', $claims->sub ?? null);

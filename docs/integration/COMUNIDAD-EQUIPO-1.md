@@ -1,7 +1,7 @@
 # Integración local de Identidad y Comunidad
 
 Base Comunidad: `055af14005837f73327691df4f13ca0a592fabda`.
-Equipo 1: `7a30c3f`, rama `feat/modulo-1-equipo-1`.
+Equipo 1: `f41c78066cb8e6dde2a1605233e832395cb20841` (entrega descargada el 7 de octubre de 2026), rama `feat/modulo-1-equipo-1`.
 Rama de trabajo: `integracion/equipo1-comunidad`.
 
 ## Entorno independiente
@@ -77,7 +77,7 @@ En esta copia `IDENTIDAD_API_URL=http://app`, dentro de la red Docker. PHP sirve
 5. Crear cliente con `php artisan oauth:client comunidad --scope=students:read` y guardar las credenciales únicamente en `.env`.
 6. Ejecutar `npm ci --ignore-scripts` y `npm run build`; arrancar app y worker con el compose de integración.
 
-Las pruebas usan únicamente `campus_digital_testing` en el MongoDB aislado; el fixture rechaza otro nombre antes de borrar. No ejecutar varias suites simultáneamente contra esa misma base.
+Las pruebas usan únicamente `campus_virtual_testing` en el MongoDB aislado; el fixture rechaza otro nombre antes de borrar. No ejecutar varias suites simultáneamente contra esa misma base.
 
 ## Validación realizada
 
@@ -93,13 +93,13 @@ Registros locales (ignorados por Git): `storage/logs/integracion-tests.log` y `s
 
 ## Apariencia del login
 
-Solo el login usa la vista, el logotipo y la tipografía del equipo 1. Su presentación está aislada en `LoginLayout.vue`; las demás pantallas mantienen el diseño integrado anterior. Después del login se abre Comunidad como antes. El backend de autenticación del equipo 1 se conserva.
+Solo el login usa la vista, el logotipo y la tipografía del equipo 1. Su presentación está aislada en `LoginLayout.vue`; las demás pantallas mantienen el diseño integrado anterior. El inicio final es `/dashboard` del Equipo 1, con acceso a Comunidad. El backend de autenticación del equipo 1 se conserva.
 
 Validado con compilación Vite y navegación en navegador: login del equipo 1 en escritorio/móvil, recuperación con el diseño previo, redirección a Comunidad y perfil, condición académica, QR, dispositivos y NFC con el diseño integrado anterior. Sin errores JavaScript.
 
 ## Entrada y cierre de sesión
 
-La página principal `/` redirige al login cuando no hay sesión y a Comunidad cuando hay sesión. Cerrar sesión redirige directamente al login del equipo 1; se retiró la página de bienvenida de Laravel. Comprobado en navegador con el botón de cierre de sesión y el bloqueo posterior de vistas privadas; 9 pruebas de autenticación/entrada aprobadas y compilación Vite correcta.
+La página principal `/` redirige al login cuando no hay sesión y a Comunidad cuando hay sesión. Cerrar sesión conserva la respuesta a `/` del Equipo 1; la entrada redirige al login y se retiró la página de bienvenida de Laravel. Comprobado en navegador con el botón de cierre de sesión y el bloqueo posterior de vistas privadas; 9 pruebas de autenticación/entrada aprobadas y compilación Vite correcta.
 
 ## Autenticación y administración de sesiones
 
@@ -111,4 +111,41 @@ Validación de esta corrección: **38 pruebas aprobadas, 289 aserciones**, compi
 
 ## Primer contrato de Comunidad para Equipo 7
 
-Se implementó `GET /api/v1/organizations/{organizationId}/summary`, protegido por OAuth y `community:organizations:read`. Devuelve el estado real de asociaciones y Consejo sin miembros ni datos privados. Contrato, configuración y pendientes de notificaciones/auditoría en [API_Integracion_Equipo_7.md](../API_Integracion_Equipo_7.md). La validación de servicios verifica también que el cliente siga activo y conserve el permiso solicitado.
+Se implementó `GET /api/v1/organizations/{organizationId}/summary`, protegido por OAuth y `community:organizations:read`. Devuelve el estado real de asociaciones y Consejo sin miembros ni datos privados. Contrato, configuración y pendientes de notificaciones/auditoría en [API_Integracion_Equipo_7.md](../API_Integracion_Equipo_7.md). La validación exclusiva del resumen de Comunidad verifica también que el cliente siga activo y conserve el permiso solicitado.
+
+
+## Adaptación a la entrega final del Equipo 1 — 7 octubre 2026
+
+Se incorporó la rama `feat/modulo-1-equipo-1` en `f41c78066cb8e6dde2a1605233e832395cb20841`, partiendo del avance local de Comunidad `9cff2dd`. El Equipo 1 es la referencia para identidad/autorización; los contratos y las reglas de su entrega prevalecen. Se conservaron los flujos propios de Comunidad y la apariencia integrada acordada, con el login del Equipo 1. El inicio es su `Dashboard`, al que se añadió el acceso a Comunidad.
+
+- Roles: `RoleAssignment` es la autoridad, `User.roles` es histórico y no se usa para el menú. Las vistas consumen `effective_roles`; revocación/vigencia se resuelven en Identidad. El seeder integrado usa su escritor oficial de asignaciones.
+- Sesiones revocadas: se conserva la redirección a login del middleware final del Equipo 1, también en solicitudes AJAX. El heartbeat de la interfaz detecta la respuesta de login y vuelve a la pantalla de acceso.
+- La contraseña inicial obligatoria y el 2FA requerido por la política de Identidad se aplican también a rutas y APIs de sesión de Comunidad. No se excluyen cuentas administrativas para facilitar la demo: `identidad@campus.test` debe configurar 2FA al entrar si no lo tiene confirmado.
+- Cierre de cuenta: Identidad ejecuta su baja lógica, invalida credenciales y sesiones y conserva auditoría. Comunidad retira sus memberships/cargos/Staff dentro de la misma transacción. Una presidencia sin transferir sigue bloqueando el cierre; un fallo revierte ambas partes.
+- NFC: se incorporó el reemplazo enlazado y su validación OAuth según el contrato del Equipo 1. El boleto de evento sigue siendo un recurso propio de Comunidad.
+- OAuth: no se cambió la semántica del middleware del Equipo 1. El resumen de organizaciones para Equipo 7 valida el cliente y sus grants vigentes mediante un middleware exclusivo de Comunidad.
+- La base de pruebas adoptó el nombre `campus_virtual_testing` exigido por los guards del Equipo 1, dentro del MongoDB **del contenedor alterno**. No se toca la base principal ni se reutiliza la base real de integración para pruebas.
+
+### Límites que siguen abiertos
+
+Esta unión no implica que todas las dependencias entre módulos estén finalizadas. El Equipo 1 no publica un directorio por matrícula ni una API de permisos institucionales en este snapshot. Sus contratos business no sirven como sustituto. No se añadieron endpoints en Identidad, catálogos duplicados ni asignaciones institucionales inventadas.
+
+El adaptador `AutoridadOrganizaciones` y `PermisoGestionOrganizaciones` siguen siendo una solución **provisional de la demo heredada**, no una integración con `organization_manager(campus)`. Las búsquedas heredadas de Comunidad por `users.matricula` y las lecturas locales de nombres/existencia de usuarios **siguen pendientes de reemplazo**: no cumplen todavía la regla de consumir identidad exclusivamente por API y no deben presentarse como integración definitiva. La consulta de condición académica sí usa HTTP/OAuth y mantiene `User._id` como identificador externo.
+
+No convertir nombres de campus/programa de la API en IDs de ámbito. El vínculo organización↔campus/programa, los IDs canónicos disponibles por API, la autoridad otorgante y el catálogo de departamento siguen siendo dependencias. El jefe de departamento no debe recibir permisos positivos mientras su fuente canónica esté sin resolver. Los cargos internos de Comunidad no se materializan como roles de Identidad.
+
+Detalle de dependencias: [Dependencias_Equipo_1_Final.md](Dependencias_Equipo_1_Final.md).
+
+Antes de las migraciones se generó un respaldo privado de la base alterna en `storage/backups/antes-equipo1-final-20261007.archive.gz`; esa carpeta está excluida de Git. Referencia del código anterior: `respaldo/integracion-e1-antes-final-20261007`.
+
+
+### Validación de la adaptación final
+
+- Primera revisión específica: 79 pruebas aprobadas, 637 aserciones (API de organizaciones, OAuth, perfil, baja de cuenta, autorización institucional y consumo académico).
+- Suite completa de ambos módulos: 914 casos revisados; 890 aprobaron inicialmente y 24 detectaron diferencias de integración. Se corrigieron la entrada al dashboard del Equipo 1, la respuesta de logout y la expectativa heredada de borrado físico. Los casos de sesión que antes fallaban en la entrada al dashboard también revelaron nuestra respuesta JSON anterior de revocación; se restauró la redirección oficial del Equipo 1.
+- Verificación posterior de todas las clases afectadas más las nuevas pruebas de integración: **107 pruebas aprobadas, 764 aserciones, cero fallos**. No es una segunda ejecución de toda la suite: el resto de los casos ya había aprobado. Logs: `storage/logs/e1-final-suite.log` y `storage/logs/e1-final-recheck.log`.
+- Las seis pruebas nuevas verifican que 2FA y contraseña inicial bloqueen Comunidad, que el menú use roles efectivos, que un rol de Identidad no cree membership/presidencia, que la vigencia se respete y que un fallo revierta la baja de Identidad y Comunidad en una transacción.
+- Compilación Vite de producción correcta; `composer validate` y comprobación de diff correctas.
+- Edge: login → dashboard final → Comunidad; consulta académica real HTTP/OAuth 200 con matrícula de StudentProfile y elegibilidad nula; vistas de eventos/becas/comunicación/transparencia, Autenticación, Roles y NFC; una sola navegación, móvil sin desbordamiento, logout → login y administración sin 2FA bloqueada (vista redirigida/API 423). Sin errores JavaScript ni respuestas 5xx. Cuentas temporales eliminadas al terminar. Log: `storage/logs/e1-final-browser.log`.
+
+El avance permanece local en la rama de integración; no se publicó ni se modificaron ramas remotas en este trabajo.

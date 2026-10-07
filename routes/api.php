@@ -1,16 +1,27 @@
 <?php
 
 use App\Http\Controllers\Api\Community\OrganizationSummaryController;
+use App\Http\Controllers\Api\Identity\BusinessAuthorizationController;
+use App\Http\Controllers\Api\Identity\NfcValidationController;
 use App\Http\Controllers\Api\Identity\QrValidationController;
-use App\Http\Controllers\StudentServicesController;
 use App\Http\Controllers\OAuthTokenController;
+use App\Http\Controllers\StudentServicesController;
+use App\Http\Middleware\AuthorizeCommunityService;
+use App\Http\Middleware\AuthorizeIdentityService;
 use Illuminate\Support\Facades\Route;
+
+foreach (['authorization/check' => ['post', 'check', 'identity:authorization:check'],
+    'assignments' => ['get', 'assignments', 'identity:assignments:read'],
+    'business-owner/provision' => ['post', 'provision', 'identity:business-owner:provision']] as $path => [$method, $action, $scope]) {
+    Route::$method('/v1/identity/'.$path, [BusinessAuthorizationController::class, $action])
+        ->middleware(['oauth.service:'.$scope, AuthorizeIdentityService::class.':'.$scope, 'throttle:30,1']);
+}
 
 Route::post('/oauth/token', OAuthTokenController::class)->middleware('throttle:60,1');
 
 Route::get('/v1/organizations/{organizationId}/summary', OrganizationSummaryController::class)
     ->where('organizationId', '[a-fA-F0-9]{24}')
-    ->middleware(['oauth.service:community:organizations:read', 'throttle:120,1,community-organizations-summary:'])
+    ->middleware(['oauth.service:community:organizations:read', AuthorizeCommunityService::class.':community:organizations:read', 'throttle:120,1,community-organizations-summary:'])
     ->name('api.community.organizations.summary');
 
 Route::prefix('v1')->middleware('oauth.service:students:read')->group(function () {
@@ -21,7 +32,10 @@ Route::prefix('v1')->middleware('oauth.service:students:read')->group(function (
 Route::post('/v1/identity/qr-validate', QrValidationController::class)
     ->middleware(['oauth.service:identity:qr:validate', 'throttle:30,1']);
 
-Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
+Route::post('/v1/identity/nfc-validate', NfcValidationController::class)
+    ->middleware(['oauth.service:identity:nfc:validate', 'throttle:30,1']);
+
+Route::prefix('v1')->middleware(['auth:sanctum', 'initial.password'])->group(function () {
     Route::get('/students/{studentId}/consents', [StudentServicesController::class, 'consents']);
     Route::post('/students/{studentId}/consents', [StudentServicesController::class, 'acceptConsent']);
     Route::delete('/students/{studentId}/consents/{consentId}', [StudentServicesController::class, 'revokeConsent']);

@@ -43,6 +43,7 @@ function studentManagementData(array $overrides = []): array
 it('creates an administrative student with normalized identifiers, initial history, and one global student role', function () {
     $admin = User::factory()->create();
     $admin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($admin);
 
     $this->actingAs($admin)->post('/students', studentManagementData())
         ->assertSessionHasNoErrors()
@@ -53,6 +54,7 @@ it('creates an administrative student with normalized identifiers, initial histo
     $history = AcademicStatusHistory::where('student_profile_id', (string) $profile->getKey())->firstOrFail();
 
     expect($student->account_activation_pending)->toBeTrue()
+        ->and($student->must_change_password)->toBeFalse()
         ->and($student->password)->toBeNull()
         ->and($profile->enrollment_number)->toBe('ABC-123')
         ->and($profile->personal_email)->toBe('personal@example.com')
@@ -63,8 +65,7 @@ it('creates an administrative student with normalized identifiers, initial histo
         ->and($history->changed_at)->not->toBeNull()
         ->and($student->fresh()->hasRole(Role::ESTUDIANTE))->toBeTrue();
 
-    $studentRoles = array_values(array_filter($student->fresh()->roles, fn (array $role) =>
-        $role['name'] === Role::ESTUDIANTE
+    $studentRoles = array_values(array_filter($student->fresh()->effectiveRoles(), fn (array $role) => $role['name'] === Role::ESTUDIANTE
         && ($role['scope_type'] ?? null) === null
         && ($role['scope_id'] ?? null) === null
     ));
@@ -96,7 +97,7 @@ it('rolls back a newly created user when the profile violates a unique enrollmen
     $failed = false;
     try {
         app(UpsertStudentProfile::class)->execute(studentManagementData());
-    } catch (\Throwable) {
+    } catch (Throwable) {
         $failed = true;
     }
 
@@ -141,6 +142,7 @@ it('creates the critical unique indexes through migrations without seeding', fun
 it('requires the selected contact detail when editing a student', function (string $channel, string $field, string $value, bool $valid) {
     $manager = User::factory()->create();
     $manager->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($manager);
     $data = studentManagementData();
     $student = app(UpsertStudentProfile::class)->execute($data, null, $manager);
     $original = $student->studentProfile->fresh();
@@ -191,6 +193,7 @@ it('allows each student management role through the administrative HTTP routes',
     $target = app(UpsertStudentProfile::class)->execute($data);
     $manager = User::factory()->create();
     $manager->assignRole($role);
+    withConfirmedTestTwoFactor($manager);
 
     $this->actingAs($manager)->get('/students')->assertOk();
     $this->actingAs($manager)->get('/students/create')->assertOk();

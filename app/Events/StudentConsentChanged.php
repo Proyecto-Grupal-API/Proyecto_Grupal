@@ -23,9 +23,21 @@ class StudentConsentChanged implements DomainEvent
         $this->id = (string) Str::uuid();
     }
 
-    public function eventId(): string { return $this->id; }
-    public function eventName(): string { return 'student.consent.changed.v1'; }
-    public function aggregateId(): string { return $this->studentId; }
+    public function eventId(): string
+    {
+        return $this->id;
+    }
+
+    public function eventName(): string
+    {
+        return 'student.consent.changed.v1';
+    }
+
+    public function aggregateId(): string
+    {
+        return $this->studentId;
+    }
+
     public function payload(): array
     {
         return [

@@ -76,11 +76,11 @@ class SecuritySessionFlowTest extends TestCase
         $this->assertNull($other->fresh()->revoked_at);
     }
 
-    public function test_remote_revocation_returns_401_to_ajax_requests(): void
+    public function test_remote_revocation_redirects_ajax_requests_to_login(): void
     {
         $this->signIn();
         UserSession::find(session('cd_session_id'))->update(['revoked_at' => now()]);
-        $this->getJson('/seguridad/latido')->assertUnauthorized()->assertJsonPath('redirect', route('login'));
+        $this->getJson('/seguridad/latido')->assertRedirect(route('login'));
         $this->assertGuest();
     }
 

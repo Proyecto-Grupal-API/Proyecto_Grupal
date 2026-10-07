@@ -44,7 +44,7 @@ const closeModal = () => {
             <h2 class="text-lg font-medium text-gray-900">Eliminar cuenta</h2>
 
             <p class="mt-1 text-sm text-gray-600">
-                Se retirará tu acceso y tus responsabilidades activas. Si tienes
+                Se cerrará tu cuenta, se invalidarán tus credenciales QR y NFC y se retirarán tus responsabilidades activas. Si tienes
                 una presidencia asignada, primero debes transferirla. El
                 historial de operaciones se conserva.
             </p>
@@ -61,7 +61,7 @@ const closeModal = () => {
                 </h2>
 
                 <p class="mt-1 text-sm text-gray-600">
-                    Esta acción elimina tu cuenta y retira tu acceso. Introduce
+                    Esta acción cierra tu cuenta e invalida tus credenciales QR y NFC. Introduce
                     tu contraseña para confirmar. El historial de operaciones se
                     conserva.
                 </p>

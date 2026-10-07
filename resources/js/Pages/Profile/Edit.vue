@@ -8,6 +8,7 @@ import { Head } from "@inertiajs/vue3";
 
 defineProps({
     twoFactorEnabled: Boolean,
+    twoFactorRequired: Boolean,
     twoFactorConfigurationPending: Boolean,
     mustVerifyEmail: {
         type: Boolean,
@@ -70,7 +71,7 @@ defineProps({
                     </div>
 
                     <div class="campus-profile-card">
-                        <TwoFactorAuthenticationForm :initially-enabled="twoFactorEnabled" :initially-pending="twoFactorConfigurationPending" />
+                        <TwoFactorAuthenticationForm :initially-enabled="twoFactorEnabled" :initially-pending="twoFactorConfigurationPending" :required="twoFactorRequired" />
                     </div>
                     <div class="campus-profile-card">
                         <DeleteUserForm class="max-w-xl" />

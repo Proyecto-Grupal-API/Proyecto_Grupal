@@ -5,6 +5,8 @@ namespace App\Actions\Nfc;
 use App\Enums\NfcCardStatus;
 use App\Events\CredentialChanged;
 use App\Models\NfcCard;
+use App\Models\StudentProfile;
+use App\Models\User;
 use App\Support\ExecutesMongoAtomically;
 use Illuminate\Validation\ValidationException;
 
@@ -21,6 +23,11 @@ class ChangeNfcCardStatus
         }
 
         $this->mongoTransaction(function () use ($card, $previous, $target, $reason, $actorId, $lost): void {
+            if (! User::whereKey((string) $card->user_id)->exists()
+                || ! StudentProfile::where('user_id', (string) $card->user_id)->exists()) {
+                throw ValidationException::withMessages(['status' => 'La tarjeta no tiene un propietario estudiantil activo.']);
+            }
+
             $updated = NfcCard::query()
                 ->whereKey($card->getKey())
                 ->where('status', $previous->value)

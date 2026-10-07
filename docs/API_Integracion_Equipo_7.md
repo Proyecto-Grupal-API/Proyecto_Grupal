@@ -85,7 +85,7 @@ Content-Type: application/json
 
 Se usa `access_token` de la respuesta como Bearer al consultar el resumen. Deben respetarse `expires_in` y los errores del emisor. La configuración OAuth se mantiene bajo el mecanismo de Identidad ya integrado.
 
-La validación de servicios comprueba tanto el permiso del token como que el cliente siga activo y conserve el permiso requerido. Desactivar o borrar al cliente invalida su acceso con tokens anteriores; retirar el scope requerido devuelve 403. Esta comprobación también se aplica a los demás endpoints que utilizan `oauth.service`.
+La validación de servicios comprueba tanto el permiso del token como que el cliente siga activo y conserve el permiso requerido. Desactivar o borrar al cliente invalida su acceso con tokens anteriores; retirar el scope requerido devuelve 403. Desde la adaptación al snapshot final del Equipo 1 del 7 de octubre, esta comprobación se aplica al resumen mediante `AuthorizeCommunityService`, después de `oauth.service`. No modifica ni amplía la política de revocación de los endpoints de Identidad.
 
 ## Errores y límites
 

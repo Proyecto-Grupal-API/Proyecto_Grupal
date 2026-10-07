@@ -4,6 +4,4 @@ namespace App\Support;
 
 use RuntimeException;
 
-final class QrSecretIntegrityException extends RuntimeException
-{
-}
+final class QrSecretIntegrityException extends RuntimeException {}

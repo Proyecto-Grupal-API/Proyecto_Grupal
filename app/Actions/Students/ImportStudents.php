@@ -35,11 +35,9 @@ class ImportStudents
         $seenEmails = [];
 
         foreach ($rows as ['line' => $line, 'values' => $row]) {
-            $campus = $campuses->first(fn (Campus $item) =>
-                strcasecmp($item->code, $row['campus']) === 0 || strcasecmp($item->name, $row['campus']) === 0
+            $campus = $campuses->first(fn (Campus $item) => strcasecmp($item->code, $row['campus']) === 0 || strcasecmp($item->name, $row['campus']) === 0
             );
-            $program = $campus?->academicPrograms->first(fn ($item) =>
-                strcasecmp($item->code, $row['carrera']) === 0 || strcasecmp($item->name, $row['carrera']) === 0
+            $program = $campus?->academicPrograms->first(fn ($item) => strcasecmp($item->code, $row['carrera']) === 0 || strcasecmp($item->name, $row['carrera']) === 0
             );
             $data = StudentIdentityInput::normalize([
                 'name' => $row['nombre'],
@@ -66,7 +64,7 @@ class ImportStudents
 
             $profile = $enrollment !== '' ? StudentProfile::where('enrollment_number', 'regex', $this->canonicalMatch($enrollment))->first() : null;
             $student = $profile?->user;
-            $emailOwner = $email !== '' ? User::where('email', 'regex', $this->canonicalMatch($email))->first() : null;
+            $emailOwner = $email !== '' ? User::withTrashed()->where('email', 'regex', $this->canonicalMatch($email))->first() : null;
 
             $validator = Validator::make($data, [
                 'name' => ['required', 'string', 'max:120'],

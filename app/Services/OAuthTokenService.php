@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ServiceClient;
 use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -47,12 +48,13 @@ class OAuthTokenService
 
     public function decode(string $token): object
     {
-        return JWT::decode($token, new \Firebase\JWT\Key($this->key(), 'HS256'));
+        return JWT::decode($token, new Key($this->key(), 'HS256'));
     }
 
     private function key(): string
     {
         $key = (string) config('oauth.signing_key');
+
         return str_starts_with($key, 'base64:') ? base64_decode(substr($key, 7)) : $key;
     }
 }

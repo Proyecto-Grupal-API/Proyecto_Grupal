@@ -10,6 +10,7 @@ use App\Models\StaffEvento;
 use App\Models\User;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ResponsabilidadesComunidad
@@ -24,9 +25,9 @@ class ResponsabilidadesComunidad
         }
     }
 
-    public function eliminarCuenta(User $user, callable $antesDeEliminar): void
+    public function eliminarCuenta(User $user, callable $eliminarIdentidad): void
     {
-        $this->ejecutar(function () use ($user, $antesDeEliminar) {
+        $this->ejecutar(fn () => DB::connection('mongodb')->transaction(function () use ($user, $eliminarIdentidad) {
             if (RolOrganizacion::where('usuario_id', (string) $user->id)->where('slug_rol', 'presidencia')->whereNull('eliminado_en')->exists()) {
                 throw ValidationException::withMessages(['password' => 'Transfiere o regulariza la presidencia de tus organizaciones antes de eliminar tu cuenta.']);
             }
@@ -48,8 +49,7 @@ class ResponsabilidadesComunidad
                 $permiso->update(['activo' => false]);
                 AuditoriaComunidad::create(['organizacion_id' => null, 'usuario_id' => (string) $user->id, 'accion' => 'gestor_revocado_por_baja', 'entidad_id' => (string) $permiso->id, 'antes' => $antes, 'despues' => ['activo' => false]]);
             }
-            $antesDeEliminar(); // Logout renueva remember_token mientras el usuario todavía existe.
-            $user->delete();
-        });
+            $eliminarIdentidad(); // Identidad conserva la autoridad sobre la baja y las credenciales.
+        }));
     }
 }

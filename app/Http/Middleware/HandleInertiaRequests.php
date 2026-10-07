@@ -40,6 +40,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'auth' => [
                 'user' => $request->user(),
+                'hasStudentProfile' => $request->user()?->studentProfile()->exists() ?? false,
                 'gestiona_organizaciones' => fn () => app(AutoridadOrganizaciones::class)->permite($request->user()),
                 'organizacion' => fn () => $request->attributes->get('organizacion'),
                 'puede_editar' => fn () => $request->attributes->get('organizacion') && Gate::allows('update', $request->attributes->get('organizacion')),

@@ -2,16 +2,16 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\GestionOrganizacionesController;
-use App\Http\Controllers\StaffEventoController;
-use App\Http\Middleware\SeleccionarOrganizacion;
 use App\Http\Controllers\NfcCardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QrController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SecurityDeviceController;
-use App\Http\Controllers\StudentServicesController;
+use App\Http\Controllers\StaffEventoController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentImportController;
+use App\Http\Controllers\StudentServicesController;
+use App\Http\Middleware\SeleccionarOrganizacion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -20,9 +20,17 @@ Route::get('/', function (Request $request) {
     return redirect()->route($request->user() ? 'dashboard' : 'login');
 });
 
-Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group(function () {
+Route::get('/security/two-factor-enrollment', function (Request $request) {
+    return Inertia::render('Security/TwoFactorEnrollment', [
+        'twoFactorEnabled' => $request->user()->two_factor_enabled,
+        'twoFactorConfigurationPending' => ! is_null($request->user()->two_factor_secret)
+            && is_null($request->user()->two_factor_confirmed_at),
+    ]);
+})->middleware('auth')->name('two-factor.enrollment');
+
+Route::middleware(['auth', 'verified', 'device.track'])->group(function () {
     Route::get('/dashboard', function () {
-        return redirect()->route('modulo6.asociacion');
+        return Inertia::render('Dashboard');
     })->name('dashboard');
 
     Route::get('/student-services', [StudentServicesController::class, 'index'])
@@ -39,6 +47,8 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
     Route::get('/students/create', [StudentController::class, 'create'])->name('students.create');
     Route::post('/students', [StudentController::class, 'store'])->name('students.store');
     Route::post('/students/import', [StudentImportController::class, 'store'])->name('students.import');
+    Route::post('/students/{student}/temporary-password', [StudentController::class, 'reissueTemporaryPassword'])
+        ->name('students.temporary-password.reissue');
     Route::get('/students/{student}/edit', [StudentController::class, 'edit'])->name('students.edit');
     Route::patch('/students/{student}', [StudentController::class, 'update'])->name('students.update');
 
@@ -145,6 +155,9 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
 
         Route::patch('/nfc-cards/{nfcCard}/lost', [NfcCardController::class, 'reportLost'])
             ->name('nfc-cards.report-lost');
+
+        Route::post('/nfc-cards/{nfcCard}/replace', [NfcCardController::class, 'replace'])
+            ->name('nfc-cards.replace');
     });
 
     // --------------------------------------------------------------
@@ -162,6 +175,10 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
     Route::post('/roles/assign', [RoleController::class, 'assign'])
         ->middleware('role.context:admin')
         ->name('roles.assign');
+
+    Route::delete('/roles/revoke', [RoleController::class, 'revoke'])
+        ->middleware('role.context:admin')
+        ->name('roles.revoke');
 });
 
 // ==========================================
@@ -211,6 +228,5 @@ Route::middleware(['auth', 'session.active', 'device.track', SeleccionarOrganiza
 });
 
 Route::middleware(['auth', 'session.active', 'device.track', SeleccionarOrganizacion::class])->prefix('api')->group(__DIR__.'/comunidad.php');
-
 
 require __DIR__.'/auth.php';

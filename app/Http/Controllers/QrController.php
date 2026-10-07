@@ -21,9 +21,7 @@ class QrController extends Controller
 {
     private const HISTORY_PAGE_SIZE = 15;
 
-    public function __construct(private IdentityService $identity)
-    {
-    }
+    public function __construct(private IdentityService $identity) {}
 
     public function index(Request $request)
     {

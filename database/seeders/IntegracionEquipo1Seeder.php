@@ -16,7 +16,7 @@ class IntegracionEquipo1Seeder extends Seeder
         if (! app()->environment(['local', 'testing'])) {
             throw new \RuntimeException('La demostración integrada solo puede prepararse en local/testing.');
         }
-        $this->call([DatabaseSeeder::class, EventoSeeder::class, BecaSeeder::class, ComunicacionSeeder::class, ParticipacionSeeder::class, ReporteSeeder::class, StaffEventoSeeder::class, GestionOrganizacionesSeeder::class]);
+        $this->call([AuthorizationFoundationSeeder::class, DatabaseSeeder::class, EventoSeeder::class, BecaSeeder::class, ComunicacionSeeder::class, ParticipacionSeeder::class, ReporteSeeder::class, StaffEventoSeeder::class, GestionOrganizacionesSeeder::class]);
         $admin = User::firstOrCreate(['email' => 'identidad@campus.test'], ['name' => 'Administración Identidad', 'password' => 'CampusDemo2026!', 'email_verified_at' => now()]);
         $admin->assignRole(Role::ADMIN);
         $campus = Campus::where('code', 'CENTRAL')->firstOrFail();
@@ -30,8 +30,8 @@ class IntegracionEquipo1Seeder extends Seeder
                     'current_semester' => 8, 'academic_status' => 'active',
                     'status_reason' => 'Perfil de demostración de integración',
                 ], $user, $admin);
-                $user->assignRole(Role::ESTUDIANTE);
             }
+            $user->assignRole(Role::ESTUDIANTE);
         }
     }
 }

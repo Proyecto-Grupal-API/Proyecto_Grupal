@@ -138,6 +138,7 @@ it('publishes pending events and marks them as delivered', function () {
 
     $this->artisan('events:publish')->assertSuccessful();
 
+    expect(EventOutbox::first()->last_error)->toBeNull();
     expect(EventOutbox::first()->published_at)->not->toBeNull();
     Http::assertSentCount(1);
 });

@@ -10,7 +10,9 @@ import { computed, ref } from 'vue';
 const props = defineProps({
     initiallyEnabled: { type: Boolean, default: false },
     initiallyPending: { type: Boolean, default: false },
+    required: { type: Boolean, default: false },
 });
+const emit = defineEmits(['confirmed']);
 
 const enabled = ref(props.initiallyEnabled);
 const configuring = ref(props.initiallyPending);
@@ -193,6 +195,7 @@ const confirmTwoFactor = async () => {
         code.value = '';
         configuring.value = false;
         enabled.value = true;
+        emit('confirmed');
         qrSvg.value = '';
         secretKey.value = '';
         success.value = 'Autenticación de dos factores activada correctamente.';
@@ -235,6 +238,9 @@ const protectedAction = (action) => {
             <p class="mt-1 text-sm text-gray-600">
                 Protege tu inicio de sesión con TOTP mediante una aplicación de autenticación compatible.
             </p>
+            <p v-if="required" class="mt-2 text-sm font-medium text-amber-800">
+                Tu cuenta requiere autenticación de dos factores debido a tus permisos actuales.
+            </p>
         </header>
 
         <div class="mt-5 rounded-lg border border-gray-200 p-4">
@@ -253,7 +259,7 @@ const protectedAction = (action) => {
                     <SecondaryButton type="button" :disabled="busy" @click="begin('resume')">Continuar</SecondaryButton>
                     <SecondaryButton type="button" :disabled="busy" @click="begin('cancel')">Cancelar</SecondaryButton>
                 </div>
-                <SecondaryButton v-else type="button" :disabled="busy" @click="begin('disable')">
+                <SecondaryButton v-else-if="!required" type="button" :disabled="busy" @click="begin('disable')">
                     Desactivar 2FA
                 </SecondaryButton>
             </div>

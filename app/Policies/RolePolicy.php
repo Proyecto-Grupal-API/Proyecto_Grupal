@@ -29,4 +29,9 @@ class RolePolicy
     {
         return $user->hasRole(Role::ADMIN);
     }
+
+    public function revoke(User $user): bool
+    {
+        return $this->assign($user);
+    }
 }

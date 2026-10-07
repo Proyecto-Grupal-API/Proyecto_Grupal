@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+use Laravel\Fortify\Fortify;
 use Tests\TestCase;
 
 /*
@@ -15,6 +17,30 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->in('Feature');
+
+// These integration fixtures use the public role writer, now backed by the real catalog/schema.
+pest()->group('assignment-authority-fixtures')->in(
+    'Feature/RoleAssignmentTest.php', 'Feature/RoleAdministrationTest.php',
+    'Feature/RequiredTwoFactorAuthenticationTest.php', 'Feature/PrivilegeEscalationRegressionTest.php',
+    'Feature/StudentManagementTest.php', 'Feature/StudentServicesPersistenceTest.php',
+    'Feature/StudentImportTest.php', 'Feature/StudentPhotoTest.php',
+    'Feature/InitialPasswordLifecycleTest.php', 'Feature/AccountDeletionTest.php',
+    'Feature/QrValidationAuthorizationTest.php', 'Feature/NfcCardLifecycleTest.php',
+    'Feature/NfcCardRegistrationTest.php', 'Feature/NfcCardAuthorizationTest.php',
+    'Feature/NfcCardReplacementTest.php', 'Feature/DatabaseSeederSafetyTest.php',
+);
+
+// These integration classes use the full schema but do not test migration/index creation.
+// Their existing migrate assertions remain; only immutable schema is reused within a class.
+pest()->group('reusable-mongo-schema')->in(
+    'Feature/AccountDeletionTest.php',
+    'Feature/InitialPasswordLifecycleTest.php',
+    'Feature/NfcCardLifecycleTest.php',
+    'Feature/NfcCardRegistrationTest.php',
+    'Feature/QrLegacySecretBackfillTest.php',
+    'Feature/StudentImportTest.php',
+    'Feature/StudentPhotoTest.php',
+);
 
 /*
 |--------------------------------------------------------------------------
@@ -45,4 +71,16 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/** Give an existing fixture a confirmed factor when testing a different feature. */
+function withConfirmedTestTwoFactor(User $user): User
+{
+    $user->forceFill([
+        'two_factor_secret' => Fortify::currentEncrypter()->encrypt('JBSWY3DPEHPK3PXP'),
+        'two_factor_recovery_codes' => Fortify::currentEncrypter()->encrypt(json_encode(['fixture-recovery-code'])),
+        'two_factor_confirmed_at' => now(),
+    ])->save();
+
+    return $user;
 }

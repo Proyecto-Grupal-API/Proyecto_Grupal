@@ -32,6 +32,7 @@ function rawLegacyQr(QrToken $token): array
 function backfillReport(array $options = []): array
 {
     $exit = Artisan::call('qr:secrets-backfill', $options);
+
     return [$exit, Artisan::output()];
 }
 

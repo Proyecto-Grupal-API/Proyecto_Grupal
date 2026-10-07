@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Nfc\ChangeNfcCardStatus;
+use App\Actions\Nfc\ReplaceNfcCard;
 use App\Enums\NfcCardStatus;
 use App\Events\CredentialChanged;
 use App\Models\NfcCard;
@@ -45,7 +46,7 @@ class NfcCardController extends Controller
             'cards' => $cards,
             'canManage' => $canManage,
             'availableTransitions' => $canManage ? $cards->mapWithKeys(function (NfcCard $card): array {
-                $status = NfcCardStatus::tryFrom((string) $card->status);
+                $status = $card->user ? NfcCardStatus::tryFrom((string) $card->status) : null;
 
                 return [(string) $card->getKey() => array_map(
                     fn (NfcCardStatus $target) => $target->value,
@@ -118,6 +119,13 @@ class NfcCardController extends Controller
 
         try {
             $this->mongoTransaction(function () use ($validated, $actorId): void {
+                if (! User::whereKey((string) $validated['user_id'])->exists()
+                    || ! StudentProfile::where('user_id', (string) $validated['user_id'])->exists()) {
+                    throw ValidationException::withMessages([
+                        'user_id' => 'El estudiante seleccionado ya no tiene una cuenta activa.',
+                    ]);
+                }
+
                 $card = NfcCard::create([
                     'user_id' => (string) $validated['user_id'],
                     'uid' => $validated['uid'],
@@ -217,6 +225,25 @@ class NfcCardController extends Controller
         );
 
         return redirect()->route('nfc-cards.index')->with('success', 'Pérdida de tarjeta NFC registrada.');
+    }
+
+    public function replace(Request $request, NfcCard $nfcCard, ReplaceNfcCard $replaceCard)
+    {
+        $this->authorize('updateStatus', $nfcCard);
+
+        if (is_string($request->input('uid'))) {
+            $request->merge(['uid' => NfcUid::normalize($request->input('uid'))]);
+        }
+        $this->trimReason($request);
+
+        $validated = $request->validate([
+            'uid' => ['required', 'string', 'max:255', 'unique:nfc_cards,uid'],
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        $replaceCard->execute($nfcCard, $validated['uid'], $validated['reason'], (string) $request->user()->getKey());
+
+        return redirect()->route('nfc-cards.index')->with('success', 'Tarjeta NFC reemplazada correctamente.');
     }
 
     private function trimReason(Request $request): void

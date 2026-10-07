@@ -22,9 +22,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class TrackDeviceSession
 {
-    public function __construct(private IdentityService $identity)
-    {
-    }
+    public function __construct(private IdentityService $identity) {}
 
     public function handle(Request $request, Closure $next): Response
     {

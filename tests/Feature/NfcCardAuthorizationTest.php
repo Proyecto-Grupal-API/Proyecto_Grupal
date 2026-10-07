@@ -46,6 +46,7 @@ test('a regular user cannot change the status of an NFC card', function () {
 test('an admin can register and manage NFC cards', function () {
     $admin = User::factory()->create();
     $admin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($admin);
     $target = User::factory()->create();
 
     StudentProfile::create([
@@ -68,6 +69,7 @@ test('a student only sees their own card in the index, an admin sees all', funct
     $studentB = User::factory()->create();
     $admin = User::factory()->create();
     $admin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($admin);
 
     NfcCard::create([
         'user_id' => (string) $studentA->getKey(),

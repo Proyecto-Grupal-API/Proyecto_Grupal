@@ -13,6 +13,7 @@ beforeEach(function () {
 
     $this->nfcAdmin = User::factory()->create();
     $this->nfcAdmin->assignRole(Role::ADMIN);
+    withConfirmedTestTwoFactor($this->nfcAdmin);
     $this->nfcStudent = User::factory()->create();
     StudentProfile::create([
         'user_id' => (string) $this->nfcStudent->getKey(),
@@ -79,6 +80,7 @@ it('rejects a user without a student profile without creating persistent NFC eff
 it('does not allow a non-admin role to register a card through the HTTP route', function () {
     $teacher = User::factory()->create();
     $teacher->assignRole(Role::MAESTRO);
+    withConfirmedTestTwoFactor($teacher);
 
     $this->actingAs($teacher)->post('/nfc-cards', [
         'user_id' => (string) $this->nfcStudent->getKey(),

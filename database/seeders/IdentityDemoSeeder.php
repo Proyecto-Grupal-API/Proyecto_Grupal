@@ -20,7 +20,7 @@ class IdentityDemoSeeder extends Seeder
 {
     public function run(): void
     {
-             $user = User::where('email', 'test@example.com')->first()
+        $user = User::where('email', 'test@example.com')->first()
             ?? User::first();
 
         if (! $user) {
