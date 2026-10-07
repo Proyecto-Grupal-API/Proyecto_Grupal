@@ -7,7 +7,7 @@ Integre el snapshot con la rama existente; preserve ambas implementaciones. Véa
 - `student.profile.changed.v1` se persiste en el outbox en alta/edición, cambio académico y actualización de preferencias; el transporte local puede publicarlo, pero su entrega a un consumidor externo aún no está desplegada/acordada. `payload` contiene `student_id=User._id`, `operation`, `changed_fields`, `actor_id`. **No** contiene perfil completo, estado anterior/nuevo, campus ni matrícula. Un consumidor que necesite el estado actual debe consultar el endpoint OAuth autorizado.
 - Estados académicos: `active`, `inactive`, `suspended`, `restricted`, `leave`, `graduated`; no confundirlos con estados NFC.
 
-## Autorización institucional INT-1B.6 — IMPLEMENTED LOCAL
+## Autorización institucional INT-1B.6 — PUBLISHED_INTERNAL
 
 `RoleAssignment` es autoridad; `User.roles` es histórico, sin fallback. El servicio **interno** `InstitutionalAuthorizationService::allows(User, capability, scope_type, scope_id)` resuelve:
 
@@ -26,7 +26,7 @@ La decisión requiere usuario persistido no eliminado, sin activación ni cambio
 - `department_head` existe estructuralmente, pero **no es asignable**: el modelo rechaza department y el motor siempre deniega ese scope, incluso ante registros raw. Falta identificador/fuente canónica Department; no se crea catálogo paralelo ni se sustituye por campus/programa.
 - Autoridad otorgante y delegación institucional final: **DEFERRED**. No se presume admin, student_manager ni business_owner. No se abre UI ni API genérica de asignación institucional; `Role::VALID_ROLES` conserva seis legacy. Fixtures de testing no son política productiva de otorgamiento.
 - Relación organización Team 6↔campus/programa: **EXTERNAL_TEAM_DEPENDENCY**. No se inventa esa relación.
-- Resolución institucional implementada localmente **no es un contrato OAuth publicado**. Check/read de INT-1B.5 son business-only; no consumirlos como autorización institucional. Un futuro contrato externo institucional requiere fase/acuerdo propio, sin acceso directo a MongoDB.
+- El código institucional está publicado como **PUBLISHED_INTERNAL**, pero la API institucional externa es **NOT_AVAILABLE**. Check/read de INT-1B.5 son business-only; no consumirlos como autorización institucional. Un futuro contrato externo institucional requiere fase/acuerdo propio, sin acceso directo a MongoDB.
 
 ## TEAM6-OWNED
 
@@ -34,6 +34,6 @@ Team 1 conserva identidad, account/profile, estado académico y roles/scopes/vig
 
 ## PUBLISHED frente a CURRENT_LOCAL
 
-Referencia pública auditada: `7a30c3f12722a4e2c6d4caef870f90309a11ae62`. QR OAuth y estado/historial académico están en esa referencia. NFC OAuth e integración business están implementados localmente, no publicados. La resolución institucional de esta fase es interna/local, no externamente consumible. No hay push ni promesa de entrega externa de eventos.
+Referencia pública Snapshot 2: `f41c78066cb8e6dde2a1605233e832395cb20841`. QR/NFC OAuth, estado/historial académico y contratos business están **AVAILABLE_NOW**. La resolución institucional es **PUBLISHED_INTERNAL**, no una API externa consumible. La remediación local de consentimientos requiere publicación separada; no promete entrega externa de eventos.
 
 No leer `student_profiles`, `academic_status_history`, `role_assignments`, Campus ni AcademicProgram directamente desde otro equipo. La segmentación académica de la API existente ofrece nombres de campus/programa y semestre, no sus IDs canónicos como campos del contrato OAuth; no convertir esas etiquetas en scope IDs. Si Team 6 requiere los IDs para un contrato institucional futuro, es un gap contractual explícito, no autorización para lectura directa. La segmentación no concede autoridad ni crea un catálogo externo independiente. Registre cualquier dato/decisión faltante como dependencia contractual; Team 6 mantiene su elegibilidad.

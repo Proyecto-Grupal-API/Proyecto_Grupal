@@ -82,3 +82,25 @@ it('rolls back preference update when outbox persistence fails', function () {
         EventOutbox::flushEventListeners();
     }
 });
+
+it('rolls back feature consent changes if their existing outbox event cannot persist', function (string $operation) {
+    $user = studentForOutboxAtomicity();
+    $acceptance = null;
+    if ($operation === 'revoke') {
+        $acceptance = $this->actingAs($user)->postJson('/student-services/consents', ['consent_id' => 'credential_terms', 'consent_version' => '2026.1'])->assertCreated()->json('data.acceptance_id');
+    }
+    $before = Consent::count();
+    $eventsBefore = EventOutbox::count();
+    EventOutbox::creating(fn () => throw new RuntimeException('fixture outbox failure'));
+    try {
+        if ($operation === 'accept') {
+            $this->actingAs($user)->postJson('/student-services/consents', ['consent_id' => 'credential_terms', 'consent_version' => '2026.1'])->assertInternalServerError();
+        } else {
+            $this->actingAs($user)->deleteJson('/student-services/consents/credential_terms', ['consent_record_id' => $acceptance])->assertInternalServerError();
+            expect(Consent::where('revokes_consent_id', $acceptance)->exists())->toBeFalse();
+        }
+        expect(Consent::count())->toBe($before)->and(EventOutbox::count())->toBe($eventsBefore);
+    } finally {
+        EventOutbox::flushEventListeners();
+    }
+})->with(['accept', 'revoke']);

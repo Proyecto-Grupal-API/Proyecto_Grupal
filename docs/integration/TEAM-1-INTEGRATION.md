@@ -6,7 +6,7 @@ Esta guía describe los contratos implementados por el Equipo 1 y sus límites p
 
 - Evidencia fechada de INT-1C.1B-R (28-09-2026): 368 tests, 2502 assertions, 0 failures; lint, build y comprobación de diff correctos. No es un conteo permanente.
 - Funcionalidad interna 1.1–1.9 cubierta; 1.3 incluye roles contextuales **internos**, no un contrato externo. QR de identificación y temporal, NFC y estado académico disponen de los contratos de consulta descritos abajo.
-- 1.10 **parcial en publicación externa**: NFC/QR y estado académico por OAuth implementados; contratos business INT-1B.5 implementados localmente y pendientes de publicación. El transporte outbox local está implementado, pero su despliegue con Equipo 7 no está acordado ni probado.
+- Snapshot 2 publicado en `proyecto-grupal-api/feat/modulo-1-equipo-1`: `f41c78066cb8e6dde2a1605233e832395cb20841`. NFC/QR, estado académico y contratos business INT-1B.5 están **AVAILABLE_NOW**. El transporte outbox está implementado, pero su despliegue con Equipo 7 no está acordado ni probado. La remediación local de consentimientos 1.9 aún requiere publicación separada.
 - Deuda separada de la funcionalidad QR: existen rutas de compatibilidad con códigos plaintext legacy y quedan decisiones operativas sobre `purpose` y elegibilidad. No afirmar que todos los códigos históricos fueron migrados. No hay fecha comprometida.
 
 | Requisito formal | Estado | Evidencia actual | Pendiente separado |
@@ -19,8 +19,8 @@ Esta guía describe los contratos implementados por el Equipo 1 y sus límites p
 | 1.6 Identidad QR | CUMPLIDO | QR de identificación y dinámico/temporal, validación web/OAuth | Compatibilidad plaintext legacy y reglas operativas futuras |
 | 1.7 Dispositivos y sesiones | CUMPLIDO | Dispositivos, sesiones, revocación, eventos y reautenticación | Operación de retención en despliegue |
 | 1.8 Condición estudiantil | CUMPLIDO | Perfil/historial y API OAuth `students:read` | Elegibilidad de beneficios pertenece al consumidor |
-| 1.9 Consentimientos y preferencias | CUMPLIDO | UI y API Sanctum, versiones/historial y outbox transaccional | No es una API OAuth interequipos |
-| 1.10 Servicio de identidad | PARCIAL | API OAuth académica, QR y NFC; business INT-1B.5 local; outbox local | Publicación business y entrega externa a Equipo 7 pendientes |
+| 1.9 Consentimientos y preferencias | Remediación local | UI y API Sanctum, términos por funcionalidad, versiones/historial y outbox transaccional | Los términos funcionales nuevos aún no están publicados; no es API OAuth interequipos |
+| 1.10 Servicio de identidad | CUMPLIDO | Servicios internos; API OAuth académica, QR/NFC y business publicados | Configuración de consumidores y entrega externa de eventos a Equipo 7 son pendientes separados |
 
 ## Regla de identificadores
 
@@ -32,13 +32,13 @@ La API Sanctum de consentimientos/preferencias conserva una búsqueda histórica
 
 `POST /api/oauth/token` acepta `grant_type=client_credentials`, `client_id`, `client_secret` y `scope` (cadena de scopes separados por espacios). Devuelve `access_token`, `token_type=Bearer`, `expires_in` y `scope`. Los scopes solicitados deben estar asignados al cliente; una solicitud con alguno no permitido devuelve `400 invalid_scope`. Credenciales inválidas devuelven 401. Un token sin el scope exigido por la ruta recibe 403; sin Bearer válido, 401.
 
-Scopes de servicio usados por las rutas públicas: **`students:read`**, **`identity:qr:validate`** e **`identity:nfc:validate`**. Son nombres literales; no existe alias con puntos. Cada cliente debe recibir explícitamente los scopes que necesita. No compartir ni registrar secretos de cliente. Este OAuth de servicios es independiente del login web, de Sanctum y de los roles embebidos de usuario.
+Scopes de servicio usados por las rutas públicas: **`students:read`**, **`identity:qr:validate`**, **`identity:nfc:validate`**, **`identity:authorization:check`**, **`identity:assignments:read`** e **`identity:business-owner:provision`**. Son nombres literales; no existe alias con puntos. Cada cliente debe recibir explícitamente los scopes que necesita. No compartir ni registrar secretos de cliente. Este OAuth de servicios es independiente del login web, de Sanctum y de la autoridad RBAC del usuario.
 
 ### Vigencia del token y revalidación adicional business
 
 `OAuthTokenService` exige cliente activo, secret válido y scopes solicitados incluidos en sus grants persistentes al emitir el JWT; incorpora exactamente esos scopes. `oauth.service` valida firma, expiración, issuer/audience y scope requerido por la ruta. En status/history, QR y NFC no vuelve a consultar el cliente/grant persistente: retirar un grant o desactivar al cliente impide nuevas emisiones, pero no invalida automáticamente un token ya emitido para esas rutas durante su vigencia.
 
-Los tres contratos business añaden `AuthorizeIdentityService`: cliente activo y grant persistente vigente se revalidan **en cada petición**, además del token; provisioning exige también la allowlist. Esta capa adicional permite una política de revocación más inmediata en business. La diferencia auditada es `DEFENSE_IN_DEPTH_DIFFERENCE`, sin security blocker demostrado; no se promete revocación inmediata universal para status/QR/NFC. INT-1B.7R sólo documenta este comportamiento, no lo cambia. Antes de publicación, NFC/business siguen siendo candidatos `NEW_IN_SNAPSHOT_2`, no disponibilidad externa actual.
+Los tres contratos business añaden `AuthorizeIdentityService`: cliente activo y grant persistente vigente se revalidan **en cada petición**, además del token; provisioning exige también la allowlist. Esta capa adicional permite una política de revocación más inmediata en business. La diferencia auditada es `DEFENSE_IN_DEPTH_DIFFERENCE`, sin security blocker demostrado; no se promete revocación inmediata universal para status/QR/NFC. INT-1B.7R documentó este comportamiento sin cambiarlo; NFC/business ya están publicados en Snapshot 2. La remediación 1.9 tampoco altera OAuth.
 
 ## Estado académico
 
@@ -81,9 +81,9 @@ Catálogo **legacy implementado**: `admin`, `maestro`, `estudiante`, `servicio_c
 
 Desde INT-1B.3, `RoleAssignment` es la autoridad; `User.roles` es histórico sin fallback. La administración legacy sigue limitada a seis roles. El motor business INT-1B.4 exige membership y asignación efectivas en el mismo negocio; `admin` global no evita ese requisito. Roles comerciales: `business_owner`, `business_manager`, `cashier`, `inventory_manager`, `buyer`. No existe alias `business_cashier` ni scope `identity:roles:check`.
 
-## Contratos business INT-1B.5 — IMPLEMENTED_NOT_YET_PUBLISHED
+## Contratos business INT-1B.5 — AVAILABLE_NOW
 
-Implementación **local**, no AVAILABLE_NOW. Referencia publicada sin cambios: `7a30c3f12722a4e2c6d4caef870f90309a11ae62`; no se ha realizado push. Las declaraciones históricas de disponibilidad en otras secciones no amplían este contrato.
+Publicados en Snapshot 2: `f41c78066cb8e6dde2a1605233e832395cb20841`. El uso real requiere clientes/grants autorizados; owner provisioning requiere además configuración posterior de allowlist Team 3. Esta remediación no modifica los contratos ni configura consumidores.
 
 | Método | Ruta | Scope requerido | Restricción adicional |
 | --- | --- | --- | --- |
@@ -115,7 +115,7 @@ Reserva, membership, asignación y recibo se confirman en una **transacción Mon
 
 Equipo 2 sigue `PENDING_CLARIFICATION`, sin capabilities Bonos. Permisos finos de inventario/ventas pertenecen a Equipo 4; las ocho capabilities E1 y trece mappings no conceden permisos comerciales adicionales.
 
-## Autorización institucional INT-1B.6 — interna/local, no publicada
+## Autorización institucional INT-1B.6 — PUBLISHED_INTERNAL
 
 `InstitutionalAuthorizationService` reutiliza `EffectiveRoleAssignments`, `RoleAssignment` y mappings persistentes sin modificar los contratos business. `organization_manager` concede `organizations.institutional.manage` sólo en `campus=string(Campus._id)`; `career_coordinator` concede `academic.program.coordinate` sólo en `academic_program=string(AcademicProgram._id)`. No usar code/name ni StudentProfile._id como sustitutos. Campus/programa deben existir y estar activos; el programa y su asignación deben conservar un campus coherente y activo.
 
@@ -126,6 +126,8 @@ Team 6 conserva organizaciones, memberships, cargos internos, delegaciones, hist
 ## Consentimientos y preferencias
 
 `/api/v1/students/{studentId}/consents` y `/preferences` son rutas `auth:sanctum`; las rutas `/student-services` usan sesión web. **No** están protegidas por OAuth de servicios ni son un contrato OAuth interequipos. No asumir acceso con `students:read` ni con `identity:qr:validate`. La compatibilidad dual de IDs de estas rutas es deuda separada, no una excepción a la regla OAuth.
+
+Remediación local 1.9, todavía no publicada: `profile_terms` y `credential_terms` distinguen respectivamente términos del perfil estudiantil y de credenciales QR/NFC, además de `terms`, `privacy` y `marketing` existentes. El `type` persistido es la identidad estable y se reutiliza como `consent_id` del evento sin cambiar su payload. Cada término funcional exige su versión vigente de `config/student_services.php`; versiones anteriores se conservan como historia y no aceptan una nueva versión ni otro término. La UI ofrece aceptación/revocación independientes. Sólo el propietario `User._id` puede leer o administrar consentimientos privados, sin excepción para managers. No hay migración de aceptaciones generales a términos funcionales, ni cambios a preferencias, ni gating automático de otras funcionalidades.
 
 ## Eventos publicados
 
@@ -146,7 +148,7 @@ Team 6 conserva organizaciones, memberships, cargos internos, delegaciones, hist
 | Consumidor | Contrato implementado por Equipo 1 | Estado / pendiente |
 | --- | --- | --- |
 | Equipo 2 | Estado académico OAuth; identificación QR/NFC cuando se presenta credencial | IMPLEMENTED para identidad; saldo, pago, recarga y retiro son decisiones de Equipo 2 |
-| Equipos 3/4 | Identidad QR/NFC; check/read business y Owner inicial restringido | Contratos business locales IMPLEMENTED_NOT_YET_PUBLISHED; ver INT-1B.5 |
+| Equipos 3/4 | Identidad QR/NFC; check/read business y Owner inicial restringido | AVAILABLE_NOW en Snapshot 2; provisioning requiere configuración Team 3; ver INT-1B.5 |
 | Equipo 5 | Validación QR y NFC OAuth | IMPLEMENTED para identificación; acceso/beneficio es autorización de Equipo 5 |
 | Equipo 6 | Estado/historial académico OAuth y evento `student.profile.changed.v1` persistido | PARTIAL: consumo externo de eventos pendiente; cargos con vigencia/delegación son de Equipo 6 o requieren acuerdo |
 | Equipo 7 | Sobre versionado, outbox y publicador local probado con HTTP real | EXTERNAL DEPLOYMENT PENDING: URL, auth, 409, scheduler y prueba contra su sink |

@@ -1,6 +1,6 @@
 # Equipo 7 — Eventos de identidad
 
-Auditoría INT-1B.6: en la referencia pública `7a30c3f12722a4e2c6d4caef870f90309a11ae62` existen QR OAuth y estado/historial académico; NFC OAuth es **IMPLEMENTED_NOT_YET_PUBLISHED**. Team 7 conserva íntegramente su elegibilidad y permisos locales de rewards/audit/analytics; no se incorporan al catálogo E1.
+Snapshot 2 publicado: `f41c78066cb8e6dde2a1605233e832395cb20841`. QR, NFC y estado/historial académico OAuth están **AVAILABLE_NOW**. Team 7 conserva íntegramente su elegibilidad y permisos locales de rewards/audit/analytics; no se incorporan al catálogo E1.
 
 Esta guía describe el sobre y el publicador **implementados localmente por Equipo 1**, no una entrega externa ya acordada. Antes del consumo real faltan URL, autenticación, semántica de 409, ejecución del scheduler en deployment y prueba contra el sink de Equipo 7. **No** consulte `event_outboxes` directamente. Véase [contrato principal](TEAM-1-INTEGRATION.md).
 
@@ -20,6 +20,6 @@ Tolerar campos adicionales futuros y no inferir titular actual de una tarjeta de
 
 ## Gap contractual identificado, no implementado en INT-1B.6
 
-La solicitud de Team 7 para `identity.credential.changed.v1` requiere `student_id`, `old_status`, `new_status` y `reason`, ausentes en el payload actual. `status` informa el estado resultante, sin transición old/new explícita. `event_id` y fecha (`occurred_at`) ya existen en el sobre; `credential_type` y actor (`actor_id`) existen en el payload. No hay UID NFC ni debe agregarse. El enriquecimiento/versionado es **DEFERRED**, no se modifica el evento en esta fase.
+La solicitud de Team 7 para `identity.credential.changed.v1` requiere `student_id`, `old_status`, `new_status` y `reason`, ausentes en el payload actual. `status` informa el estado resultante, sin transición old/new explícita. `event_id` y fecha (`occurred_at`) ya existen en el sobre; `credential_type` y actor (`actor_id`) existen en el payload. No hay UID NFC ni debe agregarse. El enriquecimiento/versionado es **NON_BLOCKING_DEFERRED**, no se modifica el evento en esta fase.
 
 `/api/v1/integration/events` es el receiver propuesto y todavía pendiente de implementación/especificación final de **Team 7**: **EXTERNAL_TEAM_DEPENDENCY**, no una ruta de Team 1. La propuesta 202 nuevo/200 duplicado no demuestra un sink operativo ni reemplaza el acuerdo de autenticación/URL y aceptación end-to-end.

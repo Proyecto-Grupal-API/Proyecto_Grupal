@@ -4,13 +4,13 @@ La integración parte de ramas **ya desarrolladas**. Revise [el contrato princip
 
 - Identificador externo de sujeto: `User._id`; si el sujeto es estudiante, ese mismo valor es `student_id` en los contratos estudiantiles. La identidad QR/NFC validada expone una proyección mínima, no roles ni permisos.
 - Catálogo **legacy implementado**: `admin`, `maestro`, `estudiante`, `servicio_cafeteria`, `consejo_estudiantil`, `student_manager` (compatibilidad). Los roles legacy pueden ser globales (`scope_type` y `scope_id` nulos) o contextuales con ambos valores y tipo `business`, `association`, `service` o `council`. `hasRole()` contextual exige coincidencia exacta; un rol global no coincide automáticamente. Los scopes institucionales foundation de INT-1B.6 son internos, separados de esta API legacy y de los contratos business; department permanece diferido.
-- `User::assignRole()` y `hasRole()` son lógica **interna de Team 1**, no una API OAuth. Los contratos business locales de consulta y provisioning inicial se detallan abajo; no hay administración genérica OAuth de roles.
+- `User::assignRole()` y `hasRole()` son lógica **interna de Team 1**, no una API OAuth. Los contratos business publicados de consulta y provisioning inicial se detallan abajo; no hay administración genérica OAuth de roles.
 - Si una operación presenta QR, el servicio puede pedir `identity:qr:validate` y usar `POST /api/v1/identity/qr-validate`; un resultado `valid` resuelve identidad, no concede permisos de negocio.
 - Si presenta NFC, existe `POST /api/v1/identity/nfc-validate` con `identity:nfc:validate`; también identifica, no autoriza ventas o movimientos de inventario.
 
-## Contratos business locales INT-1B.5
+## Contratos business publicados INT-1B.5
 
-**IMPLEMENTED_NOT_YET_PUBLISHED**, no AVAILABLE_NOW. Referencia pública sin cambios: `7a30c3f12722a4e2c6d4caef870f90309a11ae62`. `RoleAssignment` es autoridad; `User.roles` es histórico. Roles business canónicos: `business_owner`, `business_manager`, `cashier`, `inventory_manager`, `buyer`. Los mecanismos legacy no asignan estos roles. Membership y asignación efectivas deben coincidir en negocio. `servicio_cafeteria` no equivale a ningún rol business.
+**AVAILABLE_NOW** desde Snapshot 2, referencia pública `f41c78066cb8e6dde2a1605233e832395cb20841`. Owner provisioning requiere configuración posterior de cliente/grant/allowlist Team 3, no incluida en esta remediación. `RoleAssignment` es autoridad; `User.roles` es histórico. Roles business canónicos: `business_owner`, `business_manager`, `cashier`, `inventory_manager`, `buyer`. Los mecanismos legacy no asignan estos roles. Membership y asignación efectivas deben coincidir en negocio. `servicio_cafeteria` no equivale a ningún rol business.
 
 ### Equipo 3
 
@@ -26,4 +26,4 @@ Consume check/read con grants explícitos por cliente; no obtiene provisioning p
 
 OAuth client_credentials autentica al **servicio**, no al humano. `subject_id` es target, no prueba de sesión humana. Cada consumidor debe vincular confiablemente su actor para usar la decisión; nunca IDs libres del navegador ni `X-User-ID`, `X-Actor-ID`, `X-Employee-ID`. No hay escritura OAuth genérica de roles. Owner→Owner sigue prohibido en administración normal. Respuestas sin emails, nombres, IDs internos de assignments, fingerprints ni secretos. Ver [contrato completo](TEAM-1-INTEGRATION.md) para estados, fechas, atomicidad y errores. Las tres rutas aplican 30 solicitudes/minuto y revalidan cliente activo/grants actuales.
 
-No copiar ni modificar `User.roles`, ni replicar el motor como autoridad paralela. Policies y reglas comerciales pertenecen a Equipos 3/4. No existe `POST /api/v1/identity/role-check` ni scope `identity:roles:check`; usar sólo los contratos documentados cuando sean publicados. Sin acceso directo a persistencia E1.
+No copiar ni modificar `User.roles`, ni replicar el motor como autoridad paralela. Policies y reglas comerciales pertenecen a Equipos 3/4. No existe `POST /api/v1/identity/role-check` ni scope `identity:roles:check`; usar sólo los contratos publicados y grants autorizados. Sin acceso directo a persistencia E1.
