@@ -1,7 +1,7 @@
 <?php
 
 use App\Actions\Students\ReissueTemporaryPassword;
-use App\Actions\Students\UpsertStudentProfile;
+use App\Http\Controllers\Auth\InitialPasswordController;
 use App\Models\AcademicProgram;
 use App\Models\Campus;
 use App\Models\EventOutbox;
@@ -10,13 +10,13 @@ use App\Models\SecurityEvent;
 use App\Models\StudentProfile;
 use App\Models\User;
 use App\Models\UserSession;
-use App\Services\TemporaryPasswordGenerator;
 use App\Services\ConditionalPasswordUpdater;
+use App\Services\TemporaryPasswordGenerator;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
-use Laravel\Fortify\Fortify;
+use Laravel\Fortify\Events\PasswordUpdatedViaController;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 beforeEach(function () {
@@ -57,7 +57,8 @@ function initialPasswordAdmin(): User
 
 function interleaveCredentialWrite(Closure $write): void
 {
-    $updater = new class extends ConditionalPasswordUpdater {
+    $updater = new class extends ConditionalPasswordUpdater
+    {
         public ?Closure $beforeReplace = null;
 
         public function replace(User $user, ?string $observedHash, array $changes, ?Closure $eligibility = null): bool
@@ -77,7 +78,8 @@ function interleaveCredentialWrite(Closure $write): void
 
 function fixedTemporaryPassword(string $password): TemporaryPasswordGenerator
 {
-    return new class($password) extends TemporaryPasswordGenerator {
+    return new class($password) extends TemporaryPasswordGenerator
+    {
         public function __construct(private string $password) {}
 
         public function generate(): string
@@ -89,7 +91,8 @@ function fixedTemporaryPassword(string $password): TemporaryPasswordGenerator
 
 function interleavingTemporaryPassword(string $password, Closure $write): TemporaryPasswordGenerator
 {
-    return new class($password, $write) extends TemporaryPasswordGenerator {
+    return new class($password, $write) extends TemporaryPasswordGenerator
+    {
         public function __construct(private string $password, private Closure $write) {}
 
         public function generate(): string
@@ -103,8 +106,9 @@ function interleavingTemporaryPassword(string $password, Closure $write): Tempor
 
 function interleaveBeforeInitialTransaction(Closure $write): void
 {
-    app()->bind(\App\Http\Controllers\Auth\InitialPasswordController::class, function () use ($write) {
-        return new class($write) extends \App\Http\Controllers\Auth\InitialPasswordController {
+    app()->bind(InitialPasswordController::class, function () use ($write) {
+        return new class($write) extends InitialPasswordController
+        {
             private bool $interleaved = false;
 
             public function __construct(private Closure $write) {}
@@ -347,7 +351,6 @@ it('reissues only an unfinished initial credential, without disclosing or retain
     $student = User::findOrFail($created->json('student_id'));
     $old = $created->json('temporary_password');
 
-
     $reissued = $this->postJson('/students/'.$student->getKey().'/temporary-password')
         ->assertOk()->assertJsonStructure(['student_id', 'temporary_password']);
     $new = $reissued->json('temporary_password');
@@ -370,7 +373,8 @@ it('rejects a stale reissue after a definitive password was set before the condi
         'must_change_password' => false,
     ])->save();
 
-    $generator = new class extends TemporaryPasswordGenerator {
+    $generator = new class extends TemporaryPasswordGenerator
+    {
         public function generate(): string
         {
             return 'Generated-but-rejected-123';
@@ -648,7 +652,7 @@ it('rejects a stale Fortify password update without its success event', function
     $user = User::factory()->create();
     $winner = 'Reset-before-fortify-write-123';
     $loser = 'Fortify-after-stale-reset-123';
-    Event::fake([\Laravel\Fortify\Events\PasswordUpdatedViaController::class]);
+    Event::fake([PasswordUpdatedViaController::class]);
     interleaveCredentialWrite(function () use ($user, $winner): void {
         app(ConditionalPasswordUpdater::class)->replace($user, $user->password, ['password' => Hash::make($winner)]);
     });
@@ -661,5 +665,5 @@ it('rejects a stale Fortify password update without its success event', function
 
     expect(Hash::check($winner, $user->fresh()->password))->toBeTrue()
         ->and(Hash::check($loser, $user->fresh()->password))->toBeFalse();
-    Event::assertNotDispatched(\Laravel\Fortify\Events\PasswordUpdatedViaController::class);
+    Event::assertNotDispatched(PasswordUpdatedViaController::class);
 });

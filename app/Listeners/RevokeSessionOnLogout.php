@@ -13,9 +13,7 @@ use Illuminate\Auth\Events\Logout;
  */
 class RevokeSessionOnLogout
 {
-    public function __construct(private IdentityService $identity)
-    {
-    }
+    public function __construct(private IdentityService $identity) {}
 
     public function handle(Logout $event): void
     {

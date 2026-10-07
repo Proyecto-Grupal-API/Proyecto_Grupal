@@ -56,7 +56,7 @@ class TwoFactorChallengeController extends Controller
             // Consumir el código usado
             $user->two_factor_recovery_codes = encrypt(json_encode(array_values(array_diff($recoveryCodes, [$request->recovery_code]))));
             $user->save();
-        } 
+        }
         // Validación por código OTP
         elseif ($request->filled('code')) {
             $valid = $provider->verify(decrypt($user->two_factor_secret), $request->code);

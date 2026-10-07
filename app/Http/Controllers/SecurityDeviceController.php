@@ -22,9 +22,7 @@ class SecurityDeviceController extends Controller
 {
     private const EVENTS_PAGE_SIZE = 20;
 
-    public function __construct(private IdentityService $identity)
-    {
-    }
+    public function __construct(private IdentityService $identity) {}
 
     public function index(Request $request)
     {

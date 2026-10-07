@@ -7,6 +7,7 @@ use MongoDB\Laravel\Eloquent\Model;
 class Role extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'roles';
 
     protected $fillable = [
@@ -23,10 +24,15 @@ class Role extends Model
      * nombres de rol arbitrarios enviados desde el cliente.
      */
     public const ADMIN = 'admin';
+
     public const MAESTRO = 'maestro';
+
     public const ESTUDIANTE = 'estudiante';
+
     public const SERVICIO_CAFETERIA = 'servicio_cafeteria';
+
     public const CONSEJO_ESTUDIANTIL = 'consejo_estudiantil';
+
     public const STUDENT_MANAGER = 'student_manager';
 
     public const VALID_ROLES = [

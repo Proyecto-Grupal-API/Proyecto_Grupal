@@ -6,10 +6,11 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QrController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SecurityDeviceController;
-use App\Http\Controllers\StudentServicesController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentImportController;
+use App\Http\Controllers\StudentServicesController;
 use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -22,7 +23,7 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('/security/two-factor-enrollment', function (\Illuminate\Http\Request $request) {
+Route::get('/security/two-factor-enrollment', function (Request $request) {
     return Inertia::render('Security/TwoFactorEnrollment', [
         'twoFactorEnabled' => $request->user()->two_factor_enabled,
         'twoFactorConfigurationPending' => ! is_null($request->user()->two_factor_secret)

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\RoleAssignment;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use MongoDB\BSON\UTCDateTime;
 
 /** Explicit maintenance operation. Nothing in the request authorization path calls this. */
 class LegacyRoleBackfillService
@@ -31,6 +32,7 @@ class LegacyRoleBackfillService
                 if ($decision['decision'] !== 'MIGRATE') {
                     $report[strtolower($decision['decision']) === 'quarantine' ? 'quarantined' : strtolower($decision['decision'])]++;
                     $report['issues'][] = $this->issue($user, $decision, $decision['category']);
+
                     continue;
                 }
                 $report['migratable']++;
@@ -97,8 +99,7 @@ class LegacyRoleBackfillService
     {
         $fresh = User::whereKey($snapshot->getKey())->first();
         $attributes = $decision['attributes'];
-        $eligible = $fresh && collect($this->analyzer->analyze($fresh))->contains(fn ($entry) =>
-            $entry['decision'] === 'MIGRATE'
+        $eligible = $fresh && collect($this->analyzer->analyze($fresh))->contains(fn ($entry) => $entry['decision'] === 'MIGRATE'
             && $entry['attributes']['source_fingerprint'] === $attributes['source_fingerprint']);
         if (! $eligible) {
             return 'STALE_LEGACY_SOURCE';
@@ -155,7 +156,7 @@ class LegacyRoleBackfillService
             throw new \RuntimeException('Invalid cutover marker target.');
         }
         DB::connection('mongodb')->getCollection('identity_transition_state')->insertOne([
-            '_id' => 'rbac_authority_cutover', 'activated_at' => new \MongoDB\BSON\UTCDateTime(),
+            '_id' => 'rbac_authority_cutover', 'activated_at' => new UTCDateTime,
         ]);
     }
 
@@ -206,7 +207,7 @@ class LegacyRoleBackfillService
                 throw new \RuntimeException('Transition postcondition failed; rolling back batch.');
             }
             $state->insertOne(['_id' => 'development_legacy_transition', 'plan_hash' => $planHash,
-                'created' => $created, 'completed_at' => new \MongoDB\BSON\UTCDateTime()]);
+                'created' => $created, 'completed_at' => new UTCDateTime]);
 
             return ['mode' => 'DEVELOPMENT_TRANSITION', 'created' => $created, 'postflight' => $after];
         });

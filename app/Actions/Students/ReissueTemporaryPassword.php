@@ -4,8 +4,8 @@ namespace App\Actions\Students;
 
 use App\Models\SecurityEvent;
 use App\Models\User;
-use App\Services\TemporaryPasswordGenerator;
 use App\Services\ConditionalPasswordUpdater;
+use App\Services\TemporaryPasswordGenerator;
 use App\Support\ExecutesMongoAtomically;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;

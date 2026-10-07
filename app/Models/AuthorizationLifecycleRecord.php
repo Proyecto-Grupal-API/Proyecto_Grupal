@@ -6,21 +6,25 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use MongoDB\BSON\ObjectId;
+use MongoDB\Laravel\Eloquent\Casts\AsBsonArray;
 use MongoDB\Laravel\Eloquent\Model;
 
 /** Structural persistence only; these records do not authorize application access. */
 abstract class AuthorizationLifecycleRecord extends Model
 {
     protected $connection = 'mongodb';
+
     protected $attributes = ['status' => 'pending', 'is_current' => true, 'revision' => 1];
+
     protected $casts = [
         'is_current' => 'boolean', 'revision' => 'integer', 'generation' => 'integer',
         'starts_at' => 'datetime', 'ends_at' => 'datetime', 'assigned_at' => 'datetime',
         'joined_at' => 'datetime', 'suspended_at' => 'datetime', 'revoked_at' => 'datetime',
-        'transitions' => \MongoDB\Laravel\Eloquent\Casts\AsBsonArray::class,
+        'transitions' => AsBsonArray::class,
     ];
 
     public const STATUSES = ['pending', 'active', 'suspended', 'revoked'];
+
     private const TRANSITIONS = [
         'pending' => ['active', 'revoked'],
         'active' => ['suspended', 'revoked'],
@@ -29,6 +33,7 @@ abstract class AuthorizationLifecycleRecord extends Model
     ];
 
     abstract protected function identityFields(): array;
+
     abstract protected function validateContext(): void;
 
     protected static function booted(): void

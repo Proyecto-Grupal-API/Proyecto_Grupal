@@ -3,8 +3,11 @@
 use App\Events\StudentConsentChanged;
 use App\Models\EventOutbox;
 use App\Services\OutboxDelivery;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use MongoDB\Driver\Exception\BulkWriteException;
 
 function pendingOutboxEvent(): EventOutbox
 {
@@ -60,6 +63,7 @@ it('retries a failure later with exactly the same event id', function () {
     $ids = [];
     Http::fake(function ($request) use (&$ids) {
         $ids[] = $request['event_id'];
+
         return Http::response([], count($ids) === 1 ? 503 : 202);
     });
 
@@ -76,7 +80,7 @@ it('retries a failure later with exactly the same event id', function () {
 
 it('sanitizes network failures and retries them after backoff', function () {
     $event = pendingOutboxEvent();
-    Http::fake(fn () => throw new \Illuminate\Http\Client\ConnectionException('Bearer fixture-secret'));
+    Http::fake(fn () => throw new ConnectionException('Bearer fixture-secret'));
 
     $this->artisan('events:publish')->assertFailed();
 
@@ -126,11 +130,11 @@ it('enforces event id uniqueness through the versioned MongoDB index migration',
         ->toContain('outbox_event_id_unique');
 
     $duplicate = $event->replicate();
-    expect(fn () => $duplicate->save())->toThrow(\MongoDB\Driver\Exception\BulkWriteException::class);
+    expect(fn () => $duplicate->save())->toThrow(BulkWriteException::class);
     expect(EventOutbox::count())->toBe(1);
 });
 
 it('registers the publisher on the Laravel minute scheduler', function () {
-    \Illuminate\Support\Facades\Artisan::call('schedule:list');
-    expect(\Illuminate\Support\Facades\Artisan::output())->toContain('events:publish');
+    Artisan::call('schedule:list');
+    expect(Artisan::output())->toContain('events:publish');
 });

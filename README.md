@@ -241,7 +241,7 @@ La entrega es **at-least-once**, no exactly-once: se publica un evento por POST,
 - **Módulos 1.8 y 1.9:** estado académico persistente e historial; consentimientos y preferencias persistentes mediante sesión/Sanctum.
 - **Integración entre servicios:** OAuth 2.0 `client_credentials`, JWT, scopes y middleware Bearer.
 - **Eventos de dominio:** eventos versionados, outbox MongoDB con `event_id` estable y único tras aplicar su migración, y publicador programado con lease atómico y reintentos. La deduplicación del efecto corresponde al consumidor.
-- **Integración 1.10 parcial:** estado académico y validación QR/NFC disponibles; INT-1B espera acuerdo de catálogo/ownership/provisioning con Equipos 3/4, y la entrega externa a Equipo 7 espera contrato y despliegue. La implementación local del outbox no equivale a integración externa completa.
+- **Integración 1.10 parcial:** estado/historial académico y QR son `PUBLISHED_IN_SNAPSHOT_1`; NFC y contratos business son `NEW_IN_SNAPSHOT_2` (candidato local, todavía no publicado). INT-1B.1–1B.6 implementaron foundation, backfill/paridad, cutover y motores business/institucional. La entrega externa a Equipo 7 sigue pendiente; el outbox local no equivale a integración externa completa.
 - **Calidad:** pruebas automatizadas y build frontend disponibles; la guía de integración etiqueta la evidencia de validación con fecha.
 
 La guía [Team 1 — Identity Integration Contract](docs/integration/TEAM-1-INTEGRATION.md) distingue las APIs OAuth para servicios de las rutas Sanctum y web, y enumera las capacidades todavía pendientes.
@@ -266,7 +266,7 @@ La guía [Team 1 — Identity Integration Contract](docs/integration/TEAM-1-INTE
 - [x] Pruebas automatizadas contra MongoDB.
 - [x] Integración de autenticación inter-servicios OAuth 2.0.
 - [x] Contratos implementados de estado académico, QR y NFC documentados para consumidores.
-- [ ] Módulo 1.10 completo: pendiente INT-1B por acuerdo interequipos y pendiente entrega externa de eventos con Equipo 7.
+- [ ] Módulo 1.10 completo: pendientes publicación controlada de Snapshot 2, configuración de consumidores y entrega externa de eventos con Equipo 7; el cierre formal del módulo es un gate separado.
 - [x] Contratos de eventos versionados y outbox MongoDB.
 
 ### Notas de integración
@@ -276,7 +276,28 @@ La guía [Team 1 — Identity Integration Contract](docs/integration/TEAM-1-INTE
 - `StudentCatalogSeeder` inicializa los catálogos; los índices únicos de usuarios y perfiles se crean mediante migraciones, sin depender del seeder.
 - La importación CSV valida todas las filas antes de escribir. El contenedor local MongoDB usa el replica set `rs0`, habilitando transacciones multi-documento para atomicidad estricta.
 - El estado académico y los consentimientos/preferencias persisten datos reales. Los endpoints académicos OAuth aceptan `User._id`; los de consentimientos/preferencias usan Sanctum y no son un contrato OAuth de servicio.
-- La asignación contextual de roles funciona internamente; no hay API externa `role-check`. `student_manager` permanece en el catálogo por compatibilidad. Los contextos implementados son `business`, `association`, `service` y `council`; `campus` y `department` no son scopes RBAC.
+- `RoleAssignment` es la autoridad de autorización; `User.roles` es histórico/no autoritativo, sin fallback. La revalidación read-only de development para INT-1B.7R confirmó marker activo y paridad 42/42; esto no acredita el estado de otros despliegues.
+- La administración legacy conserva seis roles (incluido `student_manager`) y contextos `business`, `association`, `service`, `council`. Foundation añade scopes institucionales `campus` y `academic_program`; `department` está registrado estructuralmente pero no es asignable ni autoriza sin fuente canónica. No existe endpoint `role-check`; los contratos business separados se describen abajo.
+
+### Snapshot 2 candidato — todavía no publicado
+
+`LATEST_GROUP_PUBLISHED` continúa siendo `7a30c3f12722a4e2c6d4caef870f90309a11ae62`. `CURRENT_LOCAL` es el candidato Snapshot 2 (base de esta remediación: `1ec2730a55870e6b856b88ec15370db58a4f945c`); ningún contrato `NEW_IN_SNAPSHOT_2` se considera consumible externamente antes de una publicación autorizada.
+
+| Estado | Superficie |
+| --- | --- |
+| `PUBLISHED_IN_SNAPSHOT_1` | OAuth token, estado/historial académico y validación QR |
+| `NEW_IN_SNAPSHOT_2` (candidato) | `POST /api/v1/identity/nfc-validate`; `POST /api/v1/identity/authorization/check`; `GET /api/v1/identity/assignments`; `POST /api/v1/identity/business-owner/provision` |
+| `LOCAL_INTERNAL` | `BusinessAuthorizationService`, `BusinessRoleAdministrationService` y `InstitutionalAuthorizationService`; no API OAuth institucional |
+| `POST_SNAPSHOT_CONFIGURATION` | Cliente OAuth/grants mínimos y allowlist exacta Team 3 para provisioning; vacía por defecto, fail-closed |
+| `DEFERRED` | Fuente canónica Department, asignación `department_head` y autoridad otorgante institucional |
+| `FOLLOW_UP_INTEGRATION` | Team 2 `PENDING_CLARIFICATION`: sin capabilities/mappings/scopes definitivos de Bonos |
+| `EXTERNAL_TEAM_DEPENDENCY` | Receiver/despliegue Team 7 y vínculo organización↔scope Team 6 |
+
+El motor institucional interno resuelve `organization_manager` → `organizations.institutional.manage` en `campus=Campus._id`, y `career_coordinator` → `academic.program.coordinate` en `academic_program=AcademicProgram._id`. `department_head`/`academic.department.manage` permanece estructural/fail-closed: fuente `UNRESOLVED`, no asignable y grant authority `DEFERRED`. Los endpoints OAuth check/read siguen siendo business-only.
+
+El gap de `identity.credential.changed.v1` solicitado por Team 7 (`student_id`, `old_status`, `new_status` explícito y `reason`) es `NON_BLOCKING_DEFERRED`, no un evento enriquecido disponible. El receiver pertenece a Team 7. QR/NFC/status se integran independientemente; elegibilidad sigue en el consumidor.
+
+**OAuth defense-in-depth:** al emitir el token, se valida cliente activo y que los scopes solicitados estén concedidos persistentemente. `oauth.service` valida firma, expiración, issuer/audience y scope del token. Status/QR/NFC no revalidan después el grant persistente: un token ya emitido puede seguir aceptándose durante su vigencia. Los tres contratos business añaden revalidación de cliente activo/grant en cada petición, permitiendo revocación más inmediata para esas rutas. Es una diferencia deliberada `DEFENSE_IN_DEPTH_DIFFERENCE`, no un security blocker demostrado ni un cambio de comportamiento de esta remediación. Véase el [contrato técnico](docs/integration/TEAM-1-INTEGRATION.md).
 
 ## Repositorio
 

@@ -11,7 +11,9 @@ use Tests\TestCase;
 final class MongoSchemaCache
 {
     private static ?string $owner = null;
+
     private static array $schema = [];
+
     private static string $migrationLedger = '';
 
     public static function forget(): void

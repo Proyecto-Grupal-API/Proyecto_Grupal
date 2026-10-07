@@ -10,6 +10,5 @@ final readonly class IssuedQrToken
         public QrToken $token,
         public string $presentedCode,
         public ?string $shortCode = null,
-    ) {
-    }
+    ) {}
 }

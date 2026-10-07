@@ -34,6 +34,7 @@ class ValidateServiceToken
 
         $request->attributes->set('oauth_client_id', $claims->sub ?? null);
         $request->attributes->set('oauth_scope', $claims->scope ?? '');
+
         return $next($request);
     }
 }

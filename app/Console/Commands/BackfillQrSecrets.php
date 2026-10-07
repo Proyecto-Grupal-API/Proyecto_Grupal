@@ -23,6 +23,7 @@ class BackfillQrSecrets extends Command
         if ($batch === false || $batch < 1 || $batch > 10000 ||
             ((bool) $this->option('apply') && ((bool) $this->option('dry-run') || (bool) $this->option('verify')))) {
             $this->error('Use --batch=1..10000 and choose only one mode. Writing requires --apply.');
+
             return self::INVALID;
         }
 
@@ -57,6 +58,7 @@ class BackfillQrSecrets extends Command
                     }
                     if (! $backfill->apply($document, $analysis)) {
                         $counts['conflicts']++;
+
                         continue;
                     }
 
@@ -64,6 +66,7 @@ class BackfillQrSecrets extends Command
                     $verified = $fresh === null ? null : $backfill->analyze((array) $fresh);
                     if ($verified === null || ! in_array($verified['status'], ['HYBRID_VALID', 'LEGACY_DYNAMIC_TERMINAL_PREPARED'], true)) {
                         $counts['errors']++;
+
                         continue;
                     }
                     $counts['converted']++;

@@ -52,6 +52,7 @@ class StudentStatusService
                 'recorded_at' => $item->created_at?->toISOString(),
             ])->all();
         }
+
         return $data;
     }
 }

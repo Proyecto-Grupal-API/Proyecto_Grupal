@@ -10,9 +10,9 @@ use App\Models\QrValidation;
 use App\Models\SecurityEvent;
 use App\Models\User;
 use App\Models\UserSession;
-use App\Support\QrLookupHash;
-use App\Support\NfcUid;
 use App\Support\IssuedQrToken;
+use App\Support\NfcUid;
+use App\Support\QrLookupHash;
 use App\Support\QrSecretIntegrityException;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
@@ -338,7 +338,6 @@ class IdentityService
      * El consumo del token dinamico es atomico (update condicionado)
      * para que dos validaciones casi simultaneas del mismo QR no
      * puedan resolver ambas como "valid".
-     *
      */
     public function validateQrCode(
         string $input,
@@ -426,6 +425,7 @@ class IdentityService
             if ($candidates->count() > 1) {
                 Log::warning('Ambiguous QR code representation', ['candidate_count' => $candidates->count()]);
             }
+
             return null;
         }
 
@@ -440,6 +440,7 @@ class IdentityService
             ($token->type === 'identification' && $storedHash !== null && $encrypted === null && $storedCode === null) ||
             ($token->type === 'identification' && $encrypted !== null && ! $this->encryptedCodeMatches($encrypted, $code))) {
             $this->recordSecretAnomaly($token, 'lookup_integrity');
+
             return null;
         }
 
@@ -477,8 +478,10 @@ class IdentityService
             $candidate = $usable->first();
             if (! $this->shortCodeMatches($candidate, $shortCode, $shortCodeHash)) {
                 $this->recordSecretAnomaly($candidate, 'short_lookup_integrity');
+
                 return [null, 'not_found'];
             }
+
             return [$candidate, null];
         }
 
@@ -493,8 +496,10 @@ class IdentityService
             $candidate = $historical->first();
             if (! $this->shortCodeMatches($candidate, $shortCode, $shortCodeHash)) {
                 $this->recordSecretAnomaly($candidate, 'short_lookup_integrity');
+
                 return [null, 'not_found'];
             }
+
             return [$candidate, null];
         }
 

@@ -35,11 +35,9 @@ class ImportStudents
         $seenEmails = [];
 
         foreach ($rows as ['line' => $line, 'values' => $row]) {
-            $campus = $campuses->first(fn (Campus $item) =>
-                strcasecmp($item->code, $row['campus']) === 0 || strcasecmp($item->name, $row['campus']) === 0
+            $campus = $campuses->first(fn (Campus $item) => strcasecmp($item->code, $row['campus']) === 0 || strcasecmp($item->name, $row['campus']) === 0
             );
-            $program = $campus?->academicPrograms->first(fn ($item) =>
-                strcasecmp($item->code, $row['carrera']) === 0 || strcasecmp($item->name, $row['carrera']) === 0
+            $program = $campus?->academicPrograms->first(fn ($item) => strcasecmp($item->code, $row['carrera']) === 0 || strcasecmp($item->name, $row['carrera']) === 0
             );
             $data = StudentIdentityInput::normalize([
                 'name' => $row['nombre'],

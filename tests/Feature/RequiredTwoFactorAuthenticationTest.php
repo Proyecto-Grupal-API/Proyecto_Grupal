@@ -1,8 +1,8 @@
 <?php
 
 use App\Models\Role;
-use App\Models\UserSession;
 use App\Models\User;
+use App\Models\UserSession;
 use App\Services\IdentityService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password;

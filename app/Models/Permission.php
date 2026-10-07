@@ -4,14 +4,19 @@ namespace App\Models;
 
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use MongoDB\Laravel\Eloquent\Model;
 
 class Permission extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'permissions';
+
     protected $fillable = ['key', 'display_name', 'description', 'domain', 'active'];
+
     protected $attributes = ['active' => true];
+
     protected $casts = ['active' => 'boolean'];
 
     public const CATALOG = [
@@ -37,10 +42,10 @@ class Permission extends Model
             ])->validate();
 
             if ($permission->exists && $permission->isDirty('key')) {
-                throw \Illuminate\Validation\ValidationException::withMessages(['key' => 'La clave es inmutable.']);
+                throw ValidationException::withMessages(['key' => 'La clave es inmutable.']);
             }
             if ($permission->domain !== self::CATALOG[$permission->key][1]) {
-                throw \Illuminate\Validation\ValidationException::withMessages(['domain' => 'Dominio incompatible con la capacidad.']);
+                throw ValidationException::withMessages(['domain' => 'Dominio incompatible con la capacidad.']);
             }
         });
     }

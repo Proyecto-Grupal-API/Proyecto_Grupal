@@ -10,6 +10,7 @@ class BackfillLegacyRoleAssignments extends Command
 {
     protected $signature = 'identity:backfill-role-assignments {--dry-run} {--apply} {--user=}
         {--development-transition} {--expected-create=} {--plan-hash=}';
+
     protected $description = 'Compare legacy roles with shadow assignments; default is non-mutating dry-run.';
 
     public function handle(LegacyRoleBackfillService $backfill, LegacyRoleParityService $parity): int

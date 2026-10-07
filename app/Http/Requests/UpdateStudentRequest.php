@@ -12,6 +12,7 @@ class UpdateStudentRequest extends StoreStudentRequest
     public function authorize(): bool
     {
         $student = $this->route('student');
+
         return $student instanceof User && $student->studentProfile && ($this->user()?->can('update', $student->studentProfile) ?? false);
     }
 

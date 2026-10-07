@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Models\UserSession;
 use App\Services\IdentityService;
 use App\Services\StudentStatusService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -90,7 +91,7 @@ test('account closure is logical, requires the password, and excludes the owner 
     $this->actingAs($admin)->get(route('students.index'))
         ->assertInertia(fn ($page) => $page->where('statistics.total', 0));
     expect(fn () => app(StudentStatusService::class)->forUserId((string) $user->getKey()))
-        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        ->toThrow(ModelNotFoundException::class);
 });
 
 test('closure revokes identification, dynamic and legacy QR and disables all devices and Mongo sessions', function () {

@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 class CreateOAuthClient extends Command
 {
     protected $signature = 'oauth:client {name} {--scope=* : Allowed scopes}';
+
     protected $description = 'Create an OAuth 2.0 client for service-to-service authentication';
 
     public function handle(): int
@@ -26,6 +27,7 @@ class CreateOAuthClient extends Command
         $this->info('OAuth client created. Store the secret securely; it will not be shown again.');
         $this->line('client_id='.$client->client_id);
         $this->line('client_secret='.$secret);
+
         return self::SUCCESS;
     }
 }

@@ -9,7 +9,9 @@ use MongoDB\Laravel\Eloquent\Model;
 class StudentProfile extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'student_profiles';
+
     protected $fillable = [
         'user_id', 'enrollment_number', 'campus_id', 'academic_program_id',
         'current_semester', 'group_name', 'photo_path', 'academic_status',

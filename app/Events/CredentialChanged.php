@@ -23,9 +23,21 @@ class CredentialChanged implements DomainEvent
         $this->id = (string) Str::uuid();
     }
 
-    public function eventId(): string { return $this->id; }
-    public function eventName(): string { return 'identity.credential.changed.v1'; }
-    public function aggregateId(): string { return $this->credentialId; }
+    public function eventId(): string
+    {
+        return $this->id;
+    }
+
+    public function eventName(): string
+    {
+        return 'identity.credential.changed.v1';
+    }
+
+    public function aggregateId(): string
+    {
+        return $this->credentialId;
+    }
+
     public function payload(): array
     {
         return [

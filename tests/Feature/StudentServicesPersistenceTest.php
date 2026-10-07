@@ -1,11 +1,13 @@
 <?php
 
+use App\Actions\Students\UpsertStudentProfile;
 use App\Enums\StudentStatus;
 use App\Models\AcademicStatusHistory;
 use App\Models\CommunicationPreference;
 use App\Models\Consent;
 use App\Models\StudentProfile;
 use App\Models\User;
+use App\Services\StudentStatusService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -15,6 +17,7 @@ function studentWithStatus(string $status = 'active'): array
     $user = User::factory()->create();
     $profile = StudentProfile::create(['user_id' => (string) $user->getKey(), 'enrollment_number' => 'M'.str_replace('-', '', (string) $user->getKey()), 'academic_status' => $status, 'current_semester' => 3]);
     AcademicStatusHistory::create(['student_profile_id' => (string) $profile->getKey(), 'from_status' => null, 'to_status' => $status, 'reason' => 'Registro inicial', 'changed_at' => now()]);
+
     return [$user, $profile];
 }
 
@@ -34,7 +37,7 @@ it('shares student profile availability on the dashboard for contextual navigati
 
 it('returns each persisted academic status instead of a hardcoded status', function (string $status) {
     [, $profile] = studentWithStatus($status);
-    $service = app(\App\Services\StudentStatusService::class);
+    $service = app(StudentStatusService::class);
     expect($service->forUserId((string) $profile->user_id)['status'])->toBe($status);
 })->with(['active', 'graduated', 'suspended', 'restricted']);
 
@@ -54,7 +57,8 @@ it('changes status with an actor, reason, and a persistent history entry', funct
 });
 
 it('does not create duplicate academic history when status is unchanged', function () {
-    [$manager] = studentWithStatus(); $manager->assignRole('student_manager');
+    [$manager] = studentWithStatus();
+    $manager->assignRole('student_manager');
     withConfirmedTestTwoFactor($manager);
     expect($manager->fresh()->hasRole('student_manager'))->toBeTrue();
     [, $profile] = studentWithStatus();
@@ -92,7 +96,7 @@ it('does not create preferences during an initial GET and returns persisted valu
 it('creates initial academic history when a profile is added to an existing user', function () {
     $student = User::factory()->create();
     $actor = User::factory()->create();
-    app(\App\Actions\Students\UpsertStudentProfile::class)->execute([
+    app(UpsertStudentProfile::class)->execute([
         'name' => $student->name,
         'email' => $student->email,
         'enrollment_number' => 'INITIAL-001',
@@ -104,7 +108,8 @@ it('creates initial academic history when a profile is added to an existing user
 });
 
 it('persists all communication preferences and rejects cross-student updates', function () {
-    [$user] = studentWithStatus(); [, $other] = studentWithStatus();
+    [$user] = studentWithStatus();
+    [, $other] = studentWithStatus();
     $this->actingAs($user)->patchJson('/student-services/preferences', ['email' => true, 'push' => false, 'sms' => true])->assertOk()->assertJsonPath('data.preferences.sms', true);
     $stored = CommunicationPreference::where('user_id', (string) $user->getKey())->first();
     expect($stored->email)->toBeTrue()->and($stored->push)->toBeFalse()->and($stored->sms)->toBeTrue();

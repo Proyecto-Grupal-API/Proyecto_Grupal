@@ -177,7 +177,9 @@ it('rejects a stale state and rolls back the newly created card', function () {
 
 it('rolls back when creating the new card fails', function () {
     $old = replacementOld($this);
-    NfcCard::creating(function (): void { throw new RuntimeException('new card failure'); });
+    NfcCard::creating(function (): void {
+        throw new RuntimeException('new card failure');
+    });
     try {
         expect(fn () => app(ReplaceNfcCard::class)->execute(
             $old, 'NEW-UID', 'Motivo', (string) $this->replacementAdmin->getKey(),
@@ -193,7 +195,9 @@ it('rolls back when creating the new card fails', function () {
 
 it('rolls back both cards when history or outbox fails', function (string $model) {
     $old = replacementOld($this);
-    $model::creating(function (): void { throw new RuntimeException('replacement failure'); });
+    $model::creating(function (): void {
+        throw new RuntimeException('replacement failure');
+    });
     try {
         expect(fn () => app(ReplaceNfcCard::class)->execute(
             $old, 'NEW-UID', 'Motivo', (string) $this->replacementAdmin->getKey(),

@@ -11,6 +11,7 @@ use Throwable;
 class PublishDomainEvents extends Command
 {
     protected $signature = 'events:publish {--limit= : Maximum number of events to attempt}';
+
     protected $description = 'Publish pending domain events to the configured service sink';
 
     public function handle(OutboxDelivery $delivery): int
@@ -18,6 +19,7 @@ class PublishDomainEvents extends Command
         $sink = config('events.sink_url');
         if (! $sink) {
             $this->error('EVENTS_SINK_URL is not configured.');
+
             return self::FAILURE;
         }
 
@@ -26,6 +28,7 @@ class PublishDomainEvents extends Command
         $lease = (int) config('events.claim_lease_seconds');
         if ($limit < 1 || $timeout < 1 || $lease <= $timeout) {
             $this->error('Invalid outbox batch, timeout, or claim lease configuration.');
+
             return self::FAILURE;
         }
 
@@ -65,6 +68,7 @@ class PublishDomainEvents extends Command
                         $failed++;
                         $this->warn("Event {$event->event_id} could not be acknowledged by this claim.");
                     }
+
                     continue;
                 }
 
@@ -85,6 +89,7 @@ class PublishDomainEvents extends Command
         }
 
         $this->info("Published: {$published}; failed: {$failed}; inspected: {$inspected}.");
+
         return $failed > 0 ? self::FAILURE : self::SUCCESS;
     }
 }

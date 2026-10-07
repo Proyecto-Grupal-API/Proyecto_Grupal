@@ -9,6 +9,7 @@ use Illuminate\Validation\ValidationException;
 class RoleAssignment extends AuthorizationLifecycleRecord
 {
     protected $collection = 'role_assignments';
+
     protected $fillable = [
         'user_id', 'role_key', 'scope_type', 'scope_id', 'campus_id', 'status',
         'starts_at', 'ends_at', 'assigned_at', 'assigned_by', 'reason',

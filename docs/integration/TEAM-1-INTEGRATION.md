@@ -34,6 +34,12 @@ La API Sanctum de consentimientos/preferencias conserva una búsqueda histórica
 
 Scopes de servicio usados por las rutas públicas: **`students:read`**, **`identity:qr:validate`** e **`identity:nfc:validate`**. Son nombres literales; no existe alias con puntos. Cada cliente debe recibir explícitamente los scopes que necesita. No compartir ni registrar secretos de cliente. Este OAuth de servicios es independiente del login web, de Sanctum y de los roles embebidos de usuario.
 
+### Vigencia del token y revalidación adicional business
+
+`OAuthTokenService` exige cliente activo, secret válido y scopes solicitados incluidos en sus grants persistentes al emitir el JWT; incorpora exactamente esos scopes. `oauth.service` valida firma, expiración, issuer/audience y scope requerido por la ruta. En status/history, QR y NFC no vuelve a consultar el cliente/grant persistente: retirar un grant o desactivar al cliente impide nuevas emisiones, pero no invalida automáticamente un token ya emitido para esas rutas durante su vigencia.
+
+Los tres contratos business añaden `AuthorizeIdentityService`: cliente activo y grant persistente vigente se revalidan **en cada petición**, además del token; provisioning exige también la allowlist. Esta capa adicional permite una política de revocación más inmediata en business. La diferencia auditada es `DEFENSE_IN_DEPTH_DIFFERENCE`, sin security blocker demostrado; no se promete revocación inmediata universal para status/QR/NFC. INT-1B.7R sólo documenta este comportamiento, no lo cambia. Antes de publicación, NFC/business siguen siendo candidatos `NEW_IN_SNAPSHOT_2`, no disponibilidad externa actual.
+
 ## Estado académico
 
 | Método y ruta | Autenticación | ID de entrada | Respuesta |

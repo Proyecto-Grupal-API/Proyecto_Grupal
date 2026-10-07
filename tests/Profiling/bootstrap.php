@@ -1,14 +1,22 @@
 <?php
 
+use MongoDB\Driver\Monitoring\CommandFailedEvent;
+use MongoDB\Driver\Monitoring\CommandStartedEvent;
+use MongoDB\Driver\Monitoring\CommandSubscriber;
+use MongoDB\Driver\Monitoring\CommandSucceededEvent;
+
 require dirname(__DIR__, 2).'/vendor/autoload.php';
 
 // Optional profiling bootstrap: never record command payloads, results or credentials.
-$subscriber = new class implements MongoDB\Driver\Monitoring\CommandSubscriber {
+$subscriber = new class implements CommandSubscriber
+{
     public array $commands = [];
+
     public array $collections = [];
+
     public int $indexDefinitions = 0;
 
-    public function commandStarted(MongoDB\Driver\Monitoring\CommandStartedEvent $event): void
+    public function commandStarted(CommandStartedEvent $event): void
     {
         $name = $event->getCommandName();
         $this->commands[$name] ??= ['started' => 0, 'succeeded' => 0, 'failed' => 0, 'seconds' => 0];
@@ -24,13 +32,13 @@ $subscriber = new class implements MongoDB\Driver\Monitoring\CommandSubscriber {
         }
     }
 
-    public function commandSucceeded(MongoDB\Driver\Monitoring\CommandSucceededEvent $event): void
+    public function commandSucceeded(CommandSucceededEvent $event): void
     {
         $this->commands[$event->getCommandName()]['succeeded']++;
         $this->commands[$event->getCommandName()]['seconds'] += $event->getDurationMicros() / 1e6;
     }
 
-    public function commandFailed(MongoDB\Driver\Monitoring\CommandFailedEvent $event): void
+    public function commandFailed(CommandFailedEvent $event): void
     {
         $this->commands[$event->getCommandName()]['failed']++;
         $this->commands[$event->getCommandName()]['seconds'] += $event->getDurationMicros() / 1e6;

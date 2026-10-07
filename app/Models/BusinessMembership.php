@@ -5,6 +5,7 @@ namespace App\Models;
 class BusinessMembership extends AuthorizationLifecycleRecord
 {
     protected $collection = 'business_memberships';
+
     protected $fillable = ['user_id', 'business_id', 'status', 'starts_at', 'ends_at', 'joined_at', 'assigned_by', 'reason'];
 
     protected function identityFields(): array

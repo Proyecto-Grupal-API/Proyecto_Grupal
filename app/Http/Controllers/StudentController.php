@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Students\ReissueTemporaryPassword;
+use App\Actions\Students\UpsertStudentProfile;
 use App\Enums\PreferredContactChannel;
 use App\Enums\StudentStatus;
-use App\Models\Campus;
-use App\Models\StudentProfile;
 use App\Http\Requests\StoreStudentRequest;
 use App\Http\Requests\UpdateStudentRequest;
-use App\Actions\Students\UpsertStudentProfile;
+use App\Models\Campus;
+use App\Models\StudentProfile;
+use App\Models\User;
 use App\Services\TemporaryPasswordGenerator;
-use App\Actions\Students\ReissueTemporaryPassword;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 
@@ -29,6 +29,7 @@ class StudentController extends Controller
         $campus = $request->input('campus');
         $profiles = $profiles->filter(function (StudentProfile $profile) use ($search, $status, $campus): bool {
             $matchesSearch = ! $search || str_contains(strtolower((string) $profile->user?->name), strtolower($search)) || str_contains(strtolower((string) $profile->user?->email), strtolower($search)) || str_contains(strtolower((string) $profile->enrollment_number), strtolower($search));
+
             return $matchesSearch && (! $status || $profile->academic_status?->value === $status) && (! $campus || (string) $profile->campus_id === (string) $campus);
         })->values();
         $page = LengthAwarePaginator::resolveCurrentPage();
@@ -54,6 +55,7 @@ class StudentController extends Controller
     public function create()
     {
         $this->authorize('create', StudentProfile::class);
+
         return Inertia::render('Students/Create', $this->formOptions());
     }
 
@@ -75,19 +77,21 @@ class StudentController extends Controller
         return to_route('students.index')->with('success', 'La cuenta del estudiante se creó correctamente.');
     }
 
-    public function edit(\App\Models\User $student)
+    public function edit(User $student)
     {
         $this->authorize('update', $student->studentProfile);
+
         return Inertia::render('Students/Edit', array_merge($this->formOptions(), ['student' => $student->load(['studentProfile.statusHistory.changedBy'])]));
     }
 
-    public function update(UpdateStudentRequest $request, \App\Models\User $student, UpsertStudentProfile $upsert)
+    public function update(UpdateStudentRequest $request, User $student, UpsertStudentProfile $upsert)
     {
         $upsert->execute($request->validated(), $student, $request->user());
+
         return to_route('students.index')->with('success', 'El perfil se actualizó correctamente.');
     }
 
-    public function reissueTemporaryPassword(Request $request, \App\Models\User $student, ReissueTemporaryPassword $reissue)
+    public function reissueTemporaryPassword(Request $request, User $student, ReissueTemporaryPassword $reissue)
     {
         abort_unless($student->studentProfile, 404);
         $this->authorize('update', $student->studentProfile);

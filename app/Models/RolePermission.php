@@ -10,7 +10,9 @@ use MongoDB\Laravel\Eloquent\Model;
 class RolePermission extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'role_permissions';
+
     protected $fillable = ['role_key', 'permission_key'];
 
     // Stable catalog keys avoid coupling mappings to environment-specific ObjectIds.

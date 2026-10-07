@@ -11,7 +11,7 @@ class MongoSetupOrderProbe extends TestCase
 
     protected function refreshApplication()
     {
-        $this->app = new Application();
+        $this->app = new Application;
         $this->app->instance('env', 'testing');
         $this->app->instance('config', new Repository(['database' => ['default' => 'mongodb']]));
     }
