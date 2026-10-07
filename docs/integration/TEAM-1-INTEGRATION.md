@@ -71,7 +71,7 @@ Esta consulta registra el resultado, el cliente autenticado y, cuando se encontr
 
 ## Roles y contextos
 
-Catálogo **implementado**: `admin`, `maestro`, `estudiante`, `servicio_cafeteria`, `consejo_estudiantil`, `student_manager`. Este último permanece por compatibilidad; no se ha eliminado. `User::assignRole()`/`hasRole()` admiten asignación global (`scope_type=null`, `scope_id=null`) o contextual con ambos valores. `hasRole()` contextual exige coincidencia exacta de rol, tipo e ID: un rol global no satisface automáticamente una consulta contextual. Tipos válidos: `business`, `association`, `service`, `council`. **No existen contextos de rol `campus` ni `department`**. Las rutas administrativas actuales evalúan autorización en backend; la UI no es la autoridad.
+Catálogo **legacy implementado**: `admin`, `maestro`, `estudiante`, `servicio_cafeteria`, `consejo_estudiantil`, `student_manager`. Este último permanece por compatibilidad; no se ha eliminado. `User::assignRole()`/`hasRole()` admiten asignación global (`scope_type=null`, `scope_id=null`) o contextual con ambos valores. `hasRole()` contextual exige coincidencia exacta de rol, tipo e ID: un rol global no satisface automáticamente una consulta contextual. Tipos legacy válidos: `business`, `association`, `service`, `council`; no exponen los scopes institucionales foundation descritos abajo. Las rutas administrativas actuales evalúan autorización en backend; la UI no es la autoridad.
 
 Desde INT-1B.3, `RoleAssignment` es la autoridad; `User.roles` es histórico sin fallback. La administración legacy sigue limitada a seis roles. El motor business INT-1B.4 exige membership y asignación efectivas en el mismo negocio; `admin` global no evita ese requisito. Roles comerciales: `business_owner`, `business_manager`, `cashier`, `inventory_manager`, `buyer`. No existe alias `business_cashier` ni scope `identity:roles:check`.
 
@@ -108,6 +108,14 @@ JSON: `{"business_id":"{BUSINESS_ID}","subject_id":"{REQUESTER_USER_ID}","operat
 Reserva, membership, asignación y recibo se confirman en una **transacción MongoDB**; requiere replica set y migrations authorization más `2026_10_06_000100_create_business_owner_provision_indexes`. Schema de provisioning ausente/incompatible: 503 sin escrituras. La migration idempotente sólo crea índices únicos en dos colecciones nuevas, sin migrar datos legacy. El recibo audita cliente/sujeto/negocio/operación/resultado/fecha, sin credenciales OAuth, y no es autoridad. No hay eventos nuevos ni outbox. Ownership transfer deferred; administración interna continúa rechazando `business_owner`.
 
 Equipo 2 sigue `PENDING_CLARIFICATION`, sin capabilities Bonos. Permisos finos de inventario/ventas pertenecen a Equipo 4; las ocho capabilities E1 y trece mappings no conceden permisos comerciales adicionales.
+
+## Autorización institucional INT-1B.6 — interna/local, no publicada
+
+`InstitutionalAuthorizationService` reutiliza `EffectiveRoleAssignments`, `RoleAssignment` y mappings persistentes sin modificar los contratos business. `organization_manager` concede `organizations.institutional.manage` sólo en `campus=string(Campus._id)`; `career_coordinator` concede `academic.program.coordinate` sólo en `academic_program=string(AcademicProgram._id)`. No usar code/name ni StudentProfile._id como sustitutos. Campus/programa deben existir y estar activos; el programa y su asignación deben conservar un campus coherente y activo.
+
+Usuario elegible, asignación active/current vigente y Permission/RolePermission canónicos persistentes son obligatorios. No hay bypass admin, herencia entre scopes ni membresía institucional inventada. `department_head`/`academic.department.manage` permanecen definidos pero no asignables/resolubles positivamente: fuente Department **UNRESOLVED**. Autoridad institucional otorgante **DEFERRED**; ninguna nueva API/UI de escritura. Los seis roles legacy asignables no cambian.
+
+Team 6 conserva organizaciones, memberships, cargos internos, delegaciones, historia y elegibilidad; autoridad institucional campus no equivale a administración interna de organizaciones. Su vínculo organización↔scope es dependencia externa. Véase [Team 6](TEAM-6.md). La resolución institucional es interna: las rutas OAuth check/read existentes siguen business-only. No anunciar un contrato institucional externo ni acceso directo a MongoDB.
 
 ## Consentimientos y preferencias
 
