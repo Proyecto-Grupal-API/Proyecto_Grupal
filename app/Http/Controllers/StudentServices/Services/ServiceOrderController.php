@@ -7,6 +7,7 @@ use App\Http\Requests\StudentServices\Services\PayServiceOrderRequest;
 use App\Http\Requests\StudentServices\Services\StoreServiceOrderRequest;
 use App\Models\StudentServices\Services\PrintJob;
 use App\Models\StudentServices\Services\ServiceOrder;
+use App\Services\StudentServices\Benefits\ServiceBenefitService;
 use App\Services\StudentServices\Services\ServiceOrderService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -55,6 +56,14 @@ class ServiceOrderController extends Controller
             [
                 'orders' =>
                     $orders,
+
+                /*
+                 * Saldo de la beca de impresiones asignada por
+                 * Comunidad (API de beneficios, REQ-M6-E5-001).
+                 */
+                'printAllowance' =>
+                    app(ServiceBenefitService::class)
+                        ->printBalanceFor($studentId),
             ]
         );
     }

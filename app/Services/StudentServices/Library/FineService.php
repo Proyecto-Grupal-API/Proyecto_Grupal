@@ -5,6 +5,7 @@ namespace App\Services\StudentServices\Library;
 use App\Models\StudentServices\Library\LibraryFine;
 use App\Models\StudentServices\Library\Loan;
 use InvalidArgumentException;
+use Illuminate\Support\Str;
 use MongoDB\BSON\ObjectId;
 use RuntimeException;
 
@@ -58,6 +59,8 @@ class FineService
         }
 
         return LibraryFine::create([
+            'folio' =>
+                'MUL-'.now()->format('Ymd').'-'.Str::upper(Str::random(5)),
             'student_id' =>
                 $loan->student_id,
 

@@ -46,9 +46,67 @@ interface ServiceOrder {
     cancelledAt?: string | null;
 }
 
+interface PrintAllowance {
+    disponible: number;
+    asignado: number;
+    vence_en: string | null;
+    maximo_por_orden: number;
+    folios: string[];
+}
+
 const props = defineProps<{
     orders: ServiceOrder[];
+    printAllowance?: PrintAllowance | null;
 }>();
+
+/*
+ * Beca de impresiones (asignada por Comunidad mediante la API de
+ * beneficios): una orden de impresión se puede pagar con el saldo si
+ * una sola asignación vigente cubre todas sus páginas.
+ */
+function canPayWithScholarship(order: ServiceOrder): boolean {
+    return (
+        !!props.printAllowance &&
+        order.serviceType === 'printing' &&
+        order.status === 'awaiting_payment' &&
+        order.paymentStatus === 'pending' &&
+        props.printAllowance.maximo_por_orden >= order.quantity
+    );
+}
+
+function payWithScholarship(order: ServiceOrder) {
+    if (
+        !window.confirm(
+            `¿Pagar ${order.folio} con tu beca de impresiones? Se descontarán ${order.quantity} páginas de tu saldo.`,
+        )
+    ) {
+        return;
+    }
+
+    processingOrderId.value = order.id;
+
+    router.patch(
+        `/servicios-estudiante/servicios-impresiones/${order.id}/pagar-con-beca`,
+        {},
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                window.alert('Orden pagada con tu beca de impresiones.');
+            },
+            onError: (errors) => {
+                window.alert(
+                    String(
+                        errors.order ??
+                            'No fue posible pagar con la beca de impresiones.',
+                    ),
+                );
+            },
+            onFinish: () => {
+                processingOrderId.value = null;
+            },
+        },
+    );
+}
 
 const orders = computed<ServiceOrder[]>(
     () => {
@@ -832,6 +890,27 @@ function markDelivered(
             </article>
         </section>
 
+        <section v-if="printAllowance" class="scholarship-notice">
+            <div>
+                <strong>Beca de impresiones</strong>
+                <p>
+                    Tienes {{ printAllowance.disponible }} de
+                    {{ printAllowance.asignado }} páginas disponibles
+                    <template v-if="printAllowance.vence_en">
+                        (vence el
+                        {{
+                            new Date(printAllowance.vence_en).toLocaleDateString(
+                                'es-MX',
+                            )
+                        }})
+                    </template>.
+                    Úsala con el botón «Usar beca» en tus órdenes de
+                    impresión pendientes de pago.
+                </p>
+            </div>
+            <span>Comunidad</span>
+        </section>
+
         <section
             class="service-options"
         >
@@ -1535,6 +1614,16 @@ function markDelivered(
                                         "
                                 >
                                     Pagar
+                                </button>
+
+                                <button
+                                    v-if="canPayWithScholarship(order)"
+                                    type="button"
+                                    class="action-button scholarship"
+                                    :disabled="processingOrderId === order.id"
+                                    @click="payWithScholarship(order)"
+                                >
+                                    Usar beca
                                 </button>
 
                                 <button
@@ -2377,5 +2466,44 @@ td {
         grid-template-columns:
             1fr;
     }
+}
+</style>
+
+<style scoped>
+/* Beca de impresiones (API de beneficios para Comunidad) */
+.scholarship-notice {
+    margin-top: 16px;
+    padding: 13px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    border: 1px solid #c3e2d1;
+    border-radius: 10px;
+    background: #eaf7f0;
+    color: #26734c;
+}
+
+.scholarship-notice strong {
+    font-size: 11px;
+}
+
+.scholarship-notice p {
+    margin: 4px 0 0;
+    font-size: 9px;
+}
+
+.scholarship-notice > span {
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: #fff;
+    font-size: 8px;
+    font-weight: 800;
+}
+
+.action-button.scholarship {
+    border: 1px solid #c8d8ee;
+    background: #edf3fc;
+    color: #2c63b7;
 }
 </style>

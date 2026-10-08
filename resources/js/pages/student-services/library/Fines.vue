@@ -1,17 +1,11 @@
 <script setup lang="ts">
 import StudentServicesLayout from '@/layouts/StudentServicesLayout.vue';
+import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
-type FineStatus =
-    | 'pending'
-    | 'paid'
-    | 'cancelled';
+type FineStatus = 'pending' | 'paid' | 'waived' | 'cancelled';
 
-type FineReason =
-    | 'overdue'
-    | 'damage'
-    | 'lost'
-    | 'other';
+type FineType = 'late' | 'damage' | 'loss' | 'other';
 
 interface LibraryFine {
     id: string;
@@ -19,279 +13,168 @@ interface LibraryFine {
     student_id: string;
     loan_id: string;
     book_title: string;
-    copy_code: string;
-    reason: FineReason;
-    description: string;
+    copy_code: string | null;
+    type: FineType;
     amount_cents: number;
+    reason: string;
     status: FineStatus;
-    issued_at: string;
-    paid_at: string | null;
+    generated_at: string | null;
     payment_reference_id: string | null;
-    cancelled_at: string | null;
+    paid_at: string | null;
+    notes: string | null;
 }
 
-const fines = ref<LibraryFine[]>([
-    {
-        id: 'FINE-MOCK-001',
-        folio: 'MUL-0001',
-        student_id: 'EST-0001',
-        loan_id: 'LOAN-MOCK-001',
-        book_title: 'Clean Code',
-        copy_code: 'EJ-001',
-        reason: 'overdue',
-        description:
-            'Devolución realizada después de la fecha límite.',
-        amount_cents: 8000,
-        status: 'pending',
-        issued_at: '2026-09-25',
-        paid_at: null,
-        payment_reference_id: null,
-        cancelled_at: null,
-    },
-    {
-        id: 'FINE-MOCK-002',
-        folio: 'MUL-0002',
-        student_id: 'EST-0002',
-        loan_id: 'LOAN-MOCK-002',
-        book_title: 'Design Patterns',
-        copy_code: 'EJ-002',
-        reason: 'damage',
-        description:
-            'Daño menor en cubierta del ejemplar.',
-        amount_cents: 15000,
-        status: 'paid',
-        issued_at: '2026-09-21',
-        paid_at: '2026-09-23',
-        payment_reference_id: 'PAY-TEST-0001',
-        cancelled_at: null,
-    },
-    {
-        id: 'FINE-MOCK-003',
-        folio: 'MUL-0003',
-        student_id: 'EST-0003',
-        loan_id: 'LOAN-MOCK-003',
-        book_title:
-            'Introduction to Algorithms',
-        copy_code: 'EJ-003',
-        reason: 'lost',
-        description:
-            'Ejemplar reportado como extraviado.',
-        amount_cents: 65000,
-        status: 'pending',
-        issued_at: '2026-09-20',
-        paid_at: null,
-        payment_reference_id: null,
-        cancelled_at: null,
-    },
-]);
+interface LoanOption {
+    id: string;
+    student_id: string;
+    book_title: string;
+    copy_code: string;
+    status: 'active' | 'overdue' | 'returned';
+    borrowed_at: string | null;
+    due_at: string | null;
+}
+
+const props = defineProps<{
+    fines: LibraryFine[];
+    loans: LoanOption[];
+}>();
 
 const search = ref('');
-
-const statusFilter = ref<
-    'all' | FineStatus
->('all');
-
-const reasonFilter = ref<
-    'all' | FineReason
->('all');
-
+const statusFilter = ref<'all' | FineStatus>('all');
+const typeFilter = ref<'all' | FineType>('all');
 const showForm = ref(false);
+const processingFineId = ref<string | null>(null);
 
-const form = ref({
-    student_id: '',
+const form = useForm({
     loan_id: '',
-    book_title: '',
-    copy_code: '',
-    reason: 'overdue' as FineReason,
-    description: '',
+    type: 'late' as FineType,
     amount: 0,
+    reason: '',
+    notes: '',
 });
 
-const pendingCount = computed(() => {
-    return fines.value.filter(
-        (fine) =>
-            fine.status === 'pending',
-    ).length;
+const formError = computed(() => {
+    const errors = form.errors as Record<string, string>;
+
+    return Object.values(errors)[0] ?? '';
 });
 
-const paidCount = computed(() => {
-    return fines.value.filter(
-        (fine) =>
-            fine.status === 'paid',
-    ).length;
-});
+const selectedLoan = computed(
+    () => props.loans.find((loan) => loan.id === form.loan_id) ?? null,
+);
 
-const cancelledCount = computed(() => {
-    return fines.value.filter(
-        (fine) =>
-            fine.status === 'cancelled',
-    ).length;
-});
+const pendingCount = computed(
+    () => props.fines.filter((fine) => fine.status === 'pending').length,
+);
 
-const pendingAmount = computed(() => {
-    return fines.value
-        .filter(
-            (fine) =>
-                fine.status === 'pending',
-        )
-        .reduce(
-            (total, fine) =>
-                total +
-                fine.amount_cents,
-            0,
-        );
-});
+const paidCount = computed(
+    () => props.fines.filter((fine) => fine.status === 'paid').length,
+);
+
+const closedCount = computed(
+    () =>
+        props.fines.filter((fine) =>
+            ['waived', 'cancelled'].includes(fine.status),
+        ).length,
+);
+
+const pendingAmount = computed(() =>
+    props.fines
+        .filter((fine) => fine.status === 'pending')
+        .reduce((total, fine) => total + fine.amount_cents, 0),
+);
 
 const filteredFines = computed(() => {
-    const value = search.value
-        .trim()
-        .toLowerCase();
+    const value = search.value.trim().toLowerCase();
 
-    return fines.value.filter(
-        (fine) => {
-            const matchesSearch =
-                value === '' ||
-                fine.folio
-                    .toLowerCase()
-                    .includes(value) ||
-                fine.student_id
-                    .toLowerCase()
-                    .includes(value) ||
-                fine.loan_id
-                    .toLowerCase()
-                    .includes(value) ||
-                fine.book_title
-                    .toLowerCase()
-                    .includes(value) ||
-                fine.copy_code
-                    .toLowerCase()
-                    .includes(value);
+    return props.fines.filter((fine) => {
+        const matchesSearch =
+            value === '' ||
+            [
+                fine.folio,
+                fine.student_id,
+                fine.loan_id,
+                fine.book_title,
+                fine.copy_code ?? '',
+            ].some((field) => field.toLowerCase().includes(value));
 
-            const matchesStatus =
-                statusFilter.value ===
-                'all' ||
-                fine.status ===
-                statusFilter.value;
+        const matchesStatus =
+            statusFilter.value === 'all' || fine.status === statusFilter.value;
 
-            const matchesReason =
-                reasonFilter.value ===
-                'all' ||
-                fine.reason ===
-                reasonFilter.value;
+        const matchesType =
+            typeFilter.value === 'all' || fine.type === typeFilter.value;
 
-            return (
-                matchesSearch &&
-                matchesStatus &&
-                matchesReason
-            );
-        },
-    );
+        return matchesSearch && matchesStatus && matchesType;
+    });
 });
 
-function todayString(): string {
-    const date = new Date();
-
-    const year = date.getFullYear();
-    const month = String(
-        date.getMonth() + 1,
-    ).padStart(2, '0');
-    const day = String(
-        date.getDate(),
-    ).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
+function loanFolio(loanId: string): string {
+    return `PRE-${loanId.slice(-6).toUpperCase()}`;
 }
 
-function formatDate(
-    value: string | null,
-): string {
+function formatDate(value: string | null): string {
     if (!value) {
         return '—';
     }
 
-    const date =
-        value.slice(0, 10);
-
-    const [
-        year,
-        month,
-        day,
-    ] = date.split('-');
-
-    return `${day}/${month}/${year}`;
+    return new Date(value).toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    });
 }
 
-function formatMoney(
-    cents: number,
-): string {
-    return new Intl.NumberFormat(
-        'es-MX',
-        {
-            style: 'currency',
-            currency: 'MXN',
-        },
-    ).format(cents / 100);
+function formatMoney(cents: number): string {
+    return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+    }).format(cents / 100);
 }
 
-function statusLabel(
-    status: FineStatus,
-): string {
-    const labels: Record<
-        FineStatus,
-        string
-    > = {
+function statusLabel(status: FineStatus): string {
+    const labels: Record<FineStatus, string> = {
         pending: 'Pendiente',
         paid: 'Pagada',
+        waived: 'Condonada',
         cancelled: 'Cancelada',
     };
 
     return labels[status];
 }
 
-function reasonLabel(
-    reason: FineReason,
-): string {
-    const labels: Record<
-        FineReason,
-        string
-    > = {
-        overdue: 'Atraso',
+function typeLabel(type: FineType): string {
+    const labels: Record<FineType, string> = {
+        late: 'Atraso',
         damage: 'Daño',
-        lost: 'Pérdida',
+        loss: 'Pérdida',
         other: 'Otro',
     };
 
-    return labels[reason];
+    return labels[type];
 }
 
-function statusClass(
-    status: FineStatus,
-): string {
+function loanStatusLabel(status: LoanOption['status']): string {
+    return (
+        {
+            active: 'activo',
+            overdue: 'vencido',
+            returned: 'devuelto',
+        } as Record<string, string>
+    )[status];
+}
+
+function statusClass(status: FineStatus): string {
     return {
         pending: 'status-pending',
         paid: 'status-paid',
-        cancelled:
-            'status-cancelled',
+        waived: 'status-waived',
+        cancelled: 'status-cancelled',
     }[status];
 }
 
-function generateFolio(): string {
-    return `MUL-${String(
-        fines.value.length + 1,
-    ).padStart(4, '0')}`;
-}
-
 function openCreateForm() {
-    form.value = {
-        student_id: '',
-        loan_id: '',
-        book_title: '',
-        copy_code: '',
-        reason: 'overdue',
-        description: '',
-        amount: 0,
-    };
-
+    form.reset();
+    form.clearErrors();
     showForm.value = true;
 
     window.scrollTo({
@@ -302,173 +185,136 @@ function openCreateForm() {
 
 function closeForm() {
     showForm.value = false;
-
-    form.value = {
-        student_id: '',
-        loan_id: '',
-        book_title: '',
-        copy_code: '',
-        reason: 'overdue',
-        description: '',
-        amount: 0,
-    };
+    form.reset();
+    form.clearErrors();
 }
 
 function createFine() {
-    if (
-        !form.value.student_id.trim() ||
-        !form.value.loan_id.trim() ||
-        !form.value.book_title.trim() ||
-        !form.value.copy_code.trim()
-    ) {
-        window.alert(
-            'Completa los datos obligatorios de la multa.',
-        );
+    if (!form.loan_id) {
+        window.alert('Selecciona el préstamo al que corresponde la multa.');
 
         return;
     }
 
-    if (
-        Number(form.value.amount) <= 0
-    ) {
-        window.alert(
-            'El monto de la multa debe ser mayor a cero.',
-        );
+    if (Number(form.amount) <= 0) {
+        window.alert('El monto de la multa debe ser mayor a cero.');
 
         return;
     }
 
-    fines.value.unshift({
-        id: crypto.randomUUID(),
-        folio: generateFolio(),
-        student_id:
-            form.value.student_id
-                .trim()
-                .toUpperCase(),
-        loan_id:
-            form.value.loan_id
-                .trim()
-                .toUpperCase(),
-        book_title:
-            form.value.book_title
-                .trim(),
-        copy_code:
-            form.value.copy_code
-                .trim()
-                .toUpperCase(),
-        reason:
-        form.value.reason,
-        description:
-            form.value.description
-                .trim() ||
-            'Sin descripción adicional.',
-        amount_cents:
-            Math.round(
-                Number(
-                    form.value.amount,
-                ) * 100,
-            ),
-        status: 'pending',
-        issued_at: todayString(),
-        paid_at: null,
-        payment_reference_id:
-            null,
-        cancelled_at: null,
+    form.transform((data) => ({
+        loan_id: data.loan_id,
+        type: data.type,
+        amount_cents: Math.round(Number(data.amount) * 100),
+        reason: data.reason.trim(),
+        notes: data.notes.trim() || null,
+    })).post('/servicios-estudiante/biblioteca/multas', {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeForm();
+            window.alert('Multa registrada correctamente.');
+        },
     });
-
-    closeForm();
 }
 
-function markAsPaid(
+function runAction(
     fine: LibraryFine,
+    action: 'pagar' | 'condonar' | 'cancelar',
+    payload: Record<string, string | null>,
+    successMessage: string,
 ) {
+    processingFineId.value = fine.id;
+
+    router.patch(
+        `/servicios-estudiante/biblioteca/multas/${fine.id}/${action}`,
+        payload,
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                window.alert(successMessage);
+            },
+            onError: (errors) => {
+                window.alert(
+                    errors.fine ??
+                        Object.values(errors)[0] ??
+                        'No fue posible completar la operación.',
+                );
+            },
+            onFinish: () => {
+                processingFineId.value = null;
+            },
+        },
+    );
+}
+
+function markAsPaid(fine: LibraryFine) {
+    const paymentReference = window.prompt(
+        `Referencia de pago para ${fine.folio} (${formatMoney(fine.amount_cents)}):`,
+        `PAY-${Date.now()}`,
+    );
+
+    if (!paymentReference?.trim()) {
+        return;
+    }
+
+    runAction(
+        fine,
+        'pagar',
+        { payment_reference_id: paymentReference.trim() },
+        'Pago registrado correctamente.',
+    );
+}
+
+function waiveFine(fine: LibraryFine) {
+    const notes = window.prompt(
+        `Motivo de la condonación de ${fine.folio}:`,
+        '',
+    );
+
+    if (notes === null) {
+        return;
+    }
+
+    runAction(
+        fine,
+        'condonar',
+        { notes: notes.trim() || null },
+        'Multa condonada correctamente.',
+    );
+}
+
+function cancelFine(fine: LibraryFine) {
     if (
-        fine.status !== 'pending'
+        !window.confirm(
+            `¿Cancelar la multa ${fine.folio}? Úsalo solo si se registró por error.`,
+        )
     ) {
         return;
     }
 
-    const paymentReference =
-        window.prompt(
-            'Referencia de pago:',
-            `PAY-${Date.now()}`,
-        );
-
-    if (
-        !paymentReference?.trim()
-    ) {
-        return;
-    }
-
-    const confirmed =
-        window.confirm(
-            `¿Registrar el pago de ${formatMoney(
-                fine.amount_cents,
-            )} para ${fine.folio}?`,
-        );
-
-    if (!confirmed) {
-        return;
-    }
-
-    fine.status = 'paid';
-    fine.paid_at = todayString();
-    fine.payment_reference_id =
-        paymentReference.trim();
+    runAction(
+        fine,
+        'cancelar',
+        { notes: null },
+        'Multa cancelada correctamente.',
+    );
 }
 
-function cancelFine(
-    fine: LibraryFine,
-) {
-    if (
-        fine.status !== 'pending'
-    ) {
-        return;
-    }
-
-    const confirmed =
-        window.confirm(
-            `¿Cancelar la multa ${fine.folio}?`,
-        );
-
-    if (!confirmed) {
-        return;
-    }
-
-    fine.status = 'cancelled';
-    fine.cancelled_at =
-        todayString();
-}
-
-function viewDetails(
-    fine: LibraryFine,
-) {
+function viewDetails(fine: LibraryFine) {
     const content = [
         `Folio: ${fine.folio}`,
         `Estudiante: ${fine.student_id}`,
-        `Préstamo: ${fine.loan_id}`,
+        `Préstamo: ${loanFolio(fine.loan_id)}`,
         `Libro: ${fine.book_title}`,
-        `Ejemplar: ${fine.copy_code}`,
-        `Motivo: ${reasonLabel(
-            fine.reason,
-        )}`,
-        `Descripción: ${fine.description}`,
-        `Monto: ${formatMoney(
-            fine.amount_cents,
-        )}`,
-        `Estado: ${statusLabel(
-            fine.status,
-        )}`,
-        `Generada: ${formatDate(
-            fine.issued_at,
-        )}`,
-        `Pagada: ${formatDate(
-            fine.paid_at,
-        )}`,
-        `Referencia: ${
-            fine.payment_reference_id ??
-            'Sin referencia'
-        }`,
+        `Ejemplar: ${fine.copy_code ?? '—'}`,
+        `Tipo: ${typeLabel(fine.type)}`,
+        `Motivo: ${fine.reason}`,
+        `Monto: ${formatMoney(fine.amount_cents)}`,
+        `Estado: ${statusLabel(fine.status)}`,
+        `Generada: ${formatDate(fine.generated_at)}`,
+        `Pagada: ${formatDate(fine.paid_at)}`,
+        `Referencia: ${fine.payment_reference_id ?? 'Sin referencia'}`,
+        `Notas: ${fine.notes ?? 'Sin notas'}`,
     ].join('\n');
 
     window.alert(content);
@@ -482,168 +328,91 @@ function viewDetails(
     >
         <section class="summary">
             <div>
-                <span
-                    class="section-label"
-                >
-                    BIBLIOTECA · MÓDULO 5.2
-                </span>
+                <span class="section-label">BIBLIOTECA · MÓDULO 5.2</span>
 
-                <h2>
-                    Multas y adeudos
-                </h2>
+                <h2>Multas y adeudos</h2>
 
                 <p>
-                    Controla multas por
-                    atraso, daños o pérdida
-                    de ejemplares y consulta
-                    su estado de pago.
+                    Controla multas por atraso, daños o pérdida de ejemplares y
+                    consulta su estado de pago. Un estudiante con multas
+                    pendientes no puede recibir nuevos préstamos en la
+                    validación de servicios (5.11).
                 </p>
             </div>
 
             <div class="total-box">
-                <span>
-                    Adeudo pendiente
-                </span>
-
-                <strong>
-                    {{
-                        formatMoney(
-                            pendingAmount,
-                        )
-                    }}
-                </strong>
-
-                <small>
-                    multas pendientes
-                </small>
+                <span>Adeudo pendiente</span>
+                <strong>{{ formatMoney(pendingAmount) }}</strong>
+                <small>multas pendientes</small>
             </div>
         </section>
 
         <section class="stats-grid">
             <article class="stat-card">
-                <span>
-                    Pendientes
-                </span>
-
-                <strong>
-                    {{ pendingCount }}
-                </strong>
-
-                <small>
-                    Adeudos activos
-                </small>
+                <span>Pendientes</span>
+                <strong>{{ pendingCount }}</strong>
+                <small>Adeudos activos</small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Pagadas
-                </span>
-
-                <strong>
-                    {{ paidCount }}
-                </strong>
-
-                <small>
-                    Pagos registrados
-                </small>
+                <span>Pagadas</span>
+                <strong>{{ paidCount }}</strong>
+                <small>Pagos registrados</small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Canceladas
-                </span>
-
-                <strong>
-                    {{ cancelledCount }}
-                </strong>
-
-                <small>
-                    Adeudos anulados
-                </small>
+                <span>Condonadas / canceladas</span>
+                <strong>{{ closedCount }}</strong>
+                <small>Adeudos anulados</small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Total registros
-                </span>
-
-                <strong>
-                    {{ fines.length }}
-                </strong>
-
-                <small>
-                    Historial de multas
-                </small>
+                <span>Total registros</span>
+                <strong>{{ fines.length }}</strong>
+                <small>Historial de multas</small>
             </article>
         </section>
 
-        <section
-            class="integration-notice"
-        >
+        <section class="integration-notice">
             <div>
-                <strong>
-                    Integración de pagos
-                </strong>
+                <strong>Integración de pagos</strong>
 
                 <p>
-                    El frontend conserva una
-                    referencia de pago, pero
-                    posteriormente el cobro
-                    real deberá realizarse
-                    mediante el servicio del
-                    Equipo 2.
+                    Por ahora el pago se registra con una referencia capturada;
+                    cuando el Equipo 2 publique su servicio de cobro (wallet),
+                    la referencia vendrá de ahí.
                 </p>
             </div>
 
-            <span>
-                Equipo 2
-            </span>
+            <span>Equipo 2</span>
         </section>
 
         <section class="content-panel">
             <div class="panel-header">
                 <div>
-                    <h3>
-                        Multas registradas
-                    </h3>
-
-                    <p>
-                        Consulta adeudos,
-                        pagos y referencias.
-                    </p>
+                    <h3>Multas registradas</h3>
+                    <p>Consulta adeudos, pagos y referencias.</p>
                 </div>
 
                 <button
                     type="button"
                     class="primary-button"
-                    @click="
-                        openCreateForm
-                    "
+                    @click="openCreateForm"
                 >
                     + Nueva multa
                 </button>
             </div>
 
-            <section
-                v-if="showForm"
-                class="form-panel"
-            >
+            <section v-if="showForm" class="form-panel">
                 <div class="form-header">
                     <div>
-                        <span
-                            class="form-label"
-                        >
-                            NUEVA MULTA
-                        </span>
+                        <span class="form-label">NUEVA MULTA</span>
 
-                        <h3>
-                            Registrar adeudo
-                        </h3>
+                        <h3>Registrar adeudo</h3>
 
                         <p>
-                            Relaciona la multa
-                            con un préstamo y
-                            un estudiante.
+                            Selecciona el préstamo; el estudiante y el ejemplar
+                            se toman del registro real.
                         </p>
                     </div>
 
@@ -656,133 +425,69 @@ function viewDetails(
                     </button>
                 </div>
 
-                <form
-                    class="fine-form"
-                    @submit.prevent="
-                        createFine
-                    "
-                >
-                    <div
-                        class="form-grid"
-                    >
-                        <div
-                            class="form-field"
-                        >
-                            <label>
-                                ID del estudiante
-                                <span>*</span>
-                            </label>
+                <form class="fine-form" @submit.prevent="createFine">
+                    <div class="form-grid">
+                        <div class="form-field form-field-full">
+                            <label>Préstamo <span>*</span></label>
 
-                            <input
-                                v-model="
-                                    form.student_id
-                                "
-                                type="text"
-                                placeholder="Ej. EST-0001"
-                            />
-                        </div>
-
-                        <div
-                            class="form-field"
-                        >
-                            <label>
-                                ID del préstamo
-                                <span>*</span>
-                            </label>
-
-                            <input
-                                v-model="
-                                    form.loan_id
-                                "
-                                type="text"
-                                placeholder="Ej. LOAN-001"
-                            />
-                        </div>
-
-                        <div
-                            class="form-field"
-                        >
-                            <label>
-                                Libro
-                                <span>*</span>
-                            </label>
-
-                            <input
-                                v-model="
-                                    form.book_title
-                                "
-                                type="text"
-                                placeholder="Título del libro"
-                            />
-                        </div>
-
-                        <div
-                            class="form-field"
-                        >
-                            <label>
-                                Ejemplar
-                                <span>*</span>
-                            </label>
-
-                            <input
-                                v-model="
-                                    form.copy_code
-                                "
-                                type="text"
-                                placeholder="Ej. EJ-001"
-                            />
-                        </div>
-
-                        <div
-                            class="form-field"
-                        >
-                            <label>
-                                Motivo
-                            </label>
-
-                            <select
-                                v-model="
-                                    form.reason
-                                "
-                            >
-                                <option
-                                    value="overdue"
-                                >
-                                    Atraso
+                            <select v-model="form.loan_id">
+                                <option value="" disabled>
+                                    Selecciona un préstamo
                                 </option>
 
                                 <option
-                                    value="damage"
+                                    v-for="loan in loans"
+                                    :key="loan.id"
+                                    :value="loan.id"
                                 >
-                                    Daño
-                                </option>
-
-                                <option
-                                    value="lost"
-                                >
-                                    Pérdida
-                                </option>
-
-                                <option
-                                    value="other"
-                                >
-                                    Otro
+                                    {{ loanFolio(loan.id) }} ·
+                                    {{ loan.book_title }} ({{ loan.copy_code }})
+                                    · {{ loan.student_id }} ·
+                                    {{ loanStatusLabel(loan.status) }}
                                 </option>
                             </select>
                         </div>
 
-                        <div
-                            class="form-field"
-                        >
-                            <label>
-                                Monto (MXN)
-                                <span>*</span>
-                            </label>
+                        <div class="form-field">
+                            <label>Estudiante</label>
+                            <input
+                                :value="selectedLoan?.student_id ?? ''"
+                                type="text"
+                                readonly
+                                placeholder="Se toma del préstamo"
+                            />
+                        </div>
+
+                        <div class="form-field">
+                            <label>Vencimiento del préstamo</label>
+                            <input
+                                :value="
+                                    selectedLoan
+                                        ? formatDate(selectedLoan.due_at)
+                                        : ''
+                                "
+                                type="text"
+                                readonly
+                                placeholder="—"
+                            />
+                        </div>
+
+                        <div class="form-field">
+                            <label>Tipo</label>
+
+                            <select v-model="form.type">
+                                <option value="late">Atraso</option>
+                                <option value="damage">Daño</option>
+                                <option value="loss">Pérdida</option>
+                                <option value="other">Otro</option>
+                            </select>
+                        </div>
+
+                        <div class="form-field">
+                            <label>Monto (MXN) <span>*</span></label>
 
                             <input
-                                v-model.number="
-                                    form.amount
-                                "
+                                v-model.number="form.amount"
                                 type="number"
                                 min="0"
                                 step="0.01"
@@ -790,49 +495,37 @@ function viewDetails(
                             />
                         </div>
 
-                        <div
-                            class="form-field form-field-full"
-                        >
-                            <label>
-                                Descripción
-                            </label>
+                        <div class="form-field form-field-full">
+                            <label>Motivo <span>*</span></label>
+
+                            <input
+                                v-model="form.reason"
+                                type="text"
+                                maxlength="500"
+                                placeholder="Ej. Devolución con 3 días de atraso"
+                            />
+                        </div>
+
+                        <div class="form-field form-field-full">
+                            <label>Notas</label>
 
                             <textarea
-                                v-model="
-                                    form.description
-                                "
+                                v-model="form.notes"
                                 rows="3"
-                                placeholder="Describe el motivo de la multa..."
+                                placeholder="Observaciones internas (opcional)"
                             ></textarea>
                         </div>
                     </div>
 
-                    <div
-                        class="information-box"
-                    >
-                        <strong>
-                            Importante:
-                        </strong>
-
-                        este formulario
-                        solamente representa
-                        el flujo del módulo.
-                        Al conectar backend,
-                        el préstamo y el
-                        estudiante se
-                        obtendrán de sus
-                        registros reales.
+                    <div v-if="formError" class="information-box error-box">
+                        {{ formError }}
                     </div>
 
-                    <div
-                        class="form-actions"
-                    >
+                    <div class="form-actions">
                         <button
                             type="button"
                             class="secondary-button"
-                            @click="
-                                closeForm
-                            "
+                            @click="closeForm"
                         >
                             Cancelar
                         </button>
@@ -840,6 +533,7 @@ function viewDetails(
                         <button
                             type="submit"
                             class="primary-button"
+                            :disabled="form.processing"
                         >
                             Registrar multa
                         </button>
@@ -848,9 +542,7 @@ function viewDetails(
             </section>
 
             <div class="filters">
-                <div
-                    class="search-field"
-                >
+                <div class="search-field">
                     <input
                         v-model="search"
                         type="text"
@@ -858,290 +550,149 @@ function viewDetails(
                     />
                 </div>
 
-                <select
-                    v-model="
-                        reasonFilter
-                    "
-                >
-                    <option value="all">
-                        Todos los motivos
-                    </option>
-
-                    <option
-                        value="overdue"
-                    >
-                        Atraso
-                    </option>
-
-                    <option
-                        value="damage"
-                    >
-                        Daño
-                    </option>
-
-                    <option
-                        value="lost"
-                    >
-                        Pérdida
-                    </option>
-
-                    <option
-                        value="other"
-                    >
-                        Otro
-                    </option>
+                <select v-model="typeFilter">
+                    <option value="all">Todos los tipos</option>
+                    <option value="late">Atraso</option>
+                    <option value="damage">Daño</option>
+                    <option value="loss">Pérdida</option>
+                    <option value="other">Otro</option>
                 </select>
 
-                <select
-                    v-model="
-                        statusFilter
-                    "
-                >
-                    <option value="all">
-                        Todos los estados
-                    </option>
-
-                    <option
-                        value="pending"
-                    >
-                        Pendientes
-                    </option>
-
-                    <option value="paid">
-                        Pagadas
-                    </option>
-
-                    <option
-                        value="cancelled"
-                    >
-                        Canceladas
-                    </option>
+                <select v-model="statusFilter">
+                    <option value="all">Todos los estados</option>
+                    <option value="pending">Pendientes</option>
+                    <option value="paid">Pagadas</option>
+                    <option value="waived">Condonadas</option>
+                    <option value="cancelled">Canceladas</option>
                 </select>
             </div>
 
-            <div
-                v-if="
-                    filteredFines.length >
-                    0
-                "
-                class="table-container"
-            >
+            <div v-if="filteredFines.length > 0" class="table-container">
                 <table>
                     <thead>
-                    <tr>
-                        <th>Folio</th>
-                        <th>Estudiante</th>
-                        <th>
-                            Libro /
-                            ejemplar
-                        </th>
-                        <th>Motivo</th>
-                        <th>Monto</th>
-                        <th>Generada</th>
-                        <th>Estado</th>
-                        <th>Pago</th>
-                        <th>Acciones</th>
-                    </tr>
+                        <tr>
+                            <th>Folio</th>
+                            <th>Estudiante</th>
+                            <th>Libro / ejemplar</th>
+                            <th>Tipo</th>
+                            <th>Monto</th>
+                            <th>Generada</th>
+                            <th>Estado</th>
+                            <th>Pago</th>
+                            <th>Acciones</th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    <tr
-                        v-for="
-                                fine in
-                                filteredFines
-                            "
-                        :key="
-                                fine.id
-                            "
-                    >
-                        <td>
-                            <strong
-                                class="folio"
-                            >
-                                {{
-                                    fine.folio
-                                }}
-                            </strong>
-
-                            <small
-                                class="loan-id"
-                            >
-                                {{
-                                    fine.loan_id
-                                }}
-                            </small>
-                        </td>
-
-                        <td>
-                                <span
-                                    class="student-id"
-                                >
-                                    {{
-                                        fine.student_id
-                                    }}
-                                </span>
-                        </td>
-
-                        <td>
-                            <div
-                                class="book-info"
-                            >
-                                <strong>
-                                    {{
-                                        fine.book_title
-                                    }}
-                                </strong>
-
-                                <small>
-                                    {{
-                                        fine.copy_code
-                                    }}
+                        <tr v-for="fine in filteredFines" :key="fine.id">
+                            <td>
+                                <strong class="folio">{{ fine.folio }}</strong>
+                                <small class="loan-id">
+                                    {{ loanFolio(fine.loan_id) }}
                                 </small>
-                            </div>
-                        </td>
+                            </td>
 
-                        <td>
-                                <span
-                                    class="reason"
-                                >
-                                    {{
-                                        reasonLabel(
-                                            fine.reason,
-                                        )
-                                    }}
+                            <td>
+                                <span class="student-id">
+                                    {{ fine.student_id }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            <strong
-                                class="amount"
-                            >
-                                {{
-                                    formatMoney(
-                                        fine.amount_cents,
-                                    )
-                                }}
-                            </strong>
-                        </td>
+                            <td>
+                                <div class="book-info">
+                                    <strong>{{ fine.book_title }}</strong>
+                                    <small>{{ fine.copy_code ?? '—' }}</small>
+                                </div>
+                            </td>
 
-                        <td>
-                            {{
-                                formatDate(
-                                    fine.issued_at,
-                                )
-                            }}
-                        </td>
+                            <td>
+                                <span class="reason" :title="fine.reason">
+                                    {{ typeLabel(fine.type) }}
+                                </span>
+                            </td>
 
-                        <td>
+                            <td>
+                                <strong class="amount">
+                                    {{ formatMoney(fine.amount_cents) }}
+                                </strong>
+                            </td>
+
+                            <td>{{ formatDate(fine.generated_at) }}</td>
+
+                            <td>
                                 <span
                                     class="status"
-                                    :class="
-                                        statusClass(
-                                            fine.status,
-                                        )
-                                    "
+                                    :class="statusClass(fine.status)"
                                 >
-                                    {{
-                                        statusLabel(
-                                            fine.status,
-                                        )
-                                    }}
+                                    {{ statusLabel(fine.status) }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            <div
-                                class="payment-info"
-                            >
-                                    <span>
-                                        {{
-                                            fine.payment_reference_id
-                                            ?? '—'
-                                        }}
-                                    </span>
+                            <td>
+                                <div class="payment-info">
+                                    <span>{{
+                                        fine.payment_reference_id ?? '—'
+                                    }}</span>
+                                    <small v-if="fine.paid_at">
+                                        {{ formatDate(fine.paid_at) }}
+                                    </small>
+                                </div>
+                            </td>
 
-                                <small
-                                    v-if="
-                                            fine.paid_at
-                                        "
-                                >
-                                    {{
-                                        formatDate(
-                                            fine.paid_at,
-                                        )
-                                    }}
-                                </small>
-                            </div>
-                        </td>
+                            <td>
+                                <div class="actions">
+                                    <button
+                                        type="button"
+                                        class="action-button details"
+                                        @click="viewDetails(fine)"
+                                    >
+                                        Ver
+                                    </button>
 
-                        <td>
-                            <div
-                                class="actions"
-                            >
-                                <button
-                                    type="button"
-                                    class="action-button details"
-                                    @click="
-                                            viewDetails(
-                                                fine,
-                                            )
-                                        "
-                                >
-                                    Ver
-                                </button>
+                                    <template v-if="fine.status === 'pending'">
+                                        <button
+                                            type="button"
+                                            class="action-button pay"
+                                            :disabled="
+                                                processingFineId === fine.id
+                                            "
+                                            @click="markAsPaid(fine)"
+                                        >
+                                            Registrar pago
+                                        </button>
 
-                                <button
-                                    v-if="
-                                            fine.status ===
-                                            'pending'
-                                        "
-                                    type="button"
-                                    class="action-button pay"
-                                    @click="
-                                            markAsPaid(
-                                                fine,
-                                            )
-                                        "
-                                >
-                                    Registrar pago
-                                </button>
+                                        <button
+                                            type="button"
+                                            class="action-button details"
+                                            :disabled="
+                                                processingFineId === fine.id
+                                            "
+                                            @click="waiveFine(fine)"
+                                        >
+                                            Condonar
+                                        </button>
 
-                                <button
-                                    v-if="
-                                            fine.status ===
-                                            'pending'
-                                        "
-                                    type="button"
-                                    class="action-button cancel"
-                                    @click="
-                                            cancelFine(
-                                                fine,
-                                            )
-                                        "
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                                        <button
+                                            type="button"
+                                            class="action-button cancel"
+                                            :disabled="
+                                                processingFineId === fine.id
+                                            "
+                                            @click="cancelFine(fine)"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </template>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div
-                v-else
-                class="empty-state"
-            >
-                <h3>
-                    No se encontraron
-                    multas
-                </h3>
-
-                <p>
-                    Cambia los filtros o
-                    registra una nueva
-                    multa.
-                </p>
+            <div v-else class="empty-state">
+                <h3>No se encontraron multas</h3>
+                <p>Cambia los filtros o registra una nueva multa.</p>
             </div>
         </section>
     </StudentServicesLayout>
@@ -1186,13 +737,7 @@ function viewDetails(
     min-width: 180px;
     padding: 16px 19px;
     border-radius: 10px;
-    background:
-        rgba(
-            255,
-            255,
-            255,
-            0.1
-        );
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .total-box span {
@@ -1215,8 +760,7 @@ function viewDetails(
 .stats-grid {
     margin-top: 18px;
     display: grid;
-    grid-template-columns:
-        repeat(4, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 13px;
 }
 
@@ -1252,8 +796,7 @@ function viewDetails(
     padding: 14px 17px;
     display: flex;
     align-items: center;
-    justify-content:
-        space-between;
+    justify-content: space-between;
     gap: 20px;
     border: 1px solid #d5e1f1;
     border-radius: 9px;
@@ -1294,14 +837,12 @@ function viewDetails(
     padding: 18px 21px;
     display: flex;
     align-items: center;
-    justify-content:
-        space-between;
+    justify-content: space-between;
     gap: 20px;
 }
 
 .panel-header {
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
 }
 
 .panel-header h3,
@@ -1342,14 +883,12 @@ function viewDetails(
 }
 
 .form-panel {
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
 .form-header {
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
 }
 
 .form-header .form-label {
@@ -1373,8 +912,7 @@ function viewDetails(
 
 .form-grid {
     display: grid;
-    grid-template-columns:
-        repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 17px 19px;
 }
 
@@ -1413,14 +951,7 @@ function viewDetails(
 .form-field select:focus,
 .form-field textarea:focus {
     border-color: #3970c1;
-    box-shadow:
-        0 0 0 3px
-        rgba(
-            57,
-            112,
-            193,
-            0.08
-        );
+    box-shadow: 0 0 0 3px rgba(57, 112, 193, 0.08);
 }
 
 .form-field textarea {
@@ -1445,11 +976,9 @@ function viewDetails(
     margin-top: 19px;
     padding-top: 17px;
     display: flex;
-    justify-content:
-        flex-end;
+    justify-content: flex-end;
     gap: 9px;
-    border-top:
-        1px solid #e5e9ef;
+    border-top: 1px solid #e5e9ef;
 }
 
 .filters {
@@ -1457,8 +986,7 @@ function viewDetails(
     display: flex;
     align-items: center;
     gap: 12px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
@@ -1510,8 +1038,7 @@ th {
 
 td {
     padding: 14px;
-    border-top:
-        1px solid #e9edf3;
+    border-top: 1px solid #e9edf3;
     color: #5c6980;
     font-size: 11px;
     vertical-align: middle;
@@ -1647,8 +1174,7 @@ tbody tr:hover {
 
 @media (max-width: 1050px) {
     .stats-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .filters {
@@ -1688,8 +1214,26 @@ tbody tr:hover {
     }
 
     .form-actions {
-        flex-direction:
-            column-reverse;
+        flex-direction: column-reverse;
     }
+}
+</style>
+<style scoped>
+/* Estilos agregados al conectar el módulo 5.2 con el backend */
+.status-waived {
+    background: #e8f0fc;
+    color: #315fa6;
+}
+
+.information-box.error-box {
+    border-color: #e6c9cd;
+    background: #fbebed;
+    color: #9d4650;
+    font-weight: 700;
+}
+
+.action-button:disabled {
+    opacity: 0.55;
+    cursor: wait;
 }
 </style>

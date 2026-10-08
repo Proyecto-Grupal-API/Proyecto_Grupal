@@ -19,7 +19,15 @@ class Reservation extends Model
         'end_at',
         'status',
         'idempotency_key',
+        'waitlisted_at',
+        'promoted_at',
+        'checked_in_at',
+        'checked_out_at',
+        'no_show_at',
+        'expired_at',
         'cancelled_at',
+        'cancelled_by',
+        'cancellation_reason',
     ];
 
     protected function casts(): array
@@ -27,6 +35,12 @@ class Reservation extends Model
         return [
             'start_at' => 'datetime',
             'end_at' => 'datetime',
+            'waitlisted_at' => 'datetime',
+            'promoted_at' => 'datetime',
+            'checked_in_at' => 'datetime',
+            'checked_out_at' => 'datetime',
+            'no_show_at' => 'datetime',
+            'expired_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
     }

@@ -276,6 +276,10 @@ class LibraryFineController extends Controller
             'id' =>
                 (string) $fine->id,
 
+            'folio' =>
+                $fine->folio
+                ?? 'MUL-'.strtoupper(substr((string) $fine->id, -6)),
+
             'student_id' =>
                 $fine->student_id,
 

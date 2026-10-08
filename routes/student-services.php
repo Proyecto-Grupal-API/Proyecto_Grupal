@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\StudentServices\Benefits\PrintScholarshipPaymentController;
+use App\Http\Controllers\StudentServices\Calendars\AvailabilityController;
 use App\Http\Controllers\StudentServices\Library\BookController;
 use App\Http\Controllers\StudentServices\Library\BookCopyController;
 use App\Http\Controllers\StudentServices\Lockers\LockerAccessController;
@@ -13,8 +15,12 @@ use App\Http\Controllers\StudentServices\Library\LoanController;
 use App\Http\Controllers\StudentServices\Library\BookReservationController;
 use App\Http\Controllers\StudentServices\Library\LibraryFineController;
 use App\Http\Controllers\StudentServices\Rentals\RentalController;
+use App\Http\Controllers\StudentServices\RestSpaces\RestBookingController;
+use App\Http\Controllers\StudentServices\RestSpaces\RestSpaceController;
+use App\Http\Controllers\StudentServices\ServiceAccess\ServiceAccessController;
 use App\Http\Controllers\StudentServices\Services\ServiceOrderController;
 use App\Http\Controllers\StudentServices\Support\SupportTicketController;
+use App\Services\StudentServices\Calendars\BookableResources;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])
@@ -186,17 +192,6 @@ Route::middleware(['auth', 'verified'])
 
         /*
         |--------------------------------------------------------------------------
-        | Renta de equipos (5.7)
-        |--------------------------------------------------------------------------
-        */
-
-        Route::inertia(
-            '/renta-equipos',
-            'student-services/rentals/Index'
-        )->name('rentals.index');
-
-        /*
-        |--------------------------------------------------------------------------
         | Biblioteca - Catálogo (5.1)
         |--------------------------------------------------------------------------
         */
@@ -259,85 +254,94 @@ Route::middleware(['auth', 'verified'])
 
         /*
         |--------------------------------------------------------------------------
-        | Biblioteca - Préstamos
+        | Zonas de descanso (5.6) - usa el motor de calendarios 5.10
         |--------------------------------------------------------------------------
         */
 
-        Route::inertia(
-            '/biblioteca/prestamos',
-            'student-services/library/Loans'
-        )->name('library.loans.index');
-
-        /*
-        |--------------------------------------------------------------------------
-        | Biblioteca - Reservas
-        |--------------------------------------------------------------------------
-        */
-
-        Route::inertia(
-            '/biblioteca/reservas',
-            'student-services/library/BookReservations'
-        )->name('library.reservations.index');
-
-        /*
-        |--------------------------------------------------------------------------
-        | Biblioteca - Multas (5.2)
-        |--------------------------------------------------------------------------
-        */
-
-        Route::inertia(
-            '/biblioteca/multas',
-            'student-services/library/Fines'
-        )->name('library.fines.index');
-
-        Route::inertia(
+        Route::get(
             '/zonas-descanso',
-            'student-services/rest-spaces/Index'
+            [RestSpaceController::class, 'index']
         )->name('rest-spaces.index');
 
+        Route::post(
+            '/zonas-descanso/reservas',
+            [RestBookingController::class, 'store']
+        )->name('rest-spaces.bookings.store');
+
+        Route::patch(
+            '/zonas-descanso/reservas/{bookingId}/cancelar',
+            [RestBookingController::class, 'cancel']
+        )->name('rest-spaces.bookings.cancel');
+
+        Route::post(
+            '/zonas-descanso/espacios',
+            [RestSpaceController::class, 'store']
+        )->name('rest-spaces.store');
+
+        Route::patch(
+            '/zonas-descanso/espacios/{spaceId}/mantenimiento',
+            [RestSpaceController::class, 'markMaintenance']
+        )->name('rest-spaces.maintenance');
+
+        Route::patch(
+            '/zonas-descanso/espacios/{spaceId}/disponible',
+            [RestSpaceController::class, 'restoreAvailable']
+        )->name('rest-spaces.available');
+
         /*
-|--------------------------------------------------------------------------
-| Servicios e impresiones (5.8)
-|--------------------------------------------------------------------------
-*/
+        |--------------------------------------------------------------------------
+        | Calendarios, cupos y reglas (5.10)
+        |--------------------------------------------------------------------------
+        */
 
-        Route::inertia(
-            '/servicios-impresiones',
-            'student-services/services/Index'
-        )->name('service-orders.index');
-
-        /*
-|--------------------------------------------------------------------------
-| Tickets de soporte e incidencias (5.9)
-|--------------------------------------------------------------------------
-*/
-
-        Route::inertia(
-            '/soporte',
-            'student-services/support/Index'
-        )->name('support.index');
-
-        /*
-|--------------------------------------------------------------------------
-| Calendarios, cupos y reglas (5.10)
-|--------------------------------------------------------------------------
-*/
-
-        Route::inertia(
+        Route::get(
             '/calendarios-cupos',
-            'student-services/availability/Index'
+            [AvailabilityController::class, 'index']
         )->name('availability.index');
 
-        /*
-|--------------------------------------------------------------------------
-| Validación de acceso y uso (5.11)
-|--------------------------------------------------------------------------
-*/
+        Route::patch(
+            '/calendarios-cupos/{resourceType}/{resourceId}/reglas',
+            [AvailabilityController::class, 'updateRules']
+        )->whereIn('resourceType', BookableResources::types())
+            ->name('availability.rules.update');
 
-        Route::inertia(
+        Route::post(
+            '/calendarios-cupos/bloqueos',
+            [AvailabilityController::class, 'storeBlock']
+        )->name('availability.blocks.store');
+
+        Route::delete(
+            '/calendarios-cupos/bloqueos/{blockId}',
+            [AvailabilityController::class, 'destroyBlock']
+        )->name('availability.blocks.destroy');
+
+        Route::patch(
+            '/calendarios-cupos/espera/{resourceType}/{bookingId}/promover',
+            [AvailabilityController::class, 'promote']
+        )->whereIn('resourceType', BookableResources::types())
+            ->name('availability.waitlist.promote');
+
+        Route::patch(
+            '/calendarios-cupos/espera/{resourceType}/{bookingId}/cancelar',
+            [AvailabilityController::class, 'cancelWaitlist']
+        )->whereIn('resourceType', BookableResources::types())
+            ->name('availability.waitlist.cancel');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Validación de acceso y uso (5.11)
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get(
             '/validacion-servicios',
-            'student-services/service-access/Index'
+            [ServiceAccessController::class, 'index']
         )->name('service-access.index');
+
+        Route::post(
+            '/validacion-servicios/validar',
+            [ServiceAccessController::class, 'validateAccess']
+        )->name('service-access.validate');
 
         /*
 |--------------------------------------------------------------------------
@@ -479,6 +483,11 @@ Route::middleware(['auth', 'verified'])
             '/servicios-impresiones/{orderId}/pagar',
             [ServiceOrderController::class, 'pay']
         )->name('services.pay');
+
+        Route::patch(
+            '/servicios-impresiones/{orderId}/pagar-con-beca',
+            [PrintScholarshipPaymentController::class, 'pay']
+        )->name('services.pay-scholarship');
 
         Route::patch(
             '/servicios-impresiones/{orderId}/cancelar',

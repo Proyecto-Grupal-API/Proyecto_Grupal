@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import StudentServicesLayout from '@/layouts/StudentServicesLayout.vue';
-import { computed, ref } from 'vue';
+import { useForm } from '@inertiajs/vue3';
+import { computed, nextTick, ref, watch } from 'vue';
 
 type ScanMode = 'qr' | 'nfc' | 'manual';
 
@@ -14,170 +15,131 @@ type ServiceType =
 
 type ActionType =
     | 'loan'
-    | 'entry'
-    | 'pickup'
     | 'return'
-    | 'delivery'
-    | 'checkin';
+    | 'entry'
+    | 'checkin'
+    | 'checkout'
+    | 'pickup'
+    | 'delivery';
 
 interface ServiceEvent {
-    id: number;
+    id: string;
     folio: string;
+    student_id: string | null;
+    student_name: string | null;
     credential: string;
-    student: string;
     service: ServiceType;
     action: ActionType;
-    reference: string;
+    reference: string | null;
     mode: ScanMode;
     granted: boolean;
     message: string;
-    createdAt: string;
+    created_at: string;
 }
 
-const events = ref<ServiceEvent[]>([
-    {
-        id: 1,
-        folio: 'EVT-2026-001',
-        credential: 'QR-EST-0001',
-        student: 'EST-0001',
-        service: 'library',
-        action: 'loan',
-        reference: 'LIB-EJ-001',
-        mode: 'qr',
-        granted: true,
-        message: 'Préstamo autorizado.',
-        createdAt: '28/09/2026 09:15',
-    },
-    {
-        id: 2,
-        folio: 'EVT-2026-002',
-        credential: 'NFC-EST-0002',
-        student: 'EST-0002',
-        service: 'locker',
-        action: 'entry',
-        reference: 'LKR-A-PB-001',
-        mode: 'nfc',
-        granted: true,
-        message: 'Acceso al locker autorizado.',
-        createdAt: '28/09/2026 09:42',
-    },
-    {
-        id: 3,
-        folio: 'EVT-2026-003',
-        credential: 'QR-EST-0099',
-        student: 'EST-0099',
-        service: 'rental',
-        action: 'pickup',
-        reference: 'REN-2026-010',
-        mode: 'qr',
-        granted: false,
-        message: 'No existe una renta activa para esta referencia.',
-        createdAt: '28/09/2026 10:05',
-    },
-]);
-
-const scanMode = ref<ScanMode>('qr');
-const credential = ref('');
-const service = ref<ServiceType>('library');
-const action = ref<ActionType>('loan');
-const reference = ref('');
+const props = defineProps<{
+    events: ServiceEvent[];
+    stats: { today: number; granted: number; denied: number };
+    operations: Record<ServiceType, ActionType[]>;
+    result: ServiceEvent | null;
+}>();
 
 const search = ref('');
-const result = ref<ServiceEvent | null>(null);
+const credentialInput = ref<HTMLInputElement | null>(null);
+const dismissedResultId = ref<string | null>(null);
 
-const successfulEvents = computed(() =>
-    events.value.filter(
-        (event) => event.granted,
-    ).length,
+const form = useForm({
+    credential: '',
+    method: 'qr' as ScanMode,
+    service: 'library' as ServiceType,
+    action: 'loan' as ActionType,
+    reference: '',
+    condition: 'good',
+});
+
+const visibleResult = computed(() =>
+    props.result && props.result.id !== dismissedResultId.value
+        ? props.result
+        : null,
 );
 
-const deniedEvents = computed(() =>
-    events.value.filter(
-        (event) => !event.granted,
-    ).length,
+const availableActions = computed(() => props.operations[form.service] ?? []);
+
+watch(
+    () => form.service,
+    () => {
+        form.action = availableActions.value[0];
+        form.reference = '';
+    },
 );
 
-const todayEvents = computed(
-    () => events.value.length,
+const referenceRequired = computed(
+    () => !['facility', 'rest'].includes(form.service),
 );
+
+const referenceHelp = computed(() => {
+    const help: Record<ServiceType, string> = {
+        library: 'Código o código de barras del ejemplar (ej. EJ-001).',
+        locker: 'Código o QR del locker (ej. LKR-A-PB-001).',
+        facility:
+            'Folio de la reserva (RES-...). Opcional: vacío usa la reserva actual del alumno.',
+        rest: 'Folio de la reservación (ZD-...). Opcional: vacío usa la reservación actual del alumno.',
+        rental: 'Código de inventario del equipo (ej. INV-E4-001) o id de la renta.',
+        service: 'Folio de la solicitud (ej. SER-2026-...).',
+    };
+
+    return help[form.service];
+});
 
 const filteredEvents = computed(() => {
-    const term =
-        search.value
-            .trim()
-            .toLowerCase();
+    const term = search.value.trim().toLowerCase();
 
     if (!term) {
-        return events.value;
+        return props.events;
     }
 
-    return events.value.filter(
-        (event) =>
-            [
-                event.folio,
-                event.credential,
-                event.student,
-                event.reference,
-                serviceLabel(
-                    event.service,
-                ),
-                actionLabel(
-                    event.action,
-                ),
-            ].some((value) =>
-                value
-                    .toLowerCase()
-                    .includes(term),
-            ),
+    return props.events.filter((event) =>
+        [
+            event.folio,
+            event.credential,
+            event.student_id ?? '',
+            event.student_name ?? '',
+            event.reference ?? '',
+            serviceLabel(event.service),
+            actionLabel(event.action),
+        ].some((value) => value.toLowerCase().includes(term)),
     );
 });
 
-function serviceLabel(
-    value: ServiceType,
-): string {
-    const labels: Record<
-        ServiceType,
-        string
-    > = {
+function serviceLabel(value: ServiceType): string {
+    const labels: Record<ServiceType, string> = {
         library: 'Biblioteca',
         locker: 'Lockers',
-        facility:
-            'Instalaciones',
+        facility: 'Instalaciones',
         rest: 'Zonas de descanso',
-        rental:
-            'Renta de equipos',
-        service:
-            'Servicios e impresiones',
+        rental: 'Renta de equipos',
+        service: 'Servicios e impresiones',
     };
 
     return labels[value];
 }
 
-function actionLabel(
-    value: ActionType,
-): string {
-    const labels: Record<
-        ActionType,
-        string
-    > = {
+function actionLabel(value: ActionType): string {
+    const labels: Record<ActionType, string> = {
         loan: 'Préstamo',
-        entry: 'Entrada',
-        pickup: 'Recoger',
         return: 'Devolución',
+        entry: 'Acceso',
+        checkin: 'Entrada (check-in)',
+        checkout: 'Salida (check-out)',
+        pickup: 'Recoger equipo',
         delivery: 'Entrega',
-        checkin: 'Check-in',
     };
 
     return labels[value];
 }
 
-function modeLabel(
-    value: ScanMode,
-): string {
-    const labels: Record<
-        ScanMode,
-        string
-    > = {
+function modeLabel(value: ScanMode): string {
+    const labels: Record<ScanMode, string> = {
         qr: 'QR',
         nfc: 'NFC',
         manual: 'Manual',
@@ -186,193 +148,46 @@ function modeLabel(
     return labels[value];
 }
 
-function updateActionOptions() {
-    switch (service.value) {
-        case 'library':
-            action.value = 'loan';
-            break;
-
-        case 'locker':
-        case 'facility':
-        case 'rest':
-            action.value = 'entry';
-            break;
-
-        case 'rental':
-            action.value = 'pickup';
-            break;
-
-        case 'service':
-            action.value = 'delivery';
-            break;
-    }
+function formatDateTime(iso: string): string {
+    return new Date(iso).toLocaleString('es-MX', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+    });
 }
 
+const formError = computed(() => {
+    const errors = form.errors as Record<string, string>;
+
+    return Object.values(errors)[0] ?? '';
+});
+
 function validateAccess() {
-    if (
-        !credential.value.trim() ||
-        !reference.value.trim()
-    ) {
-        window.alert(
-            'Captura la credencial y la referencia del servicio.',
-        );
+    if (!form.credential.trim()) {
+        credentialInput.value?.focus();
 
         return;
     }
 
-    /*
-     * Simulación visual.
-     * El backend real posteriormente
-     * consultará identidad, credenciales
-     * y el módulo correspondiente.
-     */
+    if (referenceRequired.value && !form.reference.trim()) {
+        window.alert('Captura la referencia del servicio.');
 
-    const normalizedCredential =
-        credential.value
-            .trim()
-            .toUpperCase();
-
-    const normalizedReference =
-        reference.value
-            .trim()
-            .toUpperCase();
-
-    const denied =
-        normalizedCredential.includes(
-            'INVALID',
-        ) ||
-        normalizedReference.includes(
-            'INVALID',
-        ) ||
-        normalizedReference.includes(
-            'NO-EXISTE',
-        );
-
-    const eventId =
-        events.value.length + 1;
-
-    const newEvent: ServiceEvent = {
-        id: eventId,
-
-        folio:
-            'EVT-2026-' +
-            String(
-                eventId + 3,
-            ).padStart(
-                3,
-                '0',
-            ),
-
-        credential:
-        normalizedCredential,
-
-        student:
-            normalizedCredential
-                .replace('QR-', '')
-                .replace('NFC-', ''),
-
-        service:
-        service.value,
-
-        action:
-        action.value,
-
-        reference:
-        normalizedReference,
-
-        mode:
-        scanMode.value,
-
-        granted: !denied,
-
-        message: denied
-            ? 'La operación no pudo ser validada.'
-            : successMessage(
-                service.value,
-                action.value,
-            ),
-
-        createdAt:
-            new Date().toLocaleString(
-                'es-MX',
-            ),
-    };
-
-    events.value.unshift(
-        newEvent,
-    );
-
-    result.value =
-        newEvent;
-
-    credential.value = '';
-    reference.value = '';
-}
-
-function successMessage(
-    selectedService: ServiceType,
-    selectedAction: ActionType,
-): string {
-    if (
-        selectedService ===
-        'library' &&
-        selectedAction === 'loan'
-    ) {
-        return 'Préstamo autorizado.';
+        return;
     }
 
-    if (
-        selectedService ===
-        'library' &&
-        selectedAction === 'return'
-    ) {
-        return 'Devolución registrada.';
-    }
+    form.post('/servicios-estudiante/validacion-servicios/validar', {
+        preserveScroll: true,
+        onSuccess: () => {
+            dismissedResultId.value = null;
+            form.credential = '';
+            form.reference = '';
 
-    if (
-        selectedService ===
-        'locker'
-    ) {
-        return 'Uso del locker autorizado.';
-    }
-
-    if (
-        selectedService ===
-        'facility' ||
-        selectedService ===
-        'rest'
-    ) {
-        return 'Entrada autorizada.';
-    }
-
-    if (
-        selectedService ===
-        'rental' &&
-        selectedAction === 'pickup'
-    ) {
-        return 'Entrega del equipo autorizada.';
-    }
-
-    if (
-        selectedService ===
-        'rental' &&
-        selectedAction === 'return'
-    ) {
-        return 'Devolución del equipo registrada.';
-    }
-
-    if (
-        selectedService ===
-        'service'
-    ) {
-        return 'Entrega del servicio autorizada.';
-    }
-
-    return 'Operación validada correctamente.';
+            nextTick(() => credentialInput.value?.focus());
+        },
+    });
 }
 
 function clearResult() {
-    result.value = null;
+    dismissedResultId.value = props.result?.id ?? null;
 }
 </script>
 
@@ -383,115 +198,61 @@ function clearResult() {
     >
         <section class="hero">
             <div>
-                <span class="hero-label">
-                    SERVICIOS · MÓDULO 5.11
-                </span>
+                <span class="hero-label">SERVICIOS · MÓDULO 5.11</span>
 
-                <h2>
-                    Validación de acceso y uso
-                </h2>
+                <h2>Validación de acceso y uso</h2>
 
                 <p>
-                    Punto central para validar
-                    identidad y operaciones de
-                    préstamo, entrada,
-                    entrega, recolección y
-                    devolución mediante
-                    QR/NFC.
+                    Punto central para validar identidad y operaciones de
+                    préstamo, entrada, salida, entrega, recolección y devolución
+                    mediante QR/NFC. Cada escaneo queda registrado, autorizado o
+                    no.
                 </p>
             </div>
 
             <div class="hero-reader">
-                <span>
-                    LECTOR
-                </span>
-
-                <strong>
-                    QR / NFC
-                </strong>
-
-                <small>
-                    Modo de prueba
-                </small>
+                <span>LECTOR</span>
+                <strong>QR / NFC</strong>
+                <small>Conectado al backend</small>
             </div>
         </section>
 
         <section class="stats-grid">
             <article class="stat-card">
-                <span>
-                    Eventos
-                </span>
-
-                <strong>
-                    {{ todayEvents }}
-                </strong>
-
-                <small>
-                    Registrados
-                </small>
+                <span>Eventos de hoy</span>
+                <strong>{{ stats.today }}</strong>
+                <small>Escaneos registrados</small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Autorizados
-                </span>
-
-                <strong>
-                    {{
-                        successfulEvents
-                    }}
-                </strong>
-
-                <small>
-                    Operaciones válidas
-                </small>
+                <span>Autorizados</span>
+                <strong>{{ stats.granted }}</strong>
+                <small>Operaciones válidas hoy</small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Denegados
-                </span>
-
-                <strong>
-                    {{ deniedEvents }}
-                </strong>
-
-                <small>
-                    Operaciones rechazadas
-                </small>
+                <span>Denegados</span>
+                <strong>{{ stats.denied }}</strong>
+                <small>Operaciones rechazadas hoy</small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Servicios
-                </span>
-
-                <strong>
-                    6
-                </strong>
-
-                <small>
-                    Integrables
-                </small>
+                <span>Servicios</span>
+                <strong>{{ Object.keys(operations).length }}</strong>
+                <small>Integrados</small>
             </article>
         </section>
 
         <section class="content-panel">
             <div class="panel-header">
                 <div>
-                    <span class="panel-label">
-                        VALIDACIÓN
-                    </span>
+                    <span class="panel-label">VALIDACIÓN</span>
 
-                    <h3>
-                        Registrar operación
-                    </h3>
+                    <h3>Registrar operación</h3>
 
                     <p>
-                        Selecciona el servicio,
-                        operación y captura la
-                        credencial del
-                        estudiante.
+                        Selecciona el servicio, la operación y escanea la
+                        credencial del estudiante.
                     </p>
                 </div>
 
@@ -517,344 +278,177 @@ function clearResult() {
                         </div>
                     </div>
 
-                    <strong>
-                        Identificar estudiante
-                    </strong>
+                    <strong>Identificar estudiante</strong>
 
                     <p>
-                        En la integración real
-                        esta sección consumirá
-                        las credenciales del
-                        Equipo 1.
+                        La credencial se resuelve con el contrato de identidad
+                        (Equipo 1). Mientras tanto se acepta el id del usuario
+                        (con o sin prefijo QR-/NFC-) o su correo.
                     </p>
 
                     <div class="scan-modes">
                         <button
+                            v-for="mode in [
+                                'qr',
+                                'nfc',
+                                'manual',
+                            ] as ScanMode[]"
+                            :key="mode"
                             type="button"
-                            :class="{
-                                active:
-                                    scanMode ===
-                                    'qr',
-                            }"
-                            @click="
-                                scanMode = 'qr'
-                            "
+                            :class="{ active: form.method === mode }"
+                            @click="form.method = mode"
                         >
-                            QR
-                        </button>
-
-                        <button
-                            type="button"
-                            :class="{
-                                active:
-                                    scanMode ===
-                                    'nfc',
-                            }"
-                            @click="
-                                scanMode = 'nfc'
-                            "
-                        >
-                            NFC
-                        </button>
-
-                        <button
-                            type="button"
-                            :class="{
-                                active:
-                                    scanMode ===
-                                    'manual',
-                            }"
-                            @click="
-                                scanMode =
-                                    'manual'
-                            "
-                        >
-                            Manual
+                            {{ modeLabel(mode) }}
                         </button>
                     </div>
                 </div>
 
-                <div class="validation-form">
+                <form class="validation-form" @submit.prevent="validateAccess">
                     <div class="form-grid">
                         <div class="form-field full">
                             <label>
-                                Credencial del
-                                estudiante
+                                Credencial del estudiante
                                 <span>*</span>
                             </label>
 
                             <input
-                                v-model="
-                                    credential
-                                "
+                                ref="credentialInput"
+                                v-model="form.credential"
                                 type="text"
-                                placeholder="Ej. QR-EST-0001"
+                                autocomplete="off"
+                                placeholder="Escanea o captura la credencial"
+                                autofocus
                             />
 
-                            <small>
-                                Método:
-                                {{
-                                    modeLabel(
-                                        scanMode,
-                                    )
-                                }}
-                            </small>
+                            <small>Método: {{ modeLabel(form.method) }}</small>
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Servicio
-                                <span>*</span>
-                            </label>
+                            <label>Servicio <span>*</span></label>
 
-                            <select
-                                v-model="
-                                    service
-                                "
-                                @change="
-                                    updateActionOptions
-                                "
-                            >
+                            <select v-model="form.service">
                                 <option
-                                    value="library"
+                                    v-for="(_actions, service) in operations"
+                                    :key="service"
+                                    :value="service"
                                 >
-                                    Biblioteca
-                                </option>
-
-                                <option
-                                    value="locker"
-                                >
-                                    Lockers
-                                </option>
-
-                                <option
-                                    value="facility"
-                                >
-                                    Instalaciones
-                                </option>
-
-                                <option
-                                    value="rest"
-                                >
-                                    Zonas de
-                                    descanso
-                                </option>
-
-                                <option
-                                    value="rental"
-                                >
-                                    Renta de
-                                    equipos
-                                </option>
-
-                                <option
-                                    value="service"
-                                >
-                                    Servicios e
-                                    impresiones
+                                    {{ serviceLabel(service) }}
                                 </option>
                             </select>
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Operación
-                                <span>*</span>
-                            </label>
+                            <label>Operación <span>*</span></label>
 
-                            <select
-                                v-model="
-                                    action
-                                "
-                            >
+                            <select v-model="form.action">
                                 <option
-                                    v-if="
-                                        service ===
-                                        'library'
-                                    "
-                                    value="loan"
+                                    v-for="action in availableActions"
+                                    :key="action"
+                                    :value="action"
                                 >
-                                    Préstamo
-                                </option>
-
-                                <option
-                                    v-if="
-                                        service ===
-                                        'library'
-                                    "
-                                    value="return"
-                                >
-                                    Devolución
-                                </option>
-
-                                <option
-                                    v-if="
-                                        [
-                                            'locker',
-                                            'facility',
-                                            'rest',
-                                        ].includes(
-                                            service,
-                                        )
-                                    "
-                                    value="entry"
-                                >
-                                    Entrada
-                                </option>
-
-                                <option
-                                    v-if="
-                                        [
-                                            'facility',
-                                            'rest',
-                                        ].includes(
-                                            service,
-                                        )
-                                    "
-                                    value="checkin"
-                                >
-                                    Check-in
-                                </option>
-
-                                <option
-                                    v-if="
-                                        service ===
-                                        'rental'
-                                    "
-                                    value="pickup"
-                                >
-                                    Recoger
-                                    equipo
-                                </option>
-
-                                <option
-                                    v-if="
-                                        service ===
-                                        'rental'
-                                    "
-                                    value="return"
-                                >
-                                    Devolver
-                                    equipo
-                                </option>
-
-                                <option
-                                    v-if="
-                                        service ===
-                                        'service'
-                                    "
-                                    value="delivery"
-                                >
-                                    Entrega
+                                    {{ actionLabel(action) }}
                                 </option>
                             </select>
                         </div>
 
                         <div class="form-field full">
                             <label>
-                                Referencia del
-                                servicio
-                                <span>*</span>
+                                Referencia del servicio
+                                <span v-if="referenceRequired">*</span>
                             </label>
 
                             <input
-                                v-model="
-                                    reference
-                                "
+                                v-model="form.reference"
                                 type="text"
-                                placeholder="Ej. LKR-A-PB-001, LIB-EJ-001, REN-2026-010..."
+                                autocomplete="off"
+                                placeholder="Folio, código de recurso, ejemplar o equipo"
                             />
 
-                            <small>
-                                Puede ser folio,
-                                código de recurso,
-                                préstamo,
-                                reservación o
-                                renta.
-                            </small>
+                            <small>{{ referenceHelp }}</small>
+                        </div>
+
+                        <div
+                            v-if="
+                                form.service === 'rental' &&
+                                form.action === 'return'
+                            "
+                            class="form-field full"
+                        >
+                            <label>Condición del equipo al devolver</label>
+
+                            <select v-model="form.condition">
+                                <option value="good">Buen estado</option>
+                                <option value="damaged">Dañado</option>
+                                <option value="maintenance">
+                                    Requiere mantenimiento
+                                </option>
+                                <option value="lost">Extraviado</option>
+                            </select>
                         </div>
                     </div>
 
-                    <div class="information-box">
-                        Esta pantalla todavía
-                        utiliza validación
-                        simulada. Cuando
-                        construyamos el backend,
-                        Equipo 1 resolverá la
-                        identidad y Equipo 5
-                        verificará si el alumno
-                        puede realizar la
-                        operación solicitada.
+                    <div v-if="formError" class="information-box error-box">
+                        {{ formError }}
+                    </div>
+
+                    <div v-else class="information-box">
+                        Cada operación se valida contra el módulo real
+                        (biblioteca, lockers, reservas, renta o impresiones) y
+                        queda en la bitácora de uso, aunque sea denegada.
                     </div>
 
                     <button
-                        type="button"
+                        type="submit"
                         class="validate-button"
-                        @click="
-                            validateAccess
-                        "
+                        :disabled="form.processing"
                     >
-                        Validar operación
+                        {{
+                            form.processing
+                                ? 'Validando...'
+                                : 'Validar operación'
+                        }}
                     </button>
-                </div>
+                </form>
             </div>
         </section>
 
         <section
-            v-if="result"
+            v-if="visibleResult"
             class="result-panel"
             :class="{
-                granted:
-                    result.granted,
-                denied:
-                    !result.granted,
+                granted: visibleResult.granted,
+                denied: !visibleResult.granted,
             }"
         >
             <div class="result-icon">
-                {{
-                    result.granted
-                        ? '✓'
-                        : '×'
-                }}
+                {{ visibleResult.granted ? '✓' : '×' }}
             </div>
 
             <div class="result-info">
                 <span>
                     {{
-                        result.granted
+                        visibleResult.granted
                             ? 'OPERACIÓN AUTORIZADA'
                             : 'OPERACIÓN DENEGADA'
                     }}
                 </span>
 
-                <h3>
-                    {{ result.message }}
-                </h3>
+                <h3>{{ visibleResult.message }}</h3>
 
                 <p>
-                    {{
-                        serviceLabel(
-                            result.service,
-                        )
-                    }}
-                    ·
-                    {{
-                        actionLabel(
-                            result.action,
-                        )
-                    }}
-                    ·
-                    {{
-                        result.reference
-                    }}
+                    {{ serviceLabel(visibleResult.service) }} ·
+                    {{ actionLabel(visibleResult.action) }}
+                    <template v-if="visibleResult.reference">
+                        · {{ visibleResult.reference }}
+                    </template>
+                    <template v-if="visibleResult.student_name">
+                        · {{ visibleResult.student_name }}
+                    </template>
+                    · {{ visibleResult.folio }}
                 </p>
             </div>
 
-            <button
-                type="button"
-                class="clear-button"
-                @click="clearResult"
-            >
+            <button type="button" class="clear-button" @click="clearResult">
                 Cerrar
             </button>
         </section>
@@ -862,18 +456,11 @@ function clearResult() {
         <section class="content-panel">
             <div class="panel-header">
                 <div>
-                    <span class="panel-label">
-                        EVENTOS
-                    </span>
+                    <span class="panel-label">EVENTOS</span>
 
-                    <h3>
-                        Registro de uso
-                    </h3>
+                    <h3>Registro de uso</h3>
 
-                    <p>
-                        Historial simulado de
-                        validaciones realizadas.
-                    </p>
+                    <p>Últimas 100 validaciones registradas.</p>
                 </div>
             </div>
 
@@ -885,101 +472,61 @@ function clearResult() {
                 />
             </div>
 
-            <div
-                v-if="
-                    filteredEvents.length
-                "
-                class="table-container"
-            >
+            <div v-if="filteredEvents.length" class="table-container">
                 <table>
                     <thead>
-                    <tr>
-                        <th>Folio</th>
-                        <th>Estudiante</th>
-                        <th>Servicio</th>
-                        <th>Operación</th>
-                        <th>Referencia</th>
-                        <th>Método</th>
-                        <th>Resultado</th>
-                        <th>Fecha</th>
-                    </tr>
+                        <tr>
+                            <th>Folio</th>
+                            <th>Estudiante</th>
+                            <th>Servicio</th>
+                            <th>Operación</th>
+                            <th>Referencia</th>
+                            <th>Método</th>
+                            <th>Resultado</th>
+                            <th>Fecha</th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    <tr
-                        v-for="
-                                event in
-                                filteredEvents
-                            "
-                        :key="
-                                event.id
-                            "
-                    >
-                        <td>
-                            <strong class="folio">
-                                {{
-                                    event.folio
-                                }}
-                            </strong>
-                        </td>
+                        <tr v-for="event in filteredEvents" :key="event.id">
+                            <td>
+                                <strong class="folio">{{ event.folio }}</strong>
+                            </td>
 
-                        <td>
-                            <strong class="student">
-                                {{
-                                    event.student
-                                }}
-                            </strong>
+                            <td>
+                                <strong class="student">
+                                    {{
+                                        event.student_name ?? 'No identificado'
+                                    }}
+                                </strong>
 
-                            <small>
-                                {{
-                                    event.credential
-                                }}
-                            </small>
-                        </td>
+                                <small>{{ event.credential }}</small>
+                            </td>
 
-                        <td>
-                            {{
-                                serviceLabel(
-                                    event.service,
-                                )
-                            }}
-                        </td>
+                            <td>{{ serviceLabel(event.service) }}</td>
 
-                        <td>
-                            {{
-                                actionLabel(
-                                    event.action,
-                                )
-                            }}
-                        </td>
+                            <td>{{ actionLabel(event.action) }}</td>
 
-                        <td>
+                            <td>
                                 <span class="reference">
-                                    {{
-                                        event.reference
-                                    }}
+                                    {{ event.reference ?? '—' }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                                <span class="mode">
-                                    {{
-                                        modeLabel(
-                                            event.mode,
-                                        )
-                                    }}
-                                </span>
-                        </td>
+                            <td>
+                                <span class="mode">{{
+                                    modeLabel(event.mode)
+                                }}</span>
+                            </td>
 
-                        <td>
+                            <td>
                                 <span
                                     class="result-badge"
                                     :class="{
-                                        success:
-                                            event.granted,
-                                        error:
-                                            !event.granted,
+                                        success: event.granted,
+                                        error: !event.granted,
                                     }"
+                                    :title="event.message"
                                 >
                                     {{
                                         event.granted
@@ -987,16 +534,16 @@ function clearResult() {
                                             : 'Denegado'
                                     }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            {{
-                                event.createdAt
-                            }}
-                        </td>
-                    </tr>
+                            <td>{{ formatDateTime(event.created_at) }}</td>
+                        </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <div v-else class="empty-events">
+                Aún no hay validaciones registradas.
             </div>
         </section>
     </StudentServicesLayout>
@@ -1044,7 +591,7 @@ function clearResult() {
     min-width: 170px;
     padding: 16px 19px;
     border-radius: 10px;
-    background: rgba(255,255,255,.1);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .hero-reader span {
@@ -1068,7 +615,7 @@ function clearResult() {
 .stats-grid {
     margin-top: 18px;
     display: grid;
-    grid-template-columns: repeat(4,1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 13px;
 }
 
@@ -1153,8 +700,8 @@ function clearResult() {
     padding: 25px 21px;
     display: grid;
     grid-template-columns:
-        minmax(230px,.7fr)
-        minmax(360px,1.3fr);
+        minmax(230px, 0.7fr)
+        minmax(360px, 1.3fr);
     gap: 25px;
 }
 
@@ -1180,7 +727,7 @@ function clearResult() {
     width: 66px;
     height: 66px;
     display: grid;
-    grid-template-columns: repeat(3,1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 5px;
 }
 
@@ -1207,7 +754,7 @@ function clearResult() {
 
 .scan-modes {
     display: grid;
-    grid-template-columns: repeat(3,1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 5px;
 }
 
@@ -1235,7 +782,7 @@ function clearResult() {
 
 .form-grid {
     display: grid;
-    grid-template-columns: repeat(2,1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 17px;
 }
 
@@ -1348,7 +895,7 @@ function clearResult() {
 .result-info > span {
     font-size: 8px;
     font-weight: 900;
-    letter-spacing: .08em;
+    letter-spacing: 0.08em;
 }
 
 .granted .result-info > span {
@@ -1474,7 +1021,7 @@ td small {
 
 @media (max-width: 900px) {
     .stats-grid {
-        grid-template-columns: repeat(2,1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .validation-container {
@@ -1512,5 +1059,26 @@ td small {
     .scan-modes {
         grid-template-columns: 1fr;
     }
+}
+</style>
+<style scoped>
+/* Estilos agregados al conectar el módulo 5.11 con el backend */
+.information-box.error-box {
+    border-color: #e6c9cd;
+    background: #fbebed;
+    color: #9d4650;
+    font-weight: 700;
+}
+
+.validate-button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.empty-events {
+    padding: 35px 20px;
+    text-align: center;
+    color: #8c99aa;
+    font-size: 10px;
 }
 </style>
