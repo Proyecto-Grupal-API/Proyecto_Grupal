@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Hash;
 require_once __DIR__ . '/Support/FinancialControlHelpers.php';
 
 beforeEach(function () {
-    config(['financial.holds.max_seconds' => ['TEST_CHECKOUT' => 900]]);
+    fcHoldPolicy();
 });
 afterEach(function () {
     fcCleanup();

@@ -16,7 +16,7 @@ require_once __DIR__ . '/Support/FinancialControlHelpers.php';
 
 beforeEach(function () {
     // Fixture duration only; this is not a production policy.
-    config(['financial.holds.max_seconds' => ['TEST_CHECKOUT' => 900]]);
+    fcHoldPolicy();
 });
 afterEach(function () {
     fcCleanup();
@@ -60,7 +60,9 @@ test('rejects an unsupported duration policy or expiry outside its window', func
         ->toThrow(InvalidArgumentException::class);
     expect(fn () => holdFixture($wallet, fcKey('hold-past'), 4000, CarbonImmutable::now()->subSecond()))
         ->toThrow(InvalidArgumentException::class);
-    config(['financial.holds.max_seconds' => []]);
+    $policy = \App\Domains\Financial\Models\WalletHoldPolicy::where('operation_type', 'TEST_CHECKOUT')->firstOrFail();
+    app(\App\Domains\Financial\Services\WalletHoldPolicyService::class)
+        ->update($policy, $policy->version, ['active' => false], FC_ACTOR, 'Desactivar operación de prueba');
     expect(fn () => holdFixture($wallet, fcKey('hold-no-policy')))->toThrow(InvalidArgumentException::class);
     expect($wallet->fresh()->available_balance_cents)->toBe(10000)
         ->and(WalletHold::where('wallet_id', $wallet->public_id)->count())->toBe(0);

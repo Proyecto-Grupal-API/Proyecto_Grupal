@@ -54,6 +54,12 @@ function fcAuthenticateControls($test): void
 }
 
 
+function fcHoldPolicy(string $operationType = 'TEST_CHECKOUT', int $maxSeconds = 900, bool $active = true): \App\Domains\Financial\Models\WalletHoldPolicy
+{
+    return app(\App\Domains\Financial\Services\WalletHoldPolicyService::class)
+        ->create($operationType, $maxSeconds, $active, FC_ACTOR, 'Política de prueba; no es un plazo de producción.');
+}
+
 if (!function_exists('fcWallet')) {
     function fcWallet(
         string $suffix,
@@ -175,6 +181,11 @@ if (!function_exists('fcWallet')) {
         \App\Models\ServiceClient::where('client_id', 'test-fc-api-default')->delete();
 
         \App\Domains\Financial\Models\WalletHold::whereIn('wallet_id', $walletIds)->delete();
+
+        $policyIds = \App\Domains\Financial\Models\WalletHoldPolicy::where('created_by', 'like', '%' . FC_PREFIX . '%')
+            ->pluck('public_id');
+        \App\Domains\Financial\Models\WalletHoldPolicyChange::whereIn('policy_id', $policyIds)->delete();
+        \App\Domains\Financial\Models\WalletHoldPolicy::whereIn('public_id', $policyIds)->delete();
 
         $transactionIds = collect();
 

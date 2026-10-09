@@ -79,6 +79,8 @@ class WalletHoldController extends Controller
             'id' => strtolower($hold->public_id), 'wallet_id' => $hold->wallet_id,
             'amount_cents' => $hold->amount_cents, 'currency' => $hold->currency,
             'operation_type' => $hold->operation_type, 'status' => $hold->status->value,
+            'policy_id' => $hold->policy_id ? strtolower($hold->policy_id) : null,
+            'policy_version' => $hold->policy_version, 'max_duration_seconds' => $hold->max_duration_seconds,
             'expires_at' => $hold->expires_at->toISOString(), 'requested_by' => $hold->requested_by,
             'reason' => $hold->reason, 'reference_type' => $hold->reference_type,
             'reference_id' => $hold->reference_id, 'hold_transaction_id' => $hold->hold_transaction_id,

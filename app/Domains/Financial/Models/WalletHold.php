@@ -12,10 +12,11 @@ class WalletHold extends Model
         'public_id', 'wallet_id', 'amount_cents', 'currency', 'operation_type',
         'reference_type', 'reference_id', 'status', 'expires_at', 'requested_by',
         'reason', 'hold_transaction_id', 'closing_transaction_id', 'closed_by',
-        'closing_reason', 'closed_at',
+        'closing_reason', 'closed_at', 'policy_id', 'policy_version', 'max_duration_seconds',
     ];
     protected $casts = [
         'amount_cents' => 'integer', 'status' => WalletHoldStatus::class,
         'expires_at' => 'datetime', 'closed_at' => 'datetime',
+        'policy_version' => 'integer', 'max_duration_seconds' => 'integer',
     ];
 }

@@ -15,6 +15,7 @@ use App\Http\Controllers\Financial\ReconciliationController;
 
 use App\Http\Controllers\Financial\WalletHoldController;
 use App\Http\Controllers\Financial\ReversalController;
+use App\Http\Controllers\Financial\WalletHoldPolicyController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/oauth/token', OAuthTokenController::class)
@@ -57,6 +58,16 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
     );
 
     Route::prefix('financial')->middleware('financial.correlation')->group(function () {
+        Route::get('/hold-policies', [WalletHoldPolicyController::class, 'index'])
+            ->middleware('oauth.service:financial:read');
+        Route::get('/hold-policies/{policyId}', [WalletHoldPolicyController::class, 'show'])
+            ->whereUuid('policyId')->middleware('oauth.service:financial:read');
+        Route::get('/hold-policies/{policyId}/history', [WalletHoldPolicyController::class, 'history'])
+            ->whereUuid('policyId')->middleware('oauth.service:financial:read');
+        Route::post('/hold-policies', [WalletHoldPolicyController::class, 'store'])
+            ->middleware('oauth.service:financial:hold-policy:manage');
+        Route::patch('/hold-policies/{policyId}', [WalletHoldPolicyController::class, 'update'])
+            ->whereUuid('policyId')->middleware('oauth.service:financial:hold-policy:manage');
         Route::post('/transactions/{transactionId}/reverse', [ReversalController::class, 'store'])
             ->whereUuid('transactionId')->middleware('oauth.service:financial:reverse');
         Route::get('/reversals/{reversalId}', [ReversalController::class, 'show'])

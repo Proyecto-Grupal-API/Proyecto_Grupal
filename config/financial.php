@@ -28,8 +28,9 @@ return [
     ),
 
     'holds' => [
-        // Approved maximum seconds per operation; empty means no hold can be created.
-        'max_seconds' => json_decode((string) env('FINANCIAL_HOLD_MAX_SECONDS', '{}'), true) ?: [],
+        // Technical ceiling only; actual durations are approved as database policies.
+        // Default is the SQL Server integer storage limit, not a recommended duration.
+        'absolute_max_seconds' => (int) env('FINANCIAL_HOLD_ABSOLUTE_MAX_SECONDS', 2147483647),
         'schedule_expiration' => (bool) env('FINANCIAL_HOLD_SCHEDULE_EXPIRATION', false),
     ],
 

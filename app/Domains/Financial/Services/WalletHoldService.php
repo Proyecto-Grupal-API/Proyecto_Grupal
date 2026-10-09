@@ -48,11 +48,8 @@ class WalletHoldService
                     }
                     return $hold;
                 }
-                $policies = config('financial.holds.max_seconds', []);
-                $maxSeconds = is_array($policies) ? ($policies[$operationType] ?? null) : null;
-                if (!is_int($maxSeconds) || $maxSeconds <= 0) {
-                    throw new InvalidArgumentException('No hay una duración máxima configurada para esta operación.');
-                }
+                $policy = app(WalletHoldPolicyService::class)->forOperation($operationType);
+                $maxSeconds = $policy->max_duration_seconds;
                 $now = CarbonImmutable::now()->startOfSecond();
                 if ($expiry->lessThanOrEqualTo($now) || $expiry->greaterThan($now->addSeconds($maxSeconds))) {
                     throw new InvalidArgumentException('La vigencia debe ser futura y respetar la duración máxima configurada.');
@@ -65,6 +62,8 @@ class WalletHoldService
                     'public_id' => $id, 'wallet_id' => $lockedWallet->public_id,
                     'amount_cents' => $amountCents, 'currency' => $lockedWallet->currency,
                     'operation_type' => $operationType, 'expires_at' => $expiry,
+                    'policy_id' => $policy->public_id, 'policy_version' => $policy->version,
+                    'max_duration_seconds' => $maxSeconds,
                     'reference_type' => $referenceType, 'reference_id' => $referenceId,
                     'status' => WalletHoldStatus::ACTIVA, 'requested_by' => $actorId,
                     'reason' => $reason, 'hold_transaction_id' => $transaction->public_id,
