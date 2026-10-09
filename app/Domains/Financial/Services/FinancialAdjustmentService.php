@@ -803,203 +803,260 @@ if ($isWithdrawal) {
     public function reverse(
         FinancialTransaction $originalTransaction,
         string $idempotencyKey,
-        ?string $reason = null
+        ?string $reason = null,
+        ?string $executedBy = null
     ): FinancialTransaction {
-        return DB::connection('sqlsrv')->transaction(
-            function () use (
-                $originalTransaction,
-                $idempotencyKey,
-                $reason
-            ) {
-                $existingTransaction = $this->findByIdempotencyKey(
-                    $idempotencyKey
-                );
-
-                if ($existingTransaction) {
-                    if (!$this->matchesOperation(
-                        $existingTransaction,
-                        'REVERSO',
-                        $originalTransaction->public_id
-                    )) {
-                        throw new InvalidArgumentException(
-                            'La clave de idempotencia ya pertenece a otra operación.'
-                        );
-                    }
-
-                    return $existingTransaction;
-                }
-
-                $lockedOriginal = FinancialTransaction::where(
-                    'public_id',
-                    $originalTransaction->public_id
-                )
-                    ->lockForUpdate()
-                    ->firstOrFail();
-
-                if (
-                    $lockedOriginal->status !==
-                    TransactionStatus::COMPLETADA
+        if (trim($idempotencyKey) === '' || strlen($idempotencyKey) > 255) {
+            throw new InvalidArgumentException('La clave de idempotencia es obligatoria y admite hasta 255 caracteres.');
+        }
+        try {
+            return DB::connection('sqlsrv')->transaction(
+                function () use (
+                    $originalTransaction,
+                    $idempotencyKey,
+                    $reason,
+                    $executedBy
                 ) {
-                    throw new InvalidArgumentException(
-                        'Solo se pueden reversar operaciones completadas.'
-                    );
-                }
+                    $lockedOriginal = FinancialTransaction::where(
+                        'public_id',
+                        $originalTransaction->public_id
+                    )
+                        ->lockForUpdate()
+                        ->firstOrFail();
 
-                $this->rejectPurchaseAdjustment($lockedOriginal);
-
-                if ($this->requestedRefundAmount($lockedOriginal->public_id) > 0) {
-                    throw new InvalidArgumentException(
-                        'No se puede reversar una operación con devoluciones pendientes, aprobadas o completadas.'
-                    );
-                 }
-
-                $alreadyReversed = FinancialTransaction::where(
-                    'original_transaction_id',
-                    $lockedOriginal->public_id
-                )
-                    ->where('reference_type', 'REVERSO')
-                    ->exists();
-
-                if ($alreadyReversed) {
-                    throw new InvalidArgumentException(
-                        'La operación ya fue reversada.'
-                    );
-                }
-
-                $entries = LedgerEntry::where(
-                    'transaction_id',
-                    $lockedOriginal->public_id
-                )
-                    ->orderBy('wallet_id')
-                    ->orderBy('id')
-                    ->lockForUpdate()
-                    ->get();
-
-                if ($entries->isEmpty()) {
-                    throw new InvalidArgumentException(
-                        'La operación no tiene movimientos contables para reversar.'
-                    );
-                }
-
-                foreach ($entries as $entry) {
-                    if (in_array(
-                        $entry->movement_type,
-                        [
-                            MovementType::RETENCION,
-                            MovementType::LIBERACION,
-                        ],
-                        true
-                    )) {
-                        throw new InvalidArgumentException(
-                            'Las retenciones deben liberarse con la operación de liberación correspondiente.'
-                        );
-                    }
-                }
-
-                $walletIds = $entries
-                    ->pluck('wallet_id')
-                    ->unique()
-                    ->sort()
-                    ->values()
-                    ->all();
-
-                $wallets = Wallet::whereIn(
-                    'public_id',
-                    $walletIds
-                )
-                    ->orderBy('public_id')
-                    ->lockForUpdate()
-                    ->get()
-                    ->keyBy('public_id');
-
-                foreach ($entries as $entry) {
-                    $wallet = $wallets->get(
-                        $entry->wallet_id
+                    $existingTransaction = $this->findByIdempotencyKey(
+                        $idempotencyKey
                     );
 
-                    if (!$wallet) {
-                        throw new InvalidArgumentException(
-                            'No fue posible localizar una wallet del movimiento original.'
-                        );
+                    if ($existingTransaction) {
+                        if (!$this->matchesOperation(
+                            $existingTransaction,
+                            'REVERSO',
+                            $originalTransaction->public_id
+                        ) || $executedBy === null || trim($executedBy) === ''
+                            || $reason === null || trim($reason) === ''
+                            || $existingTransaction->status !== TransactionStatus::COMPLETADA
+                            || ($existingTransaction->metadata['executed_by'] ?? null) !== $executedBy
+                            || ($existingTransaction->metadata['reason'] ?? null) !== $reason
+                            || $lockedOriginal->status !== TransactionStatus::REVERTIDA) {
+                            throw new InvalidArgumentException(
+                                'La clave de idempotencia ya pertenece a otra operación.'
+                            );
+                        }
+
+                        return $existingTransaction;
                     }
 
                     if (
-                        $entry->amount_cents > 0 &&
-                        $wallet->available_balance_cents <
-                        $entry->amount_cents
+                        $lockedOriginal->status !==
+                        TransactionStatus::COMPLETADA
                     ) {
                         throw new InvalidArgumentException(
-                            'Saldo insuficiente para completar el reverso.'
-                        );
-                    }
-                }
-
-                $transaction = FinancialTransaction::create([
-                    'public_id' => (string) Str::uuid(),
-                    'idempotency_key' => $idempotencyKey,
-                    'status' => TransactionStatus::PENDIENTE,
-                    'reference_type' => 'REVERSO',
-                    'reference_id' => $lockedOriginal->public_id,
-                    'original_transaction_id' =>
-                        $lockedOriginal->public_id,
-                    'metadata' => [
-                        'operation' => 'REVERSO',
-                        'reason' => $reason,
-                    ],
-                ]);
-
-                foreach ($entries as $entry) {
-                    $wallet = $wallets->get(
-                        $entry->wallet_id
-                    );
-
-                    $reverseAmount =
-                        -$entry->amount_cents;
-
-                    if ($reverseAmount > 0) {
-                        $wallet->increment(
-                            'available_balance_cents',
-                            $reverseAmount
-                        );
-                    } else {
-                        $wallet->decrement(
-                            'available_balance_cents',
-                            abs($reverseAmount)
+                            'Solo se pueden reversar operaciones completadas.'
                         );
                     }
 
-                    $wallet->refresh();
+                    $this->rejectPurchaseAdjustment($lockedOriginal);
 
-                    LedgerEntry::create([
+                    if ($this->requestedRefundAmount($lockedOriginal->public_id) > 0) {
+                        throw new InvalidArgumentException(
+                            'No se puede reversar una operación con devoluciones pendientes, aprobadas o completadas.'
+                        );
+                     }
+
+                    if ($executedBy === null || trim($executedBy) === '' || mb_strlen($executedBy) > 255
+                        || $reason === null || trim($reason) === '' || mb_strlen($reason) > 1000) {
+                        throw new InvalidArgumentException('El responsable y el motivo del reverso son obligatorios.');
+                    }
+
+                    $alreadyReversed = FinancialTransaction::where(
+                        'original_transaction_id',
+                        $lockedOriginal->public_id
+                    )
+                        ->where('reference_type', 'REVERSO')
+                        ->exists();
+
+                    if ($alreadyReversed) {
+                        throw new InvalidArgumentException(
+                            'La operación ya fue reversada.'
+                        );
+                    }
+
+                    $entries = LedgerEntry::where(
+                        'transaction_id',
+                        $lockedOriginal->public_id
+                    )
+                        ->orderBy('wallet_id')
+                        ->orderBy('id')
+                        ->lockForUpdate()
+                        ->get();
+
+                    if ($entries->isEmpty()) {
+                        throw new InvalidArgumentException(
+                            'La operación no tiene movimientos contables para reversar.'
+                        );
+                    }
+
+                    foreach ($entries as $entry) {
+                        if (in_array(
+                            $entry->movement_type,
+                            [
+                                MovementType::RETENCION,
+                                MovementType::LIBERACION,
+                            ],
+                            true
+                        )) {
+                            throw new InvalidArgumentException(
+                                'Las retenciones deben liberarse con la operación de liberación correspondiente.'
+                            );
+                        }
+                    }
+
+                    if (in_array($lockedOriginal->reference_type, ['TOPUP', 'WITHDRAWAL', 'DEVOLUCION', 'REVERSO', 'PURCHASE_REFUND', 'REFUND_REQUEST', 'PURCHASE_REFUND_REQUEST'], true)) {
+                        throw new InvalidArgumentException('Esta operación requiere su flujo específico de devolución o corrección.');
+                    }
+
+                    // Solo pagos simples o transferencias completas; nunca movimientos externos,
+                    // ajustes, devoluciones, reversos anteriores o cambios de saldo retenido.
+                    $payment = $entries->count() === 1
+                        && $entries->first()->movement_type === MovementType::PAGO
+                        && $entries->first()->amount_cents < 0;
+                    $transfer = $entries->count() === 2
+                        && $entries->where('movement_type', MovementType::TRANSFERENCIA_SALIDA)->count() === 1
+                        && $entries->where('movement_type', MovementType::TRANSFERENCIA_ENTRADA)->count() === 1
+                        && $entries->where('movement_type', MovementType::TRANSFERENCIA_SALIDA)->first()->amount_cents < 0
+                        && $entries->where('movement_type', MovementType::TRANSFERENCIA_ENTRADA)->first()->amount_cents > 0
+                        && $entries->sum('amount_cents') === 0
+                        && $entries->pluck('wallet_id')->map(fn ($id) => strtolower($id))->unique()->count() === 2;
+                    if (!$payment && !$transfer) {
+                        throw new InvalidArgumentException('Esta operación requiere su flujo específico de devolución o corrección.');
+                    }
+                    foreach ($entries as $entry) {
+                        if (($entry->held_delta_cents ?? 0) !== 0
+                            || ($entry->available_delta_cents ?? $entry->amount_cents) !== $entry->amount_cents) {
+                            throw new InvalidArgumentException('No se pueden reversar movimientos de saldo retenido.');
+                        }
+                    }
+
+                    $walletIds = $entries
+                        ->pluck('wallet_id')
+                        ->unique()
+                        ->sort()
+                        ->values()
+                        ->all();
+
+                    $wallets = Wallet::whereIn(
+                        'public_id',
+                        $walletIds
+                    )
+                        ->orderBy('public_id')
+                        ->lockForUpdate()
+                        ->get()
+                        ->keyBy(fn ($wallet) => strtolower($wallet->public_id));
+
+                    if ($wallets->count() !== count($walletIds)
+                        || $wallets->pluck('currency')->unique()->count() !== 1) {
+                        throw new InvalidArgumentException('Las wallets deben existir y compartir la misma moneda.');
+                    }
+                    foreach ($entries as $entry) {
+                        $wallet = $wallets->get(
+                            strtolower($entry->wallet_id)
+                        );
+
+                        if (!$wallet) {
+                            throw new InvalidArgumentException(
+                                'No fue posible localizar una wallet del movimiento original.'
+                            );
+                        }
+
+                        if ($wallet->available_balance_cents < 0 || $wallet->held_balance_cents < 0) {
+                            throw new InvalidArgumentException('La wallet presenta saldos inconsistentes.');
+                        }
+
+                        if (
+                            $entry->amount_cents > 0 &&
+                            $wallet->available_balance_cents <
+                            $entry->amount_cents
+                        ) {
+                            throw new InvalidArgumentException(
+                                'Saldo insuficiente para completar el reverso.'
+                            );
+                        }
+                    }
+
+                    $transaction = FinancialTransaction::create([
                         'public_id' => (string) Str::uuid(),
-                        'transaction_id' =>
-                            $transaction->public_id,
-                        'wallet_id' => $wallet->public_id,
-                        'movement_type' =>
-                            MovementType::REVERSO,
-                        'amount_cents' => $reverseAmount,
-                        'balance_after_cents' =>
-                            $wallet->available_balance_cents,
-                        'available_balance_after_cents' =>
-                            $wallet->available_balance_cents,
-                        'held_balance_after_cents' =>
-                            $wallet->held_balance_cents,
+                        'idempotency_key' => $idempotencyKey,
+                        'status' => TransactionStatus::PENDIENTE,
+                        'reference_type' => 'REVERSO',
+                        'reference_id' => $lockedOriginal->public_id,
+                        'original_transaction_id' =>
+                            $lockedOriginal->public_id,
+                        'metadata' => [
+                            'operation' => 'REVERSO',
+                            'reason' => $reason,
+                            'executed_by' => $executedBy,
+                            'original_transaction_id' => strtolower($lockedOriginal->public_id),
+                        ],
                     ]);
+
+                    foreach ($entries as $entry) {
+                        $wallet = $wallets->get(
+                            strtolower($entry->wallet_id)
+                        );
+
+                        $reverseAmount =
+                            -$entry->amount_cents;
+
+                        if ($reverseAmount > 0) {
+                            $wallet->increment(
+                                'available_balance_cents',
+                                $reverseAmount
+                            );
+                        } else {
+                            $wallet->decrement(
+                                'available_balance_cents',
+                                abs($reverseAmount)
+                            );
+                        }
+
+                        $wallet->refresh();
+
+                        LedgerEntry::create([
+                            'public_id' => (string) Str::uuid(),
+                            'transaction_id' =>
+                                $transaction->public_id,
+                            'wallet_id' => $wallet->public_id,
+                            'movement_type' =>
+                                MovementType::REVERSO,
+                            'amount_cents' => $reverseAmount,
+                            'available_delta_cents' => $reverseAmount,
+                            'held_delta_cents' => 0,
+                            'balance_after_cents' =>
+                                $wallet->available_balance_cents,
+                            'available_balance_after_cents' =>
+                                $wallet->available_balance_cents,
+                            'held_balance_after_cents' =>
+                                $wallet->held_balance_cents,
+                        ]);
+                    }
+
+                    $lockedOriginal->status =
+                        TransactionStatus::REVERTIDA;
+
+                    $lockedOriginal->save();
+
+                    $transaction->status =
+                        TransactionStatus::COMPLETADA;
+
+                    $transaction->save();
+
+                    return $transaction;
                 }
-
-                $lockedOriginal->status =
-                    TransactionStatus::REVERTIDA;
-
-                $lockedOriginal->save();
-
-                $transaction->status =
-                    TransactionStatus::COMPLETADA;
-
-                $transaction->save();
-
-                return $transaction;
-            }
-        );
+            );
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $exception) {
+            throw new InvalidArgumentException('La clave de idempotencia ya pertenece a otra operación.', 0, $exception);
+        }
     }
 
     private function rejectPurchaseAdjustment(

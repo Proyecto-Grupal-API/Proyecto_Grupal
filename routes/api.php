@@ -14,6 +14,7 @@ use App\Http\Controllers\Financial\TransactionAlertController;
 use App\Http\Controllers\Financial\ReconciliationController;
 
 use App\Http\Controllers\Financial\WalletHoldController;
+use App\Http\Controllers\Financial\ReversalController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/oauth/token', OAuthTokenController::class)
@@ -56,6 +57,10 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
     );
 
     Route::prefix('financial')->middleware('financial.correlation')->group(function () {
+        Route::post('/transactions/{transactionId}/reverse', [ReversalController::class, 'store'])
+            ->whereUuid('transactionId')->middleware('oauth.service:financial:reverse');
+        Route::get('/reversals/{reversalId}', [ReversalController::class, 'show'])
+            ->whereUuid('reversalId')->middleware('oauth.service:financial:read');
         Route::get('/holds/{holdId}', [WalletHoldController::class, 'show'])
             ->whereUuid('holdId')->middleware('oauth.service:financial:read');
         Route::post('/holds', [WalletHoldController::class, 'store'])
