@@ -27,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(\App\Domains\Financial\Contracts\FinancialWebAuthorizer::class,
             \App\Domains\Financial\Adapters\PendingFinancialWebAuthorizer::class);
+        $this->app->bind(\App\Domains\Financial\Contracts\CashAuthorizationProvider::class,
+            \App\Domains\Financial\Adapters\PendingCashAuthorizationProvider::class);
         $this->app->bind(FinancialRoleProvider::class, PendingFinancialRoleProvider::class);
         $this->app->bind(CashReconciliationSource::class, \App\Domains\Financial\Adapters\CashShiftReconciliationSource::class);
         $this->app->scoped(FinancialCorrelation::class);

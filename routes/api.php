@@ -58,6 +58,30 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
     );
 
     Route::prefix('financial')->middleware('financial.correlation')->group(function () {
+        // Asociación autorizada además del scope OAuth. Nunca hereda financial:read/write.
+        Route::prefix('cash/associations/{associationId}')->group(function () {
+            Route::get('/registers', [\App\Http\Controllers\Financial\CashController::class, 'registers'])
+                ->middleware('oauth.service:financial:cash:read');
+            Route::get('/registers/{registerId}/shifts', [\App\Http\Controllers\Financial\CashController::class, 'shifts'])
+                ->middleware('oauth.service:financial:cash:read')->whereUuid('registerId');
+            Route::get('/shifts/{shiftId}', [\App\Http\Controllers\Financial\CashController::class, 'show'])
+                ->middleware('oauth.service:financial:cash:read')->whereUuid('shiftId');
+            Route::get('/shifts/{shiftId}/movements', [\App\Http\Controllers\Financial\CashController::class, 'movements'])
+                ->middleware('oauth.service:financial:cash:read')->whereUuid('shiftId');
+            Route::post('/registers/{registerId}/shifts', [\App\Http\Controllers\Financial\CashController::class, 'open'])
+                ->middleware('oauth.service:financial:cash:operate')->whereUuid('registerId');
+            Route::post('/shifts/{shiftId}/movements', [\App\Http\Controllers\Financial\CashController::class, 'move'])
+                ->middleware('oauth.service:financial:cash:operate')->whereUuid('shiftId');
+            Route::post('/shifts/{shiftId}/adjustments', [\App\Http\Controllers\Financial\CashController::class, 'adjust'])
+                ->middleware('oauth.service:financial:cash:adjust')->whereUuid('shiftId');
+            Route::post('/shifts/{shiftId}/topups', [\App\Http\Controllers\Financial\CashController::class, 'topUp'])
+                ->middleware('oauth.service:financial:cash:operate')->whereUuid('shiftId');
+            Route::post('/shifts/{shiftId}/withdrawals', [\App\Http\Controllers\Financial\CashController::class, 'withdraw'])
+                ->middleware('oauth.service:financial:cash:operate')->whereUuid('shiftId');
+            Route::post('/shifts/{shiftId}/close', [\App\Http\Controllers\Financial\CashController::class, 'close'])
+                ->middleware('oauth.service:financial:cash:close')->whereUuid('shiftId');
+        });
+
         Route::get('/hold-policies', [WalletHoldPolicyController::class, 'index'])
             ->middleware('oauth.service:financial:read');
         Route::get('/hold-policies/{policyId}', [WalletHoldPolicyController::class, 'show'])
