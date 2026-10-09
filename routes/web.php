@@ -28,6 +28,13 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
+    Route::prefix('finanzas/bonos')->name('financial.bonuses.')->group(function () {
+        $bonuses = \App\Http\Controllers\Financial\BonusWebController::class;
+        Route::get('/', [$bonuses, 'index'])->name('index');
+        Route::get('/{bonusId}', [$bonuses, 'show'])->whereUuid('bonusId')->name('show');
+        Route::get('/{bonusId}/history', [$bonuses, 'history'])->whereUuid('bonusId')->name('history');
+    });
+
     Route::prefix('finanzas/ajustes')->name('financial.adjustments.')->middleware('financial.correlation')->group(function () {
         $controller = \App\Http\Controllers\Financial\FinancialAdjustmentWebController::class;
         Route::get('/', [$controller, 'index'])->name('index');
