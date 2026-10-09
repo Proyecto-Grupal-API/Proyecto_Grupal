@@ -34,6 +34,15 @@ return [
 
     'stores' => [
 
+        // Shared scheduler mutexes, independent of the application's default cache.
+        'financial_scheduler' => [
+            'driver' => 'database',
+            'connection' => 'sqlsrv',
+            'table' => 'financial_scheduler_cache',
+            'lock_connection' => 'sqlsrv',
+            'lock_table' => 'financial_scheduler_cache_locks',
+        ],
+
         'array' => [
             'driver' => 'array',
             'serialize' => false,

@@ -33,6 +33,8 @@ class RunFinancialReconciliation implements ShouldQueue
 
     public int $tries;
 
+    public int $timeout;
+
     /** @var array<int, int> */
     public array $backoff;
 
@@ -40,6 +42,9 @@ class RunFinancialReconciliation implements ShouldQueue
         public readonly string $businessDate,
         public readonly ?string $executedBy = null
     ) {
+        $this->onConnection((string) config('financial.reconciliation.queue_connection', 'financial'));
+        $this->onQueue((string) config('financial.reconciliation.queue_name', 'financial-reconciliation'));
+        $this->timeout = (int) config('financial.reconciliation.job_timeout_seconds', 600);
         $this->tries = max(1, (int) config('financial.reconciliation.job_tries', 3));
         $this->backoff = array_map(
             'intval',

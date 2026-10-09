@@ -38,18 +38,21 @@ return [
 
     'reconciliation' => [
         // Habilita la ejecución programada (scheduler de Laravel).
+        'queue_connection' => 'financial',
+        'queue_name' => 'financial-reconciliation',
+        'job_timeout_seconds' => (int) env('FINANCIAL_RECONCILIATION_JOB_TIMEOUT', 600),
+        'scheduler_cache_store' => env('FINANCIAL_SCHEDULER_CACHE_STORE'),
         'schedule_enabled' => (bool) env(
             'FINANCIAL_RECONCILIATION_SCHEDULE_ENABLED',
             false
         ),
 
-        // PENDIENTE: hora local de corte (HH:MM, business_timezone). Sin
+        // Hora local de ejecución (HH:MM, business_timezone). Sin
         // valor por defecto: si falta, el scheduler NO se registra.
         'daily_at' => env('FINANCIAL_RECONCILIATION_DAILY_AT'),
 
-        // PENDIENTE: calendario de ejecución. Valores admitidos:
-        // DIARIO | LUNES_A_VIERNES. Sin valor por defecto. Días festivos
-        // no están contemplados (requieren un calendario acordado).
+        // DIARIO: se revisa el día anterior, también fines de semana y festivos.
+        // Omitir días requeriría implementar una recuperación de fechas pendientes.
         'calendar' => env('FINANCIAL_RECONCILIATION_CALENDAR'),
 
         // Actor registrado en las ejecuciones automáticas.

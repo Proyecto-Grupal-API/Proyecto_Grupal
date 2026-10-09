@@ -31,6 +31,16 @@ return [
 
     'connections' => [
 
+        // Dedicated SQL Server queue; the default queue of other modules is unchanged.
+        'financial' => [
+            'driver' => 'database',
+            'connection' => 'sqlsrv',
+            'table' => 'financial_queue_jobs',
+            'queue' => 'financial-reconciliation',
+            'retry_after' => (int) env('FINANCIAL_RECONCILIATION_RETRY_AFTER', 960),
+            'after_commit' => true,
+        ],
+
         'sync' => [
             'driver' => 'sync',
         ],

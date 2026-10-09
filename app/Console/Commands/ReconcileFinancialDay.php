@@ -33,15 +33,43 @@ class ReconcileFinancialDay extends Command
 
     public function handle(ReconciliationService $service): int
     {
+        $timezone = config('financial.business_timezone');
+        if (!is_string($timezone) || !in_array($timezone, timezone_identifiers_list(), true)) {
+            $this->error('La zona horaria financiera no es válida.');
+            return self::INVALID;
+        }
+
         $date = $this->argument('date')
             ?? CarbonImmutable::now(config('financial.business_timezone'))
                 ->subDay()
                 ->format('Y-m-d');
 
+        // Reject malformed and impossible dates before persisting a queue job.
+        if (!is_string($date) || !preg_match('/\A(\d{4})-(\d{2})-(\d{2})\z/', $date, $parts)
+            || !checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1])) {
+            $this->error('La fecha debe ser un día válido con formato AAAA-MM-DD.');
+            return self::INVALID;
+        }
+
+        if ($date > CarbonImmutable::now($timezone)->format('Y-m-d')) {
+            $this->error('No se puede conciliar una fecha futura.');
+            return self::INVALID;
+        }
+
         $actor = $this->option('executed-by')
             ?: config('financial.reconciliation.system_actor');
 
+        if (trim((string) $actor) === '') {
+            $this->error('El actor de conciliación es obligatorio.');
+            return self::INVALID;
+        }
+
         if ($this->option('dispatch')) {
+            $errors = app(\App\Domains\Financial\Support\FinancialOperationsConfiguration::class)->errors();
+            if ($errors !== []) {
+                foreach ($errors as $error) { $this->error($error); }
+                return self::INVALID;
+            }
             RunFinancialReconciliation::dispatch($date, $actor);
 
             $this->line("Conciliación de {$date} encolada.");
