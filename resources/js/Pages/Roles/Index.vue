@@ -1,17 +1,9 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import TextInput from '@/Components/TextInput.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import SecondaryButton from '@/Components/SecondaryButton.vue';
-import { Head, useForm, usePage, router } from '@inertiajs/vue3';
+import { Head, usePage, router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 const props = defineProps({
-    availableRoles: {
-        type: Array,
-        default: () => []
-    },
     userRoles: {
         type: Array,
         default: () => []
@@ -31,18 +23,6 @@ const isTwoFactorActive = computed(() => {
     const authUser = page.props.auth?.user;
     return !!(authUser?.two_factor_enabled || authUser?.two_factor_confirmed_at);
 });
-
-const roleForm = useForm({
-    role_name: '',
-    scope_type: '',
-    scope_id: '',
-});
-
-const submitRole = () => {
-    roleForm.post(route('roles.assign'), {
-        onSuccess: () => roleForm.reset(),
-    });
-};
 
 const enable2FA = () => {
     router.post('/user/two-factor-authentication', {}, {
@@ -133,7 +113,7 @@ const disable2FA = () => {
                                     MÓDULO 1.3
                                 </span>
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                    RBAC Activo
+                                    Consulta de roles
                                 </span>
                             </div>
                             <h3 class="text-lg font-bold text-gray-900 mt-1">
@@ -172,7 +152,7 @@ const disable2FA = () => {
                                     </tr>
                                     <tr v-if="!userRoles || userRoles.length === 0">
                                         <td colspan="3" class="px-4 py-8 text-center text-sm text-gray-400">
-                                            Sin roles asignados todavía. Asigna uno usando el simulador.
+                                            Sin roles registrados.
                                         </td>
                                     </tr>
                                 </tbody>
@@ -180,74 +160,13 @@ const disable2FA = () => {
                         </div>
                     </div>
 
-                    <!-- Columna Derecha: Simulador de asignación contextual (Módulo 1.3) -->
-                    <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-                        <div>
-                            <span class="text-xs font-semibold uppercase tracking-wider text-blue-600">
-                                GESTIÓN DE ROLES
-                            </span>
-                            <h3 class="text-lg font-bold text-gray-900 mt-1">
-                                Asignar nuevo rol
-                            </h3>
-                            <p class="text-xs text-gray-500">
-                                Otorga permisos contextuales vinculados a un negocio o asociación.
-                            </p>
-                        </div>
-
-                        <form @submit.prevent="submitRole" class="space-y-4">
-                            <div>
-                                <InputLabel for="role_name" value="Rol a otorgar" class="text-xs font-semibold uppercase text-slate-600" />
-                                <select
-                                    id="role_name"
-                                    v-model="roleForm.role_name"
-                                    class="mt-1 block w-full rounded-xl border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50"
-                                    required
-                                >
-                                    <option value="" disabled>Selecciona un rol</option>
-                                    <option v-for="role in availableRoles" :key="role._id || role.id" :value="role.name">
-                                        {{ role.display_name }} ({{ role.name }})
-                                    </option>
-                                </select>
-                            </div>
-
-                            <div class="space-y-3">
-                                <div>
-                                    <InputLabel for="scope_type" value="Ámbito (Contexto)" class="text-xs font-semibold uppercase text-slate-600" />
-                                    <select
-                                        id="scope_type"
-                                        v-model="roleForm.scope_type"
-                                        class="mt-1 block w-full rounded-xl border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500 bg-slate-50"
-                                    >
-                                        <option value="">Global (Toda la plataforma)</option>
-                                        <option value="business">Negocio (Tienda/Comercio)</option>
-                                        <option value="association">Asociación Estudiantil</option>
-                                        <option value="service">Servicio Universitario</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <InputLabel for="scope_id" value="ID de la entidad (Opcional)" class="text-xs font-semibold uppercase text-slate-600" />
-                                    <TextInput
-                                        id="scope_id"
-                                        type="text"
-                                        class="mt-1 block w-full rounded-xl border-slate-200 text-sm bg-slate-50"
-                                        v-model="roleForm.scope_id"
-                                        placeholder="Ej. NEG-CAFETERIA, ASOC-SISTEMAS"
-                                    />
-                                </div>
-                            </div>
-
-                            <div class="pt-2">
-                                <button
-                                    type="submit"
-                                    :disabled="roleForm.processing"
-                                    class="w-full inline-flex justify-center items-center px-4 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm disabled:opacity-50"
-                                >
-                                    Asignar rol
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                    <section class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-3">
+                        <h3 class="text-lg font-bold text-gray-900">Asignación de roles</h3>
+                        <p class="text-sm text-gray-600">
+                            Los roles deben ser asignados mediante un proceso autorizado de la institución.
+                            Desde esta pantalla puedes consultar tus roles registrados.
+                        </p>
+                    </section>
 
                 </div>
 
