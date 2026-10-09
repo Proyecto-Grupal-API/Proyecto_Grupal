@@ -4,6 +4,8 @@ namespace App\Domains\Financial\Services;
 
 use App\Domains\Financial\Enums\MovementType;
 use App\Domains\Financial\Enums\TransactionStatus;
+use App\Domains\Financial\Enums\RefundRequestStatus;
+use App\Domains\Financial\Models\FinancialRefundRequest;
 use App\Domains\Financial\Models\FinancialTransaction;
 use App\Domains\Financial\Models\LedgerEntry;
 use App\Domains\Financial\Models\Wallet;
@@ -17,11 +19,19 @@ class FinancialAdjustmentService
         FinancialTransaction $originalTransaction,
         int $amountCents,
         string $idempotencyKey,
+        string $requestedBy,
         ?string $reason = null
     ): FinancialTransaction {
+
         if ($amountCents <= 0) {
             throw new InvalidArgumentException(
                 'El monto de la devolución debe ser mayor que cero.'
+            );
+        }
+
+        if (trim($requestedBy) === '') {
+            throw new InvalidArgumentException(
+                'El solicitante de la devolución es obligatorio.'
             );
         }
 
@@ -30,8 +40,9 @@ class FinancialAdjustmentService
                 $originalTransaction,
                 $amountCents,
                 $idempotencyKey,
+                $requestedBy,
                 $reason
-            ) {
+         ) {
                 $existingTransaction = $this->findByIdempotencyKey(
                     $idempotencyKey
                 );
@@ -51,13 +62,32 @@ class FinancialAdjustmentService
                         $existingTransaction->metadata['amount_cents'] ?? 0
                     );
 
-                    if ($existingAmountCents !== $amountCents) {
-                        throw new InvalidArgumentException(
-                            'La clave de idempotencia ya fue utilizada con un monto diferente.'
-                        );
-                   }
+                 if ($existingAmountCents !== $amountCents) {
+                     throw new InvalidArgumentException(
+                         'La clave de idempotencia ya fue utilizada con un monto diferente.'
+                     );
+                 }
 
-                   return $existingTransaction;
+
+                 $existingRefundRequest = FinancialRefundRequest::where(
+                     'request_transaction_id',
+                     $existingTransaction->public_id
+                 )->first();
+
+                 if (!$existingRefundRequest) {
+                     throw new InvalidArgumentException(
+                         'La solicitud de devolución no tiene un registro administrativo.'
+                     );
+                 }
+
+
+                 if ($existingRefundRequest->requested_by !== $requestedBy) {
+                     throw new InvalidArgumentException(
+                         'La clave de idempotencia ya pertenece a otro solicitante.'
+                     );
+                 }
+
+                 return $existingTransaction;
                 }
 
                 $lockedOriginal = FinancialTransaction::where(
@@ -97,14 +127,13 @@ class FinancialAdjustmentService
                     );
                 }
 
-                return FinancialTransaction::create([
+                $transaction = FinancialTransaction::create([
                     'public_id' => (string) Str::uuid(),
                     'idempotency_key' => $idempotencyKey,
                     'status' => TransactionStatus::PENDIENTE,
                     'reference_type' => 'REFUND_REQUEST',
                     'reference_id' => $lockedOriginal->public_id,
-                    'original_transaction_id' =>
-                        $lockedOriginal->public_id,
+                    'original_transaction_id' => $lockedOriginal->public_id,
                     'metadata' => [
                         'operation' => 'REFUND_REQUEST',
                         'amount_cents' => $amountCents,
@@ -112,6 +141,19 @@ class FinancialAdjustmentService
                         'reason' => $reason,
                     ],
                 ]);
+
+                FinancialRefundRequest::create([
+                    'public_id' => (string) Str::uuid(),
+                    'request_transaction_id' => $transaction->public_id,
+                    'original_transaction_id' => $lockedOriginal->public_id,
+                    'wallet_id' => $originalEntry->wallet_id,
+                    'amount_cents' => $amountCents,
+                    'status' => RefundRequestStatus::PENDIENTE,
+                    'requested_by' => $requestedBy,
+                    'reason' => $reason,
+                 ]);
+
+                 return $transaction;
             }
         );
     }

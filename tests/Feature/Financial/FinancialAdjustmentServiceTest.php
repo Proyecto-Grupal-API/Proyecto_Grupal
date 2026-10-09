@@ -6,6 +6,7 @@ use App\Domains\Financial\Enums\MovementType;
 use App\Domains\Financial\Enums\TransactionStatus;
 use App\Domains\Financial\Enums\WalletType;
 use App\Domains\Financial\Models\FinancialTransaction;
+use App\Domains\Financial\Models\FinancialRefundRequest;
 use App\Domains\Financial\Models\LedgerEntry;
 use App\Domains\Financial\Models\Wallet;
 use App\Domains\Financial\Services\FinancialAdjustmentService;
@@ -19,33 +20,44 @@ class FinancialAdjustmentServiceTest extends TestCase
     private ?Wallet $wallet = null;
 
     protected function tearDown(): void
-    {
-        if ($this->wallet) {
-            $transactionIds = LedgerEntry::where(
-                'wallet_id',
-                $this->wallet->public_id
-            )->pluck('transaction_id');
+{
+    if ($this->wallet) {
 
-            LedgerEntry::whereIn(
-                'transaction_id',
-                $transactionIds
-            )->delete();
+        $transactionIds = LedgerEntry::where(
+            'wallet_id',
+            $this->wallet->public_id
+        )->pluck('transaction_id');
 
-            FinancialTransaction::whereIn(
-                'original_transaction_id',
-                $transactionIds
-            )->delete();
 
-            FinancialTransaction::whereIn(
-                'public_id',
-                $transactionIds
-            )->delete();
+        FinancialRefundRequest::where(
+            'wallet_id',
+            $this->wallet->public_id
+        )->delete();
 
-            $this->wallet->delete();
-        }
 
-        parent::tearDown();
+        LedgerEntry::whereIn(
+            'transaction_id',
+            $transactionIds
+        )->delete();
+
+
+        FinancialTransaction::whereIn(
+            'original_transaction_id',
+            $transactionIds
+        )->delete();
+
+
+        FinancialTransaction::whereIn(
+            'public_id',
+            $transactionIds
+        )->delete();
+
+
+        $this->wallet->delete();
     }
+
+    parent::tearDown();
+}
 
     public function test_it_creates_a_pending_refund_request_without_moving_money(): void
     {
@@ -86,8 +98,22 @@ class FinancialAdjustmentServiceTest extends TestCase
             originalTransaction: $payment,
             amountCents: 10000,
             idempotencyKey: 'refund-request-' . Str::uuid(),
+            requestedBy: $ownerId,
             reason: 'Prueba de devolución'
         );
+
+        $this->assertDatabaseHas(
+            'financial_refund_requests',
+            [
+                'request_transaction_id' => $refund->public_id,
+                'original_transaction_id' => $payment->public_id,
+                'wallet_id' => $this->wallet->public_id,
+                'amount_cents' => 10000,
+                'status' => 'PENDIENTE',
+                'requested_by' => $ownerId,
+            ],
+            'sqlsrv'
+         );
 
         $this->wallet->refresh();
 
@@ -161,6 +187,7 @@ public function test_it_does_not_duplicate_refund_requests_with_same_idempotency
         originalTransaction: $payment,
         amountCents: 10000,
         idempotencyKey: $idempotencyKey,
+        requestedBy: $ownerId,
         reason: 'Primera solicitud'
     );
 
@@ -168,6 +195,7 @@ public function test_it_does_not_duplicate_refund_requests_with_same_idempotency
         originalTransaction: $payment,
         amountCents: 10000,
         idempotencyKey: $idempotencyKey,
+        requestedBy: $ownerId,
         reason: 'Primera solicitud'
     );
 
@@ -182,6 +210,14 @@ public function test_it_does_not_duplicate_refund_requests_with_same_idempotency
             'idempotency_key',
             $idempotencyKey
         )->count()
+    );
+
+    $this->assertSame(
+        1,
+        FinancialRefundRequest::where(
+            'request_transaction_id',
+            $firstRefund->public_id
+         )->count()
     );
 
     $this->assertSame(
@@ -225,6 +261,7 @@ public function test_it_rejects_refund_with_same_key_and_different_amount(): voi
         originalTransaction: $payment,
         amountCents: 10000,
         idempotencyKey: $idempotencyKey,
+        requestedBy: $ownerId,
         reason: 'Primera solicitud'
     );
 
@@ -232,6 +269,7 @@ public function test_it_rejects_refund_with_same_key_and_different_amount(): voi
         $adjustmentService->refund(
             originalTransaction: $payment,
             amountCents: 20000,
+            requestedBy: $ownerId,
             idempotencyKey: $idempotencyKey,
             reason: 'Segunda solicitud'
         );
@@ -297,6 +335,7 @@ public function test_it_rejects_refund_greater_than_original_payment(): void
         $adjustmentService->refund(
             originalTransaction: $payment,
             amountCents: 40000,
+            requestedBy: $ownerId,
             idempotencyKey: $idempotencyKey,
             reason: 'Solicitud superior al pago original'
         );
@@ -359,13 +398,15 @@ public function test_it_rejects_refunds_exceeding_accumulated_limit(): void
     $firstRefund = $adjustmentService->refund(
         originalTransaction: $payment,
         amountCents: 15000,
-        idempotencyKey: 'refund-first-' . Str::uuid()
+        idempotencyKey: 'refund-first-' . Str::uuid(),
+        requestedBy: $ownerId
     );
 
     $secondRefund = $adjustmentService->refund(
         originalTransaction: $payment,
         amountCents: 10000,
-        idempotencyKey: 'refund-second-' . Str::uuid()
+        idempotencyKey: 'refund-second-' . Str::uuid(),
+        requestedBy: $ownerId
     );
 
     $rejectedKey = 'refund-third-' . Str::uuid();
@@ -374,6 +415,7 @@ public function test_it_rejects_refunds_exceeding_accumulated_limit(): void
         $adjustmentService->refund(
             originalTransaction: $payment,
             amountCents: 10000,
+            requestedBy: $ownerId,
             idempotencyKey: $rejectedKey
         );
 
@@ -404,6 +446,102 @@ public function test_it_rejects_refunds_exceeding_accumulated_limit(): void
             $rejectedKey
         )->count()
     );
+
+    $this->wallet->refresh();
+
+    $this->assertSame(
+        70000,
+        $this->wallet->available_balance_cents
+    );
+}
+public function test_it_rejects_refund_with_same_key_and_different_requester(): void
+{
+    $walletService = app(WalletService::class);
+    $ledgerService = app(LedgerService::class);
+
+    $adjustmentService = app(
+        FinancialAdjustmentService::class
+    );
+
+    $ownerId = 'refund-requester-' . Str::uuid();
+
+    $this->wallet = $walletService->create(
+        ownerType: 'STUDENT',
+        ownerId: $ownerId,
+        walletType: WalletType::USUARIO
+    );
+
+    $ledgerService->credit(
+        wallet: $this->wallet,
+        amountCents: 100000,
+        movementType: MovementType::RECARGA,
+        idempotencyKey: 'refund-credit-' . Str::uuid()
+    );
+
+    $payment = $ledgerService->debit(
+        wallet: $this->wallet,
+        amountCents: 30000,
+        movementType: MovementType::PAGO,
+        idempotencyKey: 'refund-payment-' . Str::uuid()
+    );
+
+    $idempotencyKey = 'refund-request-' . Str::uuid();
+
+    // Primera solicitud: estudiante propietario.
+
+    $firstRefund = $adjustmentService->refund(
+        originalTransaction: $payment,
+        amountCents: 10000,
+        idempotencyKey: $idempotencyKey,
+        requestedBy: $ownerId,
+        reason: 'Solicitud original'
+    );
+
+    // Segunda solicitud: otro estudiante intenta
+    // reutilizar la misma clave de idempotencia.
+
+    $differentRequester = 'other-student-' . Str::uuid();
+
+    try {
+        $adjustmentService->refund(
+            originalTransaction: $payment,
+            amountCents: 10000,
+            idempotencyKey: $idempotencyKey,
+            requestedBy: $differentRequester,
+            reason: 'Solicitud de otro estudiante'
+        );
+
+        $this->fail(
+            'Se esperaba rechazar una clave utilizada por otro solicitante.'
+        );
+
+    } catch (\InvalidArgumentException $exception) {
+
+        $this->assertSame(
+            'La clave de idempotencia ya pertenece a otro solicitante.',
+            $exception->getMessage()
+        );
+    }
+
+    // Verificar que no se crearon duplicados.
+
+    $this->assertSame(
+        1,
+        FinancialTransaction::where(
+            'idempotency_key',
+            $idempotencyKey
+        )->count()
+    );
+
+    $this->assertSame(
+        1,
+        FinancialRefundRequest::where(
+            'request_transaction_id',
+            $firstRefund->public_id
+        )->count()
+    );
+
+    // Confirmar que el saldo no cambió.
 
     $this->wallet->refresh();
 
