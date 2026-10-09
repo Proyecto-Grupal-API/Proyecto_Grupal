@@ -28,6 +28,26 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
+    Route::prefix('finanzas/ajustes')->name('financial.adjustments.')->middleware('financial.correlation')->group(function () {
+        $controller = \App\Http\Controllers\Financial\FinancialAdjustmentWebController::class;
+        Route::get('/', [$controller, 'index'])->name('index');
+        Route::post('/refunds', [$controller, 'requestRefund'])->name('refunds.store');
+        Route::post('/purchase-refunds', [$controller, 'requestPurchaseRefund'])->name('purchase-refunds.store');
+        Route::post('/refunds/{refundId}/{action}', [$controller, 'refundAction'])
+            ->whereUuid('refundId')->whereIn('action', ['approve', 'reject', 'complete', 'recover'])->name('refunds.action');
+        Route::post('/purchase-refunds/{refundId}/{action}', [$controller, 'purchaseRefundAction'])
+            ->whereUuid('refundId')->whereIn('action', ['approve', 'reject', 'complete'])->name('purchase-refunds.action');
+        Route::post('/holds/{holdId}/{action}', [$controller, 'holdAction'])
+            ->whereUuid('holdId')->whereIn('action', ['release', 'capture'])->name('holds.action');
+        Route::post('/transactions/{transactionId}/reverse', [$controller, 'reverse'])
+            ->whereUuid('transactionId')->name('reverse');
+        Route::post('/policies', [$controller, 'createPolicy'])->name('policies.store');
+        Route::patch('/policies/{policyId}', [$controller, 'updatePolicy'])
+            ->whereUuid('policyId')->name('policies.update');
+        Route::get('/policies/{policyId}/history', [$controller, 'policyHistory'])
+            ->whereUuid('policyId')->name('policies.history');
+    });
+
     Route::get('/finanzas', [FinancialController::class, 'index'])
         ->name('financial.dashboard');
 

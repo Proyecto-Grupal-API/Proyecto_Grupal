@@ -26,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(\App\Domains\Financial\Contracts\FinancialWebAuthorizer::class,
+            \App\Domains\Financial\Adapters\PendingFinancialWebAuthorizer::class);
         $this->app->bind(FinancialRoleProvider::class, PendingFinancialRoleProvider::class);
         $this->app->bind(CashReconciliationSource::class, PendingCashReconciliationSource::class);
         $this->app->scoped(FinancialCorrelation::class);

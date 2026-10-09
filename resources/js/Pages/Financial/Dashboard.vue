@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 
 defineProps({
     wallet: {
@@ -56,6 +56,11 @@ const formatDate = (date) => {
             class="min-h-[calc(100vh-9rem)] bg-[#F5F8FC] px-4 py-8 sm:px-6 lg:px-8"
         >
             <div class="mx-auto max-w-7xl">
+                <div class="mb-5 flex justify-end">
+                    <Link :href="route('financial.adjustments.index')" class="rounded-xl bg-[#00338D] px-5 py-3 text-sm font-semibold text-white hover:bg-blue-800">
+                        Retenciones y devoluciones
+                    </Link>
+                </div>
                 <section
                     class="rounded-2xl bg-[#00338D] p-7 text-white shadow-xl shadow-[#00338D]/10 sm:p-10"
                 >
