@@ -48,6 +48,28 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
             ->whereUuid('policyId')->name('policies.history');
     });
 
+    Route::prefix('finanzas/controles')->name('financial.controls.')->middleware('financial.correlation')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Financial\FinancialControlWebController::class, 'index'])->name('index');
+        $gate = \App\Http\Middleware\AuthorizeFinancialControlWeb::class;
+        $limits = \App\Http\Controllers\Financial\FinancialLimitWebController::class;
+        $alerts = \App\Http\Controllers\Financial\TransactionAlertWebController::class;
+        $runs = \App\Http\Controllers\Financial\ReconciliationWebController::class;
+        Route::get('/limits', [$limits, 'index'])->middleware($gate . ':limits.view')->name('limits.index');
+        Route::post('/limits', [$limits, 'store'])->middleware($gate . ':limits.manage')->name('limits.store');
+        Route::post('/limits/evaluate', [$limits, 'evaluate'])->middleware($gate . ':limits.evaluate')->name('limits.evaluate');
+        Route::patch('/limits/{limitId}', [$limits, 'update'])->whereUuid('limitId')->middleware($gate . ':limits.manage')->name('limits.update');
+        Route::get('/limits/{limitId}/history', [$limits, 'history'])->whereUuid('limitId')->middleware($gate . ':limits.view')->name('limits.history');
+        Route::get('/alerts', [$alerts, 'index'])->middleware($gate . ':alerts.view')->name('alerts.index');
+        Route::get('/alerts/{alertId}', [$alerts, 'show'])->whereUuid('alertId')->middleware($gate . ':alerts.view')->name('alerts.show');
+        Route::post('/alerts/{alertId}/status', [$alerts, 'updateStatus'])->whereUuid('alertId')->middleware($gate . ':alerts.review')->name('alerts.status');
+        Route::get('/reconciliations', [$runs, 'index'])->middleware($gate . ':reconciliation.view')->name('reconciliations.index');
+        Route::post('/reconciliations', [$runs, 'store'])->middleware($gate . ':reconciliation.run')->name('reconciliations.store');
+        Route::get('/reconciliations/{reconciliationId}', [$runs, 'show'])->whereUuid('reconciliationId')->middleware($gate . ':reconciliation.view')->name('reconciliations.show');
+        Route::get('/reconciliations/{reconciliationId}/differences', [$runs, 'differences'])->whereUuid('reconciliationId')->middleware($gate . ':reconciliation.view')->name('reconciliations.differences');
+        Route::post('/reconciliations/{reconciliationId}/differences/{differenceId}/resolve', [$runs, 'resolveDifference'])
+            ->whereUuid(['reconciliationId', 'differenceId'])->middleware($gate . ':reconciliation.resolve')->name('reconciliations.resolve');
+    });
+
     Route::get('/finanzas', [FinancialController::class, 'index'])
         ->name('financial.dashboard');
 
