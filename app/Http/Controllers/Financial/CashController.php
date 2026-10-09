@@ -27,7 +27,7 @@ class CashController extends Controller
     public function __construct(private readonly CashAuthorizationProvider $authorization,
         private readonly CashShiftService $shifts, private readonly CashSettlementService $settlements) {}
 
-    private function authorizeAssociation(Request $request, string $associationId, string $action): string
+    protected function authorizeAssociation(Request $request, string $associationId, string $action): string
     {
         Validator::make(['association_id' => $associationId], ['association_id' => ['required', 'string', 'max:255']])->validate();
         $actor = $this->authenticatedActor($request);
@@ -35,7 +35,7 @@ class CashController extends Controller
         return $actor;
     }
 
-    private function register(string $associationId, string $registerId): CashRegister
+    protected function register(string $associationId, string $registerId): CashRegister
     {
         return CashRegister::where('association_id', $associationId)->where('public_id', $registerId)->firstOrFail();
     }
@@ -46,14 +46,14 @@ class CashController extends Controller
         return CashShift::whereIn('cash_register_id', $registerIds)->where('public_id', $shiftId)->firstOrFail();
     }
 
-    private function key(Request $request): string
+    protected function key(Request $request): string
     {
         $value = Validator::make(['key' => $request->header('Idempotency-Key')],
             ['key' => ['required', 'string', 'max:255', 'regex:/\S/']])->validate();
         return trim($value['key']);
     }
 
-    private function pageSize(Request $request): int
+    protected function pageSize(Request $request): int
     {
         $values = $request->validate(['per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1']]);
@@ -66,7 +66,8 @@ class CashController extends Controller
         return $this->paginated($request, CashRegister::where('association_id', $associationId)->orderByDesc('id')
             ->paginate($this->pageSize($request)), fn ($register) => [
                 'id' => strtolower($register->public_id), 'association_id' => $register->association_id,
-                'name' => $register->name, 'currency' => $register->currency, 'status' => $register->status->value]);
+                'name' => $register->name, 'currency' => $register->currency, 'status' => $register->status->value,
+                'version' => $register->version]);
     }
 
     public function shifts(Request $request, string $associationId, string $registerId): JsonResponse
@@ -166,7 +167,7 @@ class CashController extends Controller
             $shift->public_id, $values['counted_amount_cents'], $key, $actor, $values['reason'])));
     }
 
-    private function execute(Request $request, callable $operation): JsonResponse
+    protected function execute(Request $request, callable $operation): JsonResponse
     {
         try { return $this->ok($request, $operation()); }
         catch (FinancialLimitExceededException $exception) {

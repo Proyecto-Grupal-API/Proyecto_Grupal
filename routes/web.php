@@ -74,7 +74,12 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
         $cash = \App\Http\Controllers\Financial\CashWebController::class;
         Route::get('/', [$cash, 'index'])->name('index');
         Route::get('/context', [$cash, 'context'])->name('context');
+        Route::get('/administracion', [\App\Http\Controllers\Financial\CashRegisterAdministrationWebController::class, 'index'])->name('administration');
         Route::prefix('asociaciones/{associationId}')->group(function () use ($cash) {
+            $admin = \App\Http\Controllers\Financial\CashRegisterAdministrationWebController::class;
+            Route::post('/registers', [$admin, 'storeRegister'])->name('registers.store');
+            Route::patch('/registers/{registerId}', [$admin, 'updateRegister'])->whereUuid('registerId')->name('registers.update');
+            Route::get('/registers/{registerId}/history', [$admin, 'registerHistory'])->whereUuid('registerId')->name('registers.history');
             Route::get('/registers', [$cash, 'registers'])->name('registers');
             Route::get('/registers/{registerId}/shifts', [$cash, 'shifts'])->name('shifts')->whereUuid('registerId');
             Route::get('/shifts/{shiftId}', [$cash, 'show'])->name('show')->whereUuid('shiftId');

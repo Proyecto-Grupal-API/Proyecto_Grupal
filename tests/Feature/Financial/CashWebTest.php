@@ -70,7 +70,7 @@ test('cash web shows a protected shell but pending permissions never expose asso
     $this->actingAs($user->fresh())->get('/finanzas/caja')->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('Financial/Cash')->missing('registers')->missing('shifts')->missing('movements'));
     $this->getJson('/finanzas/caja/context?association_id='.$register->association_id)->assertOk()
-        ->assertJsonPath('data.permissions', ['read' => false, 'operate' => false, 'adjust' => false, 'close' => false]);
+        ->assertJsonPath('data.permissions', ['read' => false, 'operate' => false, 'adjust' => false, 'close' => false, 'manage' => false]);
     foreach (cashWebEndpoints() as [$method, $path]) $this->json(strtoupper($method), cashWebUrl($register).$path, [])->assertForbidden();
 });
 

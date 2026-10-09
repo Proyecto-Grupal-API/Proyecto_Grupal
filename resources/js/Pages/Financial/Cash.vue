@@ -6,7 +6,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
 const associationInput = ref('');
 const association = ref('');
-const permissions = ref({ read: false, operate: false, adjust: false, close: false });
+const permissions = ref({ read: false, operate: false, adjust: false, close: false, manage: false });
 const registers = ref([]);
 const shifts = ref([]);
 const movements = ref([]);
@@ -60,7 +60,7 @@ async function connect() {
     await run(async () => {
         association.value = ''; registers.value = []; shifts.value = []; movements.value = [];
         registerId.value = ''; shiftId.value = ''; summary.value = null; success.value = '';
-        permissions.value = { read: false, operate: false, adjust: false, close: false };
+        permissions.value = { read: false, operate: false, adjust: false, close: false, manage: false };
         Object.keys(pages).forEach(key => { pages[key] = null; });
         const { data } = await axios.get('/finanzas/caja/context', { params: { association_id: associationInput.value.trim() } });
         association.value = data.data.association_id; permissions.value = data.data.permissions;
@@ -169,7 +169,9 @@ function abandon() {
                 <div v-if="error" role="alert" class="rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">{{ error }}</div>
                 <div v-if="success" role="status" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">{{ success }}</div>
                 <section class="panel">
-                    <h2>Asociación y caja</h2>
+                    <div class="flex flex-wrap justify-between gap-3"><h2>Asociación y caja</h2>
+                        <Link :href="route('financial.cash.administration')" class="text-sm font-semibold text-[#00338D]">Administrar cajas</Link>
+                    </div>
                     <form class="mt-4 flex flex-wrap items-end gap-3" @submit.prevent="connect">
                         <label class="flex-1">Identificador de asociación<input v-model="associationInput" required maxlength="255" :disabled="busy || !!pending" placeholder="Identificador proporcionado por tu asociación" /></label>
                         <button class="primary" :disabled="busy || !!pending">Consultar cajas</button>

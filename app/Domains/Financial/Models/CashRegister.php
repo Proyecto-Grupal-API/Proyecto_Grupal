@@ -16,11 +16,11 @@ class CashRegister extends Model
         'public_id',
         'name',
         'currency',
-        'status', 'association_id', 'created_by',
+        'status', 'association_id', 'created_by', 'version',
     ];
 
     protected $casts = [
-        'status' => CashRegisterStatus::class,
+        'status' => CashRegisterStatus::class, 'version' => 'integer',
     ];
 
     public function shifts(): HasMany
