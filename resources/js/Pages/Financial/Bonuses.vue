@@ -49,6 +49,7 @@ onBeforeUnmount(close);
         <template #header>
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div><p class="text-xs font-bold uppercase tracking-widest text-sky-600">Finanzas · 2.5</p><h1 class="mt-1 text-2xl font-bold text-[#00338D]">Mis bonos</h1></div>
+                <Link :href="route('financial.bonuses.admin.index')" class="text-sm font-semibold text-[#00338D]">Administrar bonos</Link>
                 <Link :href="route('financial.dashboard')" class="text-sm font-semibold text-[#00338D]">Volver a Finanzas</Link>
             </div>
         </template>

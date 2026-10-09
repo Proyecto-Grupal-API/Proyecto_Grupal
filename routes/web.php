@@ -28,6 +28,16 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
+    Route::prefix('finanzas/bonos/administracion')->name('financial.bonuses.admin.')->middleware('financial.correlation')->group(function () {
+        $admin = \App\Http\Controllers\Financial\BonusAdministrationWebController::class;
+        Route::get('/', [$admin, 'index'])->name('index');
+        Route::get('/records', [$admin, 'listing'])->name('records');
+        Route::get('/beneficiaries/{userId}', [$admin, 'beneficiary'])->where('userId', '[0-9a-fA-F]{24}')->name('beneficiary');
+        Route::post('/issue', [$admin, 'store'])->name('issue');
+        Route::post('/{bonusId}/cancel', [$admin, 'cancel'])->whereUuid('bonusId')->name('cancel');
+        Route::get('/{bonusId}/history', [$admin, 'history'])->whereUuid('bonusId')->name('history');
+    });
+
     Route::prefix('finanzas/bonos')->name('financial.bonuses.')->group(function () {
         $bonuses = \App\Http\Controllers\Financial\BonusWebController::class;
         Route::get('/', [$bonuses, 'index'])->name('index');
