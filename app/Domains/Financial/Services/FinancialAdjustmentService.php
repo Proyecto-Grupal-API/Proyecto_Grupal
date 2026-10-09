@@ -5,10 +5,14 @@ namespace App\Domains\Financial\Services;
 use App\Domains\Financial\Enums\MovementType;
 use App\Domains\Financial\Enums\TransactionStatus;
 use App\Domains\Financial\Enums\RefundRequestStatus;
+use App\Domains\Financial\Enums\WithdrawalStatus;
 use App\Domains\Financial\Models\FinancialRefundRequest;
 use App\Domains\Financial\Models\FinancialTransaction;
 use App\Domains\Financial\Models\LedgerEntry;
 use App\Domains\Financial\Models\Wallet;
+use App\Domains\Financial\Models\FinancialWithdrawalRecovery;
+use App\Domains\Financial\Models\Withdrawal;
+use App\Domains\Financial\Models\PurchasePayment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -105,6 +109,8 @@ class FinancialAdjustmentService
                         'Solo se pueden devolver operaciones completadas.'
                     );
                 }
+
+                $this->rejectPurchaseAdjustment($lockedOriginal);
 
                 $originalEntry = $this->getRefundableEntry(
                     $lockedOriginal->public_id
@@ -311,7 +317,178 @@ class FinancialAdjustmentService
         }
     );
 }
+    
+    public function confirmWithdrawalRecovery(
+    FinancialRefundRequest $refundRequest,
+    string $recoveryReference,
+    string $confirmedBy,
+    ?string $notes = null
+): FinancialWithdrawalRecovery {
+    $recoveryReference = trim($recoveryReference);
 
+    if (
+        $recoveryReference === '' ||
+        mb_strlen($recoveryReference) > 255
+    ) {
+        throw new InvalidArgumentException(
+            'La referencia de recuperación debe contener entre 1 y 255 caracteres.'
+        );
+    }
+
+    if (
+        trim($confirmedBy) === '' ||
+        mb_strlen($confirmedBy) > 255
+    ) {
+        throw new InvalidArgumentException(
+            'El responsable de confirmar la recuperación es obligatorio y no debe superar 255 caracteres.'
+        );
+    }
+
+    return DB::connection('sqlsrv')->transaction(
+        function () use (
+            $refundRequest,
+            $recoveryReference,
+            $confirmedBy,
+            $notes
+        ) {
+            $original = FinancialTransaction::where(
+                'public_id',
+                $refundRequest->original_transaction_id
+            )
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $request = FinancialRefundRequest::where(
+                'public_id',
+                $refundRequest->public_id
+            )
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (
+                strtolower($request->original_transaction_id) !==
+                strtolower($original->public_id)
+            ) {
+                throw new InvalidArgumentException(
+                    'La solicitud no corresponde a la operación original.'
+                );
+            }
+
+            // Repetir la misma confirmación no crea otro registro.
+            $existing = FinancialWithdrawalRecovery::where(
+                'refund_request_id',
+                $request->public_id
+            )->first();
+
+            if ($existing) {
+                if (
+                    $existing->recovery_reference !== $recoveryReference ||
+                    $existing->confirmed_by !== $confirmedBy ||
+                    $existing->amount_cents !== $request->amount_cents
+                ) {
+                    throw new InvalidArgumentException(
+                        'La recuperación ya fue confirmada con datos diferentes.'
+                    );
+                }
+
+                return $existing;
+            }
+
+            if ($request->status !== RefundRequestStatus::APROBADA) {
+                throw new InvalidArgumentException(
+                    'Solo se puede confirmar la recuperación de una solicitud aprobada.'
+                );
+            }
+
+            if (
+                $original->status !== TransactionStatus::COMPLETADA ||
+                $original->reference_type !== 'WITHDRAWAL'
+            ) {
+                throw new InvalidArgumentException(
+                    'La operación original debe ser un retiro completado.'
+                );
+            }
+
+            $withdrawal = Withdrawal::where(
+                'public_id',
+                $original->reference_id
+            )
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $entries = LedgerEntry::where(
+                'transaction_id',
+                $original->public_id
+            )
+                ->lockForUpdate()
+                ->get();
+
+            $entry = $entries->first();
+
+            if (
+                $withdrawal->status !== WithdrawalStatus::COMPLETADA ||
+                $entries->count() !== 1 ||
+                !$entry ||
+                $entry->movement_type !== MovementType::RETIRO ||
+                $entry->amount_cents >= 0 ||
+                abs($entry->amount_cents) !== $withdrawal->amount_cents ||
+                strtolower($entry->wallet_id) !==
+                    strtolower($withdrawal->wallet_id) ||
+                strtolower($request->wallet_id) !==
+                    strtolower($withdrawal->wallet_id)
+            ) {
+                throw new InvalidArgumentException(
+                    'El retiro y sus movimientos contables no corresponden a la solicitud.'
+                );
+            }
+
+            $wallet = Wallet::where(
+                'public_id',
+                $withdrawal->wallet_id
+            )
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($wallet->currency !== $withdrawal->currency) {
+                throw new InvalidArgumentException(
+                    'La moneda del retiro no corresponde a la wallet.'
+                );
+            }
+
+            if (
+                $request->amount_cents <= 0 ||
+                $this->requestedRefundAmount($original->public_id) >
+                    $withdrawal->amount_cents
+            ) {
+                throw new InvalidArgumentException(
+                    'El monto solicitado supera el saldo disponible para devolución.'
+                );
+            }
+
+            if (FinancialWithdrawalRecovery::where(
+                'recovery_reference',
+                $recoveryReference
+            )->exists()) {
+                throw new InvalidArgumentException(
+                    'El comprobante de recuperación ya fue utilizado.'
+                );
+            }
+
+            return FinancialWithdrawalRecovery::create([
+                'public_id' => (string) Str::uuid(),
+                'refund_request_id' => $request->public_id,
+                'withdrawal_id' => $withdrawal->public_id,
+                'amount_cents' => $request->amount_cents,
+                'currency' => $withdrawal->currency,
+                'recovery_reference' => $recoveryReference,
+                'confirmed_by' => $confirmedBy,
+                'confirmed_at' => now(),
+                'notes' => $notes,
+            ]);
+        }
+    );
+}
+  
     public function completeRefund(
         FinancialRefundRequest $refundRequest,
         string $idempotencyKey,
@@ -386,6 +563,8 @@ class FinancialAdjustmentService
                 );
             }
 
+            $this->rejectPurchaseAdjustment($original);
+
             $requestTransaction = FinancialTransaction::where(
                 'public_id',
                 $request->request_transaction_id
@@ -406,7 +585,6 @@ class FinancialAdjustmentService
                 );
             }
 
-            // Esta implementación admite un pago con un solo cargo.
             $entries = LedgerEntry::where(
                 'transaction_id',
                 $original->public_id
@@ -414,17 +592,41 @@ class FinancialAdjustmentService
                 ->lockForUpdate()
                 ->get();
 
-            $entry = $entries->first();
+            $entry = $entries->first(
+                fn (LedgerEntry $item) => $item->amount_cents < 0
+            );
 
-            if (
-                $entries->count() !== 1 ||
-                !$entry ||
-                $entry->movement_type !== MovementType::PAGO ||
-                $entry->amount_cents >= 0
-            ) {
+            $isPayment =
+                $entries->count() === 1 &&
+                $entry &&
+                $entry->movement_type === MovementType::PAGO;
+
+            $incomingEntry = $entries->first(
+                fn (LedgerEntry $item) =>
+                    $item->movement_type === MovementType::TRANSFERENCIA_ENTRADA &&
+                    $item->amount_cents > 0
+            );
+
+            $isTransfer =
+                $entries->count() === 2 &&
+                $entry &&
+                $incomingEntry &&
+                $entry->movement_type === MovementType::TRANSFERENCIA_SALIDA &&
+                $incomingEntry->amount_cents === abs($entry->amount_cents) &&
+                strtolower($incomingEntry->wallet_id) !==
+                     strtolower($entry->wallet_id);
+             
+            $isWithdrawal =
+                $entries->count() === 1 &&
+                $entry &&
+                $entry->movement_type === MovementType::RETIRO &&
+                $original->reference_type === 'WITHDRAWAL';
+            
+
+            if (!$isPayment && !$isTransfer && !$isWithdrawal) {
                 throw new InvalidArgumentException(
-                    'Esta ejecución solo admite pagos con un único cargo contable.'
-                );
+                    'Esta ejecución solo admite pagos, transferencias o retiros con recuperación confirmada.'
+               );
             }
 
             if (
@@ -432,15 +634,15 @@ class FinancialAdjustmentService
                 strtolower($entry->wallet_id)
             ) {
                 throw new InvalidArgumentException(
-                    'La wallet de la solicitud no corresponde al pago original.'
+                    'La wallet de la solicitud no corresponde al cargo original.'
                 );
-            }
+            } 
 
-            if (
-                $request->amount_cents <= 0 ||
-                $this->requestedRefundAmount($original->public_id) >
-                abs($entry->amount_cents)
-            ) {
+            if  (
+                 $request->amount_cents <= 0 ||
+                 $this->requestedRefundAmount($original->public_id) >
+                 abs($entry->amount_cents)
+            )  {
                 throw new InvalidArgumentException(
                     'El monto solicitado supera el saldo disponible para devolución.'
                 );
@@ -451,29 +653,136 @@ class FinancialAdjustmentService
                     'La clave de idempotencia ya pertenece a otra operación.'
                 );
             }
+            
+            $recovery = null;
 
-            $wallet = Wallet::where(
-                'public_id',
-                $request->wallet_id
-            )->firstOrFail();
+if ($isWithdrawal) {
+    $withdrawal = Withdrawal::where(
+        'public_id',
+        $original->reference_id
+    )
+        ->lockForUpdate()
+        ->firstOrFail();
 
-            // Abono y registro contable mediante el Ledger.
-            $transaction = app(LedgerService::class)->credit(
-                wallet: $wallet,
-                amountCents: $request->amount_cents,
-                movementType: MovementType::DEVOLUCION,
-                idempotencyKey: $idempotencyKey,
-                referenceType: 'DEVOLUCION',
-                referenceId: $request->public_id,
-                metadata: [
-                    'operation' => 'DEVOLUCION',
-                    'refund_request_id' => $request->public_id,
-                    'original_transaction_id' => $original->public_id,
-                    'amount_cents' => $request->amount_cents,
-                    'reviewed_by' => $request->reviewed_by,
-                    'executed_by' => $executedBy,
-                ]
-            );
+    $recovery = FinancialWithdrawalRecovery::where(
+        'refund_request_id',
+        $request->public_id
+    )
+        ->lockForUpdate()
+        ->first();
+
+    if (!$recovery) {
+        throw new InvalidArgumentException(
+            'Debe confirmarse la recuperación del dinero externo antes de devolver el retiro.'
+        );
+    }
+
+    if (
+        $withdrawal->status !== WithdrawalStatus::COMPLETADA ||
+        strtolower($withdrawal->wallet_id) !==
+            strtolower($request->wallet_id) ||
+        abs($entry->amount_cents) !== $withdrawal->amount_cents ||
+        strtolower($recovery->withdrawal_id) !==
+            strtolower($withdrawal->public_id) ||
+        $recovery->amount_cents !== $request->amount_cents ||
+        $recovery->currency !== $withdrawal->currency ||
+        !$recovery->confirmed_at ||
+        trim($recovery->confirmed_by) === '' ||
+        trim($recovery->recovery_reference) === ''
+    ) {
+        throw new InvalidArgumentException(
+            'La recuperación registrada no corresponde al retiro o al monto solicitado.'
+        );
+    }
+
+    $withdrawalWallet = Wallet::where(
+        'public_id',
+        $withdrawal->wallet_id
+    )
+        ->lockForUpdate()
+        ->firstOrFail();
+
+    if ($withdrawalWallet->currency !== $recovery->currency) {
+        throw new InvalidArgumentException(
+            'La moneda recuperada no corresponde a la wallet.'
+        );
+    }
+}             
+            
+            $metadata = [
+                'operation' => 'DEVOLUCION',
+                'refund_request_id' => $request->public_id,
+                'original_transaction_id' => $original->public_id,
+                'amount_cents' => $request->amount_cents,
+                'reviewed_by' => $request->reviewed_by,
+                'executed_by' => $executedBy,
+                'refund_type' => $isTransfer
+                    ? 'TRANSFERENCIA'
+                    : ($isWithdrawal ? 'RETIRO' : 'PAGO'),
+                'recovery_id' => $recovery?->public_id,
+                'recovery_reference' => $recovery?->recovery_reference,
+            ];
+
+            $ledger = app(LedgerService::class);
+
+            if ($isTransfer) {
+                $wallets = Wallet::whereIn('public_id', [
+                    $entry->wallet_id,
+                    $incomingEntry->wallet_id,
+                ])
+                    ->orderBy('public_id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy(
+                        fn (Wallet $item) => strtolower($item->public_id)
+                    );
+
+                 $originalSender = $wallets->get(
+                     strtolower($entry->wallet_id)
+                 );
+
+                 $originalReceiver = $wallets->get(
+                     strtolower($incomingEntry->wallet_id)
+                 );
+
+             if (!$originalSender || !$originalReceiver) {
+                 throw new InvalidArgumentException(
+                     'No fue posible localizar las wallets de la transferencia.'
+                 );
+             }
+
+             $transaction = $ledger->transfer(
+                 sourceWallet: $originalReceiver,
+                 destinationWallet: $originalSender,
+                 amountCents: $request->amount_cents,
+                 idempotencyKey: $idempotencyKey,
+                 referenceType: 'DEVOLUCION',
+                 referenceId: $request->public_id,
+                 metadata: $metadata
+             );
+
+             LedgerEntry::where(
+                 'transaction_id',
+                 $transaction->public_id
+             )->update([
+                 'movement_type' => MovementType::DEVOLUCION->value,
+             ]);
+         } else {
+             $wallet = Wallet::where(
+                 'public_id',
+                 $request->wallet_id
+             )->firstOrFail();
+
+             $transaction = $ledger->credit(
+                 wallet: $wallet,
+                 amountCents: $request->amount_cents,
+                 movementType: MovementType::DEVOLUCION,
+                 idempotencyKey: $idempotencyKey,
+                 referenceType: 'DEVOLUCION',
+                 referenceId: $request->public_id,
+                 metadata: $metadata
+             );
+           }
 
             $transaction->original_transaction_id = $original->public_id;
             $transaction->save();
@@ -535,6 +844,8 @@ class FinancialAdjustmentService
                         'Solo se pueden reversar operaciones completadas.'
                     );
                 }
+
+                $this->rejectPurchaseAdjustment($lockedOriginal);
 
                 if ($this->requestedRefundAmount($lockedOriginal->public_id) > 0) {
                     throw new InvalidArgumentException(
@@ -690,6 +1001,22 @@ class FinancialAdjustmentService
             }
         );
     }
+
+    private function rejectPurchaseAdjustment(
+        FinancialTransaction $transaction
+    ): void {
+        if (
+            $transaction->reference_type === 'PURCHASE' &&
+            PurchasePayment::where(
+                'idempotency_key',
+                $transaction->idempotency_key
+            )->exists()
+    ) {
+        throw new InvalidArgumentException(
+            'Los pagos con bonos deben devolverse mediante el flujo de devolución de compra.'
+        );
+    }
+}
 
     private function findByIdempotencyKey(
         string $idempotencyKey

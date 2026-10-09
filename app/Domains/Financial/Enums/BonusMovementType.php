@@ -8,4 +8,5 @@ enum BonusMovementType: string
     case CONSUMO = 'CONSUMO';
     case CANCELACION = 'CANCELACION';
     case EXPIRACION = 'EXPIRACION';
+    case DEVOLUCION = 'DEVOLUCION';
 }

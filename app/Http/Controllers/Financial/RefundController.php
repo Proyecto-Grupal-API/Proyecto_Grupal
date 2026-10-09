@@ -69,25 +69,48 @@ class RefundController extends Controller
             $validated['original_transaction_id']
         )->firstOrFail();
 
-        // Admitir únicamente el tipo de pago que podemos devolver.
+        // Admitir pagos con un cargo o transferencias entre dos wallets.
         $entries = LedgerEntry::where(
             'transaction_id',
             $original->public_id
         )->get();
 
-        $entry = $entries->first();
+        $entry = $entries->first(
+            fn (LedgerEntry $item) => $item->amount_cents < 0
+        );
 
-        if (
-            $entries->count() !== 1 ||
-            !$entry ||
-            $entry->movement_type !== MovementType::PAGO ||
-            $entry->amount_cents >= 0
-        ) {
-            return response()->json([
-                'message' =>
-                    'Esta API solo admite devoluciones de pagos con un único cargo contable.',
-                'meta' => $this->meta($request),
-            ], 409);
+       $isPayment =
+           $entries->count() === 1 &&
+           $entry &&
+           $entry->movement_type === MovementType::PAGO;
+
+       $incomingEntry = $entries->first(
+           fn (LedgerEntry $item) =>
+               $item->movement_type === MovementType::TRANSFERENCIA_ENTRADA &&
+               $item->amount_cents > 0
+        );
+
+        $isTransfer =
+            $entries->count() === 2 &&
+            $entry &&
+            $incomingEntry &&
+            $entry->movement_type === MovementType::TRANSFERENCIA_SALIDA &&
+            $incomingEntry->amount_cents === abs($entry->amount_cents) &&
+            strtolower($incomingEntry->wallet_id) !==
+                strtolower($entry->wallet_id);
+
+        $isWithdrawal =
+            $entries->count() === 1 &&
+            $entry &&
+            $entry->movement_type === MovementType::RETIRO &&
+            $original->reference_type === 'WITHDRAWAL';   
+
+         if (!$isPayment && !$isTransfer && !$isWithdrawal) {
+             return response()->json([
+                 'message' =>
+                     'Esta API solo admite devoluciones de pagos, transferencias y retiros.',
+                 'meta' => $this->meta($request),
+             ], 409);
         }
 
         try {
@@ -227,7 +250,63 @@ class RefundController extends Controller
 
      return $this->respond($request, $refund->refresh());
  }
+                          
+public function recoverWithdrawal(
+    Request $request,
+    string $refundId,
+    FinancialAdjustmentService $service
+): JsonResponse {
+    $validated = $request->validate([
+        'recovery_reference' => [
+            'required',
+            'string',
+            'max:255',
+            'regex:/\S/',
+        ],
+        'notes' => [
+            'nullable',
+            'string',
+            'max:1000',
+        ],
+    ]);
 
+    $confirmedBy = $this->serviceActor($request);
+
+    $refund = FinancialRefundRequest::where(
+        'public_id',
+        $refundId
+    )->firstOrFail();
+
+    try {
+        $recovery = $service->confirmWithdrawalRecovery(
+            refundRequest: $refund,
+            recoveryReference: $validated['recovery_reference'],
+            confirmedBy: $confirmedBy,
+            notes: $validated['notes'] ?? null
+        );
+    } catch (InvalidArgumentException $exception) {
+        return response()->json([
+            'message' => $exception->getMessage(),
+            'meta' => $this->meta($request),
+        ], 409);
+    }
+
+    return response()->json([
+        'data' => [
+            'id' => $recovery->public_id,
+            'refund_request_id' => $recovery->refund_request_id,
+            'withdrawal_id' => $recovery->withdrawal_id,
+            'amount_cents' => $recovery->amount_cents,
+            'currency' => $recovery->currency,
+            'recovery_reference' => $recovery->recovery_reference,
+            'confirmed_by' => $recovery->confirmed_by,
+            'confirmed_at' => $recovery->confirmed_at?->toISOString(),
+            'notes' => $recovery->notes,
+        ],
+        'meta' => $this->meta($request),
+    ], $recovery->wasRecentlyCreated ? 201 : 200);
+}                        
+                          
 private function serviceActor(Request $request): string
 {
     $clientId = $request->attributes->get('oauth_client_id');

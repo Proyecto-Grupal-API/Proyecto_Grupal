@@ -5,10 +5,14 @@ namespace Tests\Feature\Financial;
 use App\Domains\Financial\Enums\MovementType;
 use App\Domains\Financial\Enums\TransactionStatus;
 use App\Domains\Financial\Enums\WalletType;
+use App\Domains\Financial\Enums\WithdrawalMethod;
 use App\Domains\Financial\Models\FinancialTransaction;
 use App\Domains\Financial\Models\FinancialRefundRequest;
 use App\Domains\Financial\Models\LedgerEntry;
 use App\Domains\Financial\Models\Wallet;
+use App\Domains\Financial\Models\FinancialWithdrawalRecovery;
+use App\Domains\Financial\Models\Withdrawal;
+use App\Domains\Financial\Services\WithdrawalService;
 use App\Domains\Financial\Services\FinancialAdjustmentService;
 use App\Domains\Financial\Services\LedgerService;
 use App\Domains\Financial\Services\WalletService;
@@ -18,45 +22,74 @@ use Illuminate\Support\Str;
 class FinancialAdjustmentServiceTest extends TestCase
 {
     private ?Wallet $wallet = null;
+    private ?Wallet $destinationWallet = null;
 
     protected function tearDown(): void
 {
-    if ($this->wallet) {
+    try {
+        $walletIds = [];
 
-        $transactionIds = LedgerEntry::where(
-            'wallet_id',
-            $this->wallet->public_id
-        )->pluck('transaction_id');
+        if ($this->wallet) {
+            $walletIds[] = $this->wallet->public_id;
+        }
 
+        if ($this->destinationWallet) {
+            $walletIds[] = $this->destinationWallet->public_id;
+        }
 
-        FinancialRefundRequest::where(
-            'wallet_id',
-            $this->wallet->public_id
-        )->delete();
+        if ($walletIds !== []) {
+            $transactionIds = LedgerEntry::whereIn(
+                'wallet_id',
+                $walletIds
+            )->pluck('transaction_id');
 
+            $refunds = FinancialRefundRequest::whereIn(
+                'wallet_id',
+                $walletIds
+            )->get();
 
-        LedgerEntry::whereIn(
-            'transaction_id',
-            $transactionIds
-        )->delete();
+            $refundTransactionIds = $refunds
+                ->pluck('request_transaction_id')
+                ->merge($refunds->pluck('financial_transaction_id'))
+                ->filter()
+                ->unique();
 
+            FinancialWithdrawalRecovery::whereIn(
+              'refund_request_id',
+    $refunds->pluck('public_id')
+)->delete();
 
-        FinancialTransaction::whereIn(
-            'original_transaction_id',
-            $transactionIds
-        )->delete();
+            FinancialRefundRequest::whereIn(
+                'wallet_id',
+                $walletIds
+            )->delete();
 
+            $allTransactionIds = $transactionIds
+                ->merge($refundTransactionIds)
+                ->unique();
 
-        FinancialTransaction::whereIn(
-            'public_id',
-            $transactionIds
-        )->delete();
+            LedgerEntry::whereIn(
+                'transaction_id',
+                $allTransactionIds
+            )->delete();
 
+            // Eliminar primero las operaciones relacionadas.
+            FinancialTransaction::whereIn(
+                'original_transaction_id',
+                $allTransactionIds
+            )->delete();
 
-        $this->wallet->delete();
+            FinancialTransaction::whereIn(
+                'public_id',
+                $allTransactionIds
+            )->delete();
+
+            Withdrawal::whereIn('wallet_id', $walletIds)->delete();
+            Wallet::whereIn('public_id', $walletIds)->delete();
+        }
+    } finally {
+        parent::tearDown();
     }
-
-    parent::tearDown();
 }
 
     public function test_it_creates_a_pending_refund_request_without_moving_money(): void
@@ -1400,5 +1433,580 @@ public function test_it_cannot_complete_a_rejected_refund(): void
             $this->wallet->public_id
         )->count()
     );
+}
+public function test_it_refunds_a_transfer_without_creating_or_duplicating_money(): void
+{
+    $walletService = app(WalletService::class);
+    $ledger = app(LedgerService::class);
+    $service = app(FinancialAdjustmentService::class);
+
+    $ownerId = 'transfer-refund-sender-' . Str::uuid();
+
+    $this->wallet = $walletService->create(
+        ownerType: 'STUDENT',
+        ownerId: $ownerId,
+        walletType: WalletType::USUARIO
+    );
+
+    $this->destinationWallet = $walletService->create(
+        ownerType: 'STUDENT',
+        ownerId: 'transfer-refund-receiver-' . Str::uuid(),
+        walletType: WalletType::USUARIO
+    );
+
+    $ledger->credit(
+        wallet: $this->wallet,
+        amountCents: 100000,
+        movementType: MovementType::RECARGA,
+        idempotencyKey: 'transfer-refund-credit-' . Str::uuid()
+    );
+
+    $original = $ledger->transfer(
+        sourceWallet: $this->wallet,
+        destinationWallet: $this->destinationWallet,
+        amountCents: 30000,
+        idempotencyKey: 'transfer-refund-original-' . Str::uuid()
+    );
+
+    $requestTransaction = $service->refund(
+        originalTransaction: $original,
+        amountCents: 10000,
+        idempotencyKey: 'transfer-refund-request-' . Str::uuid(),
+        requestedBy: $ownerId
+    );
+
+    $request = FinancialRefundRequest::where(
+        'request_transaction_id',
+        $requestTransaction->public_id
+    )->firstOrFail();
+
+    $service->approveRefund(
+        refundRequest: $request,
+        reviewedBy: 'admin-transfer-refund'
+    );
+
+    // Solicitar y aprobar no deben cambiar los saldos.
+    $this->wallet->refresh();
+    $this->destinationWallet->refresh();
+
+    $this->assertSame(70000, $this->wallet->available_balance_cents);
+    $this->assertSame(
+        30000,
+        $this->destinationWallet->available_balance_cents
+    );
+
+    $key = 'transfer-refund-complete-' . Str::uuid();
+
+    $completed = $service->completeRefund(
+        refundRequest: $request,
+        idempotencyKey: $key,
+        executedBy: 'service:transfer-refund-test'
+    );
+
+    $retried = $service->completeRefund(
+        refundRequest: $request,
+        idempotencyKey: $key,
+        executedBy: 'service:another-executor'
+    );
+
+    $this->wallet->refresh();
+    $this->destinationWallet->refresh();
+    $request->refresh();
+    $original->refresh();
+
+    $this->assertSame(80000, $this->wallet->available_balance_cents);
+    $this->assertSame(
+        20000,
+        $this->destinationWallet->available_balance_cents
+    );
+
+    $this->assertSame(
+        100000,
+        $this->wallet->available_balance_cents +
+        $this->destinationWallet->available_balance_cents
+    );
+
+    $this->assertSame(
+        strtolower($completed->public_id),
+        strtolower($retried->public_id)
+    );
+
+    $this->assertSame(
+        'service:transfer-refund-test',
+        $retried->metadata['executed_by']
+    );
+
+    $this->assertSame(
+        'COMPLETADA',
+        $request->status->value
+    );
+
+    $this->assertSame(
+        TransactionStatus::COMPLETADA,
+        $original->status
+    );
+
+    $entries = LedgerEntry::where(
+        'transaction_id',
+        $completed->public_id
+    )->get();
+
+    $this->assertCount(2, $entries);
+    $this->assertSame(0, (int) $entries->sum('amount_cents'));
+
+    $this->assertDatabaseHas('ledger_entries', [
+        'transaction_id' => $completed->public_id,
+        'wallet_id' => $this->wallet->public_id,
+        'movement_type' => 'DEVOLUCION',
+        'amount_cents' => 10000,
+        'available_balance_after_cents' => 80000,
+    ], 'sqlsrv');
+
+    $this->assertDatabaseHas('ledger_entries', [
+        'transaction_id' => $completed->public_id,
+        'wallet_id' => $this->destinationWallet->public_id,
+        'movement_type' => 'DEVOLUCION',
+        'amount_cents' => -10000,
+        'available_balance_after_cents' => 20000,
+    ], 'sqlsrv');
+}
+public function test_it_rejects_transfer_refund_without_balance_and_allows_retry(): void
+{
+    $walletService = app(WalletService::class);
+    $ledger = app(LedgerService::class);
+    $service = app(FinancialAdjustmentService::class);
+    $ownerId = 'transfer-refund-insufficient-' . Str::uuid();
+
+    $this->wallet = $walletService->create(
+        ownerType: 'STUDENT',
+        ownerId: $ownerId,
+        walletType: WalletType::USUARIO
+    );
+
+    $this->destinationWallet = $walletService->create(
+        ownerType: 'STUDENT',
+        ownerId: 'transfer-refund-receiver-' . Str::uuid(),
+        walletType: WalletType::USUARIO
+    );
+
+    $ledger->credit(
+        wallet: $this->wallet,
+        amountCents: 100000,
+        movementType: MovementType::RECARGA,
+        idempotencyKey: 'transfer-credit-' . Str::uuid()
+    );
+
+    $original = $ledger->transfer(
+        sourceWallet: $this->wallet,
+        destinationWallet: $this->destinationWallet,
+        amountCents: 30000,
+        idempotencyKey: 'transfer-original-' . Str::uuid()
+    );
+
+    // El destinatario gasta $250 y solamente conserva $50.
+    $ledger->debit(
+        wallet: $this->destinationWallet,
+        amountCents: 25000,
+        movementType: MovementType::PAGO,
+        idempotencyKey: 'receiver-payment-' . Str::uuid()
+    );
+
+    $requestTransaction = $service->refund(
+        originalTransaction: $original,
+        amountCents: 10000,
+        idempotencyKey: 'transfer-request-' . Str::uuid(),
+        requestedBy: $ownerId
+    );
+
+    $request = FinancialRefundRequest::where(
+        'request_transaction_id',
+        $requestTransaction->public_id
+    )->firstOrFail();
+
+    $service->approveRefund(
+        refundRequest: $request,
+        reviewedBy: 'admin-transfer-refund'
+    );
+
+    $walletIds = [
+        $this->wallet->public_id,
+        $this->destinationWallet->public_id,
+    ];
+
+    $entriesBefore = LedgerEntry::whereIn(
+        'wallet_id',
+        $walletIds
+    )->count();
+
+    $key = 'transfer-complete-' . Str::uuid();
+
+    try {
+        $service->completeRefund(
+            refundRequest: $request,
+            idempotencyKey: $key,
+            executedBy: 'service:transfer-refund-test'
+        );
+
+        $this->fail('Debe rechazarse la devolución sin saldo suficiente.');
+    } catch (\InvalidArgumentException $exception) {
+        $this->assertSame(
+            'Saldo insuficiente.',
+            $exception->getMessage()
+        );
+    }
+
+    $this->wallet->refresh();
+    $this->destinationWallet->refresh();
+    $request->refresh();
+    $requestTransaction->refresh();
+
+    $this->assertSame(70000, $this->wallet->available_balance_cents);
+    $this->assertSame(
+        5000,
+        $this->destinationWallet->available_balance_cents
+    );
+
+    $this->assertSame('APROBADA', $request->status->value);
+    $this->assertNull($request->completed_at);
+    $this->assertNull($request->financial_transaction_id);
+
+    $this->assertSame(
+        TransactionStatus::PENDIENTE,
+        $requestTransaction->status
+    );
+
+    $this->assertSame(
+        $entriesBefore,
+        LedgerEntry::whereIn('wallet_id', $walletIds)->count()
+    );
+
+    $this->assertSame(
+        0,
+        FinancialTransaction::where('idempotency_key', $key)->count()
+    );
+
+    // El destinatario recibe una recarga de $50.
+    $ledger->credit(
+        wallet: $this->destinationWallet,
+        amountCents: 5000,
+        movementType: MovementType::RECARGA,
+        idempotencyKey: 'receiver-credit-' . Str::uuid()
+    );
+
+    // Reintentar con la misma clave debe devolver los $100.
+    $completed = $service->completeRefund(
+        refundRequest: $request,
+        idempotencyKey: $key,
+        executedBy: 'service:transfer-refund-test'
+    );
+
+    $this->wallet->refresh();
+    $this->destinationWallet->refresh();
+    $request->refresh();
+
+    $this->assertSame(80000, $this->wallet->available_balance_cents);
+    $this->assertSame(
+        0,
+        $this->destinationWallet->available_balance_cents
+    );
+
+    $this->assertSame('COMPLETADA', $request->status->value);
+
+    $this->assertSame(
+        2,
+        LedgerEntry::where(
+            'transaction_id',
+            $completed->public_id
+        )->count()
+    );
+}
+public function test_it_refunds_a_withdrawal_only_after_recovery_confirmation(): void
+{
+    $ledger = app(LedgerService::class);
+    $service = app(FinancialAdjustmentService::class);
+    $withdrawalService = app(WithdrawalService::class);
+    $ownerId = 'withdrawal-refund-' . Str::uuid();
+
+    $this->wallet = app(WalletService::class)->create(
+        ownerType: 'STUDENT',
+        ownerId: $ownerId,
+        walletType: WalletType::USUARIO
+    );
+
+    $ledger->credit(
+        wallet: $this->wallet,
+        amountCents: 100000,
+        movementType: MovementType::RECARGA,
+        idempotencyKey: 'withdrawal-refund-credit-' . Str::uuid()
+    );
+
+    $withdrawal = $withdrawalService->create(
+        wallet: $this->wallet,
+        amountCents: 30000,
+        method: WithdrawalMethod::EFECTIVO
+    );
+
+    $withdrawalKey = 'withdrawal-original-' . Str::uuid();
+
+    $withdrawalService->complete($withdrawal, $withdrawalKey);
+
+    $original = FinancialTransaction::where(
+        'idempotency_key',
+        $withdrawalKey
+    )->firstOrFail();
+
+    $requestTransaction = $service->refund(
+        originalTransaction: $original,
+        amountCents: 10000,
+        idempotencyKey: 'withdrawal-refund-request-' . Str::uuid(),
+        requestedBy: $ownerId
+    );
+
+    $request = FinancialRefundRequest::where(
+        'request_transaction_id',
+        $requestTransaction->public_id
+    )->firstOrFail();
+
+    $service->approveRefund(
+        refundRequest: $request,
+        reviewedBy: 'admin-withdrawal-refund'
+    );
+
+    $completionKey = 'withdrawal-refund-complete-' . Str::uuid();
+
+    // La aprobación no sustituye la recuperación del dinero externo.
+    try {
+        $service->completeRefund($request, $completionKey);
+        $this->fail('No debe abonarse un retiro sin recuperación.');
+    } catch (\InvalidArgumentException $exception) {
+        $this->assertSame(
+            'Debe confirmarse la recuperación del dinero externo antes de devolver el retiro.',
+            $exception->getMessage()
+        );
+    }
+
+    $this->wallet->refresh();
+    $request->refresh();
+
+    $this->assertSame(70000, $this->wallet->available_balance_cents);
+    $this->assertSame('APROBADA', $request->status->value);
+
+    $this->assertSame(
+        0,
+        FinancialTransaction::where(
+            'idempotency_key',
+            $completionKey
+        )->count()
+    );
+
+    $reference = 'recovery-receipt-' . Str::uuid();
+
+    $recovery = $service->confirmWithdrawalRecovery(
+        refundRequest: $request,
+        recoveryReference: $reference,
+        confirmedBy: 'service:cash-recovery',
+        notes: 'Se recuperaron $100.00 del retiro original.'
+    );
+
+    $repeatedRecovery = $service->confirmWithdrawalRecovery(
+        refundRequest: $request,
+        recoveryReference: $reference,
+        confirmedBy: 'service:cash-recovery'
+    );
+
+    $this->assertSame(
+        strtolower($recovery->public_id),
+        strtolower($repeatedRecovery->public_id)
+    );
+
+    $this->assertSame(10000, $recovery->amount_cents);
+    $this->assertSame('MXN', $recovery->currency);
+    $this->assertNotNull($recovery->confirmed_at);
+
+    $this->assertSame(
+        1,
+        FinancialWithdrawalRecovery::where(
+            'refund_request_id',
+            $request->public_id
+        )->count()
+    );
+
+    // Confirmar la recuperación todavía no abona a la wallet.
+    $this->wallet->refresh();
+    $this->assertSame(70000, $this->wallet->available_balance_cents);
+
+    $completed = $service->completeRefund(
+        refundRequest: $request,
+        idempotencyKey: $completionKey,
+        executedBy: 'service:refund-executor'
+    );
+
+    $retried = $service->completeRefund(
+        refundRequest: $request,
+        idempotencyKey: $completionKey,
+        executedBy: 'service:refund-executor'
+    );
+
+    $this->wallet->refresh();
+    $request->refresh();
+
+    $this->assertSame(80000, $this->wallet->available_balance_cents);
+    $this->assertSame('COMPLETADA', $request->status->value);
+
+    $this->assertSame(
+        strtolower($completed->public_id),
+        strtolower($retried->public_id)
+    );
+
+    $this->assertSame(
+        strtolower($recovery->public_id),
+        strtolower($completed->metadata['recovery_id'])
+    );
+
+    $this->assertSame(
+        $reference,
+        $completed->metadata['recovery_reference']
+    );
+
+    $this->assertDatabaseHas('ledger_entries', [
+        'transaction_id' => $completed->public_id,
+        'wallet_id' => $this->wallet->public_id,
+        'movement_type' => 'DEVOLUCION',
+        'amount_cents' => 10000,
+        'available_balance_after_cents' => 80000,
+    ], 'sqlsrv');
+
+    $this->assertSame(
+        1,
+        LedgerEntry::where(
+            'transaction_id',
+            $completed->public_id
+        )->count()
+    );
+}
+public function test_it_prevents_reusing_a_withdrawal_recovery_receipt(): void
+{
+    $ledger = app(LedgerService::class);
+    $service = app(FinancialAdjustmentService::class);
+    $withdrawalService = app(WithdrawalService::class);
+    $ownerId = 'recovery-receipt-test-' . Str::uuid();
+
+    $this->wallet = app(WalletService::class)->create(
+        ownerType: 'STUDENT',
+        ownerId: $ownerId,
+        walletType: WalletType::USUARIO
+    );
+
+    $ledger->credit(
+        wallet: $this->wallet,
+        amountCents: 100000,
+        movementType: MovementType::RECARGA,
+        idempotencyKey: 'recovery-credit-' . Str::uuid()
+    );
+
+    $withdrawal = $withdrawalService->create(
+        wallet: $this->wallet,
+        amountCents: 30000,
+        method: WithdrawalMethod::EFECTIVO
+    );
+
+    $withdrawalKey = 'recovery-withdrawal-' . Str::uuid();
+    $withdrawalService->complete($withdrawal, $withdrawalKey);
+
+    $original = FinancialTransaction::where(
+        'idempotency_key',
+        $withdrawalKey
+    )->firstOrFail();
+
+    $requests = [];
+
+    // Dos solicitudes parciales del mismo retiro.
+    foreach ([10000, 10000] as $amount) {
+        $transaction = $service->refund(
+            originalTransaction: $original,
+            amountCents: $amount,
+            idempotencyKey: 'recovery-request-' . Str::uuid(),
+            requestedBy: $ownerId
+        );
+
+        $request = FinancialRefundRequest::where(
+            'request_transaction_id',
+            $transaction->public_id
+        )->firstOrFail();
+
+        $service->approveRefund(
+            refundRequest: $request,
+            reviewedBy: 'admin-recovery-test'
+        );
+
+        $requests[] = $request;
+    }
+
+    $reference = 'unique-recovery-receipt-' . Str::uuid();
+
+    $firstRecovery = $service->confirmWithdrawalRecovery(
+        refundRequest: $requests[0],
+        recoveryReference: $reference,
+        confirmedBy: 'service:cash-recovery'
+    );
+
+    try {
+        $service->confirmWithdrawalRecovery(
+            refundRequest: $requests[1],
+            recoveryReference: $reference,
+            confirmedBy: 'service:cash-recovery'
+        );
+
+        $this->fail('No debe reutilizarse el comprobante.');
+    } catch (\InvalidArgumentException $exception) {
+        $this->assertSame(
+            'El comprobante de recuperación ya fue utilizado.',
+            $exception->getMessage()
+        );
+    }
+
+    // Tampoco debe cambiarse la referencia de una recuperación registrada.
+    try {
+        $service->confirmWithdrawalRecovery(
+            refundRequest: $requests[0],
+            recoveryReference: 'different-receipt-' . Str::uuid(),
+            confirmedBy: 'service:cash-recovery'
+        );
+
+        $this->fail('No debe reemplazarse la recuperación registrada.');
+    } catch (\InvalidArgumentException $exception) {
+        $this->assertSame(
+            'La recuperación ya fue confirmada con datos diferentes.',
+            $exception->getMessage()
+        );
+    }
+
+    $this->assertSame(
+        1,
+        FinancialWithdrawalRecovery::where(
+            'recovery_reference',
+            $reference
+        )->count()
+    );
+
+    $this->assertFalse(
+        FinancialWithdrawalRecovery::where(
+            'refund_request_id',
+            $requests[1]->public_id
+        )->exists()
+    );
+
+    $firstRecovery->refresh();
+    $this->assertSame($reference, $firstRecovery->recovery_reference);
+
+    // Ambas siguen aprobadas, sin ejecutar ningún abono.
+    foreach ($requests as $request) {
+        $request->refresh();
+        $this->assertSame('APROBADA', $request->status->value);
+        $this->assertNull($request->financial_transaction_id);
+    }
+
+    $this->wallet->refresh();
+    $this->assertSame(70000, $this->wallet->available_balance_cents);
 }
 }

@@ -7,6 +7,7 @@ use App\Http\Controllers\Financial\TopUpController;
 use App\Http\Controllers\Financial\WithdrawalController;
 use App\Http\Controllers\Financial\BonusController;
 use App\Http\Controllers\Financial\RefundController;
+use App\Http\Controllers\Financial\PurchaseRefundController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -80,7 +81,22 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
                 '/refunds/{refundId}',
                 [RefundController::class, 'show']
             );
-  });
+
+            Route::get(
+                '/purchase-refunds/{refundId}',
+                [PurchaseRefundController::class, 'show']
+             );
+
+             });
+
+             Route::middleware(
+                 'oauth.service:financial:refund:recover'
+             )->group(function () {
+                 Route::post(
+                     '/refunds/{refundId}/recover',
+                     [RefundController::class, 'recoverWithdrawal']
+            );
+        });
            
             Route::middleware(
                 'oauth.service:financial:refund:review'
@@ -94,6 +110,16 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
                     '/refunds/{refundId}/reject',
                     [RefundController::class, 'reject']
                 );
+
+                Route::post(
+                    '/purchase-refunds/{refundId}/approve',
+                    [PurchaseRefundController::class, 'approve']
+                );
+
+                Route::post(
+                    '/purchase-refunds/{refundId}/reject',
+                    [PurchaseRefundController::class, 'reject']
+                );
             });
 
             Route::middleware(
@@ -102,6 +128,11 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
                 Route::post(
                     '/refunds/{refundId}/complete',
                     [RefundController::class, 'complete']
+                );
+
+                Route::post(
+                    '/purchase-refunds/{refundId}/complete',
+                    [PurchaseRefundController::class, 'complete']
                 );
             });
             
@@ -128,6 +159,12 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
                 '/refunds',
                 [RefundController::class, 'store']
             );
+
+            Route::post(
+                '/purchase-refunds',
+                [PurchaseRefundController::class, 'store']
+             );
+            
         });
     });
 });
