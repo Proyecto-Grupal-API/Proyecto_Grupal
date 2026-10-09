@@ -19,6 +19,7 @@ $csv = static fn (?string $value): array => array_values(array_filter(array_map(
 )));
 
 return [
+    'cash' => ['reconciliation_enabled' => env('FINANCIAL_CASH_RECONCILIATION_ENABLED', false)],
 
     // Zona horaria con la que se delimita un "día" o "mes" de negocio
     // para los límites por periodo y para la conciliación diaria.

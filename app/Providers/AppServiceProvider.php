@@ -5,7 +5,6 @@ namespace App\Providers;
 use App\Domains\Financial\Adapters\Module1IdentityAdapter;
 use App\Domains\Financial\Contracts\IdentityProvider;
 use App\Domains\Financial\Adapters\PendingFinancialRoleProvider;
-use App\Domains\Financial\Adapters\PendingCashReconciliationSource;
 use App\Domains\Financial\Contracts\FinancialRoleProvider;
 use App\Domains\Financial\Contracts\CashReconciliationSource;
 use App\Domains\Financial\Models\FinancialTransaction;
@@ -29,7 +28,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(\App\Domains\Financial\Contracts\FinancialWebAuthorizer::class,
             \App\Domains\Financial\Adapters\PendingFinancialWebAuthorizer::class);
         $this->app->bind(FinancialRoleProvider::class, PendingFinancialRoleProvider::class);
-        $this->app->bind(CashReconciliationSource::class, PendingCashReconciliationSource::class);
+        $this->app->bind(CashReconciliationSource::class, \App\Domains\Financial\Adapters\CashShiftReconciliationSource::class);
         $this->app->scoped(FinancialCorrelation::class);
         $this->app->bind(
             IdentityProvider::class,
