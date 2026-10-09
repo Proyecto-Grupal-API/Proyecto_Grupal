@@ -110,17 +110,17 @@ class LockerPeriod extends Model
             ),
 
             'prices' => [
-            'small' => $this->priceFor(
-                'small'
-            ),
+                'small' => $this->priceFor(
+                    'small'
+                ),
 
-            'medium' => $this->priceFor(
-                'medium'
-            ),
+                'medium' => $this->priceFor(
+                    'medium'
+                ),
 
-            'large' => $this->priceFor(
-                'large'
-            ),
+                'large' => $this->priceFor(
+                    'large'
+                ),
             ],
 
             'status' => $this->status,
