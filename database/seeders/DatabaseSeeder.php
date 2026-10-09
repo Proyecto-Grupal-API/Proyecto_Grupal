@@ -15,11 +15,23 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        if (! User::query()->where('email', 'test@example.com')->exists()) {
+            User::factory()->create([
+                'name' => 'Test User',
+                'email' => 'test@example.com',
+            ]);
+        }
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        /*
+         * Servicios al Estudiante (Equipo 5). Todos los seeders son
+         * idempotentes: se pueden correr varias veces sin duplicar datos.
+         */
+        $this->call([
+            FacilitiesSeeder::class,
+            LockersSeeder::class,
+            RentalAssetSeeder::class,
+            RestSpacesSeeder::class,
+            CalendarsSeeder::class,
         ]);
     }
 }

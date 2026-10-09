@@ -1,381 +1,228 @@
 <script setup lang="ts">
 import StudentServicesLayout from '@/layouts/StudentServicesLayout.vue';
+import type { CalendarRules } from '@/lib/studentServicesCalendar';
+import {
+    formatTimeOfIso,
+    minutesLabel,
+    todayKey,
+    WEEKDAY_LABELS,
+} from '@/lib/studentServicesCalendar';
+import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
-type ResourceStatus =
-    | 'active'
-    | 'inactive';
+type ResourceType = 'facility' | 'rest_space';
 
-type WaitlistStatus =
-    | 'waiting'
-    | 'promoted'
-    | 'cancelled';
+type WaitlistStatus = 'waiting' | 'promoted' | 'cancelled' | 'expired';
 
-interface ResourceRule {
-    id: number;
+interface Resource {
+    key: string;
+    id: string;
+    resource_type: ResourceType;
+    resource_label: string;
     name: string;
-    type: string;
+    category: string;
     location: string;
+    active: boolean;
     capacity: number;
-    openTime: string;
-    closeTime: string;
-    slotMinutes: number;
-    maxBookingMinutes: number;
-    cancelBeforeMinutes: number;
-    noShowToleranceMinutes: number;
-    status: ResourceStatus;
+    rules: CalendarRules;
 }
 
 interface CalendarBlock {
-    id: number;
-    resourceId: number;
-    resourceName: string;
-    date: string;
-    startTime: string;
-    endTime: string;
+    id: string;
+    folio: string;
+    resource_key: string;
+    resource_name: string;
+    start_at: string;
+    end_at: string;
     reason: string;
+    cancelled_bookings: number;
 }
 
 interface WaitlistEntry {
-    id: number;
+    id: string;
     folio: string;
-    resourceId: number;
-    resourceName: string;
-    date: string;
-    startTime: string;
-    endTime: string;
+    resource_type: ResourceType;
+    resource_key: string;
+    resource_name: string;
+    student_id: string;
+    start_at: string;
+    end_at: string;
     position: number;
     status: WaitlistStatus;
 }
 
-const resources = ref<ResourceRule[]>([
-    {
-        id: 1,
-        name: 'Sala de estudio A',
-        type: 'Sala de estudio',
-        location: 'Biblioteca · Piso 1',
-        capacity: 8,
-        openTime: '07:30',
-        closeTime: '18:30',
-        slotMinutes: 30,
-        maxBookingMinutes: 120,
-        cancelBeforeMinutes: 60,
-        noShowToleranceMinutes: 15,
-        status: 'active',
-    },
-    {
-        id: 2,
-        name: 'Laboratorio de cómputo',
-        type: 'Laboratorio',
-        location: 'Edificio A · Piso 2',
-        capacity: 25,
-        openTime: '08:00',
-        closeTime: '18:00',
-        slotMinutes: 60,
-        maxBookingMinutes: 180,
-        cancelBeforeMinutes: 120,
-        noShowToleranceMinutes: 15,
-        status: 'active',
-    },
-    {
-        id: 3,
-        name: 'Auditorio principal',
-        type: 'Auditorio',
-        location: 'Edificio B',
-        capacity: 120,
-        openTime: '08:00',
-        closeTime: '20:00',
-        slotMinutes: 60,
-        maxBookingMinutes: 240,
-        cancelBeforeMinutes: 1440,
-        noShowToleranceMinutes: 30,
-        status: 'active',
-    },
-    {
-        id: 4,
-        name: 'Cancha multiusos',
-        type: 'Instalación deportiva',
-        location: 'Zona deportiva',
-        capacity: 20,
-        openTime: '07:00',
-        closeTime: '19:00',
-        slotMinutes: 60,
-        maxBookingMinutes: 120,
-        cancelBeforeMinutes: 120,
-        noShowToleranceMinutes: 15,
-        status: 'active',
-    },
-]);
+const props = defineProps<{
+    resources: Resource[];
+    blocks: CalendarBlock[];
+    waitlist: WaitlistEntry[];
+}>();
 
-const blocks = ref<CalendarBlock[]>([
-    {
-        id: 1,
-        resourceId: 1,
-        resourceName: 'Sala de estudio A',
-        date: '2026-10-02',
-        startTime: '12:00',
-        endTime: '14:00',
-        reason: 'Mantenimiento preventivo',
-    },
-    {
-        id: 2,
-        resourceId: 3,
-        resourceName: 'Auditorio principal',
-        date: '2026-10-04',
-        startTime: '08:00',
-        endTime: '13:00',
-        reason: 'Evento institucional',
-    },
-]);
-
-const waitlist = ref<WaitlistEntry[]>([
-    {
-        id: 1,
-        folio: 'ESP-2026-001',
-        resourceId: 1,
-        resourceName: 'Sala de estudio A',
-        date: '2026-10-01',
-        startTime: '10:00',
-        endTime: '11:00',
-        position: 1,
-        status: 'waiting',
-    },
-    {
-        id: 2,
-        folio: 'ESP-2026-002',
-        resourceId: 1,
-        resourceName: 'Sala de estudio A',
-        date: '2026-10-01',
-        startTime: '10:00',
-        endTime: '11:00',
-        position: 2,
-        status: 'waiting',
-    },
-    {
-        id: 3,
-        folio: 'ESP-2026-003',
-        resourceId: 3,
-        resourceName: 'Auditorio principal',
-        date: '2026-10-05',
-        startTime: '16:00',
-        endTime: '18:00',
-        position: 1,
-        status: 'promoted',
-    },
-]);
-
-const activeTab = ref<
-    'calendar' | 'rules' | 'waitlist'
->('calendar');
+const activeTab = ref<'calendar' | 'rules' | 'waitlist'>('calendar');
 
 const search = ref('');
-
-const showRuleModal = ref(false);
-const selectedResource =
-    ref<ResourceRule | null>(null);
-
-const editCapacity = ref(1);
-const editOpenTime = ref('');
-const editCloseTime = ref('');
-const editSlotMinutes = ref(30);
-const editMaxBookingMinutes = ref(60);
-const editCancelBeforeMinutes = ref(60);
-const editNoShowTolerance = ref(15);
-
-const showBlockModal = ref(false);
-const blockResourceId = ref('');
-const blockDate = ref('');
-const blockStart = ref('');
-const blockEnd = ref('');
-const blockReason = ref('');
+const typeFilter = ref<'' | ResourceType>('');
+const notice = ref<string | null>(null);
 
 const activeResources = computed(
-    () =>
-        resources.value.filter(
-            (resource) =>
-                resource.status ===
-                'active',
-        ).length,
+    () => props.resources.filter((resource) => resource.active).length,
 );
 
-const totalCapacity = computed(
-    () =>
-        resources.value.reduce(
-            (total, resource) =>
-                total +
-                resource.capacity,
-            0,
-        ),
-);
-
-const activeBlocks = computed(
-    () => blocks.value.length,
+const totalCapacity = computed(() =>
+    props.resources.reduce((total, resource) => total + resource.capacity, 0),
 );
 
 const waitingCount = computed(
-    () =>
-        waitlist.value.filter(
-            (item) =>
-                item.status ===
-                'waiting',
-        ).length,
+    () => props.waitlist.filter((item) => item.status === 'waiting').length,
 );
 
-const filteredResources =
-    computed(() => {
-        const term =
-            search.value
-                .trim()
-                .toLowerCase();
+const filteredResources = computed(() => {
+    const term = search.value.trim().toLowerCase();
 
-        if (!term) {
-            return resources.value;
+    return props.resources.filter((resource) => {
+        if (typeFilter.value && resource.resource_type !== typeFilter.value) {
+            return false;
         }
 
-        return resources.value.filter(
-            (resource) =>
-                [
-                    resource.name,
-                    resource.type,
-                    resource.location,
-                ].some((value) =>
-                    value
-                        .toLowerCase()
-                        .includes(term),
-                ),
+        if (!term) {
+            return true;
+        }
+
+        return [resource.name, resource.category, resource.location].some(
+            (value) => value.toLowerCase().includes(term),
         );
     });
+});
 
-function formatDate(
-    value: string,
-): string {
-    const parts =
-        value.split('-');
-
-    if (parts.length !== 3) {
-        return value;
+function daysLabel(days: number[]): string {
+    if (days.length === 7) {
+        return 'Todos los días';
     }
 
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return days.map((day) => WEEKDAY_LABELS[day]).join(', ');
 }
 
-function minutesLabel(
-    value: number,
-): string {
-    if (value >= 1440) {
-        return `${value / 1440} día`;
-    }
-
-    if (value >= 60) {
-        const hours =
-            value / 60;
-
-        return `${hours} h`;
-    }
-
-    return `${value} min`;
+function formatDate(iso: string): string {
+    return new Date(iso).toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    });
 }
 
-function waitlistStatusLabel(
-    status: WaitlistStatus,
-): string {
-    const labels: Record<
-        WaitlistStatus,
-        string
-    > = {
+function waitlistStatusLabel(status: WaitlistStatus): string {
+    const labels: Record<WaitlistStatus, string> = {
         waiting: 'En espera',
         promoted: 'Promovida',
         cancelled: 'Cancelada',
+        expired: 'Expirada',
     };
 
     return labels[status];
 }
 
-function openRuleEditor(
-    resource: ResourceRule,
-) {
-    selectedResource.value =
-        resource;
-
-    editCapacity.value =
-        resource.capacity;
-
-    editOpenTime.value =
-        resource.openTime;
-
-    editCloseTime.value =
-        resource.closeTime;
-
-    editSlotMinutes.value =
-        resource.slotMinutes;
-
-    editMaxBookingMinutes.value =
-        resource.maxBookingMinutes;
-
-    editCancelBeforeMinutes.value =
-        resource.cancelBeforeMinutes;
-
-    editNoShowTolerance.value =
-        resource.noShowToleranceMinutes;
-
-    showRuleModal.value = true;
+function firstError(errors: Record<string, string>, fallback: string): string {
+    return Object.values(errors)[0] ?? fallback;
 }
 
-function saveRule() {
-    if (
-        selectedResource.value === null
-    ) {
-        return;
-    }
+/*
+|--------------------------------------------------------------------------
+| Edición de cupos y reglas
+|--------------------------------------------------------------------------
+*/
+const selectedResource = ref<Resource | null>(null);
 
-    if (
-        editCapacity.value < 1 ||
-        editSlotMinutes.value < 1 ||
-        editMaxBookingMinutes.value < 1
-    ) {
-        window.alert(
-            'Revisa los valores de capacidad y tiempos.',
-        );
+const ruleForm = useForm({
+    capacity: 1,
+    open_time: '',
+    close_time: '',
+    slot_minutes: 30,
+    min_booking_minutes: 30,
+    max_booking_minutes: 60,
+    cancel_before_minutes: 60,
+    no_show_tolerance_minutes: 15,
+    max_active_per_student: 1,
+    max_advance_days: 7,
+    max_no_shows: 3,
+    no_show_window_days: 30,
+    operating_days: [] as number[],
+});
 
-        return;
-    }
+const ruleErrors = computed(() => ruleForm.errors as Record<string, string>);
 
-    selectedResource.value.capacity =
-        editCapacity.value;
+function openRuleEditor(resource: Resource) {
+    selectedResource.value = resource;
 
-    selectedResource.value.openTime =
-        editOpenTime.value;
-
-    selectedResource.value.closeTime =
-        editCloseTime.value;
-
-    selectedResource.value.slotMinutes =
-        editSlotMinutes.value;
-
-    selectedResource.value.maxBookingMinutes =
-        editMaxBookingMinutes.value;
-
-    selectedResource.value.cancelBeforeMinutes =
-        editCancelBeforeMinutes.value;
-
-    selectedResource.value.noShowToleranceMinutes =
-        editNoShowTolerance.value;
-
-    closeRuleEditor();
+    ruleForm.clearErrors();
+    ruleForm.capacity = resource.capacity;
+    ruleForm.open_time = resource.rules.open_time;
+    ruleForm.close_time = resource.rules.close_time;
+    ruleForm.slot_minutes = resource.rules.slot_minutes;
+    ruleForm.min_booking_minutes = resource.rules.min_booking_minutes;
+    ruleForm.max_booking_minutes = resource.rules.max_booking_minutes;
+    ruleForm.cancel_before_minutes = resource.rules.cancel_before_minutes;
+    ruleForm.no_show_tolerance_minutes =
+        resource.rules.no_show_tolerance_minutes;
+    ruleForm.max_active_per_student = resource.rules.max_active_per_student;
+    ruleForm.max_advance_days = resource.rules.max_advance_days;
+    ruleForm.max_no_shows = resource.rules.max_no_shows;
+    ruleForm.no_show_window_days = resource.rules.no_show_window_days;
+    ruleForm.operating_days = [...resource.rules.operating_days];
 }
 
 function closeRuleEditor() {
     selectedResource.value = null;
-    showRuleModal.value = false;
+    ruleForm.clearErrors();
 }
 
-function openBlockForm() {
-    blockResourceId.value = '';
-    blockDate.value = '';
-    blockStart.value = '';
-    blockEnd.value = '';
-    blockReason.value = '';
+function toggleDay(day: number) {
+    ruleForm.operating_days = ruleForm.operating_days.includes(day)
+        ? ruleForm.operating_days.filter((value) => value !== day)
+        : [...ruleForm.operating_days, day].sort();
+}
 
+function saveRule() {
+    if (!selectedResource.value) {
+        return;
+    }
+
+    const resource = selectedResource.value;
+
+    ruleForm.patch(
+        `/servicios-estudiante/calendarios-cupos/${resource.resource_type}/${resource.id}/reglas`,
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                notice.value = `Reglas de ${resource.name} actualizadas.`;
+                closeRuleEditor();
+            },
+        },
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Bloqueos de calendario
+|--------------------------------------------------------------------------
+*/
+const showBlockModal = ref(false);
+const blockResourceKey = ref('');
+
+const blockForm = useForm({
+    resource_type: '' as '' | ResourceType,
+    resource_id: '',
+    date: '',
+    start_time: '',
+    end_time: '',
+    reason: '',
+});
+
+const blockErrors = computed(() => blockForm.errors as Record<string, string>);
+
+function openBlockForm() {
+    blockForm.reset();
+    blockForm.clearErrors();
+    blockResourceKey.value = '';
+    blockForm.date = todayKey();
     showBlockModal.value = true;
 }
 
@@ -384,87 +231,81 @@ function closeBlockForm() {
 }
 
 function createBlock() {
-    if (
-        !blockResourceId.value ||
-        !blockDate.value ||
-        !blockStart.value ||
-        !blockEnd.value ||
-        !blockReason.value.trim()
-    ) {
-        window.alert(
-            'Completa todos los datos del bloqueo.',
-        );
+    const resource = props.resources.find(
+        (item) => item.key === blockResourceKey.value,
+    );
 
-        return;
-    }
+    blockForm.resource_type = resource?.resource_type ?? '';
+    blockForm.resource_id = resource?.id ?? '';
 
-    const resource =
-        resources.value.find(
-            (item) =>
-                item.id ===
-                Number(
-                    blockResourceId.value,
-                ),
-        );
-
-    if (!resource) {
-        return;
-    }
-
-    blocks.value.unshift({
-        id: blocks.value.length + 1,
-        resourceId: resource.id,
-        resourceName: resource.name,
-        date: blockDate.value,
-        startTime: blockStart.value,
-        endTime: blockEnd.value,
-        reason:
-            blockReason.value.trim(),
+    blockForm.post('/servicios-estudiante/calendarios-cupos/bloqueos', {
+        preserveScroll: true,
+        onSuccess: () => {
+            notice.value = `Bloqueo creado para ${resource?.name}. Las reservas dentro del horario se cancelaron automáticamente.`;
+            closeBlockForm();
+        },
     });
-
-    closeBlockForm();
 }
 
-function removeBlock(
-    block: CalendarBlock,
-) {
+function removeBlock(block: CalendarBlock) {
+    if (!window.confirm(`¿Eliminar el bloqueo de ${block.resource_name}?`)) {
+        return;
+    }
+
+    router.delete(
+        `/servicios-estudiante/calendarios-cupos/bloqueos/${block.id}`,
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                notice.value = 'Bloqueo eliminado.';
+            },
+            onError: (errors) => {
+                window.alert(
+                    firstError(errors, 'No fue posible eliminar el bloqueo.'),
+                );
+            },
+        },
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Lista de espera
+|--------------------------------------------------------------------------
+*/
+const processingWaitlistId = ref<string | null>(null);
+
+function waitlistAction(item: WaitlistEntry, action: 'promover' | 'cancelar') {
     if (
-        !window.confirm(
-            `¿Eliminar el bloqueo de ${block.resourceName}?`,
-        )
+        action === 'cancelar' &&
+        !window.confirm(`¿Cancelar la solicitud ${item.folio}?`)
     ) {
         return;
     }
 
-    blocks.value =
-        blocks.value.filter(
-            (item) =>
-                item.id !== block.id,
-        );
-}
+    processingWaitlistId.value = item.id;
 
-function promoteWaitlist(
-    item: WaitlistEntry,
-) {
-    if (
-        item.status !== 'waiting'
-    ) {
-        return;
-    }
-
-    item.status = 'promoted';
-}
-
-function cancelWaitlist(
-    item: WaitlistEntry,
-) {
-    if (
-        item.status !== 'waiting'
-    ) {
-        return;
-    }
-
-    item.status = 'cancelled';
+    router.patch(
+        `/servicios-estudiante/calendarios-cupos/espera/${item.resource_type}/${item.id}/${action}`,
+        {},
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                notice.value =
+                    action === 'promover'
+                        ? `Solicitud ${item.folio} promovida a confirmada.`
+                        : `Solicitud ${item.folio} cancelada.`;
+            },
+            onError: (errors) => {
+                window.alert(
+                    firstError(errors, 'No fue posible completar la acción.'),
+                );
+            },
+            onFinish: () => {
+                processingWaitlistId.value = null;
+            },
+        },
+    );
 }
 </script>
 
@@ -475,323 +316,193 @@ function cancelWaitlist(
     >
         <section class="hero">
             <div>
-                <span class="hero-label">
-                    SERVICIOS · MÓDULO 5.10
-                </span>
+                <span class="hero-label"> SERVICIOS · MÓDULO 5.10 </span>
 
-                <h2>
-                    Disponibilidad y reglas
-                </h2>
+                <h2>Disponibilidad y reglas</h2>
 
                 <p>
-                    Administra horarios,
-                    capacidades, límites,
-                    bloqueos, cancelaciones y
-                    listas de espera de los
-                    servicios del campus.
+                    Administra horarios, capacidades, límites, bloqueos,
+                    cancelaciones y listas de espera de los servicios del
+                    campus. Instalaciones (5.5) y zonas de descanso (5.6) usan
+                    estas reglas.
                 </p>
             </div>
 
             <div class="hero-total">
-                <span>
-                    Recursos activos
-                </span>
-
-                <strong>
-                    {{ activeResources }}
-                </strong>
-
-                <small>
-                    configurados
-                </small>
+                <span>Recursos activos</span>
+                <strong>{{ activeResources }}</strong>
+                <small>configurados</small>
             </div>
         </section>
 
+        <div v-if="notice" class="page-notice">
+            <span>{{ notice }}</span>
+            <button type="button" @click="notice = null">×</button>
+        </div>
+
         <section class="stats-grid">
             <article class="stat-card">
-                <span>
-                    Recursos activos
-                </span>
-
-                <strong>
-                    {{ activeResources }}
-                </strong>
-
-                <small>
-                    Con calendario
-                </small>
+                <span>Recursos activos</span>
+                <strong>{{ activeResources }}</strong>
+                <small>Con calendario</small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Capacidad total
-                </span>
-
-                <strong>
-                    {{ totalCapacity }}
-                </strong>
-
-                <small>
-                    Lugares disponibles
-                </small>
+                <span>Capacidad total</span>
+                <strong>{{ totalCapacity }}</strong>
+                <small>Lugares simultáneos</small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Bloqueos
-                </span>
-
-                <strong>
-                    {{ activeBlocks }}
-                </strong>
-
-                <small>
-                    Franjas no disponibles
-                </small>
+                <span>Bloqueos</span>
+                <strong>{{ blocks.length }}</strong>
+                <small>Vigentes o próximos</small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Lista de espera
-                </span>
-
-                <strong>
-                    {{ waitingCount }}
-                </strong>
-
-                <small>
-                    Solicitudes esperando
-                </small>
+                <span>Lista de espera</span>
+                <strong>{{ waitingCount }}</strong>
+                <small>Solicitudes esperando</small>
             </article>
         </section>
 
         <section class="tabs">
             <button
                 type="button"
-                :class="{
-                    active:
-                        activeTab ===
-                        'calendar',
-                }"
-                @click="
-                    activeTab =
-                        'calendar'
-                "
+                :class="{ active: activeTab === 'calendar' }"
+                @click="activeTab = 'calendar'"
             >
                 Calendarios
             </button>
 
             <button
                 type="button"
-                :class="{
-                    active:
-                        activeTab ===
-                        'rules',
-                }"
-                @click="
-                    activeTab = 'rules'
-                "
+                :class="{ active: activeTab === 'rules' }"
+                @click="activeTab = 'rules'"
             >
                 Cupos y reglas
             </button>
 
             <button
                 type="button"
-                :class="{
-                    active:
-                        activeTab ===
-                        'waitlist',
-                }"
-                @click="
-                    activeTab =
-                        'waitlist'
-                "
+                :class="{ active: activeTab === 'waitlist' }"
+                @click="activeTab = 'waitlist'"
             >
                 Lista de espera
             </button>
         </section>
 
-        <section
-            v-if="
-                activeTab ===
-                'calendar'
-            "
-            class="content-panel"
-        >
+        <section v-if="activeTab === 'calendar'" class="content-panel">
             <div class="panel-header">
                 <div>
-                    <span class="panel-label">
-                        CALENDARIO
-                    </span>
+                    <span class="panel-label">CALENDARIO</span>
 
-                    <h3>
-                        Bloqueos de disponibilidad
-                    </h3>
+                    <h3>Bloqueos de disponibilidad</h3>
 
                     <p>
-                        Registra mantenimiento,
-                        eventos o periodos en
-                        los que un recurso no
-                        podrá reservarse.
+                        Registra mantenimiento, eventos o periodos en los que un
+                        recurso no podrá reservarse. Las reservas que caigan
+                        dentro del bloqueo se cancelan automáticamente.
                     </p>
                 </div>
 
                 <button
                     type="button"
                     class="primary-button"
-                    @click="
-                        openBlockForm
-                    "
+                    @click="openBlockForm"
                 >
                     + Bloquear horario
                 </button>
             </div>
 
             <div class="resource-summary">
-                <article
-                    v-for="
-                        resource in
-                        resources
-                    "
-                    :key="
-                        resource.id
-                    "
-                >
-                    <strong>
-                        {{
-                            resource.name
-                        }}
-                    </strong>
+                <article v-for="resource in resources" :key="resource.key">
+                    <strong>{{ resource.name }}</strong>
 
                     <span>
-                        {{
-                            resource.openTime
-                        }}
-                        -
-                        {{
-                            resource.closeTime
-                        }}
+                        {{ resource.rules.open_time }} -
+                        {{ resource.rules.close_time }}
                     </span>
 
                     <small>
-                        Franja:
-                        {{
-                            resource.slotMinutes
-                        }}
-                        min
+                        {{ resource.resource_label }} · franja
+                        {{ resource.rules.slot_minutes }} min
                     </small>
                 </article>
             </div>
 
-            <div
-                v-if="
-                    blocks.length > 0
-                "
-                class="table-container"
-            >
+            <div v-if="blocks.length > 0" class="table-container">
                 <table>
                     <thead>
-                    <tr>
-                        <th>Recurso</th>
-                        <th>Fecha</th>
-                        <th>Horario</th>
-                        <th>Motivo</th>
-                        <th>Acciones</th>
-                    </tr>
+                        <tr>
+                            <th>Folio</th>
+                            <th>Recurso</th>
+                            <th>Fecha</th>
+                            <th>Horario</th>
+                            <th>Motivo</th>
+                            <th>Acciones</th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    <tr
-                        v-for="
-                                block in
-                                blocks
-                            "
-                        :key="
-                                block.id
-                            "
-                    >
-                        <td>
-                            <strong
-                                class="resource-name"
-                            >
-                                {{
-                                    block.resourceName
-                                }}
-                            </strong>
-                        </td>
+                        <tr v-for="block in blocks" :key="block.id">
+                            <td>
+                                <strong class="folio">
+                                    {{ block.folio }}
+                                </strong>
+                            </td>
 
-                        <td>
-                            {{
-                                formatDate(
-                                    block.date,
-                                )
-                            }}
-                        </td>
+                            <td>
+                                <strong class="resource-name">
+                                    {{ block.resource_name }}
+                                </strong>
+                            </td>
 
-                        <td>
-                            {{
-                                block.startTime
-                            }}
-                            -
-                            {{
-                                block.endTime
-                            }}
-                        </td>
+                            <td>{{ formatDate(block.start_at) }}</td>
 
-                        <td>
-                            {{
-                                block.reason
-                            }}
-                        </td>
+                            <td>
+                                {{ formatTimeOfIso(block.start_at) }} -
+                                {{ formatTimeOfIso(block.end_at) }}
+                            </td>
 
-                        <td>
-                            <button
-                                type="button"
-                                class="danger-action"
-                                @click="
-                                        removeBlock(
-                                            block,
-                                        )
-                                    "
-                            >
-                                Eliminar
-                            </button>
-                        </td>
-                    </tr>
+                            <td>
+                                {{ block.reason }}
+                                <small
+                                    v-if="block.cancelled_bookings > 0"
+                                    class="block-note"
+                                >
+                                    {{ block.cancelled_bookings }} reserva(s)
+                                    cancelada(s)
+                                </small>
+                            </td>
+
+                            <td>
+                                <button
+                                    type="button"
+                                    class="danger-action"
+                                    @click="removeBlock(block)"
+                                >
+                                    Eliminar
+                                </button>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div
-                v-else
-                class="empty-state"
-            >
-                No existen bloqueos de
-                calendario.
+            <div v-else class="empty-state">
+                No existen bloqueos de calendario vigentes.
             </div>
         </section>
 
-        <section
-            v-if="
-                activeTab ===
-                'rules'
-            "
-            class="content-panel"
-        >
+        <section v-if="activeTab === 'rules'" class="content-panel">
             <div class="panel-header">
                 <div>
-                    <span class="panel-label">
-                        CONFIGURACIÓN
-                    </span>
+                    <span class="panel-label">CONFIGURACIÓN</span>
 
-                    <h3>
-                        Cupos y reglas
-                    </h3>
+                    <h3>Cupos y reglas</h3>
 
-                    <p>
-                        Define cómo se utiliza
-                        cada recurso.
-                    </p>
+                    <p>Define cómo se utiliza cada recurso.</p>
                 </div>
             </div>
 
@@ -801,129 +512,123 @@ function cancelWaitlist(
                     type="text"
                     placeholder="Buscar recurso..."
                 />
+
+                <select v-model="typeFilter" class="type-filter">
+                    <option value="">Todos los servicios</option>
+                    <option value="facility">Instalaciones (5.5)</option>
+                    <option value="rest_space">Zonas de descanso (5.6)</option>
+                </select>
             </div>
 
             <div class="rules-grid">
                 <article
-                    v-for="
-                        resource in
-                        filteredResources
-                    "
-                    :key="
-                        resource.id
-                    "
+                    v-for="resource in filteredResources"
+                    :key="resource.key"
                     class="rule-card"
                 >
                     <div class="rule-heading">
                         <div>
-                            <span
-                                class="resource-type"
-                            >
-                                {{
-                                    resource.type
-                                }}
+                            <span class="resource-type">
+                                {{ resource.resource_label }} ·
+                                {{ resource.category }}
                             </span>
 
-                            <h4>
-                                {{
-                                    resource.name
-                                }}
-                            </h4>
+                            <h4>{{ resource.name }}</h4>
 
-                            <p>
-                                {{
-                                    resource.location
-                                }}
-                            </p>
+                            <p>{{ resource.location }}</p>
                         </div>
 
                         <span
                             class="status-badge"
+                            :class="{ inactive: !resource.active }"
                         >
-                            Activo
+                            {{ resource.active ? 'Activo' : 'Inactivo' }}
                         </span>
                     </div>
 
                     <div class="rule-values">
                         <div>
-                            <span>
-                                Capacidad
-                            </span>
+                            <span>Capacidad</span>
+                            <strong>{{ resource.capacity }}</strong>
+                        </div>
 
+                        <div>
+                            <span>Horario</span>
                             <strong>
-                                {{
-                                    resource.capacity
-                                }}
+                                {{ resource.rules.open_time }} -
+                                {{ resource.rules.close_time }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Horario
-                            </span>
-
+                            <span>Franjas</span>
                             <strong>
-                                {{
-                                    resource.openTime
-                                }}
-                                -
-                                {{
-                                    resource.closeTime
-                                }}
+                                {{ resource.rules.slot_minutes }} min
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Franjas
-                            </span>
-
-                            <strong>
-                                {{
-                                    resource.slotMinutes
-                                }}
-                                min
-                            </strong>
-                        </div>
-
-                        <div>
-                            <span>
-                                Máximo por reserva
-                            </span>
-
+                            <span>Duración</span>
                             <strong>
                                 {{
                                     minutesLabel(
-                                        resource.maxBookingMinutes,
+                                        resource.rules.min_booking_minutes,
+                                    )
+                                }}
+                                –
+                                {{
+                                    minutesLabel(
+                                        resource.rules.max_booking_minutes,
                                     )
                                 }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Cancelación mínima
-                            </span>
-
+                            <span>Cancelación mínima</span>
                             <strong>
                                 {{
                                     minutesLabel(
-                                        resource.cancelBeforeMinutes,
+                                        resource.rules.cancel_before_minutes,
                                     )
                                 }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Tolerancia no-show
-                            </span>
-
+                            <span>Tolerancia no-show</span>
                             <strong>
-                                {{
-                                    resource.noShowToleranceMinutes
-                                }}
+                                {{ resource.rules.no_show_tolerance_minutes }}
                                 min
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>Reservas activas por alumno</span>
+                            <strong>
+                                {{ resource.rules.max_active_per_student }}
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>Anticipación máxima</span>
+                            <strong>
+                                {{ resource.rules.max_advance_days }} día(s)
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>Penalización</span>
+                            <strong>
+                                {{ resource.rules.max_no_shows }} no-show /
+                                {{ resource.rules.no_show_window_days }} días
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>Días</span>
+                            <strong>
+                                {{ daysLabel(resource.rules.operating_days) }}
                             </strong>
                         </div>
                     </div>
@@ -931,11 +636,7 @@ function cancelWaitlist(
                     <button
                         type="button"
                         class="edit-button"
-                        @click="
-                            openRuleEditor(
-                                resource,
-                            )
-                        "
+                        @click="openRuleEditor(resource)"
                     >
                         Editar configuración
                     </button>
@@ -943,178 +644,128 @@ function cancelWaitlist(
             </div>
         </section>
 
-        <section
-            v-if="
-                activeTab ===
-                'waitlist'
-            "
-            class="content-panel"
-        >
+        <section v-if="activeTab === 'waitlist'" class="content-panel">
             <div class="panel-header">
                 <div>
-                    <span class="panel-label">
-                        LISTA DE ESPERA
-                    </span>
+                    <span class="panel-label">LISTA DE ESPERA</span>
 
-                    <h3>
-                        Solicitudes en espera
-                    </h3>
+                    <h3>Solicitudes en espera</h3>
 
                     <p>
-                        Cuando se libera un
-                        espacio, la siguiente
-                        solicitud puede ser
-                        promovida.
+                        Cuando se libera un espacio la siguiente solicitud se
+                        promueve sola; aquí también puedes promoverla
+                        manualmente si ya hay cupo.
                     </p>
                 </div>
             </div>
 
-            <div class="table-container">
+            <div v-if="waitlist.length > 0" class="table-container">
                 <table>
                     <thead>
-                    <tr>
-                        <th>Folio</th>
-                        <th>Recurso</th>
-                        <th>Fecha</th>
-                        <th>Horario</th>
-                        <th>Posición</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
+                        <tr>
+                            <th>Folio</th>
+                            <th>Recurso</th>
+                            <th>Estudiante</th>
+                            <th>Fecha</th>
+                            <th>Horario</th>
+                            <th>Posición</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    <tr
-                        v-for="
-                                item in
-                                waitlist
-                            "
-                        :key="
-                                item.id
-                            "
-                    >
-                        <td>
-                            <strong
-                                class="folio"
-                            >
-                                {{
-                                    item.folio
-                                }}
-                            </strong>
-                        </td>
+                        <tr v-for="item in waitlist" :key="item.id">
+                            <td>
+                                <strong class="folio">{{ item.folio }}</strong>
+                            </td>
 
-                        <td>
-                            {{
-                                item.resourceName
-                            }}
-                        </td>
+                            <td>{{ item.resource_name }}</td>
 
-                        <td>
-                            {{
-                                formatDate(
-                                    item.date,
-                                )
-                            }}
-                        </td>
+                            <td>
+                                <small class="student-ref">
+                                    {{ item.student_id }}
+                                </small>
+                            </td>
 
-                        <td>
-                            {{
-                                item.startTime
-                            }}
-                            -
-                            {{
-                                item.endTime
-                            }}
-                        </td>
+                            <td>{{ formatDate(item.start_at) }}</td>
 
-                        <td>
-                            #{{ item.position }}
-                        </td>
+                            <td>
+                                {{ formatTimeOfIso(item.start_at) }} -
+                                {{ formatTimeOfIso(item.end_at) }}
+                            </td>
 
-                        <td>
+                            <td>
+                                {{ item.position ? `#${item.position}` : '—' }}
+                            </td>
+
+                            <td>
                                 <span
                                     class="wait-status"
                                     :class="`wait-${item.status}`"
                                 >
-                                    {{
-                                        waitlistStatusLabel(
-                                            item.status,
-                                        )
-                                    }}
+                                    {{ waitlistStatusLabel(item.status) }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            <div class="actions">
-                                <button
-                                    v-if="
-                                            item.status ===
-                                            'waiting'
+                            <td>
+                                <div class="actions">
+                                    <button
+                                        v-if="item.status === 'waiting'"
+                                        type="button"
+                                        class="promote-button"
+                                        :disabled="
+                                            processingWaitlistId === item.id
                                         "
-                                    type="button"
-                                    class="promote-button"
-                                    @click="
-                                            promoteWaitlist(
-                                                item,
-                                            )
+                                        @click="
+                                            waitlistAction(item, 'promover')
                                         "
-                                >
-                                    Promover
-                                </button>
+                                    >
+                                        Promover
+                                    </button>
 
-                                <button
-                                    v-if="
-                                            item.status ===
-                                            'waiting'
+                                    <button
+                                        v-if="item.status === 'waiting'"
+                                        type="button"
+                                        class="danger-action"
+                                        :disabled="
+                                            processingWaitlistId === item.id
                                         "
-                                    type="button"
-                                    class="danger-action"
-                                    @click="
-                                            cancelWaitlist(
-                                                item,
-                                            )
+                                        @click="
+                                            waitlistAction(item, 'cancelar')
                                         "
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <div v-else class="empty-state">
+                No hay solicitudes en lista de espera en los últimos 7 días.
             </div>
         </section>
 
         <div
-            v-if="
-                showRuleModal &&
-                selectedResource
-            "
+            v-if="selectedResource"
             class="modal-backdrop"
-            @click.self="
-                closeRuleEditor
-            "
+            @click.self="closeRuleEditor"
         >
             <section class="modal">
                 <div class="modal-header">
                     <div>
-                        <span class="panel-label">
-                            CONFIGURACIÓN
-                        </span>
+                        <span class="panel-label">CONFIGURACIÓN</span>
 
-                        <h3>
-                            {{
-                                selectedResource.name
-                            }}
-                        </h3>
+                        <h3>{{ selectedResource.name }}</h3>
                     </div>
 
                     <button
                         type="button"
                         class="close-button"
-                        @click="
-                            closeRuleEditor
-                        "
+                        @click="closeRuleEditor"
                     >
                         ×
                     </button>
@@ -1123,113 +774,141 @@ function cancelWaitlist(
                 <div class="modal-body">
                     <div class="form-grid">
                         <div class="form-field">
-                            <label>
-                                Capacidad
-                            </label>
-
+                            <label>Capacidad simultánea</label>
                             <input
-                                v-model.number="
-                                    editCapacity
-                                "
+                                v-model.number="ruleForm.capacity"
                                 type="number"
                                 min="1"
                             />
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Duración de franja
-                            </label>
-
+                            <label>Duración de franja (min)</label>
                             <input
-                                v-model.number="
-                                    editSlotMinutes
-                                "
+                                v-model.number="ruleForm.slot_minutes"
                                 type="number"
-                                min="15"
-                                step="15"
+                                min="5"
+                                step="5"
                             />
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Hora de apertura
-                            </label>
-
-                            <input
-                                v-model="
-                                    editOpenTime
-                                "
-                                type="time"
-                            />
+                            <label>Hora de apertura</label>
+                            <input v-model="ruleForm.open_time" type="time" />
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Hora de cierre
-                            </label>
-
-                            <input
-                                v-model="
-                                    editCloseTime
-                                "
-                                type="time"
-                            />
+                            <label>Hora de cierre</label>
+                            <input v-model="ruleForm.close_time" type="time" />
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Máximo por reserva
-                            </label>
-
+                            <label>Mínimo por reserva (min)</label>
                             <input
-                                v-model.number="
-                                    editMaxBookingMinutes
-                                "
+                                v-model.number="ruleForm.min_booking_minutes"
                                 type="number"
-                                min="30"
-                                step="30"
+                                min="5"
                             />
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Cancelación mínima
-                            </label>
+                            <label>Máximo por reserva (min)</label>
+                            <input
+                                v-model.number="ruleForm.max_booking_minutes"
+                                type="number"
+                                min="5"
+                            />
+                        </div>
 
+                        <div class="form-field">
+                            <label>Cancelación mínima (min antes)</label>
+                            <input
+                                v-model.number="ruleForm.cancel_before_minutes"
+                                type="number"
+                                min="0"
+                            />
+                        </div>
+
+                        <div class="form-field">
+                            <label>Tolerancia no-show (min)</label>
                             <input
                                 v-model.number="
-                                    editCancelBeforeMinutes
+                                    ruleForm.no_show_tolerance_minutes
                                 "
                                 type="number"
                                 min="0"
                             />
                         </div>
 
-                        <div
-                            class="form-field full"
-                        >
-                            <label>
-                                Tolerancia no-show
-                            </label>
-
+                        <div class="form-field">
+                            <label>Reservas activas por alumno</label>
                             <input
-                                v-model.number="
-                                    editNoShowTolerance
-                                "
+                                v-model.number="ruleForm.max_active_per_student"
+                                type="number"
+                                min="1"
+                            />
+                        </div>
+
+                        <div class="form-field">
+                            <label>Anticipación máxima (días)</label>
+                            <input
+                                v-model.number="ruleForm.max_advance_days"
                                 type="number"
                                 min="0"
                             />
+                        </div>
+
+                        <div class="form-field">
+                            <label>No-shows permitidos</label>
+                            <input
+                                v-model.number="ruleForm.max_no_shows"
+                                type="number"
+                                min="0"
+                            />
+                        </div>
+
+                        <div class="form-field">
+                            <label>Ventana de penalización (días)</label>
+                            <input
+                                v-model.number="ruleForm.no_show_window_days"
+                                type="number"
+                                min="1"
+                            />
+                        </div>
+
+                        <div class="form-field full">
+                            <label>Días de operación</label>
+
+                            <div class="day-toggles">
+                                <button
+                                    v-for="day in [1, 2, 3, 4, 5, 6, 7]"
+                                    :key="day"
+                                    type="button"
+                                    :class="{
+                                        active: ruleForm.operating_days.includes(
+                                            day,
+                                        ),
+                                    }"
+                                    @click="toggleDay(day)"
+                                >
+                                    {{ WEEKDAY_LABELS[day] }}
+                                </button>
+                            </div>
                         </div>
                     </div>
+
+                    <p
+                        v-if="Object.keys(ruleErrors).length > 0"
+                        class="form-error"
+                    >
+                        {{ Object.values(ruleErrors)[0] }}
+                    </p>
 
                     <div class="modal-actions">
                         <button
                             type="button"
                             class="secondary-button"
-                            @click="
-                                closeRuleEditor
-                            "
+                            @click="closeRuleEditor"
                         >
                             Cancelar
                         </button>
@@ -1237,9 +916,8 @@ function cancelWaitlist(
                         <button
                             type="button"
                             class="primary-button"
-                            @click="
-                                saveRule
-                            "
+                            :disabled="ruleForm.processing"
+                            @click="saveRule"
                         >
                             Guardar cambios
                         </button>
@@ -1251,28 +929,20 @@ function cancelWaitlist(
         <div
             v-if="showBlockModal"
             class="modal-backdrop"
-            @click.self="
-                closeBlockForm
-            "
+            @click.self="closeBlockForm"
         >
             <section class="modal">
                 <div class="modal-header">
                     <div>
-                        <span class="panel-label">
-                            BLOQUEO
-                        </span>
+                        <span class="panel-label">BLOQUEO</span>
 
-                        <h3>
-                            Bloquear horario
-                        </h3>
+                        <h3>Bloquear horario</h3>
                     </div>
 
                     <button
                         type="button"
                         class="close-button"
-                        @click="
-                            closeBlockForm
-                        "
+                        @click="closeBlockForm"
                     >
                         ×
                     </button>
@@ -1280,106 +950,64 @@ function cancelWaitlist(
 
                 <div class="modal-body">
                     <div class="form-grid">
-                        <div
-                            class="form-field full"
-                        >
-                            <label>
-                                Recurso
-                            </label>
+                        <div class="form-field full">
+                            <label>Recurso</label>
 
-                            <select
-                                v-model="
-                                    blockResourceId
-                                "
-                            >
-                                <option value="">
-                                    Selecciona
-                                </option>
+                            <select v-model="blockResourceKey">
+                                <option value="">Selecciona</option>
 
                                 <option
-                                    v-for="
-                                        resource in
-                                        resources
-                                    "
-                                    :key="
-                                        resource.id
-                                    "
-                                    :value="
-                                        resource.id
-                                    "
+                                    v-for="resource in resources"
+                                    :key="resource.key"
+                                    :value="resource.key"
                                 >
-                                    {{
-                                        resource.name
-                                    }}
+                                    {{ resource.resource_label }} ·
+                                    {{ resource.name }}
                                 </option>
                             </select>
                         </div>
 
-                        <div
-                            class="form-field full"
-                        >
-                            <label>
-                                Fecha
-                            </label>
-
+                        <div class="form-field full">
+                            <label>Fecha</label>
                             <input
-                                v-model="
-                                    blockDate
-                                "
+                                v-model="blockForm.date"
                                 type="date"
+                                :min="todayKey()"
                             />
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Inicio
-                            </label>
-
-                            <input
-                                v-model="
-                                    blockStart
-                                "
-                                type="time"
-                            />
+                            <label>Inicio</label>
+                            <input v-model="blockForm.start_time" type="time" />
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Fin
-                            </label>
-
-                            <input
-                                v-model="
-                                    blockEnd
-                                "
-                                type="time"
-                            />
+                            <label>Fin</label>
+                            <input v-model="blockForm.end_time" type="time" />
                         </div>
 
-                        <div
-                            class="form-field full"
-                        >
-                            <label>
-                                Motivo
-                            </label>
-
+                        <div class="form-field full">
+                            <label>Motivo</label>
                             <textarea
-                                v-model="
-                                    blockReason
-                                "
+                                v-model="blockForm.reason"
                                 rows="3"
-                                placeholder="Ej. Mantenimiento..."
+                                placeholder="Ej. Mantenimiento preventivo..."
                             />
                         </div>
                     </div>
+
+                    <p
+                        v-if="Object.keys(blockErrors).length > 0"
+                        class="form-error"
+                    >
+                        {{ Object.values(blockErrors)[0] }}
+                    </p>
 
                     <div class="modal-actions">
                         <button
                             type="button"
                             class="secondary-button"
-                            @click="
-                                closeBlockForm
-                            "
+                            @click="closeBlockForm"
                         >
                             Cancelar
                         </button>
@@ -1387,9 +1015,8 @@ function cancelWaitlist(
                         <button
                             type="button"
                             class="primary-button"
-                            @click="
-                                createBlock
-                            "
+                            :disabled="blockForm.processing"
+                            @click="createBlock"
                         >
                             Crear bloqueo
                         </button>
@@ -1418,7 +1045,7 @@ function cancelWaitlist(
     margin-bottom: 7px;
     font-size: 9px;
     font-weight: 800;
-    letter-spacing: .12em;
+    letter-spacing: 0.12em;
 }
 
 .hero-label {
@@ -1442,7 +1069,7 @@ function cancelWaitlist(
     min-width: 170px;
     padding: 16px 19px;
     border-radius: 10px;
-    background: rgba(255,255,255,.1);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .hero-total span {
@@ -1464,7 +1091,7 @@ function cancelWaitlist(
 .stats-grid {
     margin-top: 18px;
     display: grid;
-    grid-template-columns: repeat(4,1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 13px;
 }
 
@@ -1582,11 +1209,7 @@ function cancelWaitlist(
 .resource-summary {
     padding: 18px 21px;
     display: grid;
-    grid-template-columns:
-        repeat(
-            auto-fit,
-            minmax(190px,1fr)
-        );
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
     gap: 11px;
 }
 
@@ -1687,11 +1310,7 @@ td {
 .rules-grid {
     padding: 18px 21px 21px;
     display: grid;
-    grid-template-columns:
-        repeat(
-            auto-fit,
-            minmax(270px,1fr)
-        );
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
     gap: 13px;
 }
 
@@ -1738,8 +1357,7 @@ td {
 .rule-values {
     margin-top: 15px;
     display: grid;
-    grid-template-columns:
-        repeat(2,1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 7px;
 }
 
@@ -1813,11 +1431,11 @@ td {
     display: grid;
     place-items: center;
     padding: 20px;
-    background: rgba(18,29,47,.5);
+    background: rgba(18, 29, 47, 0.5);
 }
 
 .modal {
-    width: min(560px,100%);
+    width: min(560px, 100%);
     overflow: hidden;
     border-radius: 11px;
     background: white;
@@ -1840,7 +1458,7 @@ td {
 
 .form-grid {
     display: grid;
-    grid-template-columns: repeat(2,1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 17px;
 }
 
@@ -1880,8 +1498,7 @@ td {
 
 @media (max-width: 850px) {
     .stats-grid {
-        grid-template-columns:
-            repeat(2,1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
@@ -1911,5 +1528,98 @@ td {
     .tabs {
         flex-direction: column;
     }
+}
+</style>
+<style scoped>
+/* Estilos agregados al conectar el panel con el backend (5.10) */
+.page-notice {
+    margin-top: 14px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 10px;
+    background: #e9f6ef;
+    color: #2f6d4c;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.page-notice button {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.filters {
+    display: flex;
+    gap: 10px;
+}
+
+.type-filter {
+    min-width: 190px;
+    padding: 10px 11px;
+    border: 1px solid #d4dde8;
+    border-radius: 7px;
+    background: #fff;
+    font: inherit;
+    font-size: 10px;
+}
+
+.status-badge.inactive {
+    background: #f4e7e8;
+    color: #9c4c55;
+}
+
+.block-note,
+.student-ref {
+    display: block;
+    margin-top: 3px;
+    color: #8c99aa;
+    font-size: 8px;
+}
+
+.wait-expired {
+    background: #eef1f5;
+    color: #5b6778;
+}
+
+.actions button:disabled {
+    opacity: 0.55;
+    cursor: wait;
+}
+
+.day-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.day-toggles button {
+    padding: 7px 10px;
+    border: 1px solid #d4dde8;
+    border-radius: 7px;
+    background: #fff;
+    color: #5b6778;
+    font: inherit;
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.day-toggles button.active {
+    border-color: #2d57ac;
+    background: #2d57ac;
+    color: #fff;
+}
+
+.form-error {
+    margin-top: 10px;
+    color: #9d4650;
+    font-size: 9px;
+    font-weight: 700;
 }
 </style>

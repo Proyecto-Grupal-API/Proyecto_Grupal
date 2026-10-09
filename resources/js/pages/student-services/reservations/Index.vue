@@ -1,7 +1,39 @@
 <script setup lang="ts">
 import StudentServicesLayout from '@/layouts/StudentServicesLayout.vue';
+import type {
+    BookedRange,
+    CalendarBlockRange,
+    CalendarRules,
+} from '@/lib/studentServicesCalendar';
+import {
+    addDays,
+    blockFor,
+    dayRatio,
+    formatDateTime,
+    formatTime12,
+    isOperatingDay,
+    isWithinAdvance,
+    localDate,
+    minutesLabel,
+    minutesToTime,
+    peakOccupancy,
+    slotsForDay,
+    slotStarts,
+    timeToMinutes,
+    todayKey,
+    WEEKDAY_LABELS,
+} from '@/lib/studentServicesCalendar';
 import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+
+type ReservationStatus =
+    | 'confirmed'
+    | 'waitlisted'
+    | 'checked_in'
+    | 'completed'
+    | 'cancelled'
+    | 'no_show'
+    | 'expired';
 
 interface Facility {
     id: string;
@@ -10,6 +42,7 @@ interface Facility {
     building: string;
     capacity: number;
     cost_cents: number;
+    rules: CalendarRules;
 }
 
 interface Reservation {
@@ -19,50 +52,22 @@ interface Reservation {
     facility_name: string;
     start_at: string;
     end_at: string;
-    status: 'confirmed' | 'waitlisted' | 'cancelled';
+    status: ReservationStatus;
+    waitlist_position: number;
+    can_cancel: boolean;
+    cancellation_reason: string | null;
 }
 
 const props = defineProps<{
     facilities: Facility[];
     myReservations: Reservation[];
-    occupancyByFacility: Record<string, Record<string, number>>;
+    history: Reservation[];
+    bookedRanges: Record<string, BookedRange[]>;
+    blocks: Record<string, CalendarBlockRange[]>;
+    statusLabels: Record<string, string>;
 }>();
 
-/*
-|--------------------------------------------------------------------------
-| Horario en lista: 7:30 a.m. a 6:30 p.m. cada 30 minutos (Modulo 5.10)
-|--------------------------------------------------------------------------
-*/
-function generateTimeSlots(): string[] {
-    const slots: string[] = [];
-    let h = 7;
-    let m = 30;
-
-    while (h < 18 || (h === 18 && m <= 30)) {
-        slots.push(
-            `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
-        );
-
-        m += 30;
-
-        if (m === 60) {
-            m = 0;
-            h += 1;
-        }
-    }
-
-    return slots;
-}
-
-const TIME_SLOTS = generateTimeSlots();
-
-function formatSlot(t: string): string {
-    const [h, m] = t.split(':').map(Number);
-    const period = h < 12 ? 'a.m.' : 'p.m.';
-    const h12 = h % 12 === 0 ? 12 : h % 12;
-
-    return `${h12}:${String(m).padStart(2, '0')} ${period}`;
-}
+const notice = ref<string | null>(null);
 
 function formatCost(cents: number): string {
     if (cents === 0) {
@@ -72,10 +77,16 @@ function formatCost(cents: number): string {
     return `$${(cents / 100).toFixed(0)} MXN`;
 }
 
-function todayStr(): string {
-    const d = new Date();
+function rangesOf(facility: Facility): BookedRange[] {
+    return props.bookedRanges[facility.id] ?? [];
+}
 
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function blocksOf(facility: Facility): CalendarBlockRange[] {
+    return props.blocks[facility.id] ?? [];
+}
+
+function operatingDaysLabel(rules: CalendarRules): string {
+    return rules.operating_days.map((day) => WEEKDAY_LABELS[day]).join(', ');
 }
 
 /*
@@ -108,12 +119,13 @@ const filteredFacilities = computed(() => {
 
 const activeReservations = computed(
     () =>
-        props.myReservations.filter((r) => r.status === 'confirmed').length,
+        props.myReservations.filter((r) =>
+            ['confirmed', 'checked_in'].includes(r.status),
+        ).length,
 );
 
 const waitlistedReservations = computed(
-    () =>
-        props.myReservations.filter((r) => r.status === 'waitlisted').length,
+    () => props.myReservations.filter((r) => r.status === 'waitlisted').length,
 );
 
 function goToCalendarioTab() {
@@ -125,6 +137,8 @@ function goToCalendarioTab() {
 function openFacilityCalendar(facility: Facility) {
     calendarFacility.value = facility;
     selectedDay.value = null;
+    viewYear.value = new Date().getFullYear();
+    viewMonth.value = new Date().getMonth();
 }
 
 function changeMonth(delta: number) {
@@ -147,24 +161,28 @@ function changeMonth(delta: number) {
 }
 
 const monthLabel = computed(() =>
-    new Date(viewYear.value, viewMonth.value, 1).toLocaleDateString(
-        'es-MX',
-        { month: 'long', year: 'numeric' },
-    ),
+    new Date(viewYear.value, viewMonth.value, 1).toLocaleDateString('es-MX', {
+        month: 'long',
+        year: 'numeric',
+    }),
 );
 
-function occupancyRatio(facility: Facility, dateStr: string): number {
-    const byDate = props.occupancyByFacility[facility.id];
-    const count = byDate?.[dateStr] ?? 0;
-
-    if (count === 0) {
-        return 0;
+function colorForDay(facility: Facility, dateStr: string): string {
+    if (
+        !isWithinAdvance(facility.rules, dateStr) ||
+        !isOperatingDay(facility.rules, dateStr)
+    ) {
+        return 'day-closed';
     }
 
-    return count / facility.capacity;
-}
+    const ratio = dayRatio(
+        facility.rules,
+        dateStr,
+        facility.capacity,
+        rangesOf(facility),
+        blocksOf(facility),
+    );
 
-function colorForRatio(ratio: number): string {
     if (ratio <= 0) return 'day-free';
     if (ratio < 1) return 'day-partial';
 
@@ -199,16 +217,38 @@ const calendarCells = computed<(CalendarCell | null)[]>(() => {
 
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${viewYear.value}-${String(viewMonth.value + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const ratio = occupancyRatio(facility, dateStr);
 
         cells.push({
             day,
             dateStr,
-            colorClass: colorForRatio(ratio),
+            colorClass: colorForDay(facility, dateStr),
         });
     }
 
     return cells;
+});
+
+const selectedDaySlots = computed(() => {
+    if (!selectedDay.value || !calendarFacility.value) {
+        return [];
+    }
+
+    const facility = calendarFacility.value;
+
+    if (
+        !isOperatingDay(facility.rules, selectedDay.value) ||
+        !isWithinAdvance(facility.rules, selectedDay.value)
+    ) {
+        return [];
+    }
+
+    return slotsForDay(
+        facility.rules,
+        selectedDay.value,
+        facility.capacity,
+        rangesOf(facility),
+        blocksOf(facility),
+    );
 });
 
 const reservationsForSelectedDay = computed(() => {
@@ -222,6 +262,17 @@ const reservationsForSelectedDay = computed(() => {
             r.start_at.slice(0, 10) === selectedDay.value,
     );
 });
+
+function slotLabel(state: string, occupied: number, capacity: number): string {
+    return (
+        {
+            free: `${occupied}/${capacity} ocupado`,
+            full: 'Lleno · lista de espera',
+            blocked: 'Bloqueado',
+            past: 'Ya pasó',
+        } as Record<string, string>
+    )[state];
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -238,20 +289,54 @@ const form = useForm({
     idempotency_key: '',
 });
 
-const endTimeOptions = computed(() =>
-    form.start_time
-        ? TIME_SLOTS.filter((t) => t > form.start_time)
-        : TIME_SLOTS,
-);
+const modalStartOptions = computed(() => {
+    if (!modalFacility.value || !form.date) {
+        return [];
+    }
 
-function openModal(facility: Facility) {
+    const now = Date.now();
+    const rules = modalFacility.value.rules;
+
+    return slotStarts(rules).filter((start) => {
+        const end = new Date(
+            localDate(form.date, start).getTime() +
+                rules.min_booking_minutes * 60000,
+        );
+
+        return end.getTime() > now;
+    });
+});
+
+const endTimeOptions = computed(() => {
+    if (!modalFacility.value || !form.start_time) {
+        return [];
+    }
+
+    const rules = modalFacility.value.rules;
+    const start = timeToMinutes(form.start_time);
+    const close = timeToMinutes(rules.close_time);
+    const options: string[] = [];
+
+    for (
+        let minutes = rules.min_booking_minutes;
+        minutes <= rules.max_booking_minutes && start + minutes <= close;
+        minutes += rules.slot_minutes
+    ) {
+        options.push(minutesToTime(start + minutes));
+    }
+
+    return options;
+});
+
+function openModal(facility: Facility, date?: string) {
     modalFacility.value = facility;
+    notice.value = null;
 
     form.reset();
     form.clearErrors();
 
     form.facility_id = facility.id;
-    form.date = todayStr();
+    form.date = date ?? todayKey();
 }
 
 function closeModal() {
@@ -260,23 +345,71 @@ function closeModal() {
     form.clearErrors();
 }
 
-/*
- * Disponibilidad en vivo dentro del modal: usa occupancyByFacility, que
- * ya trae el conteo real de reservas CONFIRMADAS de todos los
- * estudiantes para esa instalación y ese día.
- */
-const modalOccupied = computed(() => {
+function onModalStartChange() {
+    if (!endTimeOptions.value.includes(form.end_time)) {
+        form.end_time = endTimeOptions.value[0] ?? '';
+    }
+}
+
+const modalDayProblem = computed(() => {
     if (!modalFacility.value || !form.date) {
+        return '';
+    }
+
+    const rules = modalFacility.value.rules;
+
+    if (!isOperatingDay(rules, form.date)) {
+        return `La instalación no opera ese día (opera: ${operatingDaysLabel(rules)}).`;
+    }
+
+    if (!isWithinAdvance(rules, form.date)) {
+        return `Solo se puede reservar de hoy a ${rules.max_advance_days} día(s) adelante.`;
+    }
+
+    return '';
+});
+
+/*
+ * Disponibilidad en vivo dentro del modal: ocupación máxima simultánea
+ * en la franja elegida (no el total del día) y bloqueos del calendario.
+ */
+const modalRange = computed(() => {
+    if (!form.date || !form.start_time || !form.end_time) {
+        return null;
+    }
+
+    return {
+        start: localDate(form.date, form.start_time),
+        end: localDate(form.date, form.end_time),
+    };
+});
+
+const modalBlock = computed(() => {
+    if (!modalFacility.value || !modalRange.value) {
+        return null;
+    }
+
+    return blockFor(
+        blocksOf(modalFacility.value),
+        modalRange.value.start,
+        modalRange.value.end,
+    );
+});
+
+const modalOccupied = computed(() => {
+    if (!modalFacility.value || !modalRange.value) {
         return 0;
     }
 
-    const byDate = props.occupancyByFacility[modalFacility.value.id];
-
-    return byDate?.[form.date] ?? 0;
+    return peakOccupancy(
+        rangesOf(modalFacility.value),
+        modalRange.value.start,
+        modalRange.value.end,
+    );
 });
 
 const modalWillBeConfirmed = computed(() => {
-    if (!modalFacility.value || !form.start_time || !form.end_time) {
+    if (!modalFacility.value || !modalRange.value) {
         return null;
     }
 
@@ -289,10 +422,10 @@ const modalMessage = computed(() => {
     }
 
     if (modalWillBeConfirmed.value) {
-        return `✅ Hay cupo (${modalOccupied.value}/${modalFacility.value.capacity} ocupado ese día) — quedará confirmada.`;
+        return `✅ Hay cupo (${modalOccupied.value}/${modalFacility.value.capacity} ocupado en ese horario) — quedará confirmada.`;
     }
 
-    return `⏳ Capacidad máxima ese día (${modalOccupied.value}/${modalFacility.value.capacity}).`;
+    return `⏳ Sin cupo en ese horario (${modalOccupied.value}/${modalFacility.value.capacity}). Puedes unirte a la lista de espera: se confirma sola si alguien cancela.`;
 });
 
 function submitReservation() {
@@ -301,27 +434,43 @@ function submitReservation() {
     form.post('/servicios-estudiante/reservas', {
         preserveScroll: true,
         onSuccess: () => {
+            notice.value =
+                modalWillBeConfirmed.value === false
+                    ? 'Quedaste en lista de espera. Te confirmaremos automáticamente si se libera un lugar.'
+                    : 'Reserva confirmada.';
             closeModal();
         },
     });
 }
 
 function cancelReservation(reservation: Reservation) {
+    if (
+        !window.confirm(
+            `¿Cancelar la reserva ${reservation.folio} de ${reservation.facility_name}?`,
+        )
+    ) {
+        return;
+    }
+
     router.patch(
         `/servicios-estudiante/reservas/${reservation.id}/cancelar`,
         {},
-        { preserveScroll: true },
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                notice.value = `Reserva ${reservation.folio} cancelada.`;
+            },
+            onError: (errors) => {
+                window.alert(
+                    errors.reservation ?? 'No fue posible cancelar la reserva.',
+                );
+            },
+        },
     );
 }
 
-function statusLabel(status: Reservation['status']): string {
-    return (
-        {
-            confirmed: 'Confirmada',
-            waitlisted: 'En espera',
-            cancelled: 'Cancelada',
-        } as Record<string, string>
-    )[status];
+function statusLabel(status: ReservationStatus): string {
+    return props.statusLabels[status] ?? status;
 }
 </script>
 
@@ -340,8 +489,8 @@ function statusLabel(status: Reservation['status']): string {
 
                 <p>
                     Consulta la disponibilidad de instalaciones, realiza
-                    reservaciones y administra tus solicitudes desde un
-                    solo lugar.
+                    reservaciones y administra tus solicitudes desde un solo
+                    lugar.
                 </p>
             </div>
 
@@ -351,6 +500,11 @@ function statusLabel(status: Reservation['status']): string {
                 <small>registradas</small>
             </div>
         </section>
+
+        <div v-if="notice" class="page-notice">
+            <span>{{ notice }}</span>
+            <button type="button" @click="notice = null">×</button>
+        </div>
 
         <nav class="view-tabs">
             <button
@@ -377,7 +531,7 @@ function statusLabel(status: Reservation['status']): string {
                 <article class="stat-card">
                     <span>Reservas activas</span>
                     <strong>{{ activeReservations }}</strong>
-                    <small>Confirmadas y vigentes</small>
+                    <small>Confirmadas o en uso</small>
                 </article>
 
                 <article class="stat-card">
@@ -427,6 +581,19 @@ function statusLabel(status: Reservation['status']): string {
                                     {{ facility.capacity }} ·
                                     {{ formatCost(facility.cost_cents) }}
                                 </p>
+
+                                <p class="rule-line">
+                                    {{ facility.rules.open_time }} –
+                                    {{ facility.rules.close_time }} ·
+                                    {{ operatingDaysLabel(facility.rules) }}
+                                    · máx.
+                                    {{
+                                        minutesLabel(
+                                            facility.rules.max_booking_minutes,
+                                        )
+                                    }}
+                                    por reserva
+                                </p>
                             </div>
 
                             <button
@@ -442,8 +609,7 @@ function statusLabel(status: Reservation['status']): string {
                             v-if="filteredFacilities.length === 0"
                             class="empty-catalog"
                         >
-                            No se encontraron instalaciones con ese
-                            criterio.
+                            No se encontraron instalaciones con ese criterio.
                         </div>
                     </div>
                 </div>
@@ -452,7 +618,7 @@ function statusLabel(status: Reservation['status']): string {
                     <div class="panel-header">
                         <div>
                             <h3>Mis reservas</h3>
-                            <p>Confirmadas o en espera, no vencidas.</p>
+                            <p>Confirmadas, en uso o en espera.</p>
                         </div>
                     </div>
 
@@ -485,11 +651,15 @@ function statusLabel(status: Reservation['status']): string {
                                     class="reservation-status"
                                     :class="{
                                         waiting:
-                                            reservation.status ===
-                                            'waitlisted',
+                                            reservation.status === 'waitlisted',
                                     }"
                                 >
                                     {{ statusLabel(reservation.status) }}
+                                    <template
+                                        v-if="reservation.waitlist_position"
+                                    >
+                                        · #{{ reservation.waitlist_position }}
+                                    </template>
                                 </span>
                             </div>
 
@@ -497,11 +667,12 @@ function statusLabel(status: Reservation['status']): string {
                                 <span>{{ reservation.folio }}</span>
 
                                 <span>
+                                    {{ formatDateTime(reservation.start_at) }}
+                                    –
                                     {{
                                         new Date(
-                                            reservation.start_at,
-                                        ).toLocaleString('es-MX', {
-                                            dateStyle: 'short',
+                                            reservation.end_at,
+                                        ).toLocaleTimeString('es-MX', {
                                             timeStyle: 'short',
                                         })
                                     }}
@@ -509,12 +680,49 @@ function statusLabel(status: Reservation['status']): string {
                             </div>
 
                             <button
+                                v-if="reservation.can_cancel"
                                 type="button"
                                 class="cancel-button"
                                 @click="cancelReservation(reservation)"
                             >
                                 Cancelar
                             </button>
+
+                            <small
+                                v-else-if="reservation.status === 'confirmed'"
+                                class="muted-note"
+                            >
+                                Ya pasó el límite para cancelar. Presenta tu
+                                credencial o el folio al llegar.
+                            </small>
+                        </article>
+                    </div>
+
+                    <div v-if="history.length > 0" class="history-block">
+                        <h4>Historial reciente</h4>
+
+                        <article
+                            v-for="reservation in history"
+                            :key="reservation.id"
+                            class="history-row"
+                        >
+                            <span>
+                                <strong>{{ reservation.facility_name }}</strong>
+                                <small>
+                                    {{ reservation.folio }} ·
+                                    {{ formatDateTime(reservation.start_at) }}
+                                </small>
+                                <small v-if="reservation.cancellation_reason">
+                                    {{ reservation.cancellation_reason }}
+                                </small>
+                            </span>
+
+                            <span
+                                class="history-status"
+                                :class="`history-${reservation.status}`"
+                            >
+                                {{ statusLabel(reservation.status) }}
+                            </span>
                         </article>
                     </div>
                 </aside>
@@ -531,14 +739,13 @@ function statusLabel(status: Reservation['status']): string {
                     <div class="panel-header">
                         <div>
                             <h3>
-                                ¿De qué instalación quieres ver el
-                                calendario?
+                                ¿De qué instalación quieres ver el calendario?
                             </h3>
 
                             <p>
-                                Cada instalación tiene su propio cupo —
-                                elige una para ver su disponibilidad día
-                                por día.
+                                Cada instalación tiene su propio cupo, horario y
+                                reglas — elige una para ver su disponibilidad
+                                franja por franja.
                             </p>
                         </div>
                     </div>
@@ -554,8 +761,8 @@ function statusLabel(status: Reservation['status']): string {
                             <strong>{{ facility.name }}</strong>
 
                             <span>
-                                {{ facility.type }} ·
-                                {{ facility.building }} · capacidad
+                                {{ facility.type }} · {{ facility.building }} ·
+                                capacidad
                                 {{ facility.capacity }}
                             </span>
 
@@ -582,25 +789,26 @@ function statusLabel(status: Reservation['status']): string {
                             <p>
                                 Capacidad:
                                 {{ calendarFacility.capacity }}
-                                reservas simultáneas.
+                                reservas simultáneas ·
+                                {{ calendarFacility.rules.open_time }} –
+                                {{ calendarFacility.rules.close_time }} ·
+                                franjas de
+                                {{ calendarFacility.rules.slot_minutes }}
+                                min · reservable hasta
+                                {{ calendarFacility.rules.max_advance_days }}
+                                día(s) adelante.
                             </p>
                         </div>
                     </div>
 
                     <div class="calendar-nav">
-                        <button
-                            type="button"
-                            @click="changeMonth(-1)"
-                        >
+                        <button type="button" @click="changeMonth(-1)">
                             ← Anterior
                         </button>
 
                         <strong>{{ monthLabel }}</strong>
 
-                        <button
-                            type="button"
-                            @click="changeMonth(1)"
-                        >
+                        <button type="button" @click="changeMonth(1)">
                             Siguiente →
                         </button>
                     </div>
@@ -623,10 +831,7 @@ function statusLabel(status: Reservation['status']): string {
                     </div>
 
                     <div class="calendar-grid">
-                        <div
-                            v-for="(cell, idx) in calendarCells"
-                            :key="idx"
-                        >
+                        <div v-for="(cell, idx) in calendarCells" :key="idx">
                             <button
                                 v-if="cell"
                                 type="button"
@@ -634,15 +839,10 @@ function statusLabel(status: Reservation['status']): string {
                                 :class="[
                                     cell.colorClass,
                                     {
-                                        selected:
-                                            selectedDay ===
-                                            cell.dateStr,
+                                        selected: selectedDay === cell.dateStr,
                                     },
                                 ]"
-                                @click="
-                                    selectedDay =
-                                        cell.dateStr
-                                "
+                                @click="selectedDay = cell.dateStr"
                             >
                                 {{ cell.day }}
                             </button>
@@ -652,7 +852,7 @@ function statusLabel(status: Reservation['status']): string {
                     <div class="calendar-legend">
                         <span>
                             <i class="dot day-free"></i>
-                            Sin reservas ese día
+                            Sin reservas
                         </span>
 
                         <span>
@@ -662,28 +862,55 @@ function statusLabel(status: Reservation['status']): string {
 
                         <span>
                             <i class="dot day-full"></i>
-                            Instalación llena
+                            Lleno o bloqueado
+                        </span>
+
+                        <span>
+                            <i class="dot day-closed"></i>
+                            No reservable
                         </span>
                     </div>
 
-                    <div
-                        v-if="selectedDay"
-                        class="day-detail"
-                    >
-                        <h4>
-                            Reservas del {{ selectedDay }}
-                        </h4>
+                    <div v-if="selectedDay" class="day-detail">
+                        <h4>Disponibilidad del {{ selectedDay }}</h4>
 
                         <p
-                            v-if="
-                                reservationsForSelectedDay.length ===
-                                0
-                            "
+                            v-if="selectedDaySlots.length === 0"
                             class="empty-catalog"
                         >
-                            No tienes reservas tuyas ese día en esta
-                            instalación.
+                            Ese día no se puede reservar (fuera de los días de
+                            operación o del rango permitido).
                         </p>
+
+                        <div v-else class="slot-grid">
+                            <div
+                                v-for="slot in selectedDaySlots"
+                                :key="slot.start"
+                                class="slot-chip"
+                                :class="`slot-${slot.state}`"
+                                :title="slot.blockReason ?? ''"
+                            >
+                                <strong>{{ formatTime12(slot.start) }}</strong>
+                                <small>
+                                    {{
+                                        slotLabel(
+                                            slot.state,
+                                            slot.occupied,
+                                            calendarFacility.capacity,
+                                        )
+                                    }}
+                                </small>
+                            </div>
+                        </div>
+
+                        <button
+                            v-if="selectedDaySlots.length > 0"
+                            type="button"
+                            class="reserve-button day-reserve"
+                            @click="openModal(calendarFacility, selectedDay)"
+                        >
+                            Reservar este día
+                        </button>
 
                         <article
                             v-for="r in reservationsForSelectedDay"
@@ -696,9 +923,7 @@ function statusLabel(status: Reservation['status']): string {
                                 <span
                                     class="reservation-status"
                                     :class="{
-                                        waiting:
-                                            r.status ===
-                                            'waitlisted',
+                                        waiting: r.status === 'waitlisted',
                                     }"
                                 >
                                     {{ statusLabel(r.status) }}
@@ -719,9 +944,7 @@ function statusLabel(status: Reservation['status']): string {
             <div class="reservation-modal">
                 <div class="modal-header">
                     <div>
-                        <span class="section-label">
-                            NUEVA RESERVA
-                        </span>
+                        <span class="section-label"> NUEVA RESERVA </span>
 
                         <h3>{{ modalFacility.name }}</h3>
 
@@ -747,24 +970,36 @@ function statusLabel(status: Reservation['status']): string {
                         <input
                             v-model="form.date"
                             type="date"
-                            :min="todayStr()"
+                            :min="todayKey()"
+                            :max="
+                                addDays(
+                                    todayKey(),
+                                    modalFacility.rules.max_advance_days,
+                                )
+                            "
+                            @change="
+                                form.start_time = '';
+                                form.end_time = '';
+                            "
                         />
                     </label>
 
                     <label class="form-field">
                         <span>Hora inicio</span>
 
-                        <select v-model="form.start_time">
-                            <option value="" disabled>
-                                Elige hora
-                            </option>
+                        <select
+                            v-model="form.start_time"
+                            :disabled="!!modalDayProblem"
+                            @change="onModalStartChange"
+                        >
+                            <option value="" disabled>Elige hora</option>
 
                             <option
-                                v-for="t in TIME_SLOTS"
+                                v-for="t in modalStartOptions"
                                 :key="t"
                                 :value="t"
                             >
-                                {{ formatSlot(t) }}
+                                {{ formatTime12(t) }}
                             </option>
                         </select>
                     </label>
@@ -772,47 +1007,57 @@ function statusLabel(status: Reservation['status']): string {
                     <label class="form-field">
                         <span>Hora fin</span>
 
-                        <select v-model="form.end_time">
-                            <option value="" disabled>
-                                Elige hora
-                            </option>
+                        <select
+                            v-model="form.end_time"
+                            :disabled="!form.start_time"
+                        >
+                            <option value="" disabled>Elige hora</option>
 
                             <option
                                 v-for="t in endTimeOptions"
                                 :key="t"
                                 :value="t"
                             >
-                                {{ formatSlot(t) }}
+                                {{ formatTime12(t) }}
                             </option>
                         </select>
                     </label>
                 </div>
 
                 <p class="helper-text">
-                    Toda reserva inicia y termina el mismo día ·
-                    horario 7:30 a.m. – 6:30 p.m.
+                    Horario {{ modalFacility.rules.open_time }} –
+                    {{ modalFacility.rules.close_time }} · franjas de
+                    {{ modalFacility.rules.slot_minutes }} min · máximo
+                    {{ minutesLabel(modalFacility.rules.max_booking_minutes) }}
+                    · cancela hasta
+                    {{
+                        minutesLabel(modalFacility.rules.cancel_before_minutes)
+                    }}
+                    antes · tolerancia de llegada
+                    {{ modalFacility.rules.no_show_tolerance_minutes }} min.
                 </p>
 
-                <p
-                    v-if="form.errors.facility_id"
-                    class="form-error"
-                >
+                <p v-if="modalDayProblem" class="form-error">
+                    {{ modalDayProblem }}
+                </p>
+
+                <p v-else-if="form.errors.facility_id" class="form-error">
                     {{ form.errors.facility_id }}
                 </p>
 
-                <p
-                    v-else-if="form.errors.end_time"
-                    class="form-error"
-                >
+                <p v-else-if="form.errors.end_time" class="form-error">
                     {{ form.errors.end_time }}
+                </p>
+
+                <p v-else-if="modalBlock" class="form-error">
+                    Horario bloqueado: {{ modalBlock.reason }}.
                 </p>
 
                 <p
                     v-else-if="modalMessage"
                     class="form-hint"
                     :class="{
-                        warn:
-                            modalWillBeConfirmed === false,
+                        warn: modalWillBeConfirmed === false,
                     }"
                 >
                     {{ modalMessage }}
@@ -822,20 +1067,14 @@ function statusLabel(status: Reservation['status']): string {
                     <div>
                         <span>Capacidad</span>
 
-                        <strong>
-                            {{ modalFacility.capacity }} personas
-                        </strong>
+                        <strong> {{ modalFacility.capacity }} personas </strong>
                     </div>
 
                     <div>
                         <span>Costo</span>
 
                         <strong>
-                            {{
-                                formatCost(
-                                    modalFacility.cost_cents,
-                                )
-                            }}
+                            {{ formatCost(modalFacility.cost_cents) }}
                         </strong>
                     </div>
                 </div>
@@ -856,12 +1095,17 @@ function statusLabel(status: Reservation['status']): string {
                             !form.date ||
                             !form.start_time ||
                             !form.end_time ||
-                            modalWillBeConfirmed === false ||
+                            !!modalDayProblem ||
+                            !!modalBlock ||
                             form.processing
                         "
                         @click="submitReservation"
                     >
-                        Confirmar reserva
+                        {{
+                            modalWillBeConfirmed === false
+                                ? 'Unirme a lista de espera'
+                                : 'Confirmar reserva'
+                        }}
                     </button>
                 </div>
             </div>
@@ -1226,9 +1470,7 @@ function statusLabel(status: Reservation['status']): string {
     padding: 23px;
     border-radius: 12px;
     background: white;
-    box-shadow:
-        0 20px 55px
-        rgba(26, 45, 78, 0.18);
+    box-shadow: 0 20px 55px rgba(26, 45, 78, 0.18);
 }
 
 .modal-header {
@@ -1388,11 +1630,7 @@ function statusLabel(status: Reservation['status']): string {
 
 .facility-grid {
     display: grid;
-    grid-template-columns:
-        repeat(
-            auto-fill,
-            minmax(200px, 1fr)
-        );
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 12px;
 }
 
@@ -1584,5 +1822,151 @@ function statusLabel(status: Reservation['status']): string {
     .facility-summary {
         grid-template-columns: 1fr;
     }
+}
+</style>
+
+<style scoped>
+/* Estilos agregados al conectar el motor 5.10 */
+.page-notice {
+    margin-top: 14px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 10px;
+    background: #e9f6ef;
+    color: #2f6d4c;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.page-notice button {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.rule-line {
+    margin-top: 3px;
+    color: #6f7d90;
+    font-size: 8px;
+}
+
+.muted-note {
+    display: block;
+    margin-top: 8px;
+    color: #8c99aa;
+    font-size: 8px;
+}
+
+.history-block {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid #e7ebf1;
+}
+
+.history-block h4 {
+    margin-bottom: 8px;
+    color: #2c394f;
+    font-size: 10px;
+}
+
+.history-row {
+    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border-bottom: 1px solid #f0f2f6;
+}
+
+.history-row > span:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.history-row strong {
+    color: #2c394f;
+    font-size: 9px;
+}
+
+.history-row small {
+    color: #8c99aa;
+    font-size: 8px;
+}
+
+.history-status {
+    padding: 3px 6px;
+    border-radius: 999px;
+    background: #eef1f5;
+    color: #5b6778;
+    font-size: 7px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.history-completed {
+    background: #e9f6ef;
+    color: #3d805c;
+}
+
+.history-no_show,
+.history-cancelled {
+    background: #fbe9eb;
+    color: #9d4850;
+}
+
+.day-closed {
+    background: #eef1f5;
+    color: #a3adbb;
+}
+
+.slot-grid {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    gap: 8px;
+}
+
+.slot-chip {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-radius: 8px;
+    font-size: 9px;
+}
+
+.slot-chip small {
+    font-size: 7px;
+    font-weight: 700;
+}
+
+.slot-free {
+    background: #e9f6ef;
+    color: #1f7a4c;
+}
+
+.slot-full {
+    background: #fff2dc;
+    color: #9d6917;
+}
+
+.slot-blocked {
+    background: #fbe9eb;
+    color: #96222f;
+}
+
+.slot-past {
+    background: #f3f5f8;
+    color: #a3adbb;
+}
+
+.day-reserve {
+    margin: 14px 0 6px;
 }
 </style>

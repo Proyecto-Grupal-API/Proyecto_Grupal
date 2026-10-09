@@ -1,470 +1,401 @@
 <script setup lang="ts">
 import StudentServicesLayout from '@/layouts/StudentServicesLayout.vue';
+import type {
+    BookedRange,
+    CalendarBlockRange,
+    CalendarRules,
+} from '@/lib/studentServicesCalendar';
+import {
+    addDays,
+    blockFor,
+    durationOptions,
+    formatTimeOfIso,
+    isOperatingDay,
+    isWithinAdvance,
+    localDate,
+    minutesLabel,
+    minutesToTime,
+    peakOccupancy,
+    slotStarts,
+    timeToMinutes,
+    todayKey,
+    WEEKDAY_LABELS,
+} from '@/lib/studentServicesCalendar';
+import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
-type SpaceType =
-    | 'capsule'
-    | 'chair'
-    | 'silent';
+type SpaceType = 'capsule' | 'chair' | 'silent';
 
-type SpaceStatus =
-    | 'available'
-    | 'occupied'
-    | 'maintenance';
+type SpaceStatus = 'available' | 'occupied' | 'maintenance';
 
 type BookingStatus =
     | 'confirmed'
+    | 'waitlisted'
+    | 'checked_in'
+    | 'completed'
     | 'cancelled'
-    | 'completed';
+    | 'no_show'
+    | 'expired';
 
 interface RestSpace {
-    id: number;
+    id: string;
     code: string;
     name: string;
     type: SpaceType;
     location: string;
     capacity: number;
-    maxMinutes: number;
-    status: SpaceStatus;
     description: string;
+    status: SpaceStatus;
+    rules: CalendarRules;
 }
 
 interface Booking {
-    id: number;
+    id: string;
     folio: string;
-    spaceId: number;
-    spaceName: string;
-    date: string;
-    startTime: string;
-    endTime: string;
+    space_id: string;
+    space_name: string;
+    start_at: string;
+    end_at: string;
     status: BookingStatus;
+    waitlist_position: number;
+    can_cancel: boolean;
+    checked_in_at: string | null;
+    cancellation_reason: string | null;
 }
 
-const spaces = ref<RestSpace[]>([
-    {
-        id: 1,
-        code: 'ZD-CAP-001',
-        name: 'Cápsula de descanso 1',
-        type: 'capsule',
-        location: 'Biblioteca · Planta baja',
-        capacity: 1,
-        maxMinutes: 60,
-        status: 'available',
-        description:
-            'Cápsula individual para descanso breve y recuperación.',
-    },
-    {
-        id: 2,
-        code: 'ZD-CAP-002',
-        name: 'Cápsula de descanso 2',
-        type: 'capsule',
-        location: 'Biblioteca · Planta baja',
-        capacity: 1,
-        maxMinutes: 60,
-        status: 'occupied',
-        description:
-            'Cápsula individual con espacio de descanso.',
-    },
-    {
-        id: 3,
-        code: 'ZD-SIL-001',
-        name: 'Espacio silencioso 1',
-        type: 'silent',
-        location: 'Edificio A · Piso 2',
-        capacity: 1,
-        maxMinutes: 120,
-        status: 'available',
-        description:
-            'Área individual destinada al descanso o concentración.',
-    },
-    {
-        id: 4,
-        code: 'ZD-SIL-002',
-        name: 'Espacio silencioso 2',
-        type: 'silent',
-        location: 'Edificio A · Piso 2',
-        capacity: 1,
-        maxMinutes: 120,
-        status: 'available',
-        description:
-            'Zona silenciosa con iluminación tenue.',
-    },
-    {
-        id: 5,
-        code: 'ZD-SIL-003',
-        name: 'Espacio silencioso 3',
-        type: 'silent',
-        location: 'Edificio B · Piso 1',
-        capacity: 2,
-        maxMinutes: 90,
-        status: 'maintenance',
-        description:
-            'Espacio de descanso compartido para máximo dos personas.',
-    },
-    {
-        id: 6,
-        code: 'ZD-SIL-004',
-        name: 'Espacio silencioso 4',
-        type: 'silent',
-        location: 'Edificio B · Piso 1',
-        capacity: 1,
-        maxMinutes: 90,
-        status: 'available',
-        description:
-            'Área tranquila alejada de zonas de tránsito.',
-    },
-    {
-        id: 7,
-        code: 'ZD-SIL-005',
-        name: 'Espacio silencioso 5',
-        type: 'silent',
-        location: 'Biblioteca · Piso 1',
-        capacity: 1,
-        maxMinutes: 120,
-        status: 'available',
-        description:
-            'Área silenciosa cercana a la zona de lectura.',
-    },
-    {
-        id: 8,
-        code: 'ZD-CHR-001',
-        name: 'Sillón de descanso 1',
-        type: 'chair',
-        location: 'Centro estudiantil',
-        capacity: 1,
-        maxMinutes: 45,
-        status: 'available',
-        description:
-            'Sillón individual para descansos cortos.',
-    },
-    {
-        id: 9,
-        code: 'ZD-CHR-002',
-        name: 'Sillón de descanso 2',
-        type: 'chair',
-        location: 'Centro estudiantil',
-        capacity: 1,
-        maxMinutes: 45,
-        status: 'available',
-        description:
-            'Sillón individual en zona de descanso.',
-    },
-]);
-
-const bookings = ref<Booking[]>([
-    {
-        id: 1,
-        folio: 'ZD-2026-001',
-        spaceId: 3,
-        spaceName: 'Espacio silencioso 1',
-        date: '2026-09-30',
-        startTime: '11:00',
-        endTime: '12:00',
-        status: 'confirmed',
-    },
-    {
-        id: 2,
-        folio: 'ZD-2026-002',
-        spaceId: 8,
-        spaceName: 'Sillón de descanso 1',
-        date: '2026-09-26',
-        startTime: '13:00',
-        endTime: '13:45',
-        status: 'completed',
-    },
-]);
+const props = defineProps<{
+    spaces: RestSpace[];
+    bookings: Booking[];
+    bookedRanges: Record<string, BookedRange[]>;
+    blocks: Record<string, CalendarBlockRange[]>;
+    spaceTypes: Record<SpaceType, string>;
+    statusLabels: Record<string, string>;
+}>();
 
 const search = ref('');
 const typeFilter = ref('');
 const statusFilter = ref('');
+const notice = ref<string | null>(null);
 
-const showBookingModal = ref(false);
-const selectedSpace = ref<RestSpace | null>(null);
-
-const bookingDate = ref('');
-const bookingStart = ref('');
-const bookingDuration = ref(30);
-
-const availableCount = computed(() =>
-    spaces.value.filter(
-        (space) =>
-            space.status ===
-            'available',
-    ).length,
+const availableCount = computed(
+    () => props.spaces.filter((space) => space.status === 'available').length,
 );
 
-const occupiedCount = computed(() =>
-    spaces.value.filter(
-        (space) =>
-            space.status ===
-            'occupied',
-    ).length,
+const occupiedCount = computed(
+    () => props.spaces.filter((space) => space.status === 'occupied').length,
 );
 
-const maintenanceCount = computed(() =>
-    spaces.value.filter(
-        (space) =>
-            space.status ===
-            'maintenance',
-    ).length,
+const maintenanceCount = computed(
+    () => props.spaces.filter((space) => space.status === 'maintenance').length,
 );
 
 const activeBookings = computed(() =>
-    bookings.value.filter(
-        (booking) =>
-            booking.status ===
-            'confirmed',
+    props.bookings.filter((booking) =>
+        ['confirmed', 'waitlisted', 'checked_in'].includes(booking.status),
     ),
 );
 
 const filteredSpaces = computed(() => {
-    const term =
-        search.value
-            .trim()
-            .toLowerCase();
+    const term = search.value.trim().toLowerCase();
 
-    return spaces.value.filter(
-        (space) => {
-            if (
-                typeFilter.value &&
-                space.type !==
-                typeFilter.value
-            ) {
-                return false;
-            }
+    return props.spaces.filter((space) => {
+        if (typeFilter.value && space.type !== typeFilter.value) {
+            return false;
+        }
 
-            if (
-                statusFilter.value &&
-                space.status !==
-                statusFilter.value
-            ) {
-                return false;
-            }
+        if (statusFilter.value && space.status !== statusFilter.value) {
+            return false;
+        }
 
-            if (!term) {
-                return true;
-            }
+        if (!term) {
+            return true;
+        }
 
-            return [
-                space.code,
-                space.name,
-                space.location,
-                space.description,
-            ].some((value) =>
-                value
-                    .toLowerCase()
-                    .includes(term),
-            );
-        },
+        return [space.code, space.name, space.location, space.description].some(
+            (value) => value.toLowerCase().includes(term),
+        );
+    });
+});
+
+function typeLabel(type: SpaceType): string {
+    return props.spaceTypes[type] ?? type;
+}
+
+function statusLabel(status: SpaceStatus): string {
+    const labels: Record<SpaceStatus, string> = {
+        available: 'Disponible',
+        occupied: 'Ocupado',
+        maintenance: 'Mantenimiento',
+    };
+
+    return labels[status];
+}
+
+function bookingStatusLabel(status: BookingStatus): string {
+    return props.statusLabels[status] ?? status;
+}
+
+function formatDate(iso: string): string {
+    return new Date(iso).toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    });
+}
+
+function daysLabel(days: number[]): string {
+    return days.map((day) => WEEKDAY_LABELS[day]).join(', ');
+}
+
+/*
+|--------------------------------------------------------------------------
+| Nueva reservación (franjas y límites vienen del motor 5.10)
+|--------------------------------------------------------------------------
+*/
+const selectedSpace = ref<RestSpace | null>(null);
+
+const bookingForm = useForm({
+    rest_space_id: '',
+    date: '',
+    start_time: '',
+    duration_minutes: 0,
+    idempotency_key: '',
+});
+
+const durations = computed(() =>
+    selectedSpace.value ? durationOptions(selectedSpace.value.rules) : [],
+);
+
+const startOptions = computed(() => {
+    if (!selectedSpace.value || !bookingForm.date) {
+        return [];
+    }
+
+    const rules = selectedSpace.value.rules;
+    const close = timeToMinutes(rules.close_time);
+    const now = Date.now();
+
+    return slotStarts(rules).filter((start) => {
+        const startMinutes = timeToMinutes(start);
+
+        return (
+            startMinutes + bookingForm.duration_minutes <= close &&
+            localDate(bookingForm.date, start).getTime() +
+                rules.slot_minutes * 60000 >
+                now
+        );
+    });
+});
+
+const calculatedEndTime = computed(() => {
+    if (!bookingForm.start_time || !bookingForm.duration_minutes) {
+        return '';
+    }
+
+    return minutesToTime(
+        timeToMinutes(bookingForm.start_time) + bookingForm.duration_minutes,
     );
 });
 
-const calculatedEndTime =
-    computed(() => {
-        if (!bookingStart.value) {
-            return '';
-        }
-
-        const [hours, minutes] =
-            bookingStart.value
-                .split(':')
-                .map(Number);
-
-        if (
-            Number.isNaN(hours) ||
-            Number.isNaN(minutes)
-        ) {
-            return '';
-        }
-
-        const date = new Date();
-
-        date.setHours(
-            hours,
-            minutes +
-            bookingDuration.value,
-            0,
-            0,
-        );
-
-        return date
-            .toTimeString()
-            .slice(0, 5);
-    });
-
-function typeLabel(
-    type: SpaceType,
-): string {
-    const labels: Record<
-        SpaceType,
-        string
-    > = {
-        capsule: 'Cápsula',
-        chair: 'Sillón',
-        silent: 'Espacio silencioso',
-    };
-
-    return labels[type];
-}
-
-function statusLabel(
-    status: SpaceStatus,
-): string {
-    const labels: Record<
-        SpaceStatus,
-        string
-    > = {
-        available: 'Disponible',
-        occupied: 'Ocupado',
-        maintenance:
-            'Mantenimiento',
-    };
-
-    return labels[status];
-}
-
-function bookingStatusLabel(
-    status: BookingStatus,
-): string {
-    const labels: Record<
-        BookingStatus,
-        string
-    > = {
-        confirmed: 'Confirmada',
-        cancelled: 'Cancelada',
-        completed: 'Completada',
-    };
-
-    return labels[status];
-}
-
-function formatDate(
-    value: string,
-): string {
-    if (!value) {
-        return '—';
+const dayProblem = computed(() => {
+    if (!selectedSpace.value || !bookingForm.date) {
+        return '';
     }
 
-    const parts =
-        value.split('-');
+    const rules = selectedSpace.value.rules;
 
-    if (parts.length !== 3) {
-        return value;
+    if (!isOperatingDay(rules, bookingForm.date)) {
+        return `Este espacio no opera ese día (opera: ${daysLabel(rules.operating_days)}).`;
     }
 
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-}
+    if (!isWithinAdvance(rules, bookingForm.date)) {
+        return `Solo se puede reservar de hoy a ${rules.max_advance_days} día(s) adelante.`;
+    }
 
-function openBooking(
-    space: RestSpace,
-) {
+    return '';
+});
+
+const selectedRange = computed(() => {
     if (
-        space.status !==
-        'available'
+        !bookingForm.date ||
+        !bookingForm.start_time ||
+        !calculatedEndTime.value
     ) {
+        return null;
+    }
+
+    return {
+        start: localDate(bookingForm.date, bookingForm.start_time),
+        end: localDate(bookingForm.date, calculatedEndTime.value),
+    };
+});
+
+const selectedBlock = computed(() => {
+    if (!selectedSpace.value || !selectedRange.value) {
+        return null;
+    }
+
+    return blockFor(
+        props.blocks[selectedSpace.value.id] ?? [],
+        selectedRange.value.start,
+        selectedRange.value.end,
+    );
+});
+
+const selectedOccupied = computed(() => {
+    if (!selectedSpace.value || !selectedRange.value) {
+        return 0;
+    }
+
+    return peakOccupancy(
+        props.bookedRanges[selectedSpace.value.id] ?? [],
+        selectedRange.value.start,
+        selectedRange.value.end,
+    );
+});
+
+const willBeConfirmed = computed(() => {
+    if (!selectedSpace.value || !selectedRange.value) {
+        return null;
+    }
+
+    return selectedOccupied.value < selectedSpace.value.capacity;
+});
+
+const bookingError = computed(() => {
+    const errors = bookingForm.errors as Record<string, string>;
+
+    return errors.booking ?? Object.values(errors)[0] ?? '';
+});
+
+function openBooking(space: RestSpace) {
+    if (space.status === 'maintenance') {
         return;
     }
 
     selectedSpace.value = space;
+    notice.value = null;
 
-    bookingDate.value = '';
-    bookingStart.value = '';
-    bookingDuration.value =
-        Math.min(
-            30,
-            space.maxMinutes,
-        );
-
-    showBookingModal.value =
-        true;
+    bookingForm.reset();
+    bookingForm.clearErrors();
+    bookingForm.rest_space_id = space.id;
+    bookingForm.date = todayKey();
+    bookingForm.duration_minutes =
+        durationOptions(space.rules)[0] ?? space.rules.slot_minutes;
 }
 
 function closeBooking() {
-    showBookingModal.value =
-        false;
-
     selectedSpace.value = null;
-    bookingDate.value = '';
-    bookingStart.value = '';
+    bookingForm.reset();
+    bookingForm.clearErrors();
 }
 
 function createBooking() {
-    if (
-        selectedSpace.value === null
-    ) {
-        return;
-    }
+    bookingForm.idempotency_key = crypto.randomUUID();
 
-    if (
-        !bookingDate.value ||
-        !bookingStart.value
-    ) {
-        window.alert(
-            'Selecciona fecha y horario.',
-        );
+    const waiting = willBeConfirmed.value === false;
 
-        return;
-    }
-
-    if (
-        bookingDuration.value >
-        selectedSpace.value
-            .maxMinutes
-    ) {
-        window.alert(
-            `Este espacio permite máximo ${selectedSpace.value.maxMinutes} minutos.`,
-        );
-
-        return;
-    }
-
-    const newId =
-        bookings.value.length + 1;
-
-    bookings.value.unshift({
-        id: newId,
-
-        folio:
-            'ZD-2026-' +
-            String(newId + 2).padStart(
-                3,
-                '0',
-            ),
-
-        spaceId:
-        selectedSpace.value.id,
-
-        spaceName:
-        selectedSpace.value.name,
-
-        date: bookingDate.value,
-
-        startTime:
-        bookingStart.value,
-
-        endTime:
-        calculatedEndTime.value,
-
-        status: 'confirmed',
+    bookingForm.post('/servicios-estudiante/zonas-descanso/reservas', {
+        preserveScroll: true,
+        onSuccess: () => {
+            notice.value = waiting
+                ? 'Sin cupo por ahora: quedaste en lista de espera y se confirmará sola si se libera el espacio.'
+                : 'Reservación confirmada. Presenta tu credencial o el folio al llegar.';
+            closeBooking();
+        },
     });
-
-    closeBooking();
 }
 
-function cancelBooking(
-    booking: Booking,
-) {
-    const confirmed =
-        window.confirm(
-            `¿Cancelar la reservación ${booking.folio}?`,
-        );
-
-    if (!confirmed) {
+function cancelBooking(booking: Booking) {
+    if (!window.confirm(`¿Cancelar la reservación ${booking.folio}?`)) {
         return;
     }
 
-    booking.status =
-        'cancelled';
+    router.patch(
+        `/servicios-estudiante/zonas-descanso/reservas/${booking.id}/cancelar`,
+        {},
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                notice.value = `Reservación ${booking.folio} cancelada.`;
+            },
+            onError: (errors) => {
+                window.alert(
+                    errors.booking ?? 'No fue posible cancelar la reservación.',
+                );
+            },
+        },
+    );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Administración del catálogo
+|--------------------------------------------------------------------------
+*/
+const showSpaceForm = ref(false);
+
+const spaceForm = useForm({
+    code: '',
+    name: '',
+    type: 'silent' as SpaceType,
+    location: '',
+    capacity: 1,
+    description: '',
+});
+
+function openSpaceForm() {
+    spaceForm.reset();
+    spaceForm.clearErrors();
+    showSpaceForm.value = true;
+}
+
+function createSpace() {
+    spaceForm.post('/servicios-estudiante/zonas-descanso/espacios', {
+        preserveScroll: true,
+        onSuccess: () => {
+            notice.value = `Espacio ${spaceForm.code.toUpperCase()} registrado. Sus reglas se pueden ajustar en Calendarios (5.10).`;
+            showSpaceForm.value = false;
+            spaceForm.reset();
+        },
+    });
+}
+
+const spaceFormError = computed(() => {
+    const errors = spaceForm.errors as Record<string, string>;
+
+    return Object.values(errors)[0] ?? '';
+});
+
+function toggleMaintenance(space: RestSpace) {
+    const toMaintenance = space.status !== 'maintenance';
+
+    if (
+        toMaintenance &&
+        !window.confirm(
+            `¿Poner ${space.name} en mantenimiento? Se cancelarán sus reservaciones próximas.`,
+        )
+    ) {
+        return;
+    }
+
+    router.patch(
+        `/servicios-estudiante/zonas-descanso/espacios/${space.id}/${toMaintenance ? 'mantenimiento' : 'disponible'}`,
+        {},
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                notice.value = toMaintenance
+                    ? `${space.name} quedó en mantenimiento.`
+                    : `${space.name} está disponible de nuevo.`;
+            },
+            onError: (errors) => {
+                window.alert(
+                    errors.space ?? 'No fue posible actualizar el espacio.',
+                );
+            },
+        },
+    );
 }
 </script>
 
@@ -475,135 +406,79 @@ function cancelBooking(
     >
         <section class="hero">
             <div>
-                <span class="hero-label">
-                    SERVICIOS · MÓDULO 5.6
-                </span>
+                <span class="hero-label">SERVICIOS · MÓDULO 5.6</span>
 
-                <h2>
-                    Zonas de descanso
-                </h2>
+                <h2>Zonas de descanso</h2>
 
                 <p>
-                    Consulta cápsulas,
-                    sillones y espacios
-                    silenciosos disponibles
-                    dentro del campus y
-                    reserva un horario de
-                    uso.
+                    Consulta cápsulas, sillones y espacios silenciosos
+                    disponibles dentro del campus y reserva un horario de uso.
+                    Las franjas, límites y lista de espera los administra el
+                    motor de calendarios (5.10).
                 </p>
             </div>
 
             <div class="hero-total">
-                <span>
-                    Espacios registrados
-                </span>
-
-                <strong>
-                    {{ spaces.length }}
-                </strong>
-
-                <small>
-                    recursos de descanso
-                </small>
+                <span>Espacios registrados</span>
+                <strong>{{ spaces.length }}</strong>
+                <small>recursos de descanso</small>
             </div>
         </section>
 
+        <div v-if="notice" class="page-notice">
+            <span>{{ notice }}</span>
+            <button type="button" @click="notice = null">×</button>
+        </div>
+
         <section class="stats-grid">
             <article class="stat-card">
-                <span>
-                    Disponibles
-                </span>
-
-                <strong>
-                    {{ availableCount }}
-                </strong>
-
-                <small>
-                    Listos para reservar
-                </small>
+                <span>Disponibles</span>
+                <strong>{{ availableCount }}</strong>
+                <small>Con cupo en este momento</small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Ocupados
-                </span>
-
-                <strong>
-                    {{ occupiedCount }}
-                </strong>
-
-                <small>
-                    Actualmente en uso
-                </small>
+                <span>Ocupados</span>
+                <strong>{{ occupiedCount }}</strong>
+                <small>Actualmente en uso</small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Mantenimiento
-                </span>
-
-                <strong>
-                    {{ maintenanceCount }}
-                </strong>
-
-                <small>
-                    Fuera de servicio
-                </small>
+                <span>Mantenimiento</span>
+                <strong>{{ maintenanceCount }}</strong>
+                <small>Fuera de servicio</small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Mis reservaciones
-                </span>
-
-                <strong>
-                    {{
-                        activeBookings.length
-                    }}
-                </strong>
-
-                <small>
-                    Reservas activas
-                </small>
+                <span>Mis reservaciones</span>
+                <strong>{{ activeBookings.length }}</strong>
+                <small>Activas o en espera</small>
             </article>
         </section>
 
         <section class="rules-panel">
-            <div class="rule-number">
-                01
-            </div>
+            <div class="rule-number">01</div>
 
             <div>
-                <strong>
-                    Reglas generales de uso
-                </strong>
+                <strong>Reglas generales de uso</strong>
 
                 <p>
-                    Cada espacio tiene un
-                    tiempo máximo de uso.
-                    Las reservaciones deben
-                    respetar el horario
-                    seleccionado y pueden
-                    cancelarse antes de su
-                    inicio.
+                    Cada espacio tiene un tiempo máximo de uso y solo puedes
+                    tener una reservación activa a la vez. Puedes cancelar hasta
+                    unos minutos antes del inicio; si no llegas dentro de la
+                    tolerancia, la reservación cuenta como inasistencia.
                 </p>
             </div>
 
-            <div class="rule-number">
-                02
-            </div>
+            <div class="rule-number">02</div>
 
             <div>
-                <strong>
-                    Uso responsable
-                </strong>
+                <strong>Uso responsable</strong>
 
                 <p>
-                    Mantén el área limpia,
-                    respeta el silencio
-                    cuando corresponda y
-                    libera el espacio al
-                    finalizar tu tiempo.
+                    Registra tu entrada y salida con tu credencial en el punto
+                    de validación (5.11), mantén el área limpia y respeta el
+                    silencio cuando corresponda.
                 </p>
             </div>
         </section>
@@ -611,22 +486,96 @@ function cancelBooking(
         <section class="content-panel">
             <div class="panel-header">
                 <div>
-                    <span class="panel-label">
-                        DISPONIBILIDAD
-                    </span>
+                    <span class="panel-label">DISPONIBILIDAD</span>
 
-                    <h3>
-                        Espacios de descanso
-                    </h3>
+                    <h3>Espacios de descanso</h3>
 
                     <p>
-                        Selecciona un espacio
-                        disponible para
-                        consultar sus datos y
+                        Selecciona un espacio para consultar sus datos y
                         reservarlo.
                     </p>
                 </div>
+
+                <button
+                    type="button"
+                    class="secondary-button"
+                    @click="
+                        showSpaceForm
+                            ? (showSpaceForm = false)
+                            : openSpaceForm()
+                    "
+                >
+                    {{ showSpaceForm ? 'Cerrar' : '+ Nuevo espacio' }}
+                </button>
             </div>
+
+            <form
+                v-if="showSpaceForm"
+                class="space-form"
+                @submit.prevent="createSpace"
+            >
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label>Código <span>*</span></label>
+                        <input
+                            v-model="spaceForm.code"
+                            type="text"
+                            placeholder="Ej. ZD-SIL-006"
+                        />
+                    </div>
+
+                    <div class="form-field">
+                        <label>Nombre <span>*</span></label>
+                        <input v-model="spaceForm.name" type="text" />
+                    </div>
+
+                    <div class="form-field">
+                        <label>Tipo</label>
+                        <select v-model="spaceForm.type">
+                            <option
+                                v-for="(label, value) in spaceTypes"
+                                :key="value"
+                                :value="value"
+                            >
+                                {{ label }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="form-field">
+                        <label>Ubicación <span>*</span></label>
+                        <input v-model="spaceForm.location" type="text" />
+                    </div>
+
+                    <div class="form-field">
+                        <label>Capacidad</label>
+                        <input
+                            v-model.number="spaceForm.capacity"
+                            type="number"
+                            min="1"
+                        />
+                    </div>
+
+                    <div class="form-field">
+                        <label>Descripción</label>
+                        <input v-model="spaceForm.description" type="text" />
+                    </div>
+                </div>
+
+                <p v-if="spaceFormError" class="form-error">
+                    {{ spaceFormError }}
+                </p>
+
+                <div class="modal-actions">
+                    <button
+                        type="submit"
+                        class="primary-button"
+                        :disabled="spaceForm.processing"
+                    >
+                        Registrar espacio
+                    </button>
+                </div>
+            </form>
 
             <div class="filters">
                 <div class="search-field">
@@ -637,157 +586,61 @@ function cancelBooking(
                     />
                 </div>
 
-                <select
-                    v-model="typeFilter"
-                >
-                    <option value="">
-                        Todos los tipos
-                    </option>
-
-                    <option value="capsule">
-                        Cápsulas
-                    </option>
-
-                    <option value="chair">
-                        Sillones
-                    </option>
-
-                    <option value="silent">
-                        Espacios silenciosos
-                    </option>
+                <select v-model="typeFilter">
+                    <option value="">Todos los tipos</option>
+                    <option value="capsule">Cápsulas</option>
+                    <option value="chair">Sillones</option>
+                    <option value="silent">Espacios silenciosos</option>
                 </select>
 
-                <select
-                    v-model="
-                        statusFilter
-                    "
-                >
-                    <option value="">
-                        Todos los estados
-                    </option>
-
-                    <option value="available">
-                        Disponibles
-                    </option>
-
-                    <option value="occupied">
-                        Ocupados
-                    </option>
-
-                    <option
-                        value="maintenance"
-                    >
-                        Mantenimiento
-                    </option>
+                <select v-model="statusFilter">
+                    <option value="">Todos los estados</option>
+                    <option value="available">Disponibles</option>
+                    <option value="occupied">Ocupados</option>
+                    <option value="maintenance">Mantenimiento</option>
                 </select>
             </div>
 
-            <div
-                v-if="
-                    filteredSpaces.length >
-                    0
-                "
-                class="space-grid"
-            >
+            <div v-if="filteredSpaces.length > 0" class="space-grid">
                 <article
-                    v-for="
-                        space in
-                        filteredSpaces
-                    "
+                    v-for="space in filteredSpaces"
                     :key="space.id"
                     class="space-card"
                 >
                     <div class="space-top">
-                        <span
-                            class="space-type"
-                        >
-                            {{
-                                typeLabel(
-                                    space.type,
-                                )
-                            }}
+                        <span class="space-type">
+                            {{ typeLabel(space.type) }}
                         </span>
 
-                        <span
-                            class="status"
-                            :class="`status-${space.status}`"
-                        >
-                            {{
-                                statusLabel(
-                                    space.status,
-                                )
-                            }}
+                        <span class="status" :class="`status-${space.status}`">
+                            {{ statusLabel(space.status) }}
                         </span>
                     </div>
 
-                    <div
-                        class="space-icon"
-                        :class="space.type"
-                    >
-                        <span
-                            v-if="
-                                space.type ===
-                                'capsule'
-                            "
-                        >
-                            Z
-                        </span>
-
-                        <span
-                            v-else-if="
-                                space.type ===
-                                'chair'
-                            "
-                        >
-                            S
-                        </span>
-
-                        <span v-else>
-                            Q
-                        </span>
+                    <div class="space-icon" :class="space.type">
+                        <span v-if="space.type === 'capsule'">Z</span>
+                        <span v-else-if="space.type === 'chair'">S</span>
+                        <span v-else>Q</span>
                     </div>
 
-                    <h4>
-                        {{ space.name }}
-                    </h4>
+                    <h4>{{ space.name }}</h4>
 
-                    <span
-                        class="space-code"
-                    >
-                        {{ space.code }}
-                    </span>
+                    <span class="space-code">{{ space.code }}</span>
 
-                    <p>
-                        {{
-                            space.description
-                        }}
-                    </p>
+                    <p>{{ space.description }}</p>
 
                     <div class="space-details">
                         <div>
-                            <span>
-                                Ubicación
-                            </span>
-
-                            <strong>
-                                {{
-                                    space.location
-                                }}
-                            </strong>
+                            <span>Ubicación</span>
+                            <strong>{{ space.location }}</strong>
                         </div>
 
                         <div>
-                            <span>
-                                Capacidad
-                            </span>
-
+                            <span>Capacidad</span>
                             <strong>
+                                {{ space.capacity }}
                                 {{
-                                    space.capacity
-                                }}
-                                {{
-                                    space.capacity ===
-                                    1
+                                    space.capacity === 1
                                         ? 'persona'
                                         : 'personas'
                                 }}
@@ -795,15 +648,21 @@ function cancelBooking(
                         </div>
 
                         <div>
-                            <span>
-                                Tiempo máximo
-                            </span>
-
+                            <span>Tiempo máximo</span>
                             <strong>
                                 {{
-                                    space.maxMinutes
+                                    minutesLabel(
+                                        space.rules.max_booking_minutes,
+                                    )
                                 }}
-                                min
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>Horario</span>
+                            <strong>
+                                {{ space.rules.open_time }} –
+                                {{ space.rules.close_time }}
                             </strong>
                         </div>
                     </div>
@@ -811,204 +670,140 @@ function cancelBooking(
                     <button
                         type="button"
                         class="reserve-button"
-                        :disabled="
-                            space.status !==
-                            'available'
-                        "
-                        @click="
-                            openBooking(
-                                space,
-                            )
-                        "
+                        :disabled="space.status === 'maintenance'"
+                        @click="openBooking(space)"
                     >
                         {{
-                            space.status ===
-                            'available'
-                                ? 'Reservar espacio'
-                                : 'No disponible'
+                            space.status === 'maintenance'
+                                ? 'No disponible'
+                                : space.status === 'occupied'
+                                  ? 'Reservar otro horario'
+                                  : 'Reservar espacio'
+                        }}
+                    </button>
+
+                    <button
+                        type="button"
+                        class="admin-link"
+                        @click="toggleMaintenance(space)"
+                    >
+                        {{
+                            space.status === 'maintenance'
+                                ? 'Habilitar espacio'
+                                : 'Enviar a mantenimiento'
                         }}
                     </button>
                 </article>
             </div>
 
-            <div
-                v-else
-                class="empty-state"
-            >
-                <h3>
-                    No se encontraron
-                    espacios
-                </h3>
-
-                <p>
-                    Ajusta los filtros de
-                    búsqueda.
-                </p>
+            <div v-else class="empty-state">
+                <h3>No se encontraron espacios</h3>
+                <p>Ajusta los filtros de búsqueda.</p>
             </div>
         </section>
 
         <section class="content-panel">
             <div class="panel-header">
                 <div>
-                    <span class="panel-label">
-                        MIS RESERVACIONES
-                    </span>
+                    <span class="panel-label">MIS RESERVACIONES</span>
 
-                    <h3>
-                        Historial de uso
-                    </h3>
+                    <h3>Historial de uso</h3>
 
-                    <p>
-                        Consulta tus
-                        reservaciones actuales
-                        y anteriores.
-                    </p>
+                    <p>Consulta tus reservaciones actuales y anteriores.</p>
                 </div>
             </div>
 
-            <div
-                v-if="
-                    bookings.length > 0
-                "
-                class="table-container"
-            >
+            <div v-if="bookings.length > 0" class="table-container">
                 <table>
                     <thead>
-                    <tr>
-                        <th>Folio</th>
-                        <th>Espacio</th>
-                        <th>Fecha</th>
-                        <th>Horario</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
+                        <tr>
+                            <th>Folio</th>
+                            <th>Espacio</th>
+                            <th>Fecha</th>
+                            <th>Horario</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    <tr
-                        v-for="
-                                booking in
-                                bookings
-                            "
-                        :key="
-                                booking.id
-                            "
-                    >
-                        <td>
-                            <strong
-                                class="folio"
-                            >
-                                {{
+                        <tr v-for="booking in bookings" :key="booking.id">
+                            <td>
+                                <strong class="folio">{{
                                     booking.folio
-                                }}
-                            </strong>
-                        </td>
+                                }}</strong>
+                            </td>
 
-                        <td>
-                            {{
-                                booking.spaceName
-                            }}
-                        </td>
+                            <td>{{ booking.space_name }}</td>
 
-                        <td>
-                            {{
-                                formatDate(
-                                    booking.date,
-                                )
-                            }}
-                        </td>
+                            <td>{{ formatDate(booking.start_at) }}</td>
 
-                        <td>
-                            {{
-                                booking.startTime
-                            }}
-                            -
-                            {{
-                                booking.endTime
-                            }}
-                        </td>
+                            <td>
+                                {{ formatTimeOfIso(booking.start_at) }} -
+                                {{ formatTimeOfIso(booking.end_at) }}
+                            </td>
 
-                        <td>
+                            <td>
                                 <span
                                     class="booking-status"
                                     :class="`booking-${booking.status}`"
                                 >
-                                    {{
-                                        bookingStatusLabel(
-                                            booking.status,
-                                        )
-                                    }}
+                                    {{ bookingStatusLabel(booking.status) }}
+                                    <template v-if="booking.waitlist_position">
+                                        · #{{ booking.waitlist_position }}
+                                    </template>
                                 </span>
-                        </td>
 
-                        <td>
-                            <button
-                                v-if="
-                                        booking.status ===
-                                        'confirmed'
-                                    "
-                                type="button"
-                                class="cancel-button"
-                                @click="
-                                        cancelBooking(
-                                            booking,
-                                        )
-                                    "
-                            >
-                                Cancelar
-                            </button>
+                                <small
+                                    v-if="booking.cancellation_reason"
+                                    class="booking-note"
+                                >
+                                    {{ booking.cancellation_reason }}
+                                </small>
+                            </td>
 
-                            <span
-                                v-else
-                                class="no-action"
-                            >
-                                    —
-                                </span>
-                        </td>
-                    </tr>
+                            <td>
+                                <button
+                                    v-if="booking.can_cancel"
+                                    type="button"
+                                    class="cancel-button"
+                                    @click="cancelBooking(booking)"
+                                >
+                                    Cancelar
+                                </button>
+
+                                <span v-else class="no-action">—</span>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <div v-else class="empty-state">
+                <h3>Aún no tienes reservaciones</h3>
+                <p>Elige un espacio disponible para comenzar.</p>
             </div>
         </section>
 
         <div
-            v-if="
-                showBookingModal &&
-                selectedSpace
-            "
+            v-if="selectedSpace"
             class="modal-backdrop"
-            @click.self="
-                closeBooking
-            "
+            @click.self="closeBooking"
         >
             <section class="modal">
                 <div class="modal-header">
                     <div>
-                        <span
-                            class="panel-label"
-                        >
-                            NUEVA RESERVACIÓN
-                        </span>
+                        <span class="panel-label">NUEVA RESERVACIÓN</span>
 
-                        <h3>
-                            {{
-                                selectedSpace.name
-                            }}
-                        </h3>
+                        <h3>{{ selectedSpace.name }}</h3>
 
-                        <p>
-                            {{
-                                selectedSpace.location
-                            }}
-                        </p>
+                        <p>{{ selectedSpace.location }}</p>
                     </div>
 
                     <button
                         type="button"
                         class="close-button"
-                        @click="
-                            closeBooking
-                        "
+                        @click="closeBooking"
                     >
                         ×
                     </button>
@@ -1017,102 +812,58 @@ function cancelBooking(
                 <div class="modal-body">
                     <div class="form-grid">
                         <div class="form-field">
-                            <label>
-                                Fecha
-                                <span>*</span>
-                            </label>
-
+                            <label>Fecha <span>*</span></label>
                             <input
-                                v-model="
-                                    bookingDate
-                                "
+                                v-model="bookingForm.date"
                                 type="date"
-                            />
-                        </div>
-
-                        <div class="form-field">
-                            <label>
-                                Hora de inicio
-                                <span>*</span>
-                            </label>
-
-                            <input
-                                v-model="
-                                    bookingStart
+                                :min="todayKey()"
+                                :max="
+                                    addDays(
+                                        todayKey(),
+                                        selectedSpace.rules.max_advance_days,
+                                    )
                                 "
-                                type="time"
-                                min="07:30"
-                                max="18:00"
+                                @change="bookingForm.start_time = ''"
                             />
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Duración
-                            </label>
-
+                            <label>Duración</label>
                             <select
-                                v-model.number="
-                                    bookingDuration
-                                "
+                                v-model.number="bookingForm.duration_minutes"
+                                @change="bookingForm.start_time = ''"
                             >
                                 <option
-                                    :value="30"
+                                    v-for="minutes in durations"
+                                    :key="minutes"
+                                    :value="minutes"
                                 >
-                                    30 minutos
-                                </option>
-
-                                <option
-                                    v-if="
-                                        selectedSpace.maxMinutes >=
-                                        45
-                                    "
-                                    :value="45"
-                                >
-                                    45 minutos
-                                </option>
-
-                                <option
-                                    v-if="
-                                        selectedSpace.maxMinutes >=
-                                        60
-                                    "
-                                    :value="60"
-                                >
-                                    60 minutos
-                                </option>
-
-                                <option
-                                    v-if="
-                                        selectedSpace.maxMinutes >=
-                                        90
-                                    "
-                                    :value="90"
-                                >
-                                    90 minutos
-                                </option>
-
-                                <option
-                                    v-if="
-                                        selectedSpace.maxMinutes >=
-                                        120
-                                    "
-                                    :value="120"
-                                >
-                                    120 minutos
+                                    {{ minutes }} minutos
                                 </option>
                             </select>
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Hora de término
-                            </label>
+                            <label>Hora de inicio <span>*</span></label>
+                            <select
+                                v-model="bookingForm.start_time"
+                                :disabled="!!dayProblem"
+                            >
+                                <option value="" disabled>Elige hora</option>
+                                <option
+                                    v-for="start in startOptions"
+                                    :key="start"
+                                    :value="start"
+                                >
+                                    {{ start }}
+                                </option>
+                            </select>
+                        </div>
 
+                        <div class="form-field">
+                            <label>Hora de término</label>
                             <input
-                                :value="
-                                    calculatedEndTime
-                                "
+                                :value="calculatedEndTime"
                                 type="text"
                                 readonly
                                 placeholder="--:--"
@@ -1120,17 +871,46 @@ function cancelBooking(
                         </div>
                     </div>
 
+                    <p v-if="dayProblem" class="form-error">{{ dayProblem }}</p>
+
+                    <p v-else-if="bookingError" class="form-error">
+                        {{ bookingError }}
+                    </p>
+
+                    <p v-else-if="selectedBlock" class="form-error">
+                        Horario bloqueado: {{ selectedBlock.reason }}.
+                    </p>
+
+                    <p
+                        v-else-if="willBeConfirmed !== null"
+                        class="form-hint"
+                        :class="{ warn: willBeConfirmed === false }"
+                    >
+                        {{
+                            willBeConfirmed
+                                ? `✅ Hay cupo (${selectedOccupied}/${selectedSpace.capacity}) — quedará confirmada.`
+                                : '⏳ Ocupado en ese horario: puedes unirte a la lista de espera.'
+                        }}
+                    </p>
+
                     <div class="booking-summary">
-                        <span>
-                            Tiempo máximo de
-                            este espacio
-                        </span>
+                        <span>Tiempo máximo · cancelación · tolerancia</span>
 
                         <strong>
                             {{
-                                selectedSpace.maxMinutes
+                                minutesLabel(
+                                    selectedSpace.rules.max_booking_minutes,
+                                )
                             }}
-                            minutos
+                            ·
+                            {{
+                                minutesLabel(
+                                    selectedSpace.rules.cancel_before_minutes,
+                                )
+                            }}
+                            antes ·
+                            {{ selectedSpace.rules.no_show_tolerance_minutes }}
+                            min
                         </strong>
                     </div>
 
@@ -1138,9 +918,7 @@ function cancelBooking(
                         <button
                             type="button"
                             class="secondary-button"
-                            @click="
-                                closeBooking
-                            "
+                            @click="closeBooking"
                         >
                             Cancelar
                         </button>
@@ -1148,11 +926,19 @@ function cancelBooking(
                         <button
                             type="button"
                             class="primary-button"
-                            @click="
-                                createBooking
+                            :disabled="
+                                !bookingForm.start_time ||
+                                !!dayProblem ||
+                                !!selectedBlock ||
+                                bookingForm.processing
                             "
+                            @click="createBooking"
                         >
-                            Confirmar reservación
+                            {{
+                                willBeConfirmed === false
+                                    ? 'Unirme a lista de espera'
+                                    : 'Confirmar reservación'
+                            }}
                         </button>
                     </div>
                 </div>
@@ -1203,8 +989,7 @@ function cancelBooking(
     min-width: 175px;
     padding: 16px 19px;
     border-radius: 10px;
-    background:
-        rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .hero-total span {
@@ -1227,8 +1012,7 @@ function cancelBooking(
 .stats-grid {
     margin-top: 18px;
     display: grid;
-    grid-template-columns:
-        repeat(4, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 13px;
 }
 
@@ -1263,8 +1047,7 @@ function cancelBooking(
     margin-top: 18px;
     padding: 17px 19px;
     display: grid;
-    grid-template-columns:
-        auto 1fr auto 1fr;
+    grid-template-columns: auto 1fr auto 1fr;
     gap: 14px;
     align-items: flex-start;
     border: 1px solid #d9e3f0;
@@ -1311,8 +1094,7 @@ function cancelBooking(
     align-items: center;
     justify-content: space-between;
     gap: 20px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
 }
 
 .panel-label {
@@ -1341,8 +1123,7 @@ function cancelBooking(
         190px
         190px;
     gap: 10px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
@@ -1363,11 +1144,7 @@ function cancelBooking(
 .space-grid {
     padding: 18px 21px 21px;
     display: grid;
-    grid-template-columns:
-        repeat(
-            auto-fit,
-            minmax(240px, 1fr)
-        );
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 13px;
 }
 
@@ -1475,8 +1252,7 @@ function cancelBooking(
     flex-direction: column;
     gap: 8px;
     padding-top: 12px;
-    border-top:
-        1px solid #e9edf3;
+    border-top: 1px solid #e9edf3;
 }
 
 .space-details div {
@@ -1538,8 +1314,7 @@ th {
 
 td {
     padding: 14px;
-    border-top:
-        1px solid #e9edf3;
+    border-top: 1px solid #e9edf3;
     color: #5c6980;
     font-size: 10px;
 }
@@ -1589,8 +1364,7 @@ td {
     display: grid;
     place-items: center;
     padding: 20px;
-    background:
-        rgba(18, 29, 47, 0.5);
+    background: rgba(18, 29, 47, 0.5);
 }
 
 .modal {
@@ -1598,9 +1372,7 @@ td {
     overflow: hidden;
     border-radius: 11px;
     background: white;
-    box-shadow:
-        0 18px 50px
-        rgba(0, 0, 0, 0.18);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
 }
 
 .close-button {
@@ -1620,8 +1392,7 @@ td {
 
 .form-grid {
     display: grid;
-    grid-template-columns:
-        repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 17px;
 }
 
@@ -1681,8 +1452,7 @@ td {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    border-top:
-        1px solid #e5e9ef;
+    border-top: 1px solid #e5e9ef;
 }
 
 .primary-button,
@@ -1710,13 +1480,11 @@ td {
 
 @media (max-width: 950px) {
     .stats-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .rules-panel {
-        grid-template-columns:
-            auto 1fr;
+        grid-template-columns: auto 1fr;
     }
 
     .filters {
@@ -1742,8 +1510,7 @@ td {
     }
 
     .modal-actions {
-        flex-direction:
-            column-reverse;
+        flex-direction: column-reverse;
     }
 }
 
@@ -1751,5 +1518,93 @@ td {
     .stats-grid {
         grid-template-columns: 1fr;
     }
+}
+</style>
+<style scoped>
+/* Estilos agregados al conectar el módulo 5.6 con el backend */
+.page-notice {
+    margin-top: 14px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 10px;
+    background: #e9f6ef;
+    color: #2f6d4c;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.page-notice button {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.panel-header {
+    gap: 14px;
+}
+
+.space-form {
+    padding: 16px 21px;
+    border-bottom: 1px solid #e5e9ef;
+    background: #fafcff;
+}
+
+.form-error {
+    margin: 10px 0 0;
+    color: #9c4c55;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.form-hint {
+    margin: 10px 0 0;
+    color: #217a4e;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.form-hint.warn {
+    color: #946510;
+}
+
+.admin-link {
+    margin-top: 8px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #8794a7;
+    font: inherit;
+    font-size: 8px;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.booking-waitlisted {
+    background: #fff3d7;
+    color: #946510;
+}
+
+.booking-checked_in {
+    background: #e8f0fc;
+    color: #315fa6;
+}
+
+.booking-no_show,
+.booking-expired {
+    background: #f1f3f6;
+    color: #5b6778;
+}
+
+.booking-note {
+    display: block;
+    margin-top: 3px;
+    color: #8794a7;
+    font-size: 8px;
 }
 </style>

@@ -28,6 +28,21 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    /*
+    | API de Servicios al Estudiante (Equipo 5). Clientes con token de
+    | servicio para desarrollo/pruebas mientras no se use el OAuth del
+    | Equipo 1. Nunca subir tokens reales al repositorio.
+    */
+    'student_services_api' => [
+        'clients' => [
+            [
+                'id' => env('STUDENT_SERVICES_API_CLIENT_ID', 'equipo6-comunidad'),
+                'token' => env('STUDENT_SERVICES_API_TOKEN'),
+                'scopes' => env('STUDENT_SERVICES_API_SCOPES', 'services:benefits:read services:benefits:write'),
+            ],
+        ],
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

@@ -48,3 +48,21 @@ function something()
 {
     // ..
 }
+
+/**
+ * Servicios al Estudiante (Equipo 5) guarda todo en MongoDB. Las pruebas
+ * de esos módulos usan una base de datos Mongo aislada que se vacía
+ * antes de cada prueba (requiere un MongoDB local en DB_URI).
+ */
+function useStudentServicesTestDatabase(): void
+{
+    config(['database.connections.mongodb.database' => env('MONGODB_TEST_DATABASE', 'campus_digital_testing')]);
+
+    Illuminate\Support\Facades\DB::purge('mongodb');
+
+    $database = Illuminate\Support\Facades\DB::connection('mongodb')->getDatabase();
+
+    foreach ($database->listCollectionNames() as $collection) {
+        $database->dropCollection($collection);
+    }
+}

@@ -12,6 +12,7 @@ class LibraryFine extends Model
     protected $collection = 'library_fines';
 
     protected $fillable = [
+        'folio',
         'student_id',
         'loan_id',
         'type',
