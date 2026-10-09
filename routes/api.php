@@ -60,6 +60,10 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
     Route::prefix('financial')->middleware('financial.correlation')->group(function () {
         // Asociación autorizada además del scope OAuth. Nunca hereda financial:read/write.
         Route::prefix('cash/associations/{associationId}')->group(function () {
+            $confirmations = \App\Http\Controllers\Financial\CashOperationConfirmationController::class;
+            Route::post('/shifts/{shiftId}/confirmations', [$confirmations, 'store'])->whereUuid('shiftId')->middleware('oauth.service:financial:cash:operate');
+            Route::get('/shifts/{shiftId}/confirmations/{confirmationId}', [$confirmations, 'showConfirmation'])->whereUuid(['shiftId', 'confirmationId'])->middleware('oauth.service:financial:cash:operate');
+            Route::post('/shifts/{shiftId}/confirmations/{confirmationId}/cancel', [$confirmations, 'cancel'])->whereUuid(['shiftId', 'confirmationId'])->middleware('oauth.service:financial:cash:operate');
             $recoveries = \App\Http\Controllers\Financial\CashWithdrawalRecoveryController::class;
             Route::get('/withdrawal-refunds', [$recoveries, 'index'])->middleware('oauth.service:financial:cash:read');
             Route::post('/shifts/{shiftId}/withdrawal-refunds/{refundId}/recover', [$recoveries, 'recover'])

@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__.'/Support/CashConfirmationFixtures.php';
+
 use App\Domains\Financial\Contracts\CashAuthorizationProvider;
 use App\Domains\Financial\Adapters\PendingCashAuthorizationProvider;
 use App\Domains\Financial\Models\CashRegister;
@@ -11,8 +13,8 @@ use Illuminate\Support\Facades\Hash;
 
 require_once __DIR__ . '/Support/FinancialControlHelpers.php';
 
-beforeEach(function () { cashApiCleanup(); });
-afterEach(function () { cashApiCleanup(); });
+beforeEach(function () { cashConfirmationCleanup(); cashApiCleanup(); });
+afterEach(function () { cashConfirmationCleanup(); cashApiCleanup(); });
 
 function cashApiCleanup(): void
 {
@@ -82,7 +84,7 @@ test('cash api isolates associations and paginates without leaking foreign shift
     cashApiGrant($actor, $register->association_id, ['read', 'operate']);
     $this->getJson(cashApiUrl($foreign).'/registers', $headers)->assertForbidden();
     $this->getJson(cashApiUrl($register).'/shifts/'.$shift->public_id, $headers)->assertNotFound();
-    $this->postJson(cashApiUrl($register).'/registers/'.$foreign->public_id.'/shifts', ['opening_amount_cents' => 0], $headers)->assertNotFound();
+    cashConfirmedPost($this, cashApiUrl($register).'/registers/'.$foreign->public_id.'/shifts', ['opening_amount_cents' => 0], $headers)->assertNotFound();
     $this->getJson(cashApiUrl($register).'/registers?per_page=1', $headers)->assertOk()->assertJsonPath('meta.pagination.total', 1);
     $this->getJson(cashApiUrl($register).'/registers?per_page=101', $headers)->assertUnprocessable();
 });
@@ -94,26 +96,26 @@ test('cash api opens settles closes and retries with server derived audit actor'
     $open = $base.'/registers/'.$register->public_id.'/shifts';
     $headers['Idempotency-Key'] = fcKey('cash-api-open');
     $payload = ['opening_amount_cents' => 10000, 'agent_id' => 'forged-admin'];
-    $id = $this->postJson($open, $payload, $headers)->assertOk()->assertJsonPath('data.agent_id', $actor)->json('data.id');
-    $this->postJson($open, $payload, $headers)->assertOk()->assertJsonPath('data.id', $id);
-    $this->postJson($open, ['opening_amount_cents' => 1], $headers)->assertConflict();
+    $id = cashConfirmedPost($this, $open, $payload, $headers)->assertOk()->assertJsonPath('data.agent_id', $actor)->json('data.id');
+    cashConfirmedPost($this, $open, $payload, $headers)->assertOk()->assertJsonPath('data.id', $id);
+    cashConfirmedPost($this, $open, ['opening_amount_cents' => 1], $headers)->assertConflict();
     $url = $base.'/shifts/'.$id;
     $wallet = fcWallet('cash-api-wallet');
     foreach (['topups' => 5000, 'withdrawals' => 2000] as $action => $amount) {
         $headers['Idempotency-Key'] = fcKey('cash-api-'.$action);
         $body = ['wallet_id' => $wallet->public_id, 'amount_cents' => $amount, 'reason' => 'Entrega física', 'actor_id' => 'forged'];
-        $operation = $this->postJson($url.'/'.$action, $body, $headers)->assertOk()->assertJsonPath('data.actor_id', $actor)->json('data.id');
-        $this->postJson($url.'/'.$action, $body, $headers)->assertOk()->assertJsonPath('data.id', $operation);
+        $operation = cashConfirmedPost($this, $url.'/'.$action, $body, $headers)->assertOk()->assertJsonPath('data.actor_id', $actor)->json('data.id');
+        cashConfirmedPost($this, $url.'/'.$action, $body, $headers)->assertOk()->assertJsonPath('data.id', $operation);
     }
     expect($wallet->fresh()->available_balance_cents)->toBe(3000);
     $this->getJson($url, $headers)->assertOk()->assertJsonPath('data.expected_amount_cents', 13000);
     $this->getJson($url.'/movements', $headers)->assertOk()->assertJsonCount(2, 'data');
     $headers['Idempotency-Key'] = fcKey('cash-api-close');
     $body = ['counted_amount_cents' => 12900, 'reason' => 'Arqueo final', 'closed_by' => 'forged'];
-    foreach ([1, 2] as $attempt) $this->postJson($url.'/close', $body, $headers)->assertOk()
+    foreach ([1, 2] as $attempt) cashConfirmedPost($this, $url.'/close', $body, $headers)->assertOk()
         ->assertJsonPath('data.closed_by', $actor)->assertJsonPath('data.difference_cents', -100)->assertJsonPath('data.status', 'CLOSED');
     $headers['Idempotency-Key'] = fcKey('cash-api-late');
-    $this->postJson($url.'/movements', ['type' => 'CASH_IN', 'amount_cents' => 1, 'reason' => 'Tarde'], $headers)->assertConflict();
+    cashConfirmedPost($this, $url.'/movements', ['type' => 'CASH_IN', 'amount_cents' => 1, 'reason' => 'Tarde'], $headers)->assertConflict();
     expect(CashShift::where('cash_register_id', $register->id)->count())->toBe(1);
 });
 
@@ -124,11 +126,11 @@ test('cash api separates adjustment and close permission and refuses fabricated 
     $shift = app(CashShiftService::class)->open($register->public_id, $actor, 1000, fcKey('cash-api-open'));
     $url = cashApiUrl($register).'/shifts/'.$shift->public_id;
     $headers['Idempotency-Key'] = fcKey('cash-api-adjust');
-    $this->postJson($url.'/adjustments', ['amount_cents' => -100, 'reason' => 'Diferencia'], $headers)->assertForbidden();
-    $this->postJson($url.'/close', ['counted_amount_cents' => 1000, 'reason' => 'Cierre'], $headers)->assertForbidden();
-    $this->postJson($url.'/movements', ['type' => 'TOPUP', 'amount_cents' => 1, 'reason' => 'Falso'], $headers)->assertUnprocessable();
+    cashConfirmedPost($this, $url.'/adjustments', ['amount_cents' => -100, 'reason' => 'Diferencia'], $headers)->assertForbidden();
+    cashConfirmedPost($this, $url.'/close', ['counted_amount_cents' => 1000, 'reason' => 'Cierre'], $headers)->assertForbidden();
+    cashConfirmedPost($this, $url.'/movements', ['type' => 'TOPUP', 'amount_cents' => 1, 'reason' => 'Falso'], $headers)->assertUnprocessable();
     cashApiGrant($actor, $register->association_id, ['adjust']);
-    $this->postJson($url.'/adjustments', ['amount_cents' => -100, 'reason' => 'Diferencia'], $headers)->assertOk()->assertJsonPath('data.actor_id', $actor);
+    cashConfirmedPost($this, $url.'/adjustments', ['amount_cents' => -100, 'reason' => 'Diferencia'], $headers)->assertOk()->assertJsonPath('data.actor_id', $actor);
     expect(app(CashShiftService::class)->getSummary($shift->public_id)['expected_amount_cents'])->toBe(900);
 });
 
@@ -136,10 +138,10 @@ test('cash api requires idempotency and forbids operating another cashier shift'
     $register = cashApiRegister();
     [$headers, $actor] = cashApiToken($this, ['financial:cash:operate']);
     cashApiGrant($actor, $register->association_id, ['operate']);
-    $this->postJson(cashApiUrl($register).'/registers/'.$register->public_id.'/shifts', ['opening_amount_cents' => 0], $headers)->assertUnprocessable();
+    cashConfirmedPost($this, cashApiUrl($register).'/registers/'.$register->public_id.'/shifts', ['opening_amount_cents' => 0], $headers)->assertUnprocessable();
     $shift = app(CashShiftService::class)->open($register->public_id, FC_ACTOR, 100, fcKey('cash-api-open'));
     $headers['Idempotency-Key'] = fcKey('cash-api-forged');
-    $this->postJson(cashApiUrl($register).'/shifts/'.$shift->public_id.'/movements',
+    cashConfirmedPost($this, cashApiUrl($register).'/shifts/'.$shift->public_id.'/movements',
         ['type' => 'CASH_OUT', 'amount_cents' => 1, 'reason' => 'Salida', 'agent_id' => FC_ACTOR], $headers)->assertForbidden();
     expect(CashMovement::where('cash_shift_id', $shift->id)->count())->toBe(0);
 });
@@ -161,7 +163,7 @@ test('cash api enforces each dedicated scope before controller access', function
         [$headers, $actor] = cashApiToken($this, ['financial:cash:'.$scope]);
         cashApiGrant($actor, $register->association_id, ['read', 'operate', 'adjust', 'close']);
         foreach ($cases as [$method, $path, $required]) {
-            $response = $method === 'get' ? $this->getJson($base.$path, $headers) : $this->postJson($base.$path, [], $headers);
+            $response = $method === 'get' ? $this->getJson($base.$path, $headers) : cashConfirmedPost($this, $base.$path, [], $headers);
             if ($scope === $required) $response->assertNotFound(); else $response->assertForbidden();
         }
     }
@@ -175,14 +177,14 @@ test('cash api rejects unavailable wallet funds atomically and permits the same 
     $wallet = fcWallet('cash-api-empty'); $url = cashApiUrl($register).'/shifts/'.$shift->public_id;
     $withdrawKey = fcKey('cash-api-retry'); $headers['Idempotency-Key'] = $withdrawKey;
     $body = ['wallet_id' => $wallet->public_id, 'amount_cents' => 100, 'reason' => 'Retiro'];
-    $this->postJson($url.'/withdrawals', $body, $headers)->assertConflict();
+    cashConfirmedPost($this, $url.'/withdrawals', $body, $headers)->assertConflict();
     expect($wallet->fresh()->available_balance_cents)->toBe(0)
         ->and(CashMovement::where('cash_shift_id', $shift->id)->count())->toBe(0);
     $headers['Idempotency-Key'] = fcKey('cash-api-fund');
-    $this->postJson($url.'/topups', array_merge($body, ['reason' => 'Recarga']), $headers)->assertOk();
+    cashConfirmedPost($this, $url.'/topups', array_merge($body, ['reason' => 'Recarga']), $headers)->assertOk();
     $headers['Idempotency-Key'] = $withdrawKey;
-    $id = $this->postJson($url.'/withdrawals', $body, $headers)->assertOk()->json('data.id');
-    $this->postJson($url.'/withdrawals', $body, $headers)->assertOk()->assertJsonPath('data.id', $id);
+    $id = cashConfirmedPost($this, $url.'/withdrawals', $body, $headers)->assertOk()->json('data.id');
+    cashConfirmedPost($this, $url.'/withdrawals', $body, $headers)->assertOk()->assertJsonPath('data.id', $id);
     expect($wallet->fresh()->available_balance_cents)->toBe(0)
         ->and(app(CashShiftService::class)->getSummary($shift->public_id)['expected_amount_cents'])->toBe(1000);
 });

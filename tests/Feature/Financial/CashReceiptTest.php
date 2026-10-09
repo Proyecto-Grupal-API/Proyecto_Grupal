@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__.'/Support/CashConfirmationFixtures.php';
+
 use App\Domains\Financial\Contracts\CashAuthorizationProvider;
 use App\Domains\Financial\Enums\CashMovementType;
 use App\Domains\Financial\Enums\CashRegisterStatus;
@@ -22,12 +24,12 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 require_once __DIR__ . '/Support/FinancialControlHelpers.php';
 
-beforeEach(function () {
+beforeEach(function () { cashConfirmationCleanup();
     cashReceiptCleanup();
     $this->withoutMiddleware(PreventRequestForgery::class);
     $this->withoutVite();
 });
-afterEach(function () { cashReceiptCleanup(); });
+afterEach(function () { cashConfirmationCleanup(); cashReceiptCleanup(); });
 
 function cashReceiptCleanup(): void
 {
@@ -175,9 +177,9 @@ test('cash receipt identifiers are returned by settlement and movement endpoints
     $headers['Idempotency-Key'] = fcKey('cash-receipt-api-topup');
     $url = $base.'/shifts/'.$shift->public_id.'/topups';
     $body = ['wallet_id' => $wallet->public_id, 'amount_cents' => 1000, 'reason' => 'Recarga'];
-    $response = $this->postJson($url, $body, $headers)->assertOk(); $id = $response->json('data.receipt_id'); $folio = $response->json('data.folio');
+    $response = cashConfirmedPost($this, $url, $body, $headers)->assertOk(); $id = $response->json('data.receipt_id'); $folio = $response->json('data.folio');
     expect($id)->toBeString()->and($folio)->toStartWith('CAJ-');
-    $this->postJson($url, $body, $headers)->assertOk()->assertJsonPath('data.receipt_id', $id)->assertJsonPath('data.folio', $folio);
+    cashConfirmedPost($this, $url, $body, $headers)->assertOk()->assertJsonPath('data.receipt_id', $id)->assertJsonPath('data.folio', $folio);
     $this->getJson($base.'/shifts/'.$shift->public_id.'/movements', $headers)->assertOk()->assertJsonPath('data.0.receipt_id', $id);
     $this->getJson($base.'/receipts/'.$id, $headers)->assertOk()->assertJsonPath('data.amount_cents', 1000)->assertJsonPath('data.actor_id', $actor);
 });

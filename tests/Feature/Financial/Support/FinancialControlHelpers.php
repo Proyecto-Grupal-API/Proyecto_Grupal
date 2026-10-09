@@ -122,6 +122,8 @@ if (!function_exists('fcWallet')) {
 
     function fcCleanup(): void
     {
+        // Remove only test confirmations before their wallet/movement foreign keys.
+        \App\Domains\Financial\Models\CashOperationConfirmation::where('request_key', 'like', FC_PREFIX . '%')->delete();
         $walletIds = Wallet::where('owner_id', 'like', FC_PREFIX . '%')
             ->pluck('public_id')
             ->all();

@@ -41,6 +41,12 @@ class CashReceiptService
             'reference_type' => $movement->reference_type,
             'reference_id' => $movement->reference_id && $transaction ? strtolower($movement->reference_id) : $movement->reference_id,
             'financial_transaction_id' => $transaction ? strtolower($transaction->public_id) : null];
+        $confirmation = \App\Domains\Financial\Models\CashOperationConfirmation::where('settlement_key', $movement->idempotency_key)->first();
+        if ($confirmation) {
+            $snapshot['cash_confirmation_id'] = strtolower($confirmation->public_id);
+            $snapshot['student_confirmed_by'] = $confirmation->confirmed_by;
+            $snapshot['student_confirmed_at'] = $confirmation->confirmed_at?->toISOString();
+        }
         if ($movement->type === CashMovementType::WITHDRAWAL_RECOVERY) {
             $refund = FinancialRefundRequest::where('public_id', $movement->reference_id)->firstOrFail();
             $snapshot['refund_request_id'] = strtolower($refund->public_id);

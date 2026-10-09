@@ -70,12 +70,23 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
             ->whereUuid(['reconciliationId', 'differenceId'])->middleware($gate . ':reconciliation.resolve')->name('reconciliations.resolve');
     });
 
+    Route::prefix('finanzas/confirmaciones-caja')->name('financial.cash.confirmations.student.')->group(function () {
+        $student = \App\Http\Controllers\Financial\StudentCashConfirmationController::class;
+        Route::get('/', [$student, 'index'])->name('index');
+        Route::get('/{confirmationId}', [$student, 'show'])->whereUuid('confirmationId')->name('show');
+        Route::post('/{confirmationId}/{action}', [$student, 'decide'])->whereUuid('confirmationId')->whereIn('action', ['approve', 'reject'])->name('decide');
+    });
+
     Route::prefix('finanzas/caja')->name('financial.cash.')->middleware('financial.correlation')->group(function () {
         $cash = \App\Http\Controllers\Financial\CashWebController::class;
         Route::get('/', [$cash, 'index'])->name('index');
         Route::get('/context', [$cash, 'context'])->name('context');
         Route::get('/administracion', [\App\Http\Controllers\Financial\CashRegisterAdministrationWebController::class, 'index'])->name('administration');
         Route::prefix('asociaciones/{associationId}')->group(function () use ($cash) {
+            $confirmations = \App\Http\Controllers\Financial\CashOperationConfirmationWebController::class;
+            Route::post('/shifts/{shiftId}/confirmations', [$confirmations, 'store'])->whereUuid('shiftId')->name('confirmations.store');
+            Route::get('/shifts/{shiftId}/confirmations/{confirmationId}', [$confirmations, 'showConfirmation'])->whereUuid(['shiftId', 'confirmationId'])->name('confirmations.show');
+            Route::post('/shifts/{shiftId}/confirmations/{confirmationId}/cancel', [$confirmations, 'cancel'])->whereUuid(['shiftId', 'confirmationId'])->name('confirmations.cancel');
             $recoveries = \App\Http\Controllers\Financial\CashWithdrawalRecoveryWebController::class;
             Route::get('/withdrawal-refunds', [$recoveries, 'index'])->name('withdrawal-refunds.index');
             Route::post('/shifts/{shiftId}/withdrawal-refunds/{refundId}/recover', [$recoveries, 'recover'])

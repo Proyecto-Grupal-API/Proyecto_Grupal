@@ -60,7 +60,8 @@ const formatDate = (date) => {
                     <Link :href="route('financial.cash.index')" class="rounded-xl border border-[#00338D] px-5 py-3 text-sm font-semibold text-[#00338D] hover:bg-blue-50">
                         Caja y turnos
                     </Link>
-                    <Link :href="route('financial.controls.index')" class="rounded-xl border border-[#00338D] px-5 py-3 text-sm font-semibold text-[#00338D] hover:bg-blue-50">
+                    <Link :href="route('financial.cash.confirmations.student.index')" class="rounded-xl border border-[#00338D] px-4 py-3 text-sm font-semibold text-[#00338D]">Confirmaciones de caja</Link>
+                <Link :href="route('financial.controls.index')" class="rounded-xl border border-[#00338D] px-5 py-3 text-sm font-semibold text-[#00338D] hover:bg-blue-50">
                         Límites, alertas y conciliación
                     </Link>
                     <Link :href="route('financial.adjustments.index')" class="rounded-xl bg-[#00338D] px-5 py-3 text-sm font-semibold text-white hover:bg-blue-800">

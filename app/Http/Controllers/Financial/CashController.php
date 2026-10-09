@@ -156,13 +156,12 @@ class CashController extends Controller
         $shift = $this->shift($associationId, $shiftId);
         abort_unless($shift->agent_id === $actor, 403, 'El turno pertenece a otro operador.');
         $values = $request->validate(['wallet_id' => ['required', 'uuid'], 'amount_cents' => ['required', 'integer', 'min:1'],
-            'reason' => ['required', 'string', 'max:1000']]);
+            'reason' => ['required', 'string', 'max:1000'], 'confirmation_id' => ['required', 'uuid']]);
         $key = $this->key($request);
         $wallet = Wallet::where('public_id', $values['wallet_id'])->firstOrFail();
         return $this->execute($request, function () use ($incoming, $shift, $wallet, $values, $key, $actor) {
-            $operation = $incoming
-                ? $this->settlements->topUp($shift->public_id, $wallet, $values['amount_cents'], $key, $actor, $values['reason'])
-                : $this->settlements->withdraw($shift->public_id, $wallet, $values['amount_cents'], $key, $actor, $values['reason']);
+            $operation = $this->settlements->settleConfirmed($shift->public_id, $wallet, $values['amount_cents'], $key,
+                $actor, $values['reason'], $incoming, $values['confirmation_id']);
             $receipt = CashMovement::where('idempotency_key', $key)->firstOrFail()->receipt;
             return ['id' => strtolower($operation->public_id), 'wallet_id' => strtolower($operation->wallet_id),
                 'cash_shift_id' => strtolower($operation->cash_shift_id), 'amount_cents' => $operation->amount_cents,

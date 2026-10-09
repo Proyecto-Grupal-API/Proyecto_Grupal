@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__.'/Support/CashConfirmationFixtures.php';
+
 use App\Domains\Financial\Contracts\CashAuthorizationProvider;
 use App\Domains\Financial\Models\CashRegister;
 use App\Domains\Financial\Models\CashShift;
@@ -11,12 +13,12 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 require_once __DIR__ . '/Support/FinancialControlHelpers.php';
 
-beforeEach(function () {
+beforeEach(function () { cashConfirmationCleanup();
     cashWebCleanup();
     $this->withoutMiddleware(PreventRequestForgery::class);
     $this->withoutVite();
 });
-afterEach(function () { cashWebCleanup(); });
+afterEach(function () { cashConfirmationCleanup(); cashWebCleanup(); });
 
 function cashWebCleanup(): void
 {
@@ -64,7 +66,7 @@ function cashWebEndpoints(): array
 
 test('cash web shows a protected shell but pending permissions never expose association data', function () {
     $this->get('/finanzas/caja')->assertRedirect('/login');
-    $this->postJson('/finanzas/caja/asociaciones/test/registers/00000000-0000-0000-0000-000000000000/shifts', [])->assertUnauthorized();
+    cashConfirmedPost($this, '/finanzas/caja/asociaciones/test/registers/00000000-0000-0000-0000-000000000000/shifts', [])->assertUnauthorized();
     $user = cashWebUser();
     User::whereKey($user->getKey())->update(['roles' => [['name' => 'admin', 'scope_type' => null, 'scope_id' => null]]]);
     $register = cashWebRegister();
@@ -100,21 +102,21 @@ test('cash web settles and closes idempotently with session audit identity inste
     $this->actingAs($user);
     $base = cashWebUrl($register); $headers = ['Idempotency-Key' => fcKey('cash-web-open')];
     $payload = ['opening_amount_cents' => 1000, 'agent_id' => 'forged'];
-    $shift = $this->postJson($base.'/registers/'.$register->public_id.'/shifts', $payload, $headers)->assertOk()
+    $shift = cashConfirmedPost($this, $base.'/registers/'.$register->public_id.'/shifts', $payload, $headers)->assertOk()
         ->assertJsonPath('data.agent_id', $actor)->assertJsonPath('data.is_operator', true)->json('data.id');
-    $this->postJson($base.'/registers/'.$register->public_id.'/shifts', $payload, $headers)->assertOk()->assertJsonPath('data.id', $shift);
+    cashConfirmedPost($this, $base.'/registers/'.$register->public_id.'/shifts', $payload, $headers)->assertOk()->assertJsonPath('data.id', $shift);
     $url = $base.'/shifts/'.$shift; $wallet = fcWallet('cash-web-wallet');
     foreach (['topups' => 500, 'withdrawals' => 200] as $action => $amount) {
         $headers['Idempotency-Key'] = fcKey('cash-web-'.$action);
         $body = ['wallet_id' => $wallet->public_id, 'amount_cents' => $amount, 'reason' => 'Efectivo físico', 'actor_id' => 'forged'];
-        $id = $this->postJson($url.'/'.$action, $body, $headers)->assertOk()->assertJsonPath('data.actor_id', $actor)->json('data.id');
-        $this->postJson($url.'/'.$action, $body, $headers)->assertOk()->assertJsonPath('data.id', $id);
+        $id = cashConfirmedPost($this, $url.'/'.$action, $body, $headers)->assertOk()->assertJsonPath('data.actor_id', $actor)->json('data.id');
+        cashConfirmedPost($this, $url.'/'.$action, $body, $headers)->assertOk()->assertJsonPath('data.id', $id);
     }
     expect($wallet->fresh()->available_balance_cents)->toBe(300);
     $this->getJson($url)->assertOk()->assertJsonPath('data.expected_amount_cents', 1300);
     $this->getJson($url.'/movements')->assertOk()->assertJsonCount(2, 'data');
     $headers['Idempotency-Key'] = fcKey('cash-web-close');
-    foreach ([1, 2] as $attempt) $this->postJson($url.'/close', ['counted_amount_cents' => 1250, 'reason' => 'Arqueo', 'closed_by' => 'forged'], $headers)
+    foreach ([1, 2] as $attempt) cashConfirmedPost($this, $url.'/close', ['counted_amount_cents' => 1250, 'reason' => 'Arqueo', 'closed_by' => 'forged'], $headers)
         ->assertOk()->assertJsonPath('data.closed_by', $actor)->assertJsonPath('data.difference_cents', -50);
 });
 
@@ -122,11 +124,11 @@ test('cash web requires idempotency and rejects operations by another cashier wi
     $user = cashWebUser(); $register = cashWebRegister();
     cashWebGrant($user, $register->association_id, ['read', 'operate']);
     $this->actingAs($user);
-    $this->postJson(cashWebUrl($register).'/registers/'.$register->public_id.'/shifts', ['opening_amount_cents' => 0])->assertUnprocessable();
+    cashConfirmedPost($this, cashWebUrl($register).'/registers/'.$register->public_id.'/shifts', ['opening_amount_cents' => 0])->assertUnprocessable();
     $shift = app(CashShiftService::class)->open($register->public_id, FC_ACTOR, 1000, fcKey('cash-web-open'));
     $wallet = fcWallet('cash-web-foreign'); $url = cashWebUrl($register).'/shifts/'.$shift->public_id;
     $this->getJson($url)->assertOk()->assertJsonPath('data.is_operator', false);
-    $this->postJson($url.'/topups', ['wallet_id' => $wallet->public_id, 'amount_cents' => 500, 'reason' => 'Intento', 'agent_id' => FC_ACTOR],
+    cashConfirmedPost($this, $url.'/topups', ['wallet_id' => $wallet->public_id, 'amount_cents' => 500, 'reason' => 'Intento', 'agent_id' => FC_ACTOR],
         ['Idempotency-Key' => fcKey('cash-web-forged')])->assertForbidden();
     expect($wallet->fresh()->available_balance_cents)->toBe(0)->and(CashMovement::where('cash_shift_id', $shift->id)->count())->toBe(0);
 });

@@ -33,6 +33,14 @@ class CashSettlementService
         return $this->settle($shiftId, $wallet, $amount, $key, $actor, $reason, false);
     }
 
+    // External cash endpoints must use this path; the student's confirmation is consumed with the money.
+    public function settleConfirmed(string $shiftId, Wallet $wallet, int $amount, string $key, string $actor, string $reason, bool $incoming, string $confirmationId): TopUp|Withdrawal
+    {
+        return app(CashOperationConfirmationService::class)->execute($confirmationId, $shiftId, $wallet,
+            $incoming ? 'TOPUP' : 'WITHDRAWAL', $amount, $actor, $reason, $key,
+            fn ($confirmation) => $this->settle($shiftId, $wallet, $amount, $key, $actor, $reason, $incoming, null, $confirmation));
+    }
+
     // Complete a pending request through the same atomic cash flow, never the generic completion endpoint.
     public function completePending(string $shiftId, TopUp|Withdrawal $request, string $key, string $actor, string $reason): TopUp|Withdrawal
     {
@@ -41,11 +49,12 @@ class CashSettlementService
         return $this->settle($shiftId, $wallet, $request->amount_cents, $key, $actor, $reason, $request instanceof TopUp, $request);
     }
 
-    private function settle(string $shiftId, Wallet $wallet, int $amount, string $key, string $actor, string $reason, bool $incoming, TopUp|Withdrawal|null $pending = null): TopUp|Withdrawal
+    private function settle(string $shiftId, Wallet $wallet, int $amount, string $key, string $actor, string $reason, bool $incoming, TopUp|Withdrawal|null $pending = null, ?\App\Domains\Financial\Models\CashOperationConfirmation $confirmation = null): TopUp|Withdrawal
     {
         $this->shifts->text($key); $this->shifts->text($actor); $this->shifts->text($reason, 1000);
         if ($amount <= 0) throw new InvalidArgumentException('El importe debe ser mayor que cero.');
         $hash = $this->shifts->hash([$shiftId, $incoming ? 'TOPUP' : 'WITHDRAWAL', $amount, strtolower($wallet->public_id), trim($actor), trim($reason)]);
+        if ($confirmation) $hash = $this->shifts->hash([$shiftId, $hash, strtolower($confirmation->public_id)]);
         if ($pending) $hash = $this->shifts->hash([$shiftId, $hash, strtolower($pending->public_id)]);
         $model = $incoming ? TopUp::class : Withdrawal::class;
         $existing = $this->shifts->replay($key, $hash);
@@ -56,7 +65,7 @@ class CashSettlementService
         $this->limits->assertAllowed($wallet, $incoming ? MovementType::RECARGA : MovementType::RETIRO,
             $amount, 'CASH_REQUEST', $shiftId, trim($actor));
         try {
-            return DB::connection('sqlsrv')->transaction(function () use ($shiftId, $wallet, $amount, $key, $actor, $reason, $incoming, $hash, $model, $pending) {
+            return DB::connection('sqlsrv')->transaction(function () use ($shiftId, $wallet, $amount, $key, $actor, $reason, $incoming, $hash, $model, $pending, $confirmation) {
             $shift = $this->shifts->lockShift($shiftId);
             $existing = $this->shifts->replay($key, $hash);
             if ($existing) return $model::where('public_id', $existing->reference_id)->firstOrFail();
@@ -87,10 +96,13 @@ class CashSettlementService
                 throw new InvalidArgumentException($incoming ? 'La wallet debe estar activa para recibir una recarga.' : 'La wallet debe estar activa para completar el retiro.');
             // The cash orchestrator owns completion. Ledger, operation, physical entry and receipt share this transaction.
             $ledger = app(LedgerService::class);
+            $identity = $confirmation ? ['cash_confirmation_id' => strtolower($confirmation->public_id),
+                'student_id' => $confirmation->student_id, 'student_confirmed_by' => $confirmation->confirmed_by,
+                'student_confirmed_at' => $confirmation->confirmed_at->toISOString()] : [];
             if ($incoming) $ledger->credit($currentWallet, $amount, MovementType::RECARGA, trim($key), 'TOPUP', $operation->public_id,
-                ['topup_method' => TopUpMethod::EFECTIVO->value]);
+                array_merge(['topup_method' => TopUpMethod::EFECTIVO->value], $identity));
             else $ledger->debit($currentWallet, $amount, MovementType::RETIRO, trim($key), 'WITHDRAWAL', $operation->public_id,
-                ['withdrawal_method' => WithdrawalMethod::EFECTIVO->value]);
+                array_merge(['withdrawal_method' => WithdrawalMethod::EFECTIVO->value], $identity));
             $operation->status = $incoming ? TopUpStatus::COMPLETADA : WithdrawalStatus::COMPLETADA;
             $operation->cash_shift_id = $shift->public_id;
             $operation->save();

@@ -20,9 +20,12 @@ const busy = ref(false);
 const error = ref('');
 const success = ref('');
 const pending = ref(null);
+const confirmation = ref(null);
+const preparing = ref(null);
 const action = ref('open');
 const form = reactive({ amount: '', wallet: '', reason: '', type: 'CASH_IN' });
 const selectedRefund = computed(() => refunds.value.find(item => item.id === refundId.value));
+const confirmationLink = computed(() => confirmation.value ? `${window.location.origin}${confirmation.value.student_url}` : '');
 const register = computed(() => registers.value.find(item => item.id === registerId.value));
 const currency = computed(() => summary.value?.currency || register.value?.currency || 'MXN');
 const base = computed(() => `/finanzas/caja/asociaciones/${encodeURIComponent(association.value)}`);
@@ -31,9 +34,10 @@ const titles = { open: 'Abrir turno', topups: 'Recarga en efectivo', withdrawals
     movements: 'Entrada o salida de efectivo', adjustments: 'Ajuste de efectivo', close: 'Cerrar turno y realizar arqueo', recover: 'Recuperar efectivo de un retiro' };
 const actionPermission = computed(() => action.value === 'recover' ? permissions.value.recover : action.value === 'adjustments' ? permissions.value.adjust
     : action.value === 'close' ? permissions.value.close : permissions.value.operate);
-const canSubmit = computed(() => actionPermission.value && (action.value === 'open' ? !!registerId.value
+const canOperate = computed(() => actionPermission.value && (action.value === 'open' ? !!registerId.value
     : !!summary.value && summary.value.status === 'OPEN' && (['adjustments', 'close'].includes(action.value) || actorOwnsShift.value))
     && (action.value !== 'recover' || (selectedRefund.value?.status === 'APROBADA' && !selectedRefund.value.recovery)));
+const canSubmit = computed(() => canOperate.value && (!['topups', 'withdrawals'].includes(action.value) || confirmation.value?.status === 'CONFIRMED'));
 const money = value => new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency.value }).format((value || 0) / 100);
 const date = value => value ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—';
 const statusLabel = value => ({ OPEN: 'Abierto', CLOSED: 'Cerrado', ACTIVE: 'Activa', INACTIVE: 'Inactiva' }[value] || value);
@@ -60,7 +64,7 @@ async function getList(kind, url, page = 1) {
     pages[kind] = data.meta.pagination;
 }
 async function connect() {
-    if (pending.value) return;
+    if (pending.value || confirmation.value || preparing.value) return;
     await run(async () => {
         association.value = ''; registers.value = []; shifts.value = []; movements.value = []; refunds.value = []; refundId.value = '';
         registerId.value = ''; shiftId.value = ''; summary.value = null; success.value = '';
@@ -75,7 +79,7 @@ async function connect() {
     });
 }
 async function chooseRegister() {
-    if (pending.value) return;
+    if (pending.value || confirmation.value || preparing.value) return;
     await run(async () => {
         shifts.value = []; movements.value = []; shiftId.value = ''; summary.value = null;
         pages.shifts = null; pages.movements = null; success.value = '';
@@ -90,7 +94,7 @@ async function snapshot() {
 }
 async function chooseShift() { await run(async () => { summary.value = null; movements.value = []; await snapshot(); }); }
 async function paginate(kind, page) {
-    if (pending.value) return;
+    if (pending.value || confirmation.value || preparing.value) return;
     await run(async () => {
         if (kind === 'registers') {
             registerId.value = ''; shiftId.value = ''; summary.value = null; shifts.value = []; movements.value = [];
@@ -103,8 +107,50 @@ async function paginate(kind, page) {
     });
 }
 function prepareRecovery(item) {
-    if (busy.value || pending.value) return;
+    if (busy.value || pending.value || confirmation.value || preparing.value) return;
     refundId.value = item.id; action.value = 'recover'; form.amount = (item.amount_cents / 100).toFixed(2); form.reason = '';
+}
+async function prepareConfirmation() {
+    if (!['topups', 'withdrawals'].includes(action.value) || busy.value || confirmation.value || !actorOwnsShift.value || summary.value?.status !== 'OPEN' || !permissions.value.operate) return;
+    if (!preparing.value) {
+        try {
+            const amount = cents();
+            if (!form.wallet.trim() || !form.reason.trim()) throw new Error('Escribe la wallet y el motivo antes de solicitar la confirmación.');
+            preparing.value = { url: `${base.value}/shifts/${shiftId.value}/confirmations`, key: crypto.randomUUID(),
+                payload: { wallet_id: form.wallet.trim(), operation: action.value === 'topups' ? 'TOPUP' : 'WITHDRAWAL', amount_cents: amount, reason: form.reason.trim() } };
+        } catch (exception) { error.value = exception.message; return; }
+    }
+    await run(async () => {
+        const request = preparing.value;
+        try {
+            const { data } = await axios.post(request.url, request.payload, { headers: { 'Idempotency-Key': request.key } });
+            confirmation.value = data.data; preparing.value = null;
+        } catch (exception) {
+            if ([401, 403, 404, 419, 422].includes(exception.response?.status)) preparing.value = null;
+            throw exception;
+        }
+    });
+}
+async function refreshConfirmation() {
+    if (!confirmation.value) return;
+    await run(async () => {
+        const { data } = await axios.get(`${base.value}/shifts/${shiftId.value}/confirmations/${confirmation.value.id}`);
+        confirmation.value = data.data;
+    });
+}
+async function cancelConfirmation() {
+    if (pending.value || !confirmation.value || !window.confirm('¿Cancelar esta confirmación? No cancela una operación ya finalizada.')) return;
+    await run(async () => {
+        const { data } = await axios.post(`${base.value}/shifts/${shiftId.value}/confirmations/${confirmation.value.id}/cancel`);
+        if (data.data.status === 'CANCELLED') confirmation.value = null;
+    });
+}
+function discardPreparation() {
+    if (window.confirm('Descartar este reintento no cancela una confirmación creada. Revisa las confirmaciones del estudiante antes de solicitar otra.')) preparing.value = null;
+}
+function clearClosedConfirmation() {
+    if (pending.value) return;
+    if (confirmation.value && ['EXPIRED', 'REJECTED', 'CANCELLED', 'CONSUMED'].includes(confirmation.value.status)) confirmation.value = null;
 }
 function cents() {
     const value = form.amount.trim();
@@ -128,6 +174,7 @@ async function submit() {
             if (['topups', 'withdrawals'].includes(action.value)) {
                 if (!form.wallet.trim()) throw new Error('Escribe el identificador de la wallet.');
                 payload.wallet_id = form.wallet.trim();
+                payload.confirmation_id = confirmation.value.id;
             }
             if (action.value === 'movements') payload.type = form.type;
             if (!window.confirm(`${titles[action.value]} por ${money(amount)}. ¿Confirmas que el importe corresponde al efectivo físico?`)) return;
@@ -147,7 +194,7 @@ async function submit() {
             if ([401, 403, 404, 419, 422].includes(exception.response?.status)) pending.value = null;
             throw exception;
         }
-        pending.value = null; success.value = `${titles[request.action]}: operación confirmada.${result.data.data.folio ? ` Folio: ${result.data.data.folio}.` : ''}`;
+        pending.value = null; confirmation.value = null; success.value = `${titles[request.action]}: operación confirmada.${result.data.data.folio ? ` Folio: ${result.data.data.folio}.` : ''}`;
         form.amount = ''; form.reason = ''; form.wallet = '';
         if (request.action === 'open') shiftId.value = result.data.data.id;
         try {
@@ -186,22 +233,22 @@ function abandon() {
                         <Link :href="route('financial.cash.administration')" class="text-sm font-semibold text-[#00338D]">Administrar cajas</Link>
                     </div>
                     <form class="mt-4 flex flex-wrap items-end gap-3" @submit.prevent="connect">
-                        <label class="flex-1">Identificador de asociación<input v-model="associationInput" required maxlength="255" :disabled="busy || !!pending" placeholder="Identificador proporcionado por tu asociación" /></label>
-                        <button class="primary" :disabled="busy || !!pending">Consultar cajas</button>
+                        <label class="flex-1">Identificador de asociación<input v-model="associationInput" required maxlength="255" :disabled="busy || !!pending || !!confirmation || !!preparing" placeholder="Identificador proporcionado por tu asociación" /></label>
+                        <button class="primary" :disabled="busy || !!pending || !!confirmation || !!preparing">Consultar cajas</button>
                     </form>
                     <p v-if="!association" class="note mt-3">Selecciona tu asociación para consultar los permisos y las cajas disponibles.</p>
                     <p v-else-if="!permissions.read" class="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-[#00338D]">No tienes autorización para consultar las cajas de esta asociación. Solicita al administrador que revise tu acceso.</p>
                     <template v-else>
-                        <label class="mt-4">Caja<select v-model="registerId" :disabled="busy || !!pending" @change="chooseRegister"><option value="">Seleccionar caja</option><option v-for="item in registers" :key="item.id" :value="item.id">{{ item.name }} · {{ item.currency }} · {{ statusLabel(item.status) }}</option></select></label>
+                        <label class="mt-4">Caja<select v-model="registerId" :disabled="busy || !!pending || !!confirmation || !!preparing" @change="chooseRegister"><option value="">Seleccionar caja</option><option v-for="item in registers" :key="item.id" :value="item.id">{{ item.name }} · {{ item.currency }} · {{ statusLabel(item.status) }}</option></select></label>
                         <p v-if="!registers.length" class="note mt-3">No hay cajas registradas en esta asociación.</p>
-                        <div v-if="pages.registers?.last_page > 1" class="pagination"><button :disabled="busy || !!pending || pages.registers.current_page === 1" @click="paginate('registers', pages.registers.current_page - 1)">Anterior</button><span>Página {{ pages.registers.current_page }} de {{ pages.registers.last_page }}</span><button :disabled="busy || !!pending || pages.registers.current_page === pages.registers.last_page" @click="paginate('registers', pages.registers.current_page + 1)">Siguiente</button></div>
+                        <div v-if="pages.registers?.last_page > 1" class="pagination"><button :disabled="busy || !!pending || !!confirmation || !!preparing || pages.registers.current_page === 1" @click="paginate('registers', pages.registers.current_page - 1)">Anterior</button><span>Página {{ pages.registers.current_page }} de {{ pages.registers.last_page }}</span><button :disabled="busy || !!pending || !!confirmation || !!preparing || pages.registers.current_page === pages.registers.last_page" @click="paginate('registers', pages.registers.current_page + 1)">Siguiente</button></div>
                     </template>
                 </section>
                 <section v-if="registerId && permissions.read" class="panel">
                     <h2>Turnos de {{ register?.name }}</h2>
-                    <label class="mt-4">Turno<select v-model="shiftId" :disabled="busy || !!pending" @change="chooseShift"><option value="">Seleccionar turno</option><option v-for="item in shifts" :key="item.id" :value="item.id">{{ date(item.opened_at) }} · {{ statusLabel(item.status) }} · {{ item.agent_id }}</option></select></label>
+                    <label class="mt-4">Turno<select v-model="shiftId" :disabled="busy || !!pending || !!confirmation || !!preparing" @change="chooseShift"><option value="">Seleccionar turno</option><option v-for="item in shifts" :key="item.id" :value="item.id">{{ date(item.opened_at) }} · {{ statusLabel(item.status) }} · {{ item.agent_id }}</option></select></label>
                     <p v-if="!shifts.length" class="note mt-3">Esta caja todavía no tiene turnos.</p>
-                    <div v-if="pages.shifts?.last_page > 1" class="pagination"><button :disabled="busy || !!pending || pages.shifts.current_page === 1" @click="paginate('shifts', pages.shifts.current_page - 1)">Anterior</button><span>Página {{ pages.shifts.current_page }} de {{ pages.shifts.last_page }}</span><button :disabled="busy || !!pending || pages.shifts.current_page === pages.shifts.last_page" @click="paginate('shifts', pages.shifts.current_page + 1)">Siguiente</button></div>
+                    <div v-if="pages.shifts?.last_page > 1" class="pagination"><button :disabled="busy || !!pending || !!confirmation || !!preparing || pages.shifts.current_page === 1" @click="paginate('shifts', pages.shifts.current_page - 1)">Anterior</button><span>Página {{ pages.shifts.current_page }} de {{ pages.shifts.last_page }}</span><button :disabled="busy || !!pending || !!confirmation || !!preparing || pages.shifts.current_page === pages.shifts.last_page" @click="paginate('shifts', pages.shifts.current_page + 1)">Siguiente</button></div>
                     <button v-if="shiftId" class="secondary mt-3" :disabled="busy" @click="chooseShift">Actualizar resumen e historial</button>
                 </section>
                 <section v-if="summary" class="panel">
@@ -211,28 +258,42 @@ function abandon() {
                     <p v-if="summary.status === 'CLOSED'" class="note mt-2">Cerrado por {{ summary.closed_by }} el {{ date(summary.closed_at) }}. Motivo: {{ summary.closing_reason }}</p>
                 </section>
                 <section v-if="association && permissions.read" class="panel">
-                    <div class="flex flex-wrap items-center justify-between gap-3"><h2>Devoluciones de retiros de la asociación</h2><button class="secondary" :disabled="busy || !!pending" @click="run(() => getList('refunds', `${base}/withdrawal-refunds`))">Actualizar solicitudes</button></div>
+                    <div class="flex flex-wrap items-center justify-between gap-3"><h2>Devoluciones de retiros de la asociación</h2><button class="secondary" :disabled="busy || !!pending || !!confirmation || !!preparing" @click="run(() => getList('refunds', `${base}/withdrawal-refunds`))">Actualizar solicitudes</button></div>
                     <p class="note mt-3">Selecciona una solicitud aprobada y el turno que recibe el efectivo. La recuperación registra una entrada física; la devolución a la wallet se completa por separado en Retenciones y devoluciones.</p>
-                    <div class="mt-4 overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr><th>Solicitud</th><th>Importe</th><th>Estado</th><th>Recuperación</th></tr></thead><tbody><tr v-for="item in refunds" :key="item.id"><td class="break-all">{{ item.id }}<p class="note">Wallet: {{ item.wallet_id }}</p></td><td class="whitespace-nowrap">{{ (item.amount_cents / 100).toFixed(2) }} {{ item.currency }}</td><td>{{ item.status }}</td><td><a v-if="item.recovery?.receipt_id" :href="route('financial.cash.receipts.print', { associationId: association, receiptId: item.recovery.receipt_id })" target="_blank" rel="noopener" class="font-semibold text-[#00338D]">Ver recuperación</a><button v-else class="secondary" :disabled="busy || !!pending || !permissions.recover || item.status !== 'APROBADA' || !!item.recovery" @click="prepareRecovery(item)">Preparar recuperación</button></td></tr></tbody></table></div>
+                    <div class="mt-4 overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr><th>Solicitud</th><th>Importe</th><th>Estado</th><th>Recuperación</th></tr></thead><tbody><tr v-for="item in refunds" :key="item.id"><td class="break-all">{{ item.id }}<p class="note">Wallet: {{ item.wallet_id }}</p></td><td class="whitespace-nowrap">{{ (item.amount_cents / 100).toFixed(2) }} {{ item.currency }}</td><td>{{ item.status }}</td><td><a v-if="item.recovery?.receipt_id" :href="route('financial.cash.receipts.print', { associationId: association, receiptId: item.recovery.receipt_id })" target="_blank" rel="noopener" class="font-semibold text-[#00338D]">Ver recuperación</a><button v-else class="secondary" :disabled="busy || !!pending || !!confirmation || !!preparing || !permissions.recover || item.status !== 'APROBADA' || !!item.recovery" @click="prepareRecovery(item)">Preparar recuperación</button></td></tr></tbody></table></div>
                     <p v-if="!refunds.length" class="note mt-4">No hay solicitudes de devolución de retiros de caja.</p>
-                    <div v-if="pages.refunds?.last_page > 1" class="pagination"><button :disabled="busy || !!pending || pages.refunds.current_page === 1" @click="paginate('refunds', pages.refunds.current_page - 1)">Anterior</button><span>Página {{ pages.refunds.current_page }} de {{ pages.refunds.last_page }}</span><button :disabled="busy || !!pending || pages.refunds.current_page === pages.refunds.last_page" @click="paginate('refunds', pages.refunds.current_page + 1)">Siguiente</button></div>
+                    <div v-if="pages.refunds?.last_page > 1" class="pagination"><button :disabled="busy || !!pending || !!confirmation || !!preparing || pages.refunds.current_page === 1" @click="paginate('refunds', pages.refunds.current_page - 1)">Anterior</button><span>Página {{ pages.refunds.current_page }} de {{ pages.refunds.last_page }}</span><button :disabled="busy || !!pending || !!confirmation || !!preparing || pages.refunds.current_page === pages.refunds.last_page" @click="paginate('refunds', pages.refunds.current_page + 1)">Siguiente</button></div>
                     <Link :href="route('financial.adjustments.index')" class="mt-4 inline-block text-sm font-semibold text-[#00338D]">Ver Retenciones y devoluciones</Link>
                 </section>
                 <section v-if="registerId && permissions.read" class="panel">
                     <h2>Registrar operación</h2>
-                    <label class="mt-4">Operación<select v-model="action" :disabled="busy || !!pending"><option value="open">Abrir turno</option><option value="topups">Recarga en efectivo</option><option value="withdrawals">Retiro en efectivo</option><option value="movements">Entrada o salida física</option><option value="adjustments">Ajuste de efectivo</option><option value="close">Cierre y arqueo</option><option value="recover">Recuperar efectivo de un retiro</option></select></label>
+                    <label class="mt-4">Operación<select v-model="action" :disabled="busy || !!pending || !!confirmation || !!preparing"><option value="open">Abrir turno</option><option value="topups">Recarga en efectivo</option><option value="withdrawals">Retiro en efectivo</option><option value="movements">Entrada o salida física</option><option value="adjustments">Ajuste de efectivo</option><option value="close">Cierre y arqueo</option><option value="recover">Recuperar efectivo de un retiro</option></select></label>
                     <p v-if="!actionPermission" class="note mt-3">Esta acción requiere un permiso que tu cuenta no tiene.</p>
                     <p v-else-if="action !== 'open' && !summary" class="note mt-3">Selecciona un turno antes de continuar.</p>
                     <p v-else-if="action !== 'open' && summary?.status === 'CLOSED'" class="note mt-3">El turno está cerrado. Puedes consultar su historial.</p>
                     <p v-else-if="action !== 'open' && !['adjustments', 'close'].includes(action) && !actorOwnsShift" class="note mt-3">Solo el operador responsable puede registrar operaciones ordinarias en este turno.</p>
                     <form class="mt-4 space-y-4" @submit.prevent="submit">
-                        <fieldset class="grid gap-4 sm:grid-cols-2" :disabled="busy || !!pending || !canSubmit">
+                        <fieldset class="grid gap-4 sm:grid-cols-2" :disabled="busy || !!pending || !!confirmation || !!preparing || !canOperate">
                             <label v-if="action === 'movements'">Tipo<select v-model="form.type"><option value="CASH_IN">Entrada de efectivo</option><option value="CASH_OUT">Salida de efectivo</option></select></label>
                             <label v-if="action !== 'recover'"> {{ action === 'open' ? 'Fondo inicial' : action === 'close' ? 'Efectivo contado' : 'Importe' }} ({{ currency }})<input v-model="form.amount" required inputmode="decimal" placeholder="100.00" /></label>
                             <div v-if="action === 'recover'" class="sm:col-span-2"><p class="note">Solicitud: {{ selectedRefund?.id || 'Selecciona una solicitud desde el listado anterior.' }}</p><strong v-if="selectedRefund">Importe aprobado: {{ (selectedRefund.amount_cents / 100).toFixed(2) }} {{ selectedRefund.currency }}</strong></div>
                             <label v-if="['topups', 'withdrawals'].includes(action)">Identificador de wallet<input v-model="form.wallet" required maxlength="36" placeholder="UUID de la wallet" /></label>
                             <label v-if="action !== 'open'" class="sm:col-span-2">Motivo<textarea v-model="form.reason" required maxlength="1000" rows="2" /></label>
                         </fieldset>
+                        <section v-if="['topups', 'withdrawals'].includes(action)" class="space-y-3 rounded-xl border bg-blue-50 p-4 text-sm">
+                            <p>Antes de finalizar, el estudiante debe confirmar el importe desde su propia cuenta.</p>
+                            <button v-if="!confirmation" type="button" class="secondary" :disabled="busy || !!pending || !canOperate" @click="prepareConfirmation">{{ preparing ? 'Reintentar solicitud de confirmación' : 'Solicitar confirmación al estudiante' }}</button>
+                            <button v-if="preparing" type="button" class="secondary" :disabled="busy" @click="discardPreparation">Descartar reintento de confirmación</button>
+                            <template v-if="confirmation">
+                                <p><strong>Estado:</strong> {{ ({ PENDING: 'Esperando al estudiante', CONFIRMED: 'Confirmada', REJECTED: 'Rechazada', EXPIRED: 'Vencida', CANCELLED: 'Cancelada', CONSUMED: 'Operación finalizada' })[confirmation.status] }}</p>
+                                <p>Vence: {{ date(confirmation.expires_at) }}</p>
+                                <p>El estudiante puede abrir «Confirmaciones de caja» desde su wallet o usar este enlace en su propia sesión:</p>
+                                <input :value="confirmationLink" readonly aria-label="Enlace para el estudiante" class="w-full" />
+                                <button type="button" class="secondary" :disabled="busy" @click="refreshConfirmation">Consultar confirmación</button>
+                                <button v-if="['PENDING', 'CONFIRMED'].includes(confirmation.status)" type="button" class="secondary" :disabled="busy || !!pending" @click="cancelConfirmation">Cancelar confirmación</button>
+                                <button v-else type="button" class="secondary" :disabled="busy || !!pending" @click="clearClosedConfirmation">Preparar otra operación</button>
+                            </template>
+                        </section>
                         <p class="note">{{ action === 'adjustments' ? 'Un ajuste puede ser positivo o negativo y queda registrado con responsable y motivo.' : action === 'close' ? 'El cierre conserva el arqueo y no permite movimientos nuevos. Una diferencia no se corrige automáticamente.' : 'Confirma el efectivo físico antes de registrar la operación.' }}</p>
                         <div v-if="pending" class="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">La solicitud conserva su importe y su clave para evitar duplicados. Puedes actualizar el historial y reintentar. Descartarla no revierte una operación.</div>
                         <div class="flex flex-wrap gap-3"><button class="primary" :disabled="busy || (!pending && !canSubmit)">{{ busy ? 'Procesando…' : pending ? 'Reintentar la misma solicitud' : titles[action] }}</button><button v-if="pending" type="button" class="secondary" :disabled="busy" @click="abandon">Descartar reintento</button></div>
@@ -242,7 +303,7 @@ function abandon() {
                     <h2>Historial de efectivo</h2>
                     <div class="mt-4 overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr><th>Fecha</th><th>Movimiento</th><th>Importe</th><th>Responsable y motivo</th><th>Comprobante</th></tr></thead><tbody><tr v-for="item in movements" :key="item.id"><td>{{ date(item.created_at) }}</td><td>{{ typeLabel(item.type) }}<p class="note break-all">{{ item.reference_type }} {{ item.reference_id }}</p></td><td class="whitespace-nowrap">{{ money(item.amount_cents) }}</td><td class="break-all">{{ item.actor_id }}<p class="note">{{ item.reason }}</p></td><td><a v-if="item.receipt_id" :href="route('financial.cash.receipts.print', { associationId: association, receiptId: item.receipt_id })" target="_blank" rel="noopener" class="font-semibold text-[#00338D]">Ver e imprimir</a><span v-else class="note">Sin comprobante</span><p v-if="item.folio" class="note mt-2 break-all">{{ item.folio }}</p></td></tr></tbody></table></div>
                     <p v-if="!movements.length" class="note mt-4">No hay movimientos registrados en este turno.</p>
-                    <div v-if="pages.movements?.last_page > 1" class="pagination"><button :disabled="busy || !!pending || pages.movements.current_page === 1" @click="paginate('movements', pages.movements.current_page - 1)">Anterior</button><span>Página {{ pages.movements.current_page }} de {{ pages.movements.last_page }}</span><button :disabled="busy || !!pending || pages.movements.current_page === pages.movements.last_page" @click="paginate('movements', pages.movements.current_page + 1)">Siguiente</button></div>
+                    <div v-if="pages.movements?.last_page > 1" class="pagination"><button :disabled="busy || !!pending || !!confirmation || !!preparing || pages.movements.current_page === 1" @click="paginate('movements', pages.movements.current_page - 1)">Anterior</button><span>Página {{ pages.movements.current_page }} de {{ pages.movements.last_page }}</span><button :disabled="busy || !!pending || !!confirmation || !!preparing || pages.movements.current_page === pages.movements.last_page" @click="paginate('movements', pages.movements.current_page + 1)">Siguiente</button></div>
                 </section>
             </div>
         </main>
