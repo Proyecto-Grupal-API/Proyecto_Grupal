@@ -17,6 +17,8 @@ class LedgerEntry extends Model
         'wallet_id',
         'movement_type',
         'amount_cents',
+        'available_delta_cents',
+        'held_delta_cents',
         'balance_after_cents',
         'available_balance_after_cents',
         'held_balance_after_cents',
@@ -25,6 +27,8 @@ class LedgerEntry extends Model
     protected $casts = [
         'movement_type' => MovementType::class,
         'amount_cents' => 'integer',
+        'available_delta_cents' => 'integer',
+        'held_delta_cents' => 'integer',
         'balance_after_cents' => 'integer',
         'available_balance_after_cents' => 'integer',
         'held_balance_after_cents' => 'integer',

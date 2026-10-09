@@ -14,6 +14,11 @@ use InvalidArgumentException;
 
 class WithdrawalService
 {
+    public function __construct(
+        private FinancialLimitGuard $limitGuard
+    ) {
+    }
+
     public function create(
         Wallet $wallet,
         int $amountCents,
@@ -32,6 +37,16 @@ class WithdrawalService
                 'La wallet debe estar activa para solicitar un retiro.'
             );
         }
+
+        // 2.10: control de límites con acción BLOQUEAR.
+        $this->limitGuard->assertAllowed(
+            $wallet,
+            MovementType::RETIRO,
+            $amountCents,
+            'WITHDRAWAL_REQUEST',
+            $externalReference,
+            $agentId
+        );
 
         return Withdrawal::create([
             'public_id' => (string) Str::uuid(),

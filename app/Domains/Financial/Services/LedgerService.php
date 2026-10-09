@@ -22,6 +22,10 @@ class LedgerService
         ?string $referenceId = null,
         array $metadata = []
     ): FinancialTransaction {
+        if (in_array($movementType, [MovementType::RETENCION, MovementType::LIBERACION], true)) {
+            throw new InvalidArgumentException('Usa WalletHoldService para retener o liberar saldo.');
+        }
+
         if ($amountCents <= 0) {
             throw new InvalidArgumentException(
                 'El monto debe ser mayor que cero.'
@@ -114,6 +118,10 @@ class LedgerService
         ?string $referenceId = null,
         array $metadata = []
     ): FinancialTransaction {
+        if (in_array($movementType, [MovementType::RETENCION, MovementType::LIBERACION], true)) {
+            throw new InvalidArgumentException('Usa WalletHoldService para retener o liberar saldo.');
+        }
+
         if ($amountCents <= 0) {
             throw new InvalidArgumentException(
                 'El monto debe ser mayor que cero.'
@@ -371,6 +379,71 @@ class LedgerService
                 return $transaction;
             }
         );
+    }
+
+    /** Monetary amount is the total-value change; deltas track its two buckets. */
+    public function moveHeldFunds(
+        Wallet $wallet, int $amountCents, string $idempotencyKey,
+        string $holdId, string $actorId, string $mode
+    ): FinancialTransaction {
+        if ($amountCents <= 0 || trim($idempotencyKey) === '' || strlen($idempotencyKey) > 255
+            || trim($actorId) === '' || !in_array($mode, ['RESERVE', 'RELEASE', 'CAPTURE'], true)) {
+            throw new InvalidArgumentException('Datos de movimiento retenido no válidos.');
+        }
+        return DB::connection('sqlsrv')->transaction(function () use (
+            $wallet, $amountCents, $idempotencyKey, $holdId, $actorId, $mode
+        ) {
+            $locked = Wallet::where('public_id', $wallet->public_id)->lockForUpdate()->firstOrFail();
+            if ($locked->available_balance_cents < 0 || $locked->held_balance_cents < 0) {
+                throw new InvalidArgumentException('La wallet presenta saldos inconsistentes.');
+            }
+            $reference = 'WALLET_HOLD_' . $mode;
+            $existing = FinancialTransaction::where('idempotency_key', $idempotencyKey)->first();
+            if ($existing) {
+                if ($existing->reference_type !== $reference
+                    || strtolower((string) $existing->reference_id) !== strtolower($holdId)
+                    || $existing->status !== TransactionStatus::COMPLETADA
+                    || strtolower((string) ($existing->metadata['wallet_id'] ?? '')) !== strtolower($locked->public_id)
+                    || ($existing->metadata['amount_cents'] ?? null) !== $amountCents
+                    || ($existing->metadata['actor_id'] ?? null) !== $actorId) {
+                    throw new InvalidArgumentException('La clave de idempotencia pertenece a otra operación.');
+                }
+                return $existing;
+            }
+            if ($mode !== 'RELEASE' && $locked->status !== \App\Domains\Financial\Enums\WalletStatus::ACTIVA) {
+                throw new InvalidArgumentException('La wallet debe estar activa.');
+            }
+            if (($mode === 'RESERVE' && $locked->available_balance_cents < $amountCents)
+                || ($mode !== 'RESERVE' && $locked->held_balance_cents < $amountCents)) {
+                throw new InvalidArgumentException('Saldo insuficiente para el movimiento retenido.');
+            }
+            [$availableDelta, $heldDelta, $totalDelta, $movement] = match ($mode) {
+                'RESERVE' => [-$amountCents, $amountCents, 0, MovementType::RETENCION],
+                'RELEASE' => [$amountCents, -$amountCents, 0, MovementType::LIBERACION],
+                'CAPTURE' => [0, -$amountCents, -$amountCents, MovementType::PAGO],
+            };
+            $transaction = FinancialTransaction::create([
+                'public_id' => (string) Str::uuid(), 'idempotency_key' => $idempotencyKey,
+                'reference_type' => $reference, 'reference_id' => $holdId,
+                'status' => TransactionStatus::PENDIENTE,
+                'metadata' => ['amount_cents' => $amountCents, 'actor_id' => $actorId, 'wallet_id' => $locked->public_id],
+            ]);
+            $locked->available_balance_cents += $availableDelta;
+            $locked->held_balance_cents += $heldDelta;
+            $locked->save();
+            LedgerEntry::create([
+                'public_id' => (string) Str::uuid(), 'transaction_id' => $transaction->public_id,
+                'wallet_id' => $locked->public_id, 'movement_type' => $movement,
+                'amount_cents' => $totalDelta, 'available_delta_cents' => $availableDelta,
+                'held_delta_cents' => $heldDelta,
+                'balance_after_cents' => $locked->available_balance_cents,
+                'available_balance_after_cents' => $locked->available_balance_cents,
+                'held_balance_after_cents' => $locked->held_balance_cents,
+            ]);
+            $transaction->status = TransactionStatus::COMPLETADA;
+            $transaction->save();
+            return $transaction;
+        });
     }
 
     public function getWalletHistory(Wallet $wallet)

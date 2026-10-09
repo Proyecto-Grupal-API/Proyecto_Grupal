@@ -4,6 +4,13 @@ namespace App\Providers;
 
 use App\Domains\Financial\Adapters\Module1IdentityAdapter;
 use App\Domains\Financial\Contracts\IdentityProvider;
+use App\Domains\Financial\Adapters\PendingFinancialRoleProvider;
+use App\Domains\Financial\Adapters\PendingCashReconciliationSource;
+use App\Domains\Financial\Contracts\FinancialRoleProvider;
+use App\Domains\Financial\Contracts\CashReconciliationSource;
+use App\Domains\Financial\Models\FinancialTransaction;
+use App\Domains\Financial\Observers\FinancialTransactionObserver;
+use App\Domains\Financial\Support\FinancialCorrelation;
 use App\Events\CredentialChanged;
 use App\Events\StudentConsentChanged;
 use App\Events\StudentProfileChanged;
@@ -19,6 +26,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(FinancialRoleProvider::class, PendingFinancialRoleProvider::class);
+        $this->app->bind(CashReconciliationSource::class, PendingCashReconciliationSource::class);
+        $this->app->scoped(FinancialCorrelation::class);
         $this->app->bind(
             IdentityProvider::class,
             Module1IdentityAdapter::class
@@ -31,6 +41,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        FinancialTransaction::observe(FinancialTransactionObserver::class);
+
         Vite::prefetch(concurrency: 3);
 
         Event::listen([

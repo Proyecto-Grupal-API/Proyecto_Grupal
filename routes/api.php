@@ -9,6 +9,11 @@ use App\Http\Controllers\Financial\BonusController;
 use App\Http\Controllers\Financial\RefundController;
 use App\Http\Controllers\Financial\PurchaseRefundController;
 
+use App\Http\Controllers\Financial\FinancialLimitController;
+use App\Http\Controllers\Financial\TransactionAlertController;
+use App\Http\Controllers\Financial\ReconciliationController;
+
+use App\Http\Controllers\Financial\WalletHoldController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/oauth/token', OAuthTokenController::class)
@@ -50,7 +55,48 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
         [StudentServicesController::class, 'updatePreferences']
     );
 
-    Route::prefix('financial')->group(function () {
+    Route::prefix('financial')->middleware('financial.correlation')->group(function () {
+        Route::get('/holds/{holdId}', [WalletHoldController::class, 'show'])
+            ->whereUuid('holdId')->middleware('oauth.service:financial:read');
+        Route::post('/holds', [WalletHoldController::class, 'store'])
+            ->middleware('oauth.service:financial:write');
+        Route::post('/holds/{holdId}/release', [WalletHoldController::class, 'release'])
+            ->whereUuid('holdId')->middleware('oauth.service:financial:hold:release');
+        Route::post('/holds/{holdId}/capture', [WalletHoldController::class, 'capture'])
+            ->whereUuid('holdId')->middleware('oauth.service:financial:hold:capture');
+
+        // 2.10 Límites, alertas y conciliación
+        Route::middleware(
+            'oauth.service:financial:read'
+        )->group(function () {
+            Route::get('/limits', [FinancialLimitController::class, 'index']);
+            Route::get('/limits/{limitId}', [FinancialLimitController::class, 'show']);
+            Route::get('/limits/{limitId}/history', [FinancialLimitController::class, 'history']);
+            Route::post('/limits/evaluate', [FinancialLimitController::class, 'evaluate']);
+
+            Route::get('/alerts', [TransactionAlertController::class, 'index']);
+            Route::get('/alerts/{alertId}', [TransactionAlertController::class, 'show']);
+
+            Route::get('/reconciliations', [ReconciliationController::class, 'index']);
+            Route::get('/reconciliations/{reconciliationId}', [ReconciliationController::class, 'show']);
+            Route::get('/reconciliations/{reconciliationId}/differences', [ReconciliationController::class, 'differences']);
+        });
+
+        Route::middleware(
+            'oauth.service:financial:control'
+        )->group(function () {
+            Route::post('/limits', [FinancialLimitController::class, 'store']);
+            Route::patch('/limits/{limitId}', [FinancialLimitController::class, 'update']);
+
+            Route::post('/alerts/{alertId}/status', [TransactionAlertController::class, 'updateStatus']);
+
+            Route::post('/reconciliations', [ReconciliationController::class, 'store']);
+            Route::post(
+                '/reconciliations/{reconciliationId}/differences/{differenceId}/resolve',
+                [ReconciliationController::class, 'resolveDifference']
+            );
+        });
+
         Route::middleware(
             'oauth.service:financial:read'
         )->group(function () {
@@ -71,7 +117,7 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
                 '/topups/{topUpId}',
                 [TopUpController::class, 'show']
             );
- 
+
             Route::get(
                 '/bonuses/{bonusId}',
                 [BonusController::class, 'show']
@@ -97,7 +143,7 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
                      [RefundController::class, 'recoverWithdrawal']
             );
         });
-           
+
             Route::middleware(
                 'oauth.service:financial:refund:review'
             )->group(function () {
@@ -135,7 +181,7 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
                     [PurchaseRefundController::class, 'complete']
                 );
             });
-            
+
 
         Route::middleware(
             'oauth.service:financial:write'
@@ -164,7 +210,7 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
                 '/purchase-refunds',
                 [PurchaseRefundController::class, 'store']
              );
-            
+
         });
     });
 });

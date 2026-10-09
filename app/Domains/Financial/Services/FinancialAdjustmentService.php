@@ -262,7 +262,7 @@ class FinancialAdjustmentService
                 $reviewReason
              ) {
 
-           
+
                 $lockedRequest = FinancialRefundRequest::where(
                     'public_id',
                     $refundRequest->public_id
@@ -317,7 +317,7 @@ class FinancialAdjustmentService
         }
     );
 }
-    
+
     public function confirmWithdrawalRecovery(
     FinancialRefundRequest $refundRequest,
     string $recoveryReference,
@@ -488,7 +488,7 @@ class FinancialAdjustmentService
         }
     );
 }
-  
+
     public function completeRefund(
         FinancialRefundRequest $refundRequest,
         string $idempotencyKey,
@@ -615,13 +615,13 @@ class FinancialAdjustmentService
                 $incomingEntry->amount_cents === abs($entry->amount_cents) &&
                 strtolower($incomingEntry->wallet_id) !==
                      strtolower($entry->wallet_id);
-             
+
             $isWithdrawal =
                 $entries->count() === 1 &&
                 $entry &&
                 $entry->movement_type === MovementType::RETIRO &&
                 $original->reference_type === 'WITHDRAWAL';
-            
+
 
             if (!$isPayment && !$isTransfer && !$isWithdrawal) {
                 throw new InvalidArgumentException(
@@ -636,7 +636,7 @@ class FinancialAdjustmentService
                 throw new InvalidArgumentException(
                     'La wallet de la solicitud no corresponde al cargo original.'
                 );
-            } 
+            }
 
             if  (
                  $request->amount_cents <= 0 ||
@@ -653,7 +653,7 @@ class FinancialAdjustmentService
                     'La clave de idempotencia ya pertenece a otra operación.'
                 );
             }
-            
+
             $recovery = null;
 
 if ($isWithdrawal) {
@@ -707,8 +707,8 @@ if ($isWithdrawal) {
             'La moneda recuperada no corresponde a la wallet.'
         );
     }
-}             
-            
+}
+
             $metadata = [
                 'operation' => 'DEVOLUCION',
                 'refund_request_id' => $request->public_id,
@@ -1005,6 +1005,9 @@ if ($isWithdrawal) {
     private function rejectPurchaseAdjustment(
         FinancialTransaction $transaction
     ): void {
+        if (str_starts_with((string) $transaction->reference_type, 'WALLET_HOLD_')) {
+            throw new InvalidArgumentException('Las retenciones se administran mediante WalletHoldService.');
+        }
         if (
             $transaction->reference_type === 'PURCHASE' &&
             PurchasePayment::where(

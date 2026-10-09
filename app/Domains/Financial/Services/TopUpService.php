@@ -16,7 +16,8 @@ use InvalidArgumentException;
 class TopUpService
 {
     public function __construct(
-        private LedgerService $ledgerService
+        private LedgerService $ledgerService,
+        private FinancialLimitGuard $limitGuard
     ) {
     }
 
@@ -38,6 +39,16 @@ class TopUpService
                 'La wallet debe estar activa para recibir una recarga.'
             );
         }
+
+        // 2.10: control de límites con acción BLOQUEAR.
+        $this->limitGuard->assertAllowed(
+            $wallet,
+            MovementType::RECARGA,
+            $amountCents,
+            'TOPUP_REQUEST',
+            $externalReference,
+            $agentId
+        );
 
         return TopUp::create([
             'public_id' => (string) Str::uuid(),

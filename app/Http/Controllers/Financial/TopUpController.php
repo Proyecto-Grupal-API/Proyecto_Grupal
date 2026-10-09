@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Financial;
 
 use App\Domains\Financial\Enums\TopUpMethod;
+use App\Domains\Financial\Exceptions\FinancialLimitExceededException;
 use App\Domains\Financial\Models\Wallet;
 use App\Domains\Financial\Services\TopUpService;
 use App\Http\Controllers\Controller;
@@ -82,13 +83,54 @@ public function show(
             $validated['wallet_id']
         )->firstOrFail();
 
-        $topUp = $topUpService->create(
-            $wallet,
-            $validated['amount_cents'],
-            TopUpMethod::from($validated['method']),
-            $validated['agent_id'] ?? null,
-            $validated['external_reference'] ?? null
-        );
+        try {
+            $topUp = $topUpService->create(
+                $wallet,
+                $validated['amount_cents'],
+                TopUpMethod::from($validated['method']),
+                $validated['agent_id'] ?? null,
+                $validated['external_reference'] ?? null
+            );
+        } catch (FinancialLimitExceededException $exception) {
+            // 2.10: operación bloqueada por un límite configurado.
+            return response()->json(array_merge([
+                'message' => $exception->getMessage(),
+            ], $exception->toArray(), [
+                'meta' => [
+                    'request_id' => $request->header(
+                        'X-Request-Id',
+                        (string) str()->uuid()
+                    ),
+                    'api_version' => 'v1',
+                ],
+            ]), 409);
+        } catch (\App\Domains\Financial\Exceptions\FinancialDependencyUnavailableException $exception) {
+            // 2.10: un límite por rol no pudo evaluarse; la operación se
+            // rechaza completa (no se omite el control).
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'code' => 'DEPENDENCY_UNAVAILABLE',
+                'correlation_id' => app(\App\Domains\Financial\Support\FinancialCorrelation::class)->id(),
+                'meta' => [
+                    'request_id' => $request->header(
+                        'X-Request-Id',
+                        (string) str()->uuid()
+                    ),
+                    'api_version' => 'v1',
+                ],
+            ], 503);
+        } catch (\InvalidArgumentException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'meta' => [
+                    'request_id' => $request->header(
+                        'X-Request-Id',
+                        (string) str()->uuid()
+                    ),
+                    'api_version' => 'v1',
+                ],
+            ], 409);
+        }
 
         return response()->json([
             'data' => [

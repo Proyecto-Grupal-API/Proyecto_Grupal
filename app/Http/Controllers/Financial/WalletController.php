@@ -64,6 +64,8 @@ class WalletController extends Controller
                     'transaction_id' => $entry->transaction_id,
                     'movement_type' => $entry->movement_type->value,
                     'amount_cents' => $entry->amount_cents,
+                    'available_delta_cents' => $entry->available_delta_cents ?? $entry->amount_cents,
+                    'held_delta_cents' => $entry->held_delta_cents ?? 0,
                     'available_balance_after_cents' =>
                         $entry->available_balance_after_cents,
                     'held_balance_after_cents' =>
