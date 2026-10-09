@@ -6,6 +6,7 @@ use App\Http\Controllers\Financial\WalletController;
 use App\Http\Controllers\Financial\TopUpController;
 use App\Http\Controllers\Financial\WithdrawalController;
 use App\Http\Controllers\Financial\BonusController;
+use App\Http\Controllers\Financial\RefundController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -74,7 +75,36 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
                 '/bonuses/{bonusId}',
                 [BonusController::class, 'show']
             );
-        });
+
+            Route::get(
+                '/refunds/{refundId}',
+                [RefundController::class, 'show']
+            );
+  });
+           
+            Route::middleware(
+                'oauth.service:financial:refund:review'
+            )->group(function () {
+                Route::post(
+                    '/refunds/{refundId}/approve',
+                    [RefundController::class, 'approve']
+                );
+
+                Route::post(
+                    '/refunds/{refundId}/reject',
+                    [RefundController::class, 'reject']
+                );
+            });
+
+            Route::middleware(
+                'oauth.service:financial:refund:execute'
+            )->group(function () {
+                Route::post(
+                    '/refunds/{refundId}/complete',
+                    [RefundController::class, 'complete']
+                );
+            });
+            
 
         Route::middleware(
             'oauth.service:financial:write'
@@ -92,6 +122,11 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
             Route::post(
                 '/withdrawals',
                 [WithdrawalController::class, 'store']
+            );
+
+            Route::post(
+                '/refunds',
+                [RefundController::class, 'store']
             );
         });
     });

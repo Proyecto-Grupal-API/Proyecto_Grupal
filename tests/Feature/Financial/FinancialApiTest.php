@@ -10,6 +10,7 @@ use App\Domains\Financial\Models\LedgerEntry;
 use App\Domains\Financial\Enums\TopUpStatus;
 use App\Domains\Financial\Models\TopUp;
 use App\Domains\Financial\Models\Withdrawal;
+use App\Domains\Financial\Models\FinancialRefundRequest;
 use App\Http\Middleware\ValidateServiceToken;
 use App\Models\ServiceClient;
 use Illuminate\Support\Facades\Hash;
@@ -1356,4 +1357,703 @@ test('financial api rejects bonus access without financial read scope', function
     );
 
     $response->assertForbidden();
+});
+afterEach(function () {
+    $wallet = Wallet::where(
+        'owner_id',
+        'test-financial-api-refund-user'
+    )->first();
+
+    if ($wallet) {
+        $transactionIds = LedgerEntry::where(
+            'wallet_id',
+            $wallet->public_id
+        )->pluck('transaction_id');
+
+        FinancialRefundRequest::where(
+            'wallet_id',
+            $wallet->public_id
+        )->delete();
+
+        LedgerEntry::whereIn(
+            'transaction_id',
+            $transactionIds
+        )->delete();
+
+        // Eliminar solicitudes antes de sus operaciones originales.
+        FinancialTransaction::whereIn(
+            'original_transaction_id',
+            $transactionIds
+        )->delete();
+
+        FinancialTransaction::whereIn(
+            'public_id',
+            $transactionIds
+        )->delete();
+
+        $wallet->delete();
+    }
+
+    ServiceClient::where(
+        'client_id',
+        'svc_financial_refund_test'
+    )->delete();
+});
+
+test('refund api creates and retries a request without moving money', function () {
+    $client = ServiceClient::create([
+        'name' => 'Financial refund API test client',
+        'client_id' => 'svc_financial_refund_test',
+        'secret_hash' => Hash::make('test-secret'),
+        'scopes' => ['financial:write', 'financial:read'],
+        'active' => true,
+    ]);
+
+    $tokenResponse = $this->postJson('/api/oauth/token', [
+        'grant_type' => 'client_credentials',
+        'client_id' => $client->client_id,
+        'client_secret' => 'test-secret',
+        'scope' => 'financial:write',
+    ]);
+
+    $tokenResponse->assertOk();
+    $writeToken = $tokenResponse->json('access_token');
+
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'test-financial-api-refund-user',
+        WalletType::USUARIO
+    );
+
+    $ledger = app(LedgerService::class);
+
+    $ledger->credit(
+        wallet: $wallet,
+        amountCents: 100000,
+        movementType: MovementType::RECARGA,
+        idempotencyKey: 'api-refund-credit-' . str()->uuid()
+    );
+
+    $payment = $ledger->debit(
+        wallet: $wallet,
+        amountCents: 30000,
+        movementType: MovementType::PAGO,
+        idempotencyKey: 'api-refund-payment-' . str()->uuid()
+    );
+
+    $entriesBefore = LedgerEntry::where(
+        'wallet_id',
+        $wallet->public_id
+    )->count();
+
+    $key = 'api-refund-request-' . str()->uuid();
+
+    $headers = [
+        'Authorization' => "Bearer {$writeToken}",
+        'Idempotency-Key' => $key,
+    ];
+
+    $payload = [
+        'original_transaction_id' => $payment->public_id,
+        'amount_cents' => 10000,
+        'reason' => 'Solicitud de prueba por API',
+
+        // El solicitante debe salir del token, no de este campo.
+        'requested_by' => 'usuario-falso',
+    ];
+
+    $first = $this->postJson(
+        '/api/v1/financial/refunds',
+        $payload,
+        $headers
+    );
+
+    $first
+        ->assertCreated()
+        ->assertJsonPath('data.amount_cents', 10000)
+        ->assertJsonPath('data.status', 'PENDIENTE')
+        ->assertJsonPath(
+            'data.requested_by',
+            'service:' . $client->client_id
+        )
+        ->assertJsonPath('meta.api_version', 'v1');
+
+    $refundId = $first->json('data.id');
+
+    $retry = $this->postJson(
+        '/api/v1/financial/refunds',
+        $payload,
+        $headers
+    );
+
+    $retry
+        ->assertOk()
+        ->assertJsonPath(
+            'data.id',
+            fn ($id) => strtolower($id) === strtolower($refundId)
+        );
+
+    // La misma clave con otro monto debe rechazarse.
+    $differentPayload = $payload;
+    $differentPayload['amount_cents'] = 20000;
+
+    $this->postJson(
+        '/api/v1/financial/refunds',
+        $differentPayload,
+        $headers
+    )->assertStatus(409);
+
+    // Sin la cabecera de idempotencia, la solicitud no es válida.
+    $this->postJson(
+        '/api/v1/financial/refunds',
+        $payload,
+        ['Authorization' => "Bearer {$writeToken}"]
+    )
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('idempotency_key');
+
+    // Obtener un token de lectura para consultar la solicitud.
+    $readTokenResponse = $this->postJson('/api/oauth/token', [
+        'grant_type' => 'client_credentials',
+        'client_id' => $client->client_id,
+        'client_secret' => 'test-secret',
+        'scope' => 'financial:read',
+    ]);
+
+    $readTokenResponse->assertOk();
+    $readToken = $readTokenResponse->json('access_token');
+
+    $this->getJson(
+        '/api/v1/financial/refunds/' . $refundId,
+        ['Authorization' => "Bearer {$readToken}"]
+    )
+        ->assertOk()
+        ->assertJsonPath('data.status', 'PENDIENTE')
+        ->assertJsonPath('data.amount_cents', 10000)
+        ->assertJsonPath(
+            'data.original_transaction_id',
+            fn ($id) =>
+                strtolower($id) === strtolower($payment->public_id)
+        );
+
+    $wallet->refresh();
+
+    expect($wallet->available_balance_cents)->toBe(70000);
+
+    expect(
+        LedgerEntry::where(
+            'wallet_id',
+            $wallet->public_id
+        )->count()
+    )->toBe($entriesBefore);
+
+    expect(
+        FinancialRefundRequest::where(
+            'original_transaction_id',
+            $payment->public_id
+        )->count()
+    )->toBe(1);
+
+    expect(
+        FinancialTransaction::where(
+            'idempotency_key',
+            $key
+        )->count()
+    )->toBe(1);
+});
+test('refund api requires a service token', function () {
+    $this->postJson(
+        '/api/v1/financial/refunds',
+        [
+            'original_transaction_id' =>
+                '00000000-0000-0000-0000-000000000000',
+            'amount_cents' => 10000,
+        ],
+        ['Idempotency-Key' => 'test-refund-without-token']
+    )->assertUnauthorized();
+
+    $this->getJson(
+        '/api/v1/financial/refunds/' .
+        '00000000-0000-0000-0000-000000000000'
+    )->assertUnauthorized();
+});
+
+test('refund api enforces read and write scopes', function () {
+    // La limpieza que agregamos elimina este cliente al terminar.
+    $client = ServiceClient::create([
+        'name' => 'Financial refund permissions test',
+        'client_id' => 'svc_financial_refund_test',
+        'secret_hash' => Hash::make('test-secret'),
+        'scopes' => ['financial:read', 'financial:write'],
+        'active' => true,
+    ]);
+
+    $readResponse = $this->postJson('/api/oauth/token', [
+        'grant_type' => 'client_credentials',
+        'client_id' => $client->client_id,
+        'client_secret' => 'test-secret',
+        'scope' => 'financial:read',
+    ]);
+
+    $readResponse->assertOk();
+    $readToken = $readResponse->json('access_token');
+
+    $key = 'api-refund-forbidden-' . str()->uuid();
+
+    // Un token de lectura no puede crear solicitudes.
+    $this->postJson(
+        '/api/v1/financial/refunds',
+        [
+            'original_transaction_id' =>
+                '00000000-0000-0000-0000-000000000000',
+            'amount_cents' => 10000,
+        ],
+        [
+            'Authorization' => "Bearer {$readToken}",
+            'Idempotency-Key' => $key,
+        ]
+    )->assertForbidden();
+
+    expect(
+        FinancialTransaction::where(
+            'idempotency_key',
+            $key
+        )->exists()
+    )->toBeFalse();
+
+    $writeResponse = $this->postJson('/api/oauth/token', [
+        'grant_type' => 'client_credentials',
+        'client_id' => $client->client_id,
+        'client_secret' => 'test-secret',
+        'scope' => 'financial:write',
+    ]);
+
+    $writeResponse->assertOk();
+    $writeToken = $writeResponse->json('access_token');
+
+    // El permiso de escritura no incluye automáticamente lectura.
+    $this->getJson(
+        '/api/v1/financial/refunds/' .
+        '00000000-0000-0000-0000-000000000000',
+        ['Authorization' => "Bearer {$writeToken}"]
+    )->assertForbidden();
+
+    // Con lectura sí llega al controlador, que responde 404.
+    $this->getJson(
+        '/api/v1/financial/refunds/' .
+        '00000000-0000-0000-0000-000000000000',
+        ['Authorization' => "Bearer {$readToken}"]
+    )->assertNotFound();
+});
+test('refund api separates administrative permissions', function () {
+    $client = ServiceClient::create([
+        'name' => 'Refund administrative permissions test',
+        'client_id' => 'svc_financial_refund_test',
+        'secret_hash' => Hash::make('test-secret'),
+        'scopes' => [
+            'financial:write',
+            'financial:refund:review',
+            'financial:refund:execute',
+        ],
+        'active' => true,
+    ]);
+
+    $baseUrl = '/api/v1/financial/refunds/' .
+        '00000000-0000-0000-0000-000000000000';
+
+    $permissions = [
+        'financial:write' => [],
+        'financial:refund:review' => ['approve', 'reject'],
+        'financial:refund:execute' => ['complete'],
+    ];
+
+    foreach ($permissions as $scope => $allowedActions) {
+        $tokenResponse = $this->postJson('/api/oauth/token', [
+            'grant_type' => 'client_credentials',
+            'client_id' => $client->client_id,
+            'client_secret' => 'test-secret',
+            'scope' => $scope,
+        ]);
+
+        $tokenResponse
+            ->assertOk()
+            ->assertJsonPath('scope', $scope);
+
+        $token = $tokenResponse->json('access_token');
+
+        foreach (['approve', 'reject', 'complete'] as $action) {
+            $response = $this->postJson(
+                $baseUrl . '/' . $action,
+                ['review_reason' => 'Prueba de permisos'],
+                [
+                    'Authorization' => "Bearer {$token}",
+                    'Idempotency-Key' =>
+                        'admin-refund-' . str()->uuid(),
+                ]
+            );
+
+            if (in_array($action, $allowedActions, true)) {
+                // El permiso permite entrar, pero la solicitud no existe.
+                $response->assertNotFound();
+            } else {
+                // Sin el permiso específico, no llega al controlador.
+                $response->assertForbidden();
+            }
+        }
+    }
+
+    foreach (['approve', 'reject', 'complete'] as $action) {
+        $this->postJson(
+            $baseUrl . '/' . $action,
+            ['review_reason' => 'Prueba sin token'],
+            ['Idempotency-Key' => 'no-token-' . str()->uuid()]
+        )->assertUnauthorized();
+    }
+});
+test('refund api approves and completes without duplicating money', function () {
+    $client = ServiceClient::create([
+        'name' => 'Refund administrative flow test',
+        'client_id' => 'svc_financial_refund_test',
+        'secret_hash' => Hash::make('test-secret'),
+        'scopes' => [
+            'financial:write',
+            'financial:refund:review',
+            'financial:refund:execute',
+        ],
+        'active' => true,
+    ]);
+
+    $tokens = [];
+
+    foreach ([
+        'financial:write',
+        'financial:refund:review',
+        'financial:refund:execute',
+    ] as $scope) {
+        $response = $this->postJson('/api/oauth/token', [
+            'grant_type' => 'client_credentials',
+            'client_id' => $client->client_id,
+            'client_secret' => 'test-secret',
+            'scope' => $scope,
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('scope', $scope);
+
+        $tokens[$scope] = $response->json('access_token');
+    }
+
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'test-financial-api-refund-user',
+        WalletType::USUARIO
+    );
+
+    $ledger = app(LedgerService::class);
+
+    $ledger->credit(
+        wallet: $wallet,
+        amountCents: 100000,
+        movementType: MovementType::RECARGA,
+        idempotencyKey: 'api-refund-credit-' . str()->uuid()
+    );
+
+    $payment = $ledger->debit(
+        wallet: $wallet,
+        amountCents: 30000,
+        movementType: MovementType::PAGO,
+        idempotencyKey: 'api-refund-payment-' . str()->uuid()
+    );
+
+    $created = $this->postJson(
+        '/api/v1/financial/refunds',
+        [
+            'original_transaction_id' => $payment->public_id,
+            'amount_cents' => 10000,
+            'reason' => 'Prueba del flujo administrativo',
+        ],
+        [
+            'Authorization' =>
+                'Bearer ' . $tokens['financial:write'],
+            'Idempotency-Key' =>
+                'api-refund-request-' . str()->uuid(),
+        ]
+    );
+
+    $created->assertCreated();
+
+    $refundId = $created->json('data.id');
+    $url = '/api/v1/financial/refunds/' . $refundId;
+
+    $executeHeaders = [
+        'Authorization' =>
+            'Bearer ' . $tokens['financial:refund:execute'],
+        'Idempotency-Key' =>
+            'api-refund-complete-' . str()->uuid(),
+    ];
+
+    // Todavía no está aprobada.
+    $this->postJson(
+        $url . '/complete',
+        [],
+        $executeHeaders
+    )->assertStatus(409);
+
+    $approved = $this->postJson(
+        $url . '/approve',
+        [
+            'review_reason' => 'Devolución autorizada',
+            'reviewed_by' => 'responsable-falso',
+        ],
+        [
+            'Authorization' =>
+                'Bearer ' . $tokens['financial:refund:review'],
+        ]
+    );
+
+    $approved
+        ->assertOk()
+        ->assertJsonPath('data.status', 'APROBADA')
+        ->assertJsonPath(
+            'data.reviewed_by',
+            'service:' . $client->client_id
+        );
+
+    $wallet->refresh();
+    expect($wallet->available_balance_cents)->toBe(70000);
+
+    // La ejecución exige su propia clave de idempotencia.
+    $this->postJson(
+        $url . '/complete',
+        [],
+        [
+            'Authorization' =>
+                'Bearer ' . $tokens['financial:refund:execute'],
+        ]
+    )
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('idempotency_key');
+
+    $completed = $this->postJson(
+        $url . '/complete',
+        ['executed_by' => 'ejecutor-falso'],
+        $executeHeaders
+    );
+
+    $completed
+        ->assertOk()
+        ->assertJsonPath('data.status', 'COMPLETADA');
+
+    $transactionId = $completed->json(
+        'data.financial_transaction_id'
+    );
+
+    $this->postJson(
+        $url . '/complete',
+        [],
+        $executeHeaders
+    )
+        ->assertOk()
+        ->assertJsonPath(
+            'data.financial_transaction_id',
+            fn ($id) =>
+                strtolower($id) === strtolower($transactionId)
+        );
+
+    $wallet->refresh();
+    expect($wallet->available_balance_cents)->toBe(80000);
+
+    $transaction = FinancialTransaction::where(
+        'public_id',
+        $transactionId
+    )->firstOrFail();
+
+    expect($transaction->metadata['executed_by'])
+        ->toBe('service:' . $client->client_id);
+
+    expect(
+        LedgerEntry::where(
+            'transaction_id',
+            $transactionId
+        )->count()
+    )->toBe(1);
+
+    expect(
+        FinancialTransaction::where(
+            'idempotency_key',
+            $executeHeaders['Idempotency-Key']
+        )->count()
+    )->toBe(1);
+
+    $refund = FinancialRefundRequest::where(
+        'public_id',
+        $refundId
+    )->firstOrFail();
+
+    expect($refund->completed_at)->not->toBeNull();
+
+    // Otra clave no permite ejecutar nuevamente la devolución.
+    $differentHeaders = $executeHeaders;
+    $differentHeaders['Idempotency-Key'] =
+        'api-refund-other-key-' . str()->uuid();
+
+    $this->postJson(
+        $url . '/complete',
+        [],
+        $differentHeaders
+    )->assertStatus(409);
+
+    $wallet->refresh();
+    expect($wallet->available_balance_cents)->toBe(80000);
+});
+test('refund api rejects a request without moving money', function () {
+    $client = ServiceClient::create([
+        'name' => 'Refund rejection API test',
+        'client_id' => 'svc_financial_refund_test',
+        'secret_hash' => Hash::make('test-secret'),
+        'scopes' => [
+            'financial:write',
+            'financial:refund:review',
+            'financial:refund:execute',
+        ],
+        'active' => true,
+    ]);
+
+    $tokens = [];
+
+    foreach ([
+        'financial:write',
+        'financial:refund:review',
+        'financial:refund:execute',
+    ] as $scope) {
+        $response = $this->postJson('/api/oauth/token', [
+            'grant_type' => 'client_credentials',
+            'client_id' => $client->client_id,
+            'client_secret' => 'test-secret',
+            'scope' => $scope,
+        ]);
+
+        $response->assertOk();
+        $tokens[$scope] = $response->json('access_token');
+    }
+
+    $wallet = app(WalletService::class)->create(
+        'USER',
+        'test-financial-api-refund-user',
+        WalletType::USUARIO
+    );
+
+    $ledger = app(LedgerService::class);
+
+    $ledger->credit(
+        wallet: $wallet,
+        amountCents: 100000,
+        movementType: MovementType::RECARGA,
+        idempotencyKey: 'api-refund-credit-' . str()->uuid()
+    );
+
+    $payment = $ledger->debit(
+        wallet: $wallet,
+        amountCents: 30000,
+        movementType: MovementType::PAGO,
+        idempotencyKey: 'api-refund-payment-' . str()->uuid()
+    );
+
+    $created = $this->postJson(
+        '/api/v1/financial/refunds',
+        [
+            'original_transaction_id' => $payment->public_id,
+            'amount_cents' => 10000,
+        ],
+        [
+            'Authorization' =>
+                'Bearer ' . $tokens['financial:write'],
+            'Idempotency-Key' =>
+                'api-refund-request-' . str()->uuid(),
+        ]
+    );
+
+    $created->assertCreated();
+
+    $refundId = $created->json('data.id');
+    $url = '/api/v1/financial/refunds/' . $refundId;
+
+    $reviewHeaders = [
+        'Authorization' =>
+            'Bearer ' . $tokens['financial:refund:review'],
+    ];
+
+    $entriesBefore = LedgerEntry::where(
+        'wallet_id',
+        $wallet->public_id
+    )->count();
+
+    // No se permite rechazar sin indicar un motivo.
+    $this->postJson(
+        $url . '/reject',
+        [],
+        $reviewHeaders
+    )
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('review_reason');
+
+    $this->postJson(
+        $url . '/reject',
+        [
+            'review_reason' => 'El pago original es correcto.',
+            'reviewed_by' => 'responsable-falso',
+        ],
+        $reviewHeaders
+    )
+        ->assertOk()
+        ->assertJsonPath('data.status', 'RECHAZADA')
+        ->assertJsonPath(
+            'data.reviewed_by',
+            'service:' . $client->client_id
+        )
+        ->assertJsonPath(
+            'data.review_reason',
+            'El pago original es correcto.'
+        );
+
+    // Una solicitud rechazada no puede aprobarse ni ejecutarse.
+    $this->postJson(
+        $url . '/approve',
+        [],
+        $reviewHeaders
+    )->assertStatus(409);
+
+    $this->postJson(
+        $url . '/complete',
+        [],
+        [
+            'Authorization' =>
+                'Bearer ' . $tokens['financial:refund:execute'],
+            'Idempotency-Key' =>
+                'api-refund-complete-' . str()->uuid(),
+        ]
+    )->assertStatus(409);
+
+    $wallet->refresh();
+
+    expect($wallet->available_balance_cents)->toBe(70000);
+
+    expect(
+        LedgerEntry::where(
+            'wallet_id',
+            $wallet->public_id
+        )->count()
+    )->toBe($entriesBefore);
+
+    $refund = FinancialRefundRequest::where(
+        'public_id',
+        $refundId
+    )->firstOrFail();
+
+    expect($refund->completed_at)->toBeNull();
+    expect($refund->financial_transaction_id)->toBeNull();
+
+    expect($refund->requestTransaction->status->value)
+        ->toBe('FALLIDA');
 });

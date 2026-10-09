@@ -158,6 +158,339 @@ class FinancialAdjustmentService
         );
     }
 
+    public function approveRefund(
+        FinancialRefundRequest $refundRequest,
+        string $reviewedBy,
+        ?string $reviewReason = null
+    ): FinancialRefundRequest {
+
+
+    if (trim($reviewedBy) === '') {
+        throw new InvalidArgumentException(
+            'El administrador responsable es obligatorio.'
+        );
+    }
+
+    return DB::connection('sqlsrv')->transaction(
+        function () use (
+            $refundRequest,
+            $reviewedBy,
+            $reviewReason
+        ) {
+
+
+            $lockedRequest = FinancialRefundRequest::where(
+                'public_id',
+                $refundRequest->public_id
+            )
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (
+                $lockedRequest->status !==
+                RefundRequestStatus::PENDIENTE
+            ) {
+                throw new InvalidArgumentException(
+                    'Solo se pueden aprobar solicitudes pendientes.'
+                );
+            }
+
+            // Comprobar la transacción financiera relacionada.
+
+            $transaction = FinancialTransaction::where(
+                'public_id',
+                $lockedRequest->request_transaction_id
+            )
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (
+                $transaction->status !==
+                TransactionStatus::PENDIENTE
+            ) {
+                throw new InvalidArgumentException(
+                    'La transacción de devolución no está pendiente.'
+                );
+            }
+
+            // Registrar la aprobación administrativa.
+
+            $lockedRequest->status =
+                RefundRequestStatus::APROBADA;
+
+            $lockedRequest->reviewed_by = $reviewedBy;
+
+            $lockedRequest->review_reason = $reviewReason;
+
+            $lockedRequest->reviewed_at = now();
+
+            $lockedRequest->save();
+
+            return $lockedRequest;
+        }
+    );
+}
+
+    public function rejectRefund(
+        FinancialRefundRequest $refundRequest,
+        string $reviewedBy,
+        string $reviewReason
+    ): FinancialRefundRequest {
+
+        if (trim($reviewedBy) === '') {
+            throw new InvalidArgumentException(
+                'El administrador responsable es obligatorio.'
+            );
+        }
+
+        if (trim($reviewReason) === '') {
+            throw new InvalidArgumentException(
+                'El motivo del rechazo es obligatorio.'
+            );
+        }
+
+        return DB::connection('sqlsrv')->transaction(
+            function () use (
+                $refundRequest,
+                $reviewedBy,
+                $reviewReason
+             ) {
+
+           
+                $lockedRequest = FinancialRefundRequest::where(
+                    'public_id',
+                    $refundRequest->public_id
+                 )
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+
+                 if (
+                     $lockedRequest->status !==
+                     RefundRequestStatus::PENDIENTE
+                 ) {
+                     throw new InvalidArgumentException(
+                         'Solo se pueden rechazar solicitudes pendientes.'
+                 );
+            }
+
+
+            $transaction = FinancialTransaction::where(
+                'public_id',
+                $lockedRequest->request_transaction_id
+            )
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (
+                $transaction->status !==
+                TransactionStatus::PENDIENTE
+            ) {
+                throw new InvalidArgumentException(
+                    'La transacción de devolución no está pendiente.'
+                );
+            }
+
+
+            $lockedRequest->status =
+                RefundRequestStatus::RECHAZADA;
+
+            $lockedRequest->reviewed_by = $reviewedBy;
+
+            $lockedRequest->review_reason = $reviewReason;
+
+            $lockedRequest->reviewed_at = now();
+
+            $lockedRequest->save();
+
+            $transaction->status = TransactionStatus::FALLIDA;
+
+            $transaction->save();
+
+            return $lockedRequest;
+        }
+    );
+}
+
+    public function completeRefund(
+        FinancialRefundRequest $refundRequest,
+        string $idempotencyKey,
+        ?string $executedBy = null
+    ): FinancialTransaction {
+
+    if (trim($idempotencyKey) === '') {
+        throw new InvalidArgumentException(
+            'La clave de idempotencia es obligatoria.'
+        );
+    }
+
+    return DB::connection('sqlsrv')->transaction(
+        function () use ($refundRequest, $idempotencyKey, $executedBy) {
+            // Bloquear primero la operación original.
+            $original = FinancialTransaction::where(
+                'public_id',
+                $refundRequest->original_transaction_id
+            )
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $request = FinancialRefundRequest::where(
+                'public_id',
+                $refundRequest->public_id
+            )
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (
+                strtolower($request->original_transaction_id) !==
+                strtolower($original->public_id)
+            ) {
+                throw new InvalidArgumentException(
+                    'La solicitud no corresponde a la operación original.'
+                );
+            }
+
+            // Un reintento devuelve la operación ya realizada.
+            if ($request->status === RefundRequestStatus::COMPLETADA) {
+                $completed = FinancialTransaction::where(
+                    'public_id',
+                    $request->financial_transaction_id
+                )->firstOrFail();
+
+                if (
+                    $completed->idempotency_key !== $idempotencyKey ||
+                    $completed->status !== TransactionStatus::COMPLETADA ||
+                    !$this->matchesOperation(
+                        $completed,
+                        'DEVOLUCION',
+                        $request->public_id
+                    )
+                ) {
+                    throw new InvalidArgumentException(
+                        'La devolución ya fue completada con otra clave o presenta datos inconsistentes.'
+                    );
+                }
+
+                return $completed;
+            }
+
+            if ($request->status !== RefundRequestStatus::APROBADA) {
+                throw new InvalidArgumentException(
+                    'Solo se pueden ejecutar solicitudes aprobadas.'
+                );
+            }
+
+            if ($original->status !== TransactionStatus::COMPLETADA) {
+                throw new InvalidArgumentException(
+                    'La operación original ya no admite una devolución.'
+                );
+            }
+
+            $requestTransaction = FinancialTransaction::where(
+                'public_id',
+                $request->request_transaction_id
+            )
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (
+                $requestTransaction->status !== TransactionStatus::PENDIENTE ||
+                !$this->matchesOperation(
+                    $requestTransaction,
+                    'REFUND_REQUEST',
+                    $original->public_id
+                )
+            ) {
+                throw new InvalidArgumentException(
+                    'La transacción de solicitud no es válida para ejecutarse.'
+                );
+            }
+
+            // Esta implementación admite un pago con un solo cargo.
+            $entries = LedgerEntry::where(
+                'transaction_id',
+                $original->public_id
+            )
+                ->lockForUpdate()
+                ->get();
+
+            $entry = $entries->first();
+
+            if (
+                $entries->count() !== 1 ||
+                !$entry ||
+                $entry->movement_type !== MovementType::PAGO ||
+                $entry->amount_cents >= 0
+            ) {
+                throw new InvalidArgumentException(
+                    'Esta ejecución solo admite pagos con un único cargo contable.'
+                );
+            }
+
+            if (
+                strtolower($request->wallet_id) !==
+                strtolower($entry->wallet_id)
+            ) {
+                throw new InvalidArgumentException(
+                    'La wallet de la solicitud no corresponde al pago original.'
+                );
+            }
+
+            if (
+                $request->amount_cents <= 0 ||
+                $this->requestedRefundAmount($original->public_id) >
+                abs($entry->amount_cents)
+            ) {
+                throw new InvalidArgumentException(
+                    'El monto solicitado supera el saldo disponible para devolución.'
+                );
+            }
+
+            if ($this->findByIdempotencyKey($idempotencyKey)) {
+                throw new InvalidArgumentException(
+                    'La clave de idempotencia ya pertenece a otra operación.'
+                );
+            }
+
+            $wallet = Wallet::where(
+                'public_id',
+                $request->wallet_id
+            )->firstOrFail();
+
+            // Abono y registro contable mediante el Ledger.
+            $transaction = app(LedgerService::class)->credit(
+                wallet: $wallet,
+                amountCents: $request->amount_cents,
+                movementType: MovementType::DEVOLUCION,
+                idempotencyKey: $idempotencyKey,
+                referenceType: 'DEVOLUCION',
+                referenceId: $request->public_id,
+                metadata: [
+                    'operation' => 'DEVOLUCION',
+                    'refund_request_id' => $request->public_id,
+                    'original_transaction_id' => $original->public_id,
+                    'amount_cents' => $request->amount_cents,
+                    'reviewed_by' => $request->reviewed_by,
+                    'executed_by' => $executedBy,
+                ]
+            );
+
+            $transaction->original_transaction_id = $original->public_id;
+            $transaction->save();
+
+            $request->status = RefundRequestStatus::COMPLETADA;
+            $request->completed_at = now();
+            $request->financial_transaction_id = $transaction->public_id;
+            $request->save();
+
+            $requestTransaction->status = TransactionStatus::COMPLETADA;
+            $requestTransaction->save();
+
+            return $transaction;
+        }
+    );
+}
+
     public function reverse(
         FinancialTransaction $originalTransaction,
         string $idempotencyKey,
@@ -202,6 +535,12 @@ class FinancialAdjustmentService
                         'Solo se pueden reversar operaciones completadas.'
                     );
                 }
+
+                if ($this->requestedRefundAmount($lockedOriginal->public_id) > 0) {
+                    throw new InvalidArgumentException(
+                        'No se puede reversar una operación con devoluciones pendientes, aprobadas o completadas.'
+                    );
+                 }
 
                 $alreadyReversed = FinancialTransaction::where(
                     'original_transaction_id',
@@ -397,28 +736,22 @@ class FinancialAdjustmentService
         return $entry;
     }
 
-    private function requestedRefundAmount(
+       private function requestedRefundAmount(
         string $originalTransactionId
     ): int {
-        return (int) FinancialTransaction::where(
+
+        // Sumar las solicitudes que todavía
+        // comprometen el importe del pago original.
+
+        return (int) FinancialRefundRequest::where(
             'original_transaction_id',
             $originalTransactionId
         )
-            ->where(
-                'reference_type',
-                'REFUND_REQUEST'
-            )
-            ->get()
-            ->sum(
-                function (
-                    FinancialTransaction $transaction
-                ) {
-                    return (int) (
-                        $transaction
-                            ->metadata['amount_cents']
-                        ?? 0
-                    );
-                }
-            );
+            ->whereIn('status', [
+                RefundRequestStatus::PENDIENTE->value,
+                RefundRequestStatus::APROBADA->value,
+                RefundRequestStatus::COMPLETADA->value,
+            ])
+            ->sum('amount_cents');
     }
 }

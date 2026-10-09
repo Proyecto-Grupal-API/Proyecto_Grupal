@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Financial\Contracts\BonusAuthorizationProvider;
 use App\Domains\Financial\Enums\BonusType;
 use App\Domains\Financial\Enums\BonusRestrictionType;
 use App\Domains\Financial\Enums\WalletType;
@@ -14,6 +15,21 @@ use App\Domains\Financial\Services\BonusService;
 use App\Domains\Financial\Services\PurchasePaymentService;
 use App\Domains\Financial\Services\WalletService;
 use App\Domains\Financial\Enums\MovementType;
+
+beforeEach(function () {
+    $authorization = $this->createMock(
+        BonusAuthorizationProvider::class
+    );
+
+    $authorization
+        ->method('canIssueBonus')
+        ->willReturn(true);
+
+    $this->app->instance(
+        BonusAuthorizationProvider::class,
+        $authorization
+    );
+});
 
 afterEach(function () {
     $payments = PurchasePayment::whereIn(
