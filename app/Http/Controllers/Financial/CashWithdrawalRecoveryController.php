@@ -46,10 +46,12 @@ class CashWithdrawalRecoveryController extends CashController
         abort_unless($shift->agent_id === $actor, 403, 'El turno pertenece a otro operador.');
         $refund = $this->requests($associationId)->where('public_id', $refundId)->firstOrFail();
         $values = $request->validate(['reason' => ['required', 'string', 'max:1000'],
-            'amount_cents' => ['prohibited'], 'recovery_reference' => ['prohibited']]);
+            'amount_cents' => ['prohibited'], 'recovery_reference' => ['prohibited'], 'administrative_request_id' => ['nullable', 'uuid']]);
         $key = $this->key($request);
         return $this->execute($request, function () use ($service, $associationId, $shift, $refund, $key, $actor, $values) {
-            $recovery = $service->recover($associationId, $shift->public_id, $refund, $key, $actor, $values['reason']);
+            $recovery = app(\App\Domains\Financial\Services\CashAdministrativeApprovalService::class)->execute(
+                $values['administrative_request_id'] ?? null, $associationId, $shift->public_id, 'WITHDRAWAL_RECOVERY', $refund->amount_cents, $refund->public_id,
+                $actor, $values['reason'], $key, fn ($authorization) => $service->recover($associationId, $shift->public_id, $refund, $key, $actor, $values['reason'], $authorization));
             $receipt = $recovery->cashMovement->receipt;
             return ['id' => strtolower($recovery->public_id), 'refund_request_id' => strtolower($recovery->refund_request_id),
                 'withdrawal_id' => strtolower($recovery->withdrawal_id), 'amount_cents' => $recovery->amount_cents,

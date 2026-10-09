@@ -122,6 +122,7 @@ if (!function_exists('fcWallet')) {
 
     function fcCleanup(): void
     {
+        \App\Domains\Financial\Models\CashAdministrativeRequest::where('request_key', 'like', FC_PREFIX . '%')->delete();
         $approvalPolicyIds = \App\Domains\Financial\Models\CashApprovalPolicy::where('association_id', 'like', FC_PREFIX . '%')->pluck('id');
         \App\Domains\Financial\Models\CashApprovalPolicyChange::whereIn('cash_approval_policy_id', $approvalPolicyIds)->delete();
         \App\Domains\Financial\Models\CashApprovalPolicy::whereIn('id', $approvalPolicyIds)->delete();

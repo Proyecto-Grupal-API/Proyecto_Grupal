@@ -25,7 +25,7 @@ const preparing = ref(null);
 const action = ref('open');
 const form = reactive({ amount: '', wallet: '', reason: '', type: 'CASH_IN' });
 const selectedRefund = computed(() => refunds.value.find(item => item.id === refundId.value));
-const confirmationLink = computed(() => confirmation.value ? `${window.location.origin}${confirmation.value.student_url}` : '');
+const confirmationLink = computed(() => confirmation.value?.student_url ? `${window.location.origin}${confirmation.value.student_url}` : '');
 const register = computed(() => registers.value.find(item => item.id === registerId.value));
 const currency = computed(() => summary.value?.currency || register.value?.currency || 'MXN');
 const base = computed(() => `/finanzas/caja/asociaciones/${encodeURIComponent(association.value)}`);
@@ -37,7 +37,10 @@ const actionPermission = computed(() => action.value === 'recover' ? permissions
 const canOperate = computed(() => actionPermission.value && (action.value === 'open' ? !!registerId.value
     : !!summary.value && summary.value.status === 'OPEN' && (['adjustments', 'close'].includes(action.value) || actorOwnsShift.value))
     && (action.value !== 'recover' || (selectedRefund.value?.status === 'APROBADA' && !selectedRefund.value.recovery)));
-const canSubmit = computed(() => canOperate.value && (!['topups', 'withdrawals'].includes(action.value) || (confirmation.value?.status === 'CONFIRMED' && (!confirmation.value.supervisor_required || confirmation.value.supervisor_status === 'APPROVED'))));
+const canSubmit = computed(() => canOperate.value && (['adjustments', 'recover'].includes(action.value)
+    ? confirmation.value?.kind === 'ADMINISTRATIVE' && ['READY', 'APPROVED'].includes(confirmation.value.status)
+    : !['topups', 'withdrawals'].includes(action.value) || (confirmation.value?.status === 'CONFIRMED' && (!confirmation.value.supervisor_required || confirmation.value.supervisor_status === 'APPROVED'))));
+const confirmationPath = computed(() => `${base.value}/shifts/${shiftId.value}/${confirmation.value?.kind === 'ADMINISTRATIVE' ? 'administrative-requests' : 'confirmations'}/${confirmation.value?.id}`);
 const money = value => new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency.value }).format((value || 0) / 100);
 const date = value => value ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—';
 const statusLabel = value => ({ OPEN: 'Abierto', CLOSED: 'Cerrado', ACTIVE: 'Activa', INACTIVE: 'Inactiva' }[value] || value);
@@ -111,13 +114,20 @@ function prepareRecovery(item) {
     refundId.value = item.id; action.value = 'recover'; form.amount = (item.amount_cents / 100).toFixed(2); form.reason = '';
 }
 async function prepareConfirmation() {
-    if (!['topups', 'withdrawals'].includes(action.value) || busy.value || confirmation.value || !actorOwnsShift.value || summary.value?.status !== 'OPEN' || !permissions.value.operate) return;
+    if (!['topups', 'withdrawals', 'adjustments', 'recover'].includes(action.value) || busy.value || confirmation.value || !canOperate.value) return;
     if (!preparing.value) {
         try {
-            const amount = cents();
-            if (!form.wallet.trim() || !form.reason.trim()) throw new Error('Escribe la wallet y el motivo antes de solicitar la confirmación.');
-            preparing.value = { url: `${base.value}/shifts/${shiftId.value}/confirmations`, key: crypto.randomUUID(),
-                payload: { wallet_id: form.wallet.trim(), operation: action.value === 'topups' ? 'TOPUP' : 'WITHDRAWAL', amount_cents: amount, reason: form.reason.trim() } };
+            if (!form.reason.trim()) throw new Error('Escribe el motivo antes de preparar la solicitud.');
+            const administrative = ['adjustments', 'recover'].includes(action.value);
+            let payload;
+            if (administrative) {
+                payload = action.value === 'recover' ? { operation: 'WITHDRAWAL_RECOVERY', refund_request_id: selectedRefund.value.id, reason: form.reason.trim() }
+                    : { operation: 'ADJUSTMENT', amount_cents: cents(), reason: form.reason.trim() };
+            } else {
+                if (!form.wallet.trim()) throw new Error('Escribe la wallet antes de solicitar la confirmación.');
+                payload = { wallet_id: form.wallet.trim(), operation: action.value === 'topups' ? 'TOPUP' : 'WITHDRAWAL', amount_cents: cents(), reason: form.reason.trim() };
+            }
+            preparing.value = { url: `${base.value}/shifts/${shiftId.value}/${administrative ? 'administrative-requests' : 'confirmations'}`, key: crypto.randomUUID(), payload };
         } catch (exception) { error.value = exception.message; return; }
     }
     await run(async () => {
@@ -131,22 +141,23 @@ async function prepareConfirmation() {
         }
     });
 }
+
 async function refreshConfirmation() {
     if (!confirmation.value) return;
     await run(async () => {
-        const { data } = await axios.get(`${base.value}/shifts/${shiftId.value}/confirmations/${confirmation.value.id}`);
+        const { data } = await axios.get(confirmationPath.value);
         confirmation.value = data.data;
     });
 }
 async function cancelConfirmation() {
     if (pending.value || !confirmation.value || !window.confirm('¿Cancelar esta confirmación? No cancela una operación ya finalizada.')) return;
     await run(async () => {
-        const { data } = await axios.post(`${base.value}/shifts/${shiftId.value}/confirmations/${confirmation.value.id}/cancel`);
+        const { data } = await axios.post(`${confirmationPath.value}/cancel`);
         if (data.data.status === 'CANCELLED') confirmation.value = null;
     });
 }
 function discardPreparation() {
-    if (window.confirm('Descartar este reintento no cancela una confirmación creada. Revisa las confirmaciones del estudiante antes de solicitar otra.')) preparing.value = null;
+    if (window.confirm('Descartar este reintento no cancela una confirmación creada. Revisa las solicitudes existentes antes de preparar otra.')) preparing.value = null;
 }
 function clearClosedConfirmation() {
     if (pending.value) return;
@@ -176,6 +187,7 @@ async function submit() {
                 payload.wallet_id = form.wallet.trim();
                 payload.confirmation_id = confirmation.value.id;
             }
+            if (['adjustments', 'recover'].includes(action.value)) payload.administrative_request_id = confirmation.value.id;
             if (action.value === 'movements') payload.type = form.type;
             if (!window.confirm(`${titles[action.value]} por ${money(amount)}. ¿Confirmas que el importe corresponde al efectivo físico?`)) return;
             const url = action.value === 'recover' ? `${base.value}/shifts/${shiftId.value}/withdrawal-refunds/${refundId.value}/recover` : action.value === 'open' ? `${base.value}/registers/${registerId.value}/shifts`
@@ -281,18 +293,18 @@ function abandon() {
                             <label v-if="['topups', 'withdrawals'].includes(action)">Identificador de wallet<input v-model="form.wallet" required maxlength="36" placeholder="UUID de la wallet" /></label>
                             <label v-if="action !== 'open'" class="sm:col-span-2">Motivo<textarea v-model="form.reason" required maxlength="1000" rows="2" /></label>
                         </fieldset>
-                        <section v-if="['topups', 'withdrawals'].includes(action)" class="space-y-3 rounded-xl border bg-blue-50 p-4 text-sm">
-                            <p>Antes de finalizar, el estudiante debe confirmar el importe desde su propia cuenta.</p>
-                            <button v-if="!confirmation" type="button" class="secondary" :disabled="busy || !!pending || !canOperate" @click="prepareConfirmation">{{ preparing ? 'Reintentar solicitud de confirmación' : 'Solicitar confirmación al estudiante' }}</button>
+                        <section v-if="['topups', 'withdrawals', 'adjustments', 'recover'].includes(action)" class="space-y-3 rounded-xl border bg-blue-50 p-4 text-sm">
+                            <p v-if="['topups', 'withdrawals'].includes(action)">Antes de finalizar, el estudiante debe confirmar el importe desde su propia cuenta.</p><p v-else>Prepara la solicitud para consultar la regla aplicable. Si requiere supervisor, espera su autorización antes de registrar el efectivo.</p>
+                            <button v-if="!confirmation" type="button" class="secondary" :disabled="busy || !!pending || !canOperate" @click="prepareConfirmation">{{ preparing ? 'Reintentar la preparación' : ['adjustments', 'recover'].includes(action) ? 'Preparar solicitud administrativa' : 'Solicitar confirmación al estudiante' }}</button>
                             <button v-if="preparing" type="button" class="secondary" :disabled="busy" @click="discardPreparation">Descartar reintento de confirmación</button>
                             <template v-if="confirmation">
-                                <p><strong>Estado:</strong> {{ ({ PENDING: 'Esperando al estudiante', CONFIRMED: 'Confirmada', REJECTED: 'Rechazada', EXPIRED: 'Vencida', CANCELLED: 'Cancelada', CONSUMED: 'Operación finalizada' })[confirmation.status] }}</p>
-                                <p v-if="confirmation.supervisor_required">Segunda autorización: {{ ({ PENDING: 'Esperando supervisor', APPROVED: 'Aprobada', REJECTED: 'Rechazada' })[confirmation.supervisor_status] }} · Política versión {{ confirmation.approval_policy_version }}</p>
-                                <p>Vence: {{ date(confirmation.expires_at) }}</p>
-                                <p>El estudiante puede abrir «Confirmaciones de caja» desde su wallet o usar este enlace en su propia sesión:</p>
-                                <input :value="confirmationLink" readonly aria-label="Enlace para el estudiante" class="w-full" />
+                                <p><strong>Estado:</strong> {{ ({ PENDING: confirmation.kind === 'ADMINISTRATIVE' ? 'Esperando supervisor' : 'Esperando al estudiante', READY: 'Lista para ejecutar sin supervisor', APPROVED: 'Autorizada por supervisor', CONFIRMED: 'Confirmada', REJECTED: 'Rechazada', EXPIRED: 'Vencida', CANCELLED: 'Cancelada', CONSUMED: 'Operación finalizada' })[confirmation.status] }}</p>
+                                <p v-if="confirmation.supervisor_required && confirmation.kind !== 'ADMINISTRATIVE'">Segunda autorización: {{ ({ PENDING: 'Esperando supervisor', APPROVED: 'Aprobada', REJECTED: 'Rechazada' })[confirmation.supervisor_status] }} · Política versión {{ confirmation.approval_policy_version }}</p>
+                                <p v-if="confirmation.kind === 'ADMINISTRATIVE'">Regla versión {{ confirmation.approval_policy_version }} · {{ confirmation.supervisor_required ? 'Requiere supervisor independiente' : 'No requiere supervisor para este importe' }}</p><p>Vence: {{ date(confirmation.expires_at) }}</p>
+                                <p v-if="confirmation.kind !== 'ADMINISTRATIVE'">El estudiante puede abrir «Confirmaciones de caja» desde su wallet o usar este enlace en su propia sesión:</p>
+                                <input v-if="confirmation.kind !== 'ADMINISTRATIVE'" :value="confirmationLink" readonly aria-label="Enlace para el estudiante" class="w-full" />
                                 <button type="button" class="secondary" :disabled="busy" @click="refreshConfirmation">Consultar confirmación</button>
-                                <button v-if="['PENDING', 'CONFIRMED'].includes(confirmation.status)" type="button" class="secondary" :disabled="busy || !!pending" @click="cancelConfirmation">Cancelar confirmación</button>
+                                <button v-if="['PENDING', 'CONFIRMED', 'READY', 'APPROVED'].includes(confirmation.status)" type="button" class="secondary" :disabled="busy || !!pending" @click="cancelConfirmation">Cancelar confirmación</button>
                                 <button v-else type="button" class="secondary" :disabled="busy || !!pending" @click="clearClosedConfirmation">Preparar otra operación</button>
                             </template>
                         </section>

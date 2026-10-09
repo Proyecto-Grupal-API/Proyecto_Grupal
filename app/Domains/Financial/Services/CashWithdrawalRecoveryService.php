@@ -19,11 +19,12 @@ class CashWithdrawalRecoveryService
 {
     public function __construct(private readonly CashShiftService $shifts, private readonly FinancialAdjustmentService $adjustments) {}
 
-    public function recover(string $association, string $shiftId, FinancialRefundRequest $refund, string $key, string $actor, string $reason): FinancialWithdrawalRecovery
+    public function recover(string $association, string $shiftId, FinancialRefundRequest $refund, string $key, string $actor, string $reason, ?\App\Domains\Financial\Models\CashAdministrativeRequest $authorization = null): FinancialWithdrawalRecovery
     {
         $this->shifts->text($key); $this->shifts->text($actor); $this->shifts->text($reason, 1000);
         $hash = $this->shifts->hash([$shiftId, 'WITHDRAWAL_RECOVERY', strtolower($refund->public_id), trim($actor), trim($reason), $association]);
-        return DB::connection('sqlsrv')->transaction(function () use ($association, $shiftId, $refund, $key, $actor, $reason, $hash) {
+        if ($authorization) $hash = $this->shifts->hash([$hash, strtolower($authorization->public_id)]);
+        return DB::connection('sqlsrv')->transaction(function () use ($association, $shiftId, $refund, $key, $actor, $reason, $hash, $authorization) {
             $shift = $this->shifts->lockShift($shiftId);
             if ($shift->cashRegister->association_id !== $association || $shift->agent_id !== trim($actor))
                 throw new InvalidArgumentException('La asociación o el operador no corresponde al turno receptor.');
@@ -39,6 +40,7 @@ class CashWithdrawalRecoveryService
             if (strtolower($request->original_transaction_id) !== strtolower($original->public_id)
                 || $original->reference_type !== 'WITHDRAWAL' || $request->status !== RefundRequestStatus::APROBADA)
                 throw new InvalidArgumentException('La recuperación requiere una devolución de retiro aprobada.');
+            if ($authorization && $authorization->amount_cents !== $request->amount_cents) throw new InvalidArgumentException('El importe de la devolución ya no corresponde a la autorización.');
             $withdrawal = Withdrawal::where('public_id', $original->reference_id)->firstOrFail();
             $origin = $withdrawal->cash_shift_id ? CashShift::where('public_id', $withdrawal->cash_shift_id)->firstOrFail() : null;
             if (! $origin || $origin->cashRegister->association_id !== $association

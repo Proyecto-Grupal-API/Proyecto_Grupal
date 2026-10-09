@@ -20,7 +20,7 @@ class CashApprovalPolicyService {
         foreach ([$association, $actor, $key] as $text) $cash->text($text);
         $cash->text($reason, 1000);
         abort_unless(app(CashAuthorizationProvider::class)->allows($actor, $association, 'approval_manage'), 403);
-        if (! in_array($operation, ['TOPUP', 'WITHDRAWAL'], true) || ! preg_match('/^[A-Z]{3}$/D', $currency)
+        if (! in_array($operation, ['TOPUP', 'WITHDRAWAL', 'ADJUSTMENT', 'WITHDRAWAL_RECOVERY'], true) || ! preg_match('/^[A-Z]{3}$/D', $currency)
             || $threshold < 1 || $version < 0) throw new InvalidArgumentException('Política de autorización inválida.');
         $hash = $cash->hash([$association, $operation, $currency, $enabled, $threshold, $version, $actor, trim($reason)]);
         return DB::connection('sqlsrv')->transaction(function () use ($association, $operation, $currency, $enabled, $threshold, $version, $actor, $reason, $key, $hash) {

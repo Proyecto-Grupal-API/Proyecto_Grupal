@@ -84,10 +84,17 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
         Route::get('/autorizaciones', [\App\Http\Controllers\Financial\CashApprovalWebController::class, 'index'])->name('approvals');
         Route::get('/administracion', [\App\Http\Controllers\Financial\CashRegisterAdministrationWebController::class, 'index'])->name('administration');
         Route::prefix('asociaciones/{associationId}')->group(function () use ($cash) {
+            $administrative = \App\Http\Controllers\Financial\CashAdministrativeRequestWebController::class;
+            Route::post('/shifts/{shiftId}/administrative-requests', [$administrative, 'storeAdministrative'])->whereUuid('shiftId')->name('administrative-requests.store');
+            Route::get('/shifts/{shiftId}/administrative-requests/{administrativeId}', [$administrative, 'showAdministrative'])->whereUuid(['shiftId', 'administrativeId'])->name('administrative-requests.show');
+            Route::post('/shifts/{shiftId}/administrative-requests/{administrativeId}/cancel', [$administrative, 'cancelAdministrative'])->whereUuid(['shiftId', 'administrativeId'])->name('administrative-requests.cancel');
             $approvals = \App\Http\Controllers\Financial\CashApprovalWebController::class;
             Route::get('/approval-policies', [$approvals, 'policies'])->name('approval-policies.index');
             Route::post('/approval-policies', [$approvals, 'configurePolicy'])->name('approval-policies.configure');
             Route::get('/approval-policies/history', [$approvals, 'policyHistory'])->name('approval-policies.history');
+            Route::get('/administrative-approval-requests', [$approvals, 'administrativeQueue'])->name('administrative-approvals.index');
+            Route::post('/administrative-approval-requests/{administrativeId}/{decision}', [$approvals, 'reviewAdministrative'])
+                ->whereUuid('administrativeId')->whereIn('decision', ['approve', 'reject'])->name('administrative-approvals.review');
             Route::get('/approval-requests', [$approvals, 'reviewQueue'])->name('approval-requests.index');
             Route::post('/approval-requests/{confirmationId}/{decision}', [$approvals, 'reviewOperation'])
                 ->whereUuid('confirmationId')->whereIn('decision', ['approve', 'reject'])->name('approval-requests.review');

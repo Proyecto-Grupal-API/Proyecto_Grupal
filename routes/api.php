@@ -60,10 +60,16 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
     Route::prefix('financial')->middleware('financial.correlation')->group(function () {
         // Asociación autorizada además del scope OAuth. Nunca hereda financial:read/write.
         Route::prefix('cash/associations/{associationId}')->group(function () {
+            $administrative = \App\Http\Controllers\Financial\CashAdministrativeRequestController::class;
+            $adminScope = \App\Http\Middleware\AuthorizeCashAdministrativeScope::class;
+            Route::post('/shifts/{shiftId}/administrative-requests', [$administrative, 'storeAdministrative'])->whereUuid('shiftId')->middleware($adminScope);
+            Route::get('/shifts/{shiftId}/administrative-requests/{administrativeId}', [$administrative, 'showAdministrative'])->whereUuid(['shiftId', 'administrativeId'])->middleware($adminScope);
+            Route::post('/shifts/{shiftId}/administrative-requests/{administrativeId}/cancel', [$administrative, 'cancelAdministrative'])->whereUuid(['shiftId', 'administrativeId'])->middleware($adminScope);
             $approvals = \App\Http\Controllers\Financial\CashApprovalController::class;
             Route::get('/approval-policies', [$approvals, 'policies'])->middleware('oauth.service:financial:cash:approval:read');
             Route::post('/approval-policies', [$approvals, 'configurePolicy'])->middleware('oauth.service:financial:cash:approval:manage');
             Route::get('/approval-policies/history', [$approvals, 'policyHistory'])->middleware('oauth.service:financial:cash:approval:read');
+            Route::get('/administrative-approval-requests', [$approvals, 'administrativeQueue'])->middleware('oauth.service:financial:cash:approval:read');
             Route::get('/approval-requests', [$approvals, 'reviewQueue'])->middleware('oauth.service:financial:cash:approval:read');
             $confirmations = \App\Http\Controllers\Financial\CashOperationConfirmationController::class;
             Route::post('/shifts/{shiftId}/confirmations', [$confirmations, 'store'])->whereUuid('shiftId')->middleware('oauth.service:financial:cash:operate');

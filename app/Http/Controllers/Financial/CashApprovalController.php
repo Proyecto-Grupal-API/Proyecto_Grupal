@@ -16,7 +16,7 @@ class CashApprovalController extends CashController {
     }
     public function configurePolicy(Request $request, string $associationId, CashApprovalPolicyService $service): JsonResponse {
         $actor = $this->authorizeAssociation($request, $associationId, 'approval_manage');
-        $v = $request->validate(['operation' => ['required', Rule::in(['TOPUP', 'WITHDRAWAL'])], 'currency' => ['required', 'string', 'regex:/^[A-Z]{3}$/D'],
+        $v = $request->validate(['operation' => ['required', Rule::in(['TOPUP', 'WITHDRAWAL', 'ADJUSTMENT', 'WITHDRAWAL_RECOVERY'])], 'currency' => ['required', 'string', 'regex:/^[A-Z]{3}$/D'],
             'enabled' => ['required', 'boolean'], 'threshold_cents' => ['required', 'integer', 'min:1'], 'version' => ['required', 'integer', 'min:0'],
             'reason' => ['required', 'string', 'max:1000']]); $key = $this->key($request);
         return $this->execute($request, fn () => $service->configure($associationId, $v['operation'], $v['currency'], $v['enabled'],
@@ -48,4 +48,24 @@ class CashApprovalController extends CashController {
             return ['id' => strtolower($p->public_id), 'supervisor_status' => $p->supervisor_status, 'supervisor_id' => $p->supervisor_id];
         });
     }
+    public function administrativeQueue(Request $request, string $associationId): JsonResponse {
+        $actor = $this->authorizeAssociation($request, $associationId, 'approval_read');
+        $query = \App\Domains\Financial\Models\CashAdministrativeRequest::whereHas('shift.cashRegister', fn ($q) => $q->where('association_id', $associationId))
+            ->where('supervisor_required', true)->where('status', 'PENDING')->where('expires_at', '>', now());
+        return $this->paginated($request, $query->with('shift')->orderBy('expires_at')->paginate($this->pageSize($request)), fn ($p) => [
+            'id' => strtolower($p->public_id), 'operation' => $p->operation, 'amount_cents' => $p->amount_cents, 'currency' => $p->currency,
+            'operator_id' => $p->operator_id, 'reason' => $p->reason, 'refund_request_id' => $p->refund_request_id ? strtolower($p->refund_request_id) : null,
+            'expires_at' => $p->expires_at->toISOString(), 'policy' => $p->approval_policy_snapshot,
+            'can_review' => str_starts_with($actor, 'user:') && $actor !== $p->operator_id && $actor !== $p->shift->agent_id && (! $p->student_id || $actor !== 'user:'.$p->student_id)]);
+    }
+    public function reviewAdministrative(Request $request, string $associationId, string $administrativeId, string $decision,
+        \App\Domains\Financial\Services\CashAdministrativeApprovalService $service): JsonResponse {
+        $actor = $this->authorizeAssociation($request, $associationId, 'approval_review');
+        $v = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
+        return $this->execute($request, function () use ($service, $administrativeId, $associationId, $actor, $decision, $v) {
+            $p = $service->review($administrativeId, $associationId, $actor, $decision === 'approve', $v['reason']);
+            return ['id' => strtolower($p->public_id), 'status' => $p->status, 'supervisor_id' => $p->supervisor_id];
+        });
+    }
+
 }

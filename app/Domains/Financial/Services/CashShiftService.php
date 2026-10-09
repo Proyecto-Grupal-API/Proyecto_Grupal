@@ -46,7 +46,7 @@ class CashShiftService
 
     // These are physical cash events. They never modify a wallet or impersonate settlements.
     public function addMovement(string $shiftId, CashMovementType $type, int $amount, string $key, string $actor, string $reason,
-        ?string $referenceType = null, ?string $referenceId = null): CashMovement
+        ?string $referenceType = null, ?string $referenceId = null, ?string $authorizationId = null): CashMovement
     {
         if (! in_array($type, [CashMovementType::CASH_IN, CashMovementType::CASH_OUT, CashMovementType::ADJUSTMENT], true))
             throw new InvalidArgumentException('Recargas y retiros requieren el servicio de liquidación de caja.');
@@ -55,6 +55,7 @@ class CashShiftService
         if ($referenceType !== null) $this->text($referenceType, 50);
         if ($referenceId !== null) $this->text($referenceId, 100);
         $hash = $this->hash([$shiftId, $type->value, $amount, trim($actor), trim($reason), $referenceType, $referenceId]);
+        if ($authorizationId) $hash = $this->hash([$hash, strtolower($authorizationId)]);
         return DB::connection('sqlsrv')->transaction(function () use ($shiftId, $type, $amount, $key, $actor, $reason, $referenceType, $referenceId, $hash) {
             $shift = $this->lockShift($shiftId);
             $existing = $this->replay($key, $hash);

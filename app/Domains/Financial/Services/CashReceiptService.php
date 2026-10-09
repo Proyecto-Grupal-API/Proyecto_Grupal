@@ -41,6 +41,15 @@ class CashReceiptService
             'reference_type' => $movement->reference_type,
             'reference_id' => $movement->reference_id && $transaction ? strtolower($movement->reference_id) : $movement->reference_id,
             'financial_transaction_id' => $transaction ? strtolower($transaction->public_id) : null];
+        $administrative = \App\Domains\Financial\Models\CashAdministrativeRequest::where('settlement_key', $movement->idempotency_key)->first();
+        if ($administrative) {
+            $snapshot['cash_administrative_request_id'] = strtolower($administrative->public_id);
+            $snapshot['approval_policy'] = $administrative->approval_policy_snapshot;
+            $snapshot['supervisor_required'] = $administrative->supervisor_required;
+            $snapshot['supervisor_id'] = $administrative->supervisor_id;
+            $snapshot['supervisor_reason'] = $administrative->supervisor_reason;
+            $snapshot['supervisor_reviewed_at'] = $administrative->supervisor_reviewed_at?->toISOString();
+        }
         $confirmation = \App\Domains\Financial\Models\CashOperationConfirmation::where('settlement_key', $movement->idempotency_key)->first();
         if ($confirmation) {
             $snapshot['cash_confirmation_id'] = strtolower($confirmation->public_id);

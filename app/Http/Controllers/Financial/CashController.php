@@ -133,11 +133,16 @@ class CashController extends Controller
         if (! $adjust) abort_unless($shift->agent_id === $actor, 403, 'El turno pertenece a otro operador.');
         $values = $request->validate(['type' => $adjust ? ['prohibited'] : ['required', Rule::in(['CASH_IN', 'CASH_OUT'])],
             'amount_cents' => $adjust ? ['required', 'integer', 'not_in:0'] : ['required', 'integer', 'min:1'],
-            'reason' => ['required', 'string', 'max:1000']]);
+            'reason' => ['required', 'string', 'max:1000'], 'administrative_request_id' => $adjust ? ['nullable', 'uuid'] : ['prohibited']]);
         $key = $this->key($request);
         $type = $adjust ? CashMovementType::ADJUSTMENT : CashMovementType::from($values['type']);
-        return $this->execute($request, fn () => $this->movementData($this->shifts->addMovement(
-            $shift->public_id, $type, $values['amount_cents'], $key, $actor, $values['reason'])));
+        return $this->execute($request, function () use ($adjust, $values, $associationId, $shift, $type, $key, $actor) {
+            $move = fn ($authorization = null) => $this->shifts->addMovement($shift->public_id, $type, $values['amount_cents'], $key, $actor,
+                $values['reason'], null, null, $authorization?->public_id);
+            $result = $adjust ? app(\App\Domains\Financial\Services\CashAdministrativeApprovalService::class)->execute(
+                $values['administrative_request_id'] ?? null, $associationId, $shift->public_id, 'ADJUSTMENT', $values['amount_cents'], null, $actor, $values['reason'], $key, $move) : $move();
+            return $this->movementData($result);
+        });
     }
 
     public function topUp(Request $request, string $associationId, string $shiftId): JsonResponse
