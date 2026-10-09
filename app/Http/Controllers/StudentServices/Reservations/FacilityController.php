@@ -77,7 +77,7 @@ class FacilityController extends Controller
         $maxAdvanceDays = max([1, ...array_map(fn (array $rule): int => (int) $rule['max_advance_days'], $rules)]);
         $from = $now->copy()->startOfDay();
         $to = $now->copy()->addDays($maxAdvanceDays + 1)->endOfDay();
-        $ids = $facilities->pluck('id')->all();
+        $ids = array_values($facilityModels->map(fn (Facility $facility): string => $facility->id)->all());
 
         return Inertia::render(
             'student-services/reservations/Index',

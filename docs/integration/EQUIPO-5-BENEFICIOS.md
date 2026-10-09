@@ -4,10 +4,10 @@ Respuesta a **REQ-M6-E5-001**. Contrato técnico completo, con ejemplos de éxit
 
 ## Alcance acordado
 
-| Beneficio | Unidad | Qué hace el Equipo 5 |
-| --- | --- | --- |
-| `locker` | 1 por periodo | Asigna un locker libre del periodo de lockers activo. Hay un solo tamaño; el edificio es opcional. |
-| `impresiones` | páginas (1–2000) | Abre un saldo que el alumno consume al pagar órdenes de impresión (módulo 5.8). |
+| Beneficio     | Unidad           | Qué hace el Equipo 5                                                                               |
+| ------------- | ---------------- | -------------------------------------------------------------------------------------------------- |
+| `locker`      | 1 por periodo    | Asigna un locker libre del periodo de lockers activo. Hay un solo tamaño; el edificio es opcional. |
+| `impresiones` | páginas (1–2000) | Abre un saldo que el alumno consume al pagar órdenes de impresión (módulo 5.8).                    |
 
 `comidas` y `transporte` **no** pertenecen al Equipo 5. Responden `422 beneficio_no_soportado`.
 
@@ -45,12 +45,12 @@ Content-Type: application/json
   "vigencia_fin_exclusiva": "2026-12-20T06:00:00+00:00" }
 ```
 
-| Respuesta | Qué hacer en Comunidad |
-| --- | --- |
-| `201` | Guardar `asignacion_id` y `estado`. |
-| `200` con `meta.repetida=true` | Es la misma asignación; no se creó otra. |
-| `409` / `422` | Rechazo explícito con `codigo`. No modifica el dictamen. `sin_disponibilidad` y `sin_periodo` se pueden reintentar más tarde con la misma clave. |
-| Timeout o `5xx` | Resultado desconocido. Consultar `GET /asignaciones?clave_idempotencia=beca:{solicitud_id}` antes de reintentar. |
+| Respuesta                      | Qué hacer en Comunidad                                                                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `201`                          | Guardar `asignacion_id` y `estado`.                                                                                                              |
+| `200` con `meta.repetida=true` | Es la misma asignación; no se creó otra.                                                                                                         |
+| `409` / `422`                  | Rechazo explícito con `codigo`. No modifica el dictamen. `sin_disponibilidad` y `sin_periodo` se pueden reintentar más tarde con la misma clave. |
+| Timeout o `5xx`                | Resultado desconocido. Consultar `GET /asignaciones?clave_idempotencia=beca:{solicitud_id}` antes de reintentar.                                 |
 
 **Estados que devuelve la consulta:**
 

@@ -7,6 +7,7 @@ use App\Models\StudentServices\Lockers\Locker;
 use App\Models\StudentServices\Lockers\LockerAssignment;
 use App\Models\StudentServices\ServiceAccess\ServiceCheckin;
 use App\Models\StudentServices\Services\ServiceOrder;
+use App\Services\StudentServices\Audit\ServiceAuditor;
 use App\Services\StudentServices\Lockers\LockerAssignmentService;
 use App\Services\StudentServices\Services\ServiceOrderService;
 use Carbon\Carbon;
@@ -14,6 +15,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use MongoDB\BSON\ObjectId;
+use MongoDB\Laravel\Connection;
 use RuntimeException;
 use Throwable;
 
@@ -46,7 +48,8 @@ class ServiceBenefitService
         private BenefitCatalog $catalog,
         private StudentDirectory $students,
         private LockerAssignmentService $lockers,
-        private ServiceOrderService $serviceOrders
+        private ServiceOrderService $serviceOrders,
+        private ServiceAuditor $auditor
     ) {}
 
     /**
@@ -118,7 +121,19 @@ class ServiceBenefitService
             throw $exception;
         }
 
-        return ['assignment' => $assignment->fresh(), 'created' => true];
+        $assignment = $assignment->fresh();
+
+        $this->auditor->record(
+            'benefit.assignment.created',
+            'benefit_assignment',
+            (string) $assignment->id,
+            null,
+            ['benefit' => $assignment->benefit, 'student_id' => $assignment->student_id, 'quantity' => $assignment->quantity, 'status' => $assignment->status],
+            'Beca '.($assignment->folio ?? $assignment->application_id ?? ''),
+            'api:'.$clientId
+        );
+
+        return ['assignment' => $assignment, 'created' => true];
     }
 
     /**
@@ -181,6 +196,8 @@ class ServiceBenefitService
 
             $assignment->update(['status' => 'cancelled', 'cancellation' => $record]);
 
+            $this->auditCancellation($assignment, $reason, $clientId);
+
             return ['assignment' => $assignment->fresh(), 'replayed' => false];
         }
 
@@ -211,7 +228,22 @@ class ServiceBenefitService
             );
         }
 
+        $this->auditCancellation($assignment, $reason, $clientId);
+
         return ['assignment' => $assignment->fresh(), 'replayed' => false];
+    }
+
+    private function auditCancellation(BenefitAssignment $assignment, string $reason, string $clientId): void
+    {
+        $this->auditor->record(
+            'benefit.assignment.cancelled',
+            'benefit_assignment',
+            (string) $assignment->id,
+            ['status' => 'active', 'benefit' => $assignment->benefit, 'student_id' => $assignment->student_id],
+            ['status' => 'cancelled'],
+            $reason,
+            'api:'.$clientId
+        );
     }
 
     public function find(string $assignmentId, string $clientId): ?BenefitAssignment
@@ -267,7 +299,7 @@ class ServiceBenefitService
             $next = rtrim(strtr(base64_encode((string) $items->last()->id), '+/', '-_'), '=');
         }
 
-        return ['items' => $items->values()->all(), 'next_cursor' => $next];
+        return ['items' => array_values($items->all()), 'next_cursor' => $next];
     }
 
     /**
@@ -391,7 +423,7 @@ class ServiceBenefitService
             'asignado' => (int) $allowances->sum('quantity'),
             'vence_en' => $allowances->first()->valid_until?->toIso8601String(),
             'maximo_por_orden' => (int) $allowances->max('remaining'),
-            'folios' => $allowances->pluck('folio')->values()->all(),
+            'folios' => array_values($allowances->map(fn (BenefitAssignment $allowance): string => $allowance->folio)->all()),
         ];
     }
 
@@ -480,7 +512,13 @@ class ServiceBenefitService
             return;
         }
 
-        $collection = DB::connection('mongodb')->getCollection('benefit_assignments');
+        $connection = DB::connection('mongodb');
+
+        if (! $connection instanceof Connection) {
+            throw new RuntimeException('La conexión [mongodb] no usa el driver de MongoDB.');
+        }
+
+        $collection = $connection->getCollection('benefit_assignments');
         $collection->createIndex(['client_id' => 1, 'idempotency_key' => 1], ['unique' => true, 'name' => 'client_idempotency_unique']);
         $collection->createIndex(['client_id' => 1, 'application_id' => 1], ['name' => 'client_application']);
         $collection->createIndex(['student_id' => 1, 'benefit' => 1, 'status' => 1], ['name' => 'student_benefit_status']);

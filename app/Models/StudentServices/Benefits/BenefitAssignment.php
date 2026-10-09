@@ -2,6 +2,7 @@
 
 namespace App\Models\StudentServices\Benefits;
 
+use Carbon\CarbonInterface;
 use MongoDB\Laravel\Eloquent\Model;
 
 /**
@@ -15,6 +16,33 @@ use MongoDB\Laravel\Eloquent\Model;
  * status interno: processing | active | cancelled. El estado que ve la
  * API (asignado, entregado, en_uso, consumido, vencido, finalizado,
  * cancelado) se deriva al presentar.
+ *
+ * @property-read string $id
+ * @property string $folio
+ * @property string $client_id
+ * @property string $idempotency_key
+ * @property string $request_hash
+ * @property string $benefit
+ * @property string $student_id
+ * @property string $organization_id
+ * @property string $call_id
+ * @property string $application_id
+ * @property string|null $origin_folio
+ * @property int $quantity
+ * @property int $consumed
+ * @property int $remaining
+ * @property CarbonInterface|null $valid_from
+ * @property CarbonInterface|null $valid_until
+ * @property string $status
+ * @property string|null $locker_assignment_id
+ * @property string|null $locker_code
+ * @property string|null $locker_building
+ * @property string|null $locker_zone
+ * @property string|null $locker_assignment_folio
+ * @property array<int, array<string, mixed>>|null $consumptions
+ * @property array<string, mixed>|null $cancellation
+ * @property CarbonInterface|null $created_at
+ * @property CarbonInterface|null $updated_at
  */
 class BenefitAssignment extends Model
 {
@@ -24,7 +52,7 @@ class BenefitAssignment extends Model
 
     protected $connection = 'mongodb';
 
-    protected $collection = 'benefit_assignments';
+    protected $table = 'benefit_assignments';
 
     protected $fillable = [
         'folio',

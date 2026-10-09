@@ -3,10 +3,14 @@
 namespace App\Services\StudentServices\Calendars;
 
 use App\Models\StudentServices\Calendars\ResourceCalendar;
+use App\Models\StudentServices\Reservations\Facility;
+use App\Models\StudentServices\Reservations\Reservation;
+use App\Models\StudentServices\RestSpaces\RestBooking;
+use App\Models\StudentServices\RestSpaces\RestSpace;
+use App\Services\StudentServices\Audit\ServiceAuditor;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Str;
 use MongoDB\BSON\ObjectId;
-use MongoDB\Laravel\Eloquent\Model;
 use RuntimeException;
 
 /**
@@ -22,7 +26,8 @@ class BookingService
 {
     public function __construct(
         private AvailabilityService $availability,
-        private CalendarRuleChecker $checker
+        private CalendarRuleChecker $checker,
+        private ServiceAuditor $auditor
     ) {}
 
     /**
@@ -30,12 +35,12 @@ class BookingService
      */
     public function reserve(
         string $type,
-        Model $resource,
+        Facility|RestSpace $resource,
         string $studentId,
         CarbonInterface $start,
         CarbonInterface $end,
         string $idempotencyKey
-    ): Model {
+    ): Reservation|RestBooking {
         $bookingModel = BookableResources::bookingModel($type);
 
         $existing = $bookingModel::query()
@@ -78,7 +83,7 @@ class BookingService
      */
     public function cancel(
         string $type,
-        Model $booking,
+        Reservation|RestBooking $booking,
         string $actor = 'student',
         ?string $reason = null
     ): void {
@@ -114,7 +119,7 @@ class BookingService
     /**
      * @throws RuntimeException
      */
-    public function checkIn(string $type, Model $booking): Model
+    public function checkIn(string $type, Reservation|RestBooking $booking): Reservation|RestBooking
     {
         if ($booking->status === BookingStatus::CHECKED_IN) {
             throw new RuntimeException("La reserva {$booking->folio} ya tiene check-in registrado.");
@@ -161,7 +166,7 @@ class BookingService
     /**
      * @throws RuntimeException
      */
-    public function checkOut(string $type, Model $booking): Model
+    public function checkOut(string $type, Reservation|RestBooking $booking): Reservation|RestBooking
     {
         if ($booking->status !== BookingStatus::CHECKED_IN) {
             throw new RuntimeException("La reserva {$booking->folio} no tiene un check-in activo.");
@@ -188,7 +193,7 @@ class BookingService
      *
      * @throws RuntimeException
      */
-    public function promote(string $type, Model $booking): Model
+    public function promote(string $type, Reservation|RestBooking $booking): Reservation|RestBooking
     {
         if ($booking->status !== BookingStatus::WAITLISTED) {
             throw new RuntimeException('Solo se pueden promover reservas en lista de espera.');
@@ -209,6 +214,14 @@ class BookingService
             'promoted_at' => now(),
         ]);
 
+        $this->auditor->record(
+            'calendar.waitlist.promoted_manually',
+            $type.'_booking',
+            (string) $booking->getKey(),
+            ['status' => BookingStatus::WAITLISTED],
+            ['status' => BookingStatus::CONFIRMED, 'student_id' => (string) $booking->student_id]
+        );
+
         return $booking->fresh();
     }
 
@@ -218,7 +231,7 @@ class BookingService
      */
     public function promoteWaitlist(
         string $type,
-        Model $resource,
+        Facility|RestSpace $resource,
         CarbonInterface $start,
         CarbonInterface $end
     ): int {
@@ -228,7 +241,7 @@ class BookingService
             ->where('end_at', '>', $start)
             ->where('start_at', '>', now())
             ->get()
-            ->sortBy(fn (Model $booking): int => ($booking->waitlisted_at ?? $booking->created_at)?->getTimestamp() ?? 0)
+            ->sortBy(fn (Reservation|RestBooking $booking): int => ($booking->waitlisted_at ?? $booking->created_at)?->getTimestamp() ?? 0)
             ->values();
 
         $promoted = 0;
@@ -269,7 +282,7 @@ class BookingService
             ->where('status', BookingStatus::CONFIRMED)
             ->where('start_at', '<=', $now)
             ->get()
-            ->each(function (Model $booking) use ($calendars, $defaults, $foreignKey, $now, $resourceModel, $type): void {
+            ->each(function (Reservation|RestBooking $booking) use ($calendars, $defaults, $foreignKey, $now, $resourceModel, $type): void {
                 $resourceId = (string) $booking->{$foreignKey};
                 $rules = $calendars->get($resourceId)?->rules() ?? $defaults;
 
@@ -290,7 +303,7 @@ class BookingService
             ->where('status', BookingStatus::CHECKED_IN)
             ->where('end_at', '<=', $now)
             ->get()
-            ->each(fn (Model $booking) => $booking->update([
+            ->each(fn (Reservation|RestBooking $booking) => $booking->update([
                 'status' => BookingStatus::COMPLETED,
                 'checked_out_at' => $booking->end_at,
             ]));
@@ -301,7 +314,7 @@ class BookingService
         return $prefix.'-'.now()->format('Ymd').'-'.Str::upper(Str::random(5));
     }
 
-    public function resourceOf(string $type, Model $booking): ?Model
+    public function resourceOf(string $type, Reservation|RestBooking $booking): Facility|RestSpace|null
     {
         $resourceId = $booking->{BookableResources::foreignKey($type)};
 
@@ -315,7 +328,7 @@ class BookingService
     /**
      * Busca una reserva del tipo indicado por folio o por id.
      */
-    public function findBooking(string $type, string $reference): ?Model
+    public function findBooking(string $type, string $reference): Reservation|RestBooking|null
     {
         $model = BookableResources::bookingModel($type);
         $reference = trim($reference);
@@ -329,7 +342,7 @@ class BookingService
         return $booking;
     }
 
-    private function markNoShow(string $type, Model $booking, ?Model $resource): void
+    private function markNoShow(string $type, Reservation|RestBooking $booking, Facility|RestSpace|null $resource): void
     {
         $now = now();
 

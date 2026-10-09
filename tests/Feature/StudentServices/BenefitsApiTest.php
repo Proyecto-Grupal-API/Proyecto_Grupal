@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\StudentServices\Audit\ServiceAuditLog;
 use App\Models\StudentServices\Benefits\BenefitAssignment;
 use App\Models\StudentServices\Lockers\Locker;
 use App\Models\StudentServices\Lockers\LockerAssignment;
@@ -8,7 +9,6 @@ use App\Models\StudentServices\ServiceAccess\ServiceCheckin;
 use App\Models\StudentServices\Services\ServiceOrder;
 use App\Models\User;
 use Carbon\Carbon;
-use MongoDB\BSON\Decimal128;
 
 beforeEach(function () {
     useStudentServicesTestDatabase();
@@ -27,7 +27,7 @@ beforeEach(function () {
         'name' => 'Agosto - Diciembre 2026',
         'starts_at' => Carbon::parse('2026-08-01'),
         'ends_at' => Carbon::parse('2027-01-01'),
-        'prices' => ['small' => new Decimal128('150.00')],
+        'prices_cents' => ['small' => 15000],
         'status' => 'active',
     ]);
 
@@ -125,7 +125,9 @@ test('a locker scholarship assigns a real locker and is idempotent', function ()
 
     expect(BenefitAssignment::count())->toBe(1)
         ->and(LockerAssignment::where('source', 'scholarship')->count())->toBe(1)
-        ->and(Locker::first()->status)->toBe('occupied');
+        ->and(Locker::first()->status)->toBe('occupied')
+        ->and(ServiceAuditLog::where('action', 'benefit.assignment.created')->count())->toBe(1)
+        ->and(ServiceAuditLog::where('action', 'benefit.assignment.created')->value('actor_id'))->toBe('api:equipo6-comunidad');
 });
 
 test('reusing a key with different content is a conflict', function () {

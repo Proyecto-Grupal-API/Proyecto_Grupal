@@ -39,13 +39,11 @@ const props = defineProps<{
 
 const search = ref('');
 
-const statusFilter =
-    ref<'all' | ReservationStatus>('all');
+const statusFilter = ref<'all' | ReservationStatus>('all');
 
 const showForm = ref(false);
 
-const processingActionId =
-    ref<string | null>(null);
+const processingActionId = ref<string | null>(null);
 
 const form = useForm({
     book_id: '',
@@ -54,106 +52,62 @@ const form = useForm({
 });
 
 const selectedBook = computed(() => {
-    return (
-        props.books.find(
-            (book) =>
-                book.id === form.book_id,
-        ) ?? null
-    );
+    return props.books.find((book) => book.id === form.book_id) ?? null;
 });
 
 const pendingCount = computed(() => {
     return props.reservations.filter(
-        (reservation) =>
-            reservation.status ===
-            'pending',
+        (reservation) => reservation.status === 'pending',
     ).length;
 });
 
 const readyCount = computed(() => {
     return props.reservations.filter(
-        (reservation) =>
-            reservation.status ===
-            'ready',
+        (reservation) => reservation.status === 'ready',
     ).length;
 });
 
 const fulfilledCount = computed(() => {
     return props.reservations.filter(
-        (reservation) =>
-            reservation.status ===
-            'fulfilled',
+        (reservation) => reservation.status === 'fulfilled',
     ).length;
 });
 
 const closedCount = computed(() => {
     return props.reservations.filter(
         (reservation) =>
-            reservation.status ===
-            'cancelled' ||
-            reservation.status ===
-            'expired',
+            reservation.status === 'cancelled' ||
+            reservation.status === 'expired',
     ).length;
 });
 
-const reservationFolio = (
-    reservation: BookReservation,
-): string => {
-    return `RES-${reservation.id
-        .slice(-6)
-        .toUpperCase()}`;
+const reservationFolio = (reservation: BookReservation): string => {
+    return `RES-${reservation.id.slice(-6).toUpperCase()}`;
 };
 
-const filteredReservations =
-    computed(() => {
-        const value = search.value
-            .trim()
-            .toLowerCase();
+const filteredReservations = computed(() => {
+    const value = search.value.trim().toLowerCase();
 
-        return props.reservations.filter(
-            (reservation) => {
-                const matchesSearch =
-                    value === '' ||
-                    reservationFolio(
-                        reservation,
-                    )
-                        .toLowerCase()
-                        .includes(value) ||
-                    reservation.book_title
-                        .toLowerCase()
-                        .includes(value) ||
-                    reservation.student_id
-                        .toLowerCase()
-                        .includes(value) ||
-                    (
-                        reservation
-                            .assigned_copy_code ??
-                        ''
-                    )
-                        .toLowerCase()
-                        .includes(value);
+    return props.reservations.filter((reservation) => {
+        const matchesSearch =
+            value === '' ||
+            reservationFolio(reservation).toLowerCase().includes(value) ||
+            reservation.book_title.toLowerCase().includes(value) ||
+            reservation.student_id.toLowerCase().includes(value) ||
+            (reservation.assigned_copy_code ?? '')
+                .toLowerCase()
+                .includes(value);
 
-                const matchesStatus =
-                    statusFilter.value ===
-                    'all' ||
-                    reservation.status ===
-                    statusFilter.value;
+        const matchesStatus =
+            statusFilter.value === 'all' ||
+            reservation.status === statusFilter.value;
 
-                return (
-                    matchesSearch &&
-                    matchesStatus
-                );
-            },
-        );
+        return matchesSearch && matchesStatus;
     });
+});
 
-const statusLabel = (
-    status: ReservationStatus,
-): string => {
-    const labels: Record<
-        ReservationStatus,
-        string
-    > = {
+const statusLabel = (status: ReservationStatus): string => {
+    const labels: Record<ReservationStatus, string> = {
         pending: 'Pendiente',
         ready: 'Lista para recoger',
         fulfilled: 'Atendida',
@@ -164,9 +118,7 @@ const statusLabel = (
     return labels[status];
 };
 
-const statusClass = (
-    status: ReservationStatus,
-): string => {
+const statusClass = (status: ReservationStatus): string => {
     return {
         pending: 'status-pending',
         ready: 'status-ready',
@@ -176,40 +128,23 @@ const statusClass = (
     }[status];
 };
 
-const formatDateTime = (
-    value: string | null,
-): string => {
+const formatDateTime = (value: string | null): string => {
     if (!value) {
         return '—';
     }
 
-    return new Date(
-        value,
-    ).toLocaleString(
-        'es-MX',
-        {
-            dateStyle: 'short',
-            timeStyle: 'short',
-        },
-    );
+    return new Date(value).toLocaleString('es-MX', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+    });
 };
 
-const canExpire = (
-    reservation: BookReservation,
-): boolean => {
-    if (
-        reservation.status !==
-        'ready' ||
-        !reservation.expires_at
-    ) {
+const canExpire = (reservation: BookReservation): boolean => {
+    if (reservation.status !== 'ready' || !reservation.expires_at) {
         return false;
     }
 
-    return (
-        new Date(
-            reservation.expires_at,
-        ).getTime() <= Date.now()
-    );
+    return new Date(reservation.expires_at).getTime() <= Date.now();
 };
 
 const openCreateForm = () => {
@@ -233,68 +168,48 @@ const closeForm = () => {
 
 const createReservation = () => {
     if (!form.book_id) {
-        window.alert(
-            'Selecciona un libro.',
-        );
+        window.alert('Selecciona un libro.');
 
         return;
     }
 
     if (!form.student_id.trim()) {
-        window.alert(
-            'Ingresa el ID del estudiante.',
-        );
+        window.alert('Ingresa el ID del estudiante.');
 
         return;
     }
 
-    form.student_id =
-        form.student_id
-            .trim()
-            .toUpperCase();
+    form.student_id = form.student_id.trim().toUpperCase();
 
-    form.notes =
-        form.notes.trim();
+    form.notes = form.notes.trim();
 
-    form.post(
-        '/servicios-estudiante/biblioteca/reservas',
-        {
-            preserveScroll: true,
+    form.post('/servicios-estudiante/biblioteca/reservas', {
+        preserveScroll: true,
 
-            onSuccess: () => {
-                closeForm();
+        onSuccess: () => {
+            closeForm();
 
-                window.alert(
-                    'Reserva registrada correctamente.',
-                );
-            },
+            window.alert('Reserva registrada correctamente.');
         },
-    );
+    });
 };
 
-const assignCopy = (
-    reservation: BookReservation,
-) => {
-    if (
-        reservation.status !==
-        'pending'
-    ) {
+const assignCopy = (reservation: BookReservation) => {
+    if (reservation.status !== 'pending') {
         return;
     }
 
-    const confirmed =
-        window.confirm(
-            `¿Asignar automáticamente un ejemplar disponible a ${reservationFolio(
-                reservation,
-            )}?`,
-        );
+    const confirmed = window.confirm(
+        `¿Asignar automáticamente un ejemplar disponible a ${reservationFolio(
+            reservation,
+        )}?`,
+    );
 
     if (!confirmed) {
         return;
     }
 
-    processingActionId.value =
-        reservation.id;
+    processingActionId.value = reservation.id;
 
     router.patch(
         `/servicios-estudiante/biblioteca/reservas/${reservation.id}/asignar`,
@@ -312,42 +227,33 @@ const assignCopy = (
 
             onError: (errors) => {
                 window.alert(
-                    errors.reservation ??
-                    'No fue posible asignar un ejemplar.',
+                    errors.reservation ?? 'No fue posible asignar un ejemplar.',
                 );
             },
 
             onFinish: () => {
-                processingActionId.value =
-                    null;
+                processingActionId.value = null;
             },
         },
     );
 };
 
-const fulfillReservation = (
-    reservation: BookReservation,
-) => {
-    if (
-        reservation.status !==
-        'ready'
-    ) {
+const fulfillReservation = (reservation: BookReservation) => {
+    if (reservation.status !== 'ready') {
         return;
     }
 
-    const confirmed =
-        window.confirm(
-            `¿Atender ${reservationFolio(
-                reservation,
-            )} y generar el préstamo correspondiente?`,
-        );
+    const confirmed = window.confirm(
+        `¿Atender ${reservationFolio(
+            reservation,
+        )} y generar el préstamo correspondiente?`,
+    );
 
     if (!confirmed) {
         return;
     }
 
-    processingActionId.value =
-        reservation.id;
+    processingActionId.value = reservation.id;
 
     router.patch(
         `/servicios-estudiante/biblioteca/reservas/${reservation.id}/completar`,
@@ -365,83 +271,59 @@ const fulfillReservation = (
 
             onError: (errors) => {
                 window.alert(
-                    errors.reservation ??
-                    'No fue posible atender la reserva.',
+                    errors.reservation ?? 'No fue posible atender la reserva.',
                 );
             },
 
             onFinish: () => {
-                processingActionId.value =
-                    null;
+                processingActionId.value = null;
             },
         },
     );
 };
 
-const cancelReservation = (
-    reservation: BookReservation,
-) => {
-    if (
-        reservation.status !==
-        'pending' &&
-        reservation.status !==
-        'ready'
-    ) {
+const cancelReservation = (reservation: BookReservation) => {
+    if (reservation.status !== 'pending' && reservation.status !== 'ready') {
         return;
     }
 
-    const confirmed =
-        window.confirm(
-            `¿Cancelar ${reservationFolio(
-                reservation,
-            )}?`,
-        );
+    const confirmed = window.confirm(
+        `¿Cancelar ${reservationFolio(reservation)}?`,
+    );
 
     if (!confirmed) {
         return;
     }
 
-    processingActionId.value =
-        reservation.id;
+    processingActionId.value = reservation.id;
 
     router.patch(
         `/servicios-estudiante/biblioteca/reservas/${reservation.id}/cancelar`,
         {
-            notes:
-                'Reserva cancelada.',
+            notes: 'Reserva cancelada.',
         },
         {
             preserveScroll: true,
 
             onSuccess: () => {
-                window.alert(
-                    'Reserva cancelada correctamente.',
-                );
+                window.alert('Reserva cancelada correctamente.');
             },
 
             onError: (errors) => {
                 window.alert(
-                    errors.reservation ??
-                    'No fue posible cancelar la reserva.',
+                    errors.reservation ?? 'No fue posible cancelar la reserva.',
                 );
             },
 
             onFinish: () => {
-                processingActionId.value =
-                    null;
+                processingActionId.value = null;
             },
         },
     );
 };
 
-const expireReservation = (
-    reservation: BookReservation,
-) => {
-    if (
-        !canExpire(
-            reservation,
-        )
-    ) {
+const expireReservation = (reservation: BookReservation) => {
+    if (!canExpire(reservation)) {
         window.alert(
             'Esta reserva todavía no ha alcanzado su fecha de expiración.',
         );
@@ -449,19 +331,15 @@ const expireReservation = (
         return;
     }
 
-    const confirmed =
-        window.confirm(
-            `¿Marcar ${reservationFolio(
-                reservation,
-            )} como expirada?`,
-        );
+    const confirmed = window.confirm(
+        `¿Marcar ${reservationFolio(reservation)} como expirada?`,
+    );
 
     if (!confirmed) {
         return;
     }
 
-    processingActionId.value =
-        reservation.id;
+    processingActionId.value = reservation.id;
 
     router.patch(
         `/servicios-estudiante/biblioteca/reservas/${reservation.id}/expirar`,
@@ -470,64 +348,46 @@ const expireReservation = (
             preserveScroll: true,
 
             onSuccess: () => {
-                window.alert(
-                    'Reserva marcada como expirada.',
-                );
+                window.alert('Reserva marcada como expirada.');
             },
 
             onError: (errors) => {
                 window.alert(
-                    errors.reservation ??
-                    'No fue posible expirar la reserva.',
+                    errors.reservation ?? 'No fue posible expirar la reserva.',
                 );
             },
 
             onFinish: () => {
-                processingActionId.value =
-                    null;
+                processingActionId.value = null;
             },
         },
     );
 };
 
-const viewDetails = (
-    reservation: BookReservation,
-) => {
+const viewDetails = (reservation: BookReservation) => {
     const detail = [
-        `Reserva: ${reservationFolio(
-            reservation,
-        )}`,
+        `Reserva: ${reservationFolio(reservation)}`,
         `Libro: ${reservation.book_title}`,
         `ID libro: ${reservation.book_id}`,
         `Estudiante: ${reservation.student_id}`,
-        `Ejemplar: ${
-            reservation
-                .assigned_copy_code ??
-            'Sin asignar'
-        }`,
-        `Reservada: ${formatDateTime(
-            reservation.reserved_at,
-        )}`,
-        `Lista para recoger: ${formatDateTime(
-            reservation.ready_at,
-        )}`,
-        `Expira: ${formatDateTime(
-            reservation.expires_at,
-        )}`,
-        `Atendida: ${formatDateTime(
-            reservation.fulfilled_at,
-        )}`,
-        `Estado: ${statusLabel(
-            reservation.status,
-        )}`,
-        `Notas: ${
-            reservation.notes ??
-            'Sin notas'
-        }`,
+        `Ejemplar: ${reservation.assigned_copy_code ?? 'Sin asignar'}`,
+        `Reservada: ${formatDateTime(reservation.reserved_at)}`,
+        `Lista para recoger: ${formatDateTime(reservation.ready_at)}`,
+        `Expira: ${formatDateTime(reservation.expires_at)}`,
+        `Atendida: ${formatDateTime(reservation.fulfilled_at)}`,
+        `Estado: ${statusLabel(reservation.status)}`,
+        `Notas: ${reservation.notes ?? 'Sin notas'}`,
     ].join('\n');
 
     window.alert(detail);
 };
+
+/**
+ * Errores del servidor que no corresponden a un campo del formulario
+ * (por ejemplo, reglas de negocio devueltas con withErrors).
+ */
+const serverError = (form: { errors: object }, key: string) =>
+    (form.errors as Record<string, string | undefined>)[key];
 </script>
 
 <template>
@@ -537,104 +397,75 @@ const viewDetails = (
     >
         <section class="summary">
             <div>
-                <span class="section-label">
-                    BIBLIOTECA · MÓDULO 5.1
-                </span>
+                <span class="section-label"> BIBLIOTECA · MÓDULO 5.1 </span>
 
-                <h2>
-                    Reservas de libros
-                </h2>
+                <h2>Reservas de libros</h2>
 
                 <p>
-                    Administra solicitudes de libros,
-                    asigna ejemplares disponibles y
-                    controla el periodo de recolección.
+                    Administra solicitudes de libros, asigna ejemplares
+                    disponibles y controla el periodo de recolección.
                 </p>
             </div>
 
             <div class="total-box">
-                <span>
-                    Total registradas
-                </span>
+                <span> Total registradas </span>
 
                 <strong>
                     {{ reservations.length }}
                 </strong>
 
-                <small>
-                    reservas
-                </small>
+                <small> reservas </small>
             </div>
         </section>
 
         <section class="stats-grid">
             <article class="stat-card">
-                <span>
-                    Pendientes
-                </span>
+                <span> Pendientes </span>
 
                 <strong>
                     {{ pendingCount }}
                 </strong>
 
-                <small>
-                    Esperan ejemplar
-                </small>
+                <small> Esperan ejemplar </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Listas
-                </span>
+                <span> Listas </span>
 
                 <strong>
                     {{ readyCount }}
                 </strong>
 
-                <small>
-                    Listas para recoger
-                </small>
+                <small> Listas para recoger </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Atendidas
-                </span>
+                <span> Atendidas </span>
 
                 <strong>
                     {{ fulfilledCount }}
                 </strong>
 
-                <small>
-                    Convertidas a préstamo
-                </small>
+                <small> Convertidas a préstamo </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Cerradas
-                </span>
+                <span> Cerradas </span>
 
                 <strong>
                     {{ closedCount }}
                 </strong>
 
-                <small>
-                    Canceladas o expiradas
-                </small>
+                <small> Canceladas o expiradas </small>
             </article>
         </section>
 
         <section class="content-panel">
             <div class="panel-header">
                 <div>
-                    <h3>
-                        Reservas registradas
-                    </h3>
+                    <h3>Reservas registradas</h3>
 
-                    <p>
-                        Datos almacenados en MongoDB.
-                    </p>
+                    <p>Datos almacenados en MongoDB.</p>
                 </div>
 
                 <button
@@ -646,23 +477,15 @@ const viewDetails = (
                 </button>
             </div>
 
-            <section
-                v-if="showForm"
-                class="form-panel"
-            >
+            <section v-if="showForm" class="form-panel">
                 <div class="form-header">
                     <div>
-                        <span class="form-label">
-                            NUEVA RESERVA
-                        </span>
+                        <span class="form-label"> NUEVA RESERVA </span>
 
-                        <h3>
-                            Registrar reserva
-                        </h3>
+                        <h3>Registrar reserva</h3>
 
                         <p>
-                            Selecciona el libro y
-                            registra al estudiante
+                            Selecciona el libro y registra al estudiante
                             solicitante.
                         </p>
                     </div>
@@ -678,26 +501,17 @@ const viewDetails = (
 
                 <form
                     class="reservation-form"
-                    @submit.prevent="
-                        createReservation
-                    "
+                    @submit.prevent="createReservation"
                 >
                     <div class="form-grid">
-                        <div
-                            class="form-field form-field-full"
-                        >
+                        <div class="form-field form-field-full">
                             <label for="book_id">
                                 Libro
                                 <span>*</span>
                             </label>
 
-                            <select
-                                id="book_id"
-                                v-model="form.book_id"
-                            >
-                                <option value="">
-                                    Selecciona un libro
-                                </option>
+                            <select id="book_id" v-model="form.book_id">
+                                <option value="">Selecciona un libro</option>
 
                                 <option
                                     v-for="book in books"
@@ -706,9 +520,7 @@ const viewDetails = (
                                 >
                                     {{ book.title }}
                                     ·
-                                    {{
-                                        book.available_copies
-                                    }}
+                                    {{ book.available_copies }}
                                     disponible(s)
                                 </option>
                             </select>
@@ -717,9 +529,7 @@ const viewDetails = (
                                 v-if="form.errors.book_id"
                                 class="form-error"
                             >
-                                {{
-                                    form.errors.book_id
-                                }}
+                                {{ form.errors.book_id }}
                             </small>
                         </div>
 
@@ -731,74 +541,49 @@ const viewDetails = (
 
                             <input
                                 id="student_id"
-                                v-model="
-                                    form.student_id
-                                "
+                                v-model="form.student_id"
                                 type="text"
                                 placeholder="Ej. EST-0001"
                             />
 
                             <small
-                                v-if="
-                                    form.errors.student_id
-                                "
+                                v-if="form.errors.student_id"
                                 class="form-error"
                             >
-                                {{
-                                    form.errors
-                                        .student_id
-                                }}
+                                {{ form.errors.student_id }}
                             </small>
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Ejemplares disponibles
-                            </label>
+                            <label> Ejemplares disponibles </label>
 
                             <input
                                 type="text"
                                 :value="
                                     selectedBook
-                                        ? String(
-                                              selectedBook.available_copies,
-                                          )
+                                        ? String(selectedBook.available_copies)
                                         : ''
                                 "
                                 disabled
                             />
                         </div>
 
-                        <div
-                            class="form-field form-field-full"
-                        >
-                            <label>
-                                ISBN
-                            </label>
+                        <div class="form-field form-field-full">
+                            <label> ISBN </label>
 
                             <input
                                 type="text"
-                                :value="
-                                    selectedBook
-                                        ?.isbn ??
-                                    ''
-                                "
+                                :value="selectedBook?.isbn ?? ''"
                                 disabled
                             />
                         </div>
 
-                        <div
-                            class="form-field form-field-full"
-                        >
-                            <label for="notes">
-                                Notas
-                            </label>
+                        <div class="form-field form-field-full">
+                            <label for="notes"> Notas </label>
 
                             <textarea
                                 id="notes"
-                                v-model="
-                                    form.notes
-                                "
+                                v-model="form.notes"
                                 rows="3"
                                 placeholder="Observaciones opcionales..."
                             ></textarea>
@@ -806,28 +591,17 @@ const viewDetails = (
                     </div>
 
                     <div
-                        v-if="
-                            form.errors
-                                .reservation
-                        "
+                        v-if="serverError(form, 'reservation')"
                         class="error-box"
                     >
-                        {{
-                            form.errors
-                                .reservation
-                        }}
+                        {{ serverError(form, 'reservation') }}
                     </div>
 
                     <div class="information-box">
                         La reserva se crea como
-                        <strong>
-                            Pendiente
-                        </strong>.
-                        Después se puede asignar
-                        automáticamente un ejemplar
-                        disponible. Cuando se atiende,
-                        el sistema genera el préstamo
-                        correspondiente.
+                        <strong> Pendiente </strong>. Después se puede asignar
+                        automáticamente un ejemplar disponible. Cuando se
+                        atiende, el sistema genera el préstamo correspondiente.
                     </div>
 
                     <div class="form-actions">
@@ -842,9 +616,7 @@ const viewDetails = (
                         <button
                             type="submit"
                             class="primary-button"
-                            :disabled="
-                                form.processing
-                            "
+                            :disabled="form.processing"
                         >
                             {{
                                 form.processing
@@ -865,264 +637,164 @@ const viewDetails = (
                     />
                 </div>
 
-                <select
-                    v-model="statusFilter"
-                >
-                    <option value="all">
-                        Todos los estados
-                    </option>
+                <select v-model="statusFilter">
+                    <option value="all">Todos los estados</option>
 
-                    <option value="pending">
-                        Pendientes
-                    </option>
+                    <option value="pending">Pendientes</option>
 
-                    <option value="ready">
-                        Listas para recoger
-                    </option>
+                    <option value="ready">Listas para recoger</option>
 
-                    <option value="fulfilled">
-                        Atendidas
-                    </option>
+                    <option value="fulfilled">Atendidas</option>
 
-                    <option value="cancelled">
-                        Canceladas
-                    </option>
+                    <option value="cancelled">Canceladas</option>
 
-                    <option value="expired">
-                        Expiradas
-                    </option>
+                    <option value="expired">Expiradas</option>
                 </select>
             </div>
 
-            <div
-                v-if="
-                    filteredReservations.length >
-                    0
-                "
-                class="table-container"
-            >
+            <div v-if="filteredReservations.length > 0" class="table-container">
                 <table>
                     <thead>
-                    <tr>
-                        <th>Reserva</th>
-                        <th>Libro</th>
-                        <th>Estudiante</th>
-                        <th>Ejemplar</th>
-                        <th>Reservada</th>
-                        <th>Expira</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
+                        <tr>
+                            <th>Reserva</th>
+                            <th>Libro</th>
+                            <th>Estudiante</th>
+                            <th>Ejemplar</th>
+                            <th>Reservada</th>
+                            <th>Expira</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    <tr
-                        v-for="
-                                reservation in
-                                filteredReservations
-                            "
-                        :key="
-                                reservation.id
-                            "
-                    >
-                        <td>
-                            <strong
-                                class="reservation-id"
-                            >
-                                {{
-                                    reservationFolio(
-                                        reservation,
-                                    )
-                                }}
-                            </strong>
-                        </td>
-
-                        <td>
-                            <div
-                                class="book-info"
-                            >
-                                <strong>
-                                    {{
-                                        reservation.book_title
-                                    }}
+                        <tr
+                            v-for="reservation in filteredReservations"
+                            :key="reservation.id"
+                        >
+                            <td>
+                                <strong class="reservation-id">
+                                    {{ reservationFolio(reservation) }}
                                 </strong>
+                            </td>
 
-                                <small>
-                                    {{
-                                        reservation.book_id
-                                    }}
-                                </small>
-                            </div>
-                        </td>
+                            <td>
+                                <div class="book-info">
+                                    <strong>
+                                        {{ reservation.book_title }}
+                                    </strong>
 
-                        <td>
-                                <span
-                                    class="student-id"
-                                >
-                                    {{
-                                        reservation.student_id
-                                    }}
+                                    <small>
+                                        {{ reservation.book_id }}
+                                    </small>
+                                </div>
+                            </td>
+
+                            <td>
+                                <span class="student-id">
+                                    {{ reservation.student_id }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            {{
-                                reservation
-                                    .assigned_copy_code ??
-                                'Sin asignar'
-                            }}
-                        </td>
+                            <td>
+                                {{
+                                    reservation.assigned_copy_code ??
+                                    'Sin asignar'
+                                }}
+                            </td>
 
-                        <td>
-                            {{
-                                formatDateTime(
-                                    reservation.reserved_at,
-                                )
-                            }}
-                        </td>
+                            <td>
+                                {{ formatDateTime(reservation.reserved_at) }}
+                            </td>
 
-                        <td>
-                            {{
-                                formatDateTime(
-                                    reservation.expires_at,
-                                )
-                            }}
-                        </td>
+                            <td>
+                                {{ formatDateTime(reservation.expires_at) }}
+                            </td>
 
-                        <td>
+                            <td>
                                 <span
                                     class="status"
-                                    :class="
-                                        statusClass(
-                                            reservation.status,
-                                        )
-                                    "
+                                    :class="statusClass(reservation.status)"
                                 >
-                                    {{
-                                        statusLabel(
-                                            reservation.status,
-                                        )
-                                    }}
+                                    {{ statusLabel(reservation.status) }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            <div
-                                class="actions"
-                            >
-                                <button
-                                    type="button"
-                                    class="action-button details"
-                                    @click="
-                                            viewDetails(
-                                                reservation,
-                                            )
-                                        "
-                                >
-                                    Ver
-                                </button>
+                            <td>
+                                <div class="actions">
+                                    <button
+                                        type="button"
+                                        class="action-button details"
+                                        @click="viewDetails(reservation)"
+                                    >
+                                        Ver
+                                    </button>
 
-                                <button
-                                    v-if="
-                                            reservation.status ===
-                                            'pending'
-                                        "
-                                    type="button"
-                                    class="action-button assign"
-                                    :disabled="
+                                    <button
+                                        v-if="reservation.status === 'pending'"
+                                        type="button"
+                                        class="action-button assign"
+                                        :disabled="
                                             processingActionId ===
                                             reservation.id
                                         "
-                                    @click="
-                                            assignCopy(
-                                                reservation,
-                                            )
-                                        "
-                                >
-                                    Asignar
-                                </button>
+                                        @click="assignCopy(reservation)"
+                                    >
+                                        Asignar
+                                    </button>
 
-                                <button
-                                    v-if="
-                                            reservation.status ===
-                                            'ready'
-                                        "
-                                    type="button"
-                                    class="action-button fulfill"
-                                    :disabled="
+                                    <button
+                                        v-if="reservation.status === 'ready'"
+                                        type="button"
+                                        class="action-button fulfill"
+                                        :disabled="
                                             processingActionId ===
                                             reservation.id
                                         "
-                                    @click="
-                                            fulfillReservation(
-                                                reservation,
-                                            )
-                                        "
-                                >
-                                    Atender
-                                </button>
+                                        @click="fulfillReservation(reservation)"
+                                    >
+                                        Atender
+                                    </button>
 
-                                <button
-                                    v-if="
-                                            canExpire(
-                                                reservation,
-                                            )
-                                        "
-                                    type="button"
-                                    class="action-button expire"
-                                    :disabled="
+                                    <button
+                                        v-if="canExpire(reservation)"
+                                        type="button"
+                                        class="action-button expire"
+                                        :disabled="
                                             processingActionId ===
                                             reservation.id
                                         "
-                                    @click="
-                                            expireReservation(
-                                                reservation,
-                                            )
-                                        "
-                                >
-                                    Expirar
-                                </button>
+                                        @click="expireReservation(reservation)"
+                                    >
+                                        Expirar
+                                    </button>
 
-                                <button
-                                    v-if="
-                                            reservation.status ===
-                                                'pending' ||
-                                            reservation.status ===
-                                                'ready'
+                                    <button
+                                        v-if="
+                                            reservation.status === 'pending' ||
+                                            reservation.status === 'ready'
                                         "
-                                    type="button"
-                                    class="action-button cancel"
-                                    :disabled="
+                                        type="button"
+                                        class="action-button cancel"
+                                        :disabled="
                                             processingActionId ===
                                             reservation.id
                                         "
-                                    @click="
-                                            cancelReservation(
-                                                reservation,
-                                            )
-                                        "
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                                        @click="cancelReservation(reservation)"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div
-                v-else
-                class="empty-state"
-            >
-                <h3>
-                    No se encontraron reservas
-                </h3>
+            <div v-else class="empty-state">
+                <h3>No se encontraron reservas</h3>
 
-                <p>
-                    Cambia los filtros o
-                    registra una nueva reserva.
-                </p>
+                <p>Cambia los filtros o registra una nueva reserva.</p>
             </div>
         </section>
     </StudentServicesLayout>
@@ -1167,8 +839,7 @@ const viewDetails = (
     min-width: 150px;
     padding: 16px 19px;
     border-radius: 10px;
-    background:
-        rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .total-box span {
@@ -1191,8 +862,7 @@ const viewDetails = (
 .stats-grid {
     margin-top: 18px;
     display: grid;
-    grid-template-columns:
-        repeat(4, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 13px;
 }
 
@@ -1316,8 +986,7 @@ const viewDetails = (
 
 .form-grid {
     display: grid;
-    grid-template-columns:
-        repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 17px 19px;
 }
 
@@ -1356,9 +1025,7 @@ const viewDetails = (
 .form-field select:focus,
 .form-field textarea:focus {
     border-color: #3970c1;
-    box-shadow:
-        0 0 0 3px
-        rgba(57, 112, 193, 0.08);
+    box-shadow: 0 0 0 3px rgba(57, 112, 193, 0.08);
 }
 
 .form-field input:disabled {
@@ -1608,8 +1275,7 @@ tbody tr:hover {
 
 @media (max-width: 1000px) {
     .stats-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 

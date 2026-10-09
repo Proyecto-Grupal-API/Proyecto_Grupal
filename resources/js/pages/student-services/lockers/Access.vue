@@ -16,17 +16,13 @@ const props = defineProps<{
     result: AccessResult | null;
 }>();
 
-const BASE_URL =
-    '/servicios-estudiante/lockers';
+const BASE_URL = '/servicios-estudiante/lockers';
 
 const form = useForm({
     code: '',
 });
 
-const inputRef =
-    ref<HTMLInputElement | null>(
-        null,
-    );
+const inputRef = ref<HTMLInputElement | null>(null);
 
 function focusInput() {
     nextTick(() => {
@@ -35,34 +31,26 @@ function focusInput() {
 }
 
 function submitCode() {
-    form.post(
-        `${BASE_URL}/acceso/validar`,
-        {
-            preserveScroll: true,
+    form.post(`${BASE_URL}/acceso/validar`, {
+        preserveScroll: true,
 
-            onSuccess: () => {
-                form.reset('code');
-                focusInput();
-            },
-
-            onError: () => {
-                focusInput();
-            },
+        onSuccess: () => {
+            form.reset('code');
+            focusInput();
         },
-    );
+
+        onError: () => {
+            focusInput();
+        },
+    });
 }
 
-function formatDate(
-    value?: string,
-): string {
+function formatDate(value?: string): string {
     if (!value) {
         return '—';
     }
 
-    const parts =
-        value
-            .slice(0, 10)
-            .split('-');
+    const parts = value.slice(0, 10).split('-');
 
     if (parts.length !== 3) {
         return value;
@@ -78,13 +66,9 @@ onMounted(() => {
      * botón "Acceso", recibimos el
      * código del locker en la URL.
      */
-    const params =
-        new URLSearchParams(
-            window.location.search,
-        );
+    const params = new URLSearchParams(window.location.search);
 
-    const locker =
-        params.get('locker');
+    const locker = params.get('locker');
 
     if (locker) {
         form.code = locker;
@@ -101,126 +85,69 @@ onMounted(() => {
     >
         <section class="hero">
             <div>
-                <span class="hero-label">
-                    LOCKERS · MÓDULO 5.4
-                </span>
+                <span class="hero-label"> LOCKERS · MÓDULO 5.4 </span>
 
-                <h2>
-                    Validar acceso
-                </h2>
+                <h2>Validar acceso</h2>
 
                 <p>
-                    Escanea el código QR del
-                    locker o escribe
-                    manualmente su código
-                    para comprobar que
-                    cuenta con una
-                    asignación activa.
+                    Escanea el código QR del locker o escribe manualmente su
+                    código para comprobar que cuenta con una asignación activa.
                 </p>
             </div>
 
             <div class="hero-device">
-                <span>
-                    SISTEMA DE ACCESO
-                </span>
+                <span> SISTEMA DE ACCESO </span>
 
-                <strong>
-                    QR / NFC
-                </strong>
+                <strong> QR / NFC </strong>
 
-                <small>
-                    Validación en tiempo real
-                </small>
+                <small> Validación en tiempo real </small>
             </div>
         </section>
 
-        <section
-            class="module-navigation"
-        >
-            <Link
-                :href="BASE_URL"
-                class="module-link"
-            >
-                Catálogo
-            </Link>
+        <section class="module-navigation">
+            <Link :href="BASE_URL" class="module-link"> Catálogo </Link>
 
-            <Link
-                :href="`${BASE_URL}/periodos`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/periodos`" class="module-link">
                 Periodos y costos
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/solicitudes`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/solicitudes`" class="module-link">
                 Solicitudes
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/asignaciones`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/asignaciones`" class="module-link">
                 Asignaciones
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/acceso`"
-                class="module-link active"
-            >
+            <Link :href="`${BASE_URL}/acceso`" class="module-link active">
                 Validar acceso
             </Link>
         </section>
 
-        <section
-            class="content-panel"
-        >
-            <div
-                class="panel-header"
-            >
+        <section class="content-panel">
+            <div class="panel-header">
                 <div>
-                    <span
-                        class="panel-label"
-                    >
-                        CONTROL DE ACCESO
-                    </span>
+                    <span class="panel-label"> CONTROL DE ACCESO </span>
 
-                    <h3>
-                        Escanear locker
-                    </h3>
+                    <h3>Escanear locker</h3>
 
                     <p>
-                        El sistema buscará el
-                        código en MongoDB y
-                        comprobará que exista
-                        una asignación activa.
+                        El sistema buscará el código en MongoDB y comprobará que
+                        exista una asignación activa.
                     </p>
                 </div>
 
-                <div
-                    class="scanner-status"
-                >
-                    <span
-                        class="scanner-dot"
-                    />
+                <div class="scanner-status">
+                    <span class="scanner-dot" />
 
                     Lector listo
                 </div>
             </div>
 
-            <div
-                class="scanner-container"
-            >
-                <div
-                    class="scanner-visual"
-                >
-                    <div
-                        class="qr-frame"
-                    >
-                        <div
-                            class="qr-pattern"
-                        >
+            <div class="scanner-container">
+                <div class="scanner-visual">
+                    <div class="qr-frame">
+                        <div class="qr-pattern">
                             <span />
                             <span />
                             <span />
@@ -233,77 +160,43 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <strong>
-                        Escanea el código
-                    </strong>
+                    <strong> Escanea el código </strong>
 
                     <p>
-                        Puedes utilizar un
-                        lector QR/NFC o
-                        escribir el código
+                        Puedes utilizar un lector QR/NFC o escribir el código
                         manualmente.
                     </p>
                 </div>
 
-                <form
-                    class="scan-form"
-                    @submit.prevent="
-                        submitCode
-                    "
-                >
-                    <div
-                        class="form-field"
-                    >
-                        <label
-                            for="locker-code"
-                        >
-                            Código del locker
-                        </label>
+                <form class="scan-form" @submit.prevent="submitCode">
+                    <div class="form-field">
+                        <label for="locker-code"> Código del locker </label>
 
                         <input
                             id="locker-code"
                             ref="inputRef"
-                            v-model="
-                                form.code
-                            "
+                            v-model="form.code"
                             type="text"
                             autocomplete="off"
                             placeholder="Ej. QR-LKR-A-PB-001"
                         />
 
-                        <small
-                            class="help-text"
-                        >
-                            También puedes
-                            escribir directamente
-                            LKR-A-PB-001.
+                        <small class="help-text">
+                            También puedes escribir directamente LKR-A-PB-001.
                         </small>
 
-                        <small
-                            v-if="
-                                form.errors
-                                    .code
-                            "
-                            class="field-error"
-                        >
-                            {{
-                                form.errors
-                                    .code
-                            }}
+                        <small v-if="form.errors.code" class="field-error">
+                            {{ form.errors.code }}
                         </small>
                     </div>
 
                     <button
                         type="submit"
                         class="primary-button"
-                        :disabled="
-                            form.processing
-                        "
+                        :disabled="form.processing"
                     >
                         {{
-                            form.processing
-                                ? 'Validando...'
-                                : 'Validar acceso'
+                            form.processing ? 'Validando...' : 'Validar acceso'
                         }}
                     </button>
                 </form>
@@ -311,35 +204,19 @@ onMounted(() => {
         </section>
 
         <section
-            v-if="
-                props.result !== null
-            "
+            v-if="props.result !== null"
             class="result-panel"
             :class="{
-                granted:
-                    props.result
-                        .granted,
-                denied:
-                    !props.result
-                        .granted,
+                granted: props.result.granted,
+                denied: !props.result.granted,
             }"
         >
-            <div
-                class="result-icon"
-            >
-                {{
-                    props.result.granted
-                        ? '✓'
-                        : '×'
-                }}
+            <div class="result-icon">
+                {{ props.result.granted ? '✓' : '×' }}
             </div>
 
-            <div
-                class="result-content"
-            >
-                <span
-                    class="result-label"
-                >
+            <div class="result-content">
+                <span class="result-label">
                     {{
                         props.result.granted
                             ? 'ACCESO CONCEDIDO'
@@ -348,25 +225,16 @@ onMounted(() => {
                 </span>
 
                 <h3>
-                    {{
-                        props.result.message
-                    }}
+                    {{ props.result.message }}
                 </h3>
 
-                <p
-                    v-if="
-                        props.result.granted
-                    "
-                >
-                    Se encontró una
-                    asignación activa para
-                    este locker.
+                <p v-if="props.result.granted">
+                    Se encontró una asignación activa para este locker.
                 </p>
 
                 <p v-else>
-                    El código no cumple las
-                    condiciones necesarias
-                    para permitir el acceso.
+                    El código no cumple las condiciones necesarias para permitir
+                    el acceso.
                 </p>
             </div>
         </section>
@@ -374,149 +242,69 @@ onMounted(() => {
         <section
             v-if="
                 props.result !== null &&
-                (
-                    props.result
-                        .locker_code ||
-                    props.result
-                        .student_id ||
-                    props.result
-                        .folio
-                )
+                (props.result.locker_code ||
+                    props.result.student_id ||
+                    props.result.folio)
             "
             class="content-panel details-panel"
         >
-            <div
-                class="panel-header"
-            >
+            <div class="panel-header">
                 <div>
-                    <span
-                        class="panel-label"
-                    >
-                        RESULTADO
-                    </span>
+                    <span class="panel-label"> RESULTADO </span>
 
-                    <h3>
-                        Datos de validación
-                    </h3>
+                    <h3>Datos de validación</h3>
 
-                    <p>
-                        Información encontrada
-                        en la asignación del
-                        locker.
-                    </p>
+                    <p>Información encontrada en la asignación del locker.</p>
                 </div>
             </div>
 
-            <div
-                class="details-grid"
-            >
-                <article
-                    v-if="
-                        props.result
-                            .locker_code
-                    "
-                    class="detail-card"
-                >
-                    <span>
-                        Locker
-                    </span>
+            <div class="details-grid">
+                <article v-if="props.result.locker_code" class="detail-card">
+                    <span> Locker </span>
 
                     <strong>
-                        {{
-                            props.result
-                                .locker_code
-                        }}
+                        {{ props.result.locker_code }}
                     </strong>
                 </article>
 
-                <article
-                    v-if="
-                        props.result
-                            .student_id
-                    "
-                    class="detail-card"
-                >
-                    <span>
-                        Estudiante
-                    </span>
+                <article v-if="props.result.student_id" class="detail-card">
+                    <span> Estudiante </span>
 
                     <strong>
-                        {{
-                            props.result
-                                .student_id
-                        }}
+                        {{ props.result.student_id }}
                     </strong>
                 </article>
 
-                <article
-                    v-if="
-                        props.result
-                            .folio
-                    "
-                    class="detail-card"
-                >
-                    <span>
-                        Folio de asignación
-                    </span>
+                <article v-if="props.result.folio" class="detail-card">
+                    <span> Folio de asignación </span>
 
                     <strong>
-                        {{
-                            props.result
-                                .folio
-                        }}
+                        {{ props.result.folio }}
                     </strong>
                 </article>
 
-                <article
-                    v-if="
-                        props.result
-                            .ends_at
-                    "
-                    class="detail-card"
-                >
-                    <span>
-                        Vigencia
-                    </span>
+                <article v-if="props.result.ends_at" class="detail-card">
+                    <span> Vigencia </span>
 
                     <strong>
-                        {{
-                            formatDate(
-                                props.result
-                                    .ends_at,
-                            )
-                        }}
+                        {{ formatDate(props.result.ends_at) }}
                     </strong>
                 </article>
             </div>
         </section>
 
-        <section
-            class="information-panel"
-        >
-            <div
-                class="information-number"
-            >
-                01
-            </div>
+        <section class="information-panel">
+            <div class="information-number">01</div>
 
             <div>
-                <strong>
-                    ¿Cómo funciona?
-                </strong>
+                <strong> ¿Cómo funciona? </strong>
 
                 <p>
-                    El código se compara con
-                    los campos
-                    <code>code</code> y
-                    <code>qr_code</code> de
-                    la colección
-                    <code>lockers</code>.
-                    Para conceder el acceso,
-                    el locker debe estar
-                    ocupado y tener una
-                    asignación con estado
-                    activo en
-                    <code>locker_assignments</code>.
+                    El código se compara con los campos
+                    <code>code</code> y <code>qr_code</code> de la colección
+                    <code>lockers</code>. Para conceder el acceso, el locker
+                    debe estar ocupado y tener una asignación con estado activo
+                    en <code>locker_assignments</code>.
                 </p>
             </div>
         </section>
@@ -528,8 +316,7 @@ onMounted(() => {
     padding: 24px 27px;
     display: flex;
     align-items: center;
-    justify-content:
-        space-between;
+    justify-content: space-between;
     gap: 24px;
     border-radius: 12px;
     background: #2f5eb6;
@@ -567,13 +354,7 @@ onMounted(() => {
     min-width: 180px;
     padding: 16px 19px;
     border-radius: 10px;
-    background:
-        rgba(
-            255,
-            255,
-            255,
-            0.1
-        );
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .hero-device span {
@@ -641,11 +422,9 @@ onMounted(() => {
     padding: 18px 21px;
     display: flex;
     align-items: center;
-    justify-content:
-        space-between;
+    justify-content: space-between;
     gap: 20px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
 }
 
 .panel-label {
@@ -687,14 +466,8 @@ onMounted(() => {
     padding: 28px 25px;
     display: grid;
     grid-template-columns:
-        minmax(
-            220px,
-            0.7fr
-        )
-        minmax(
-            300px,
-            1.3fr
-        );
+        minmax(220px, 0.7fr)
+        minmax(300px, 1.3fr);
     align-items: center;
     gap: 35px;
 }
@@ -721,8 +494,7 @@ onMounted(() => {
     width: 70px;
     height: 70px;
     display: grid;
-    grid-template-columns:
-        repeat(3, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 5px;
 }
 
@@ -787,14 +559,7 @@ onMounted(() => {
 
 .form-field input:focus {
     border-color: #3970c1;
-    box-shadow:
-        0 0 0 3px
-        rgba(
-            57,
-            112,
-            193,
-            0.08
-        );
+    box-shadow: 0 0 0 3px rgba(57, 112, 193, 0.08);
 }
 
 .help-text {
@@ -902,8 +667,7 @@ onMounted(() => {
 .details-grid {
     padding: 20px 21px;
     display: grid;
-    grid-template-columns:
-        repeat(4, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
 }
 
@@ -979,8 +743,7 @@ onMounted(() => {
     }
 
     .details-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 

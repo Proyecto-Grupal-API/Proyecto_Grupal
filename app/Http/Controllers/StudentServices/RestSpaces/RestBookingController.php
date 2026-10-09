@@ -23,7 +23,7 @@ class RestBookingController extends Controller
     {
         $data = $request->validated();
 
-        $space = RestSpace::find($data['rest_space_id']);
+        $space = RestSpace::find($request->string('rest_space_id')->value());
 
         if ($space === null) {
             return back()->withErrors(['booking' => 'El espacio seleccionado no existe.']);

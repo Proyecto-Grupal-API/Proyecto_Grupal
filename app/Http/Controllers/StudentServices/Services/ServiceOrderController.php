@@ -21,8 +21,7 @@ class ServiceOrderController extends Controller
 {
     public function __construct(
         private readonly ServiceOrderService $serviceOrderService
-    ) {
-    }
+    ) {}
 
     public function index(
         Request $request
@@ -44,8 +43,7 @@ class ServiceOrderController extends Controller
                 )
                 ->get()
                 ->map(
-                    fn (ServiceOrder $order) =>
-                    $this->orderPayload(
+                    fn (ServiceOrder $order) => $this->orderPayload(
                         $order
                     )
                 )
@@ -54,16 +52,14 @@ class ServiceOrderController extends Controller
         return Inertia::render(
             'student-services/services/Index',
             [
-                'orders' =>
-                    $orders,
+                'orders' => $orders,
 
                 /*
                  * Saldo de la beca de impresiones asignada por
                  * Comunidad (API de beneficios, REQ-M6-E5-001).
                  */
-                'printAllowance' =>
-                    app(ServiceBenefitService::class)
-                        ->printBalanceFor($studentId),
+                'printAllowance' => app(ServiceBenefitService::class)
+                    ->printBalanceFor($studentId),
             ]
         );
     }
@@ -103,13 +99,12 @@ class ServiceOrderController extends Controller
                 'Solicitud registrada correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'order' =>
-                        $exception
-                            ->getMessage(),
+                    'order' => $exception
+                        ->getMessage(),
                 ])
                 ->withInput();
         } catch (Throwable $exception) {
@@ -117,8 +112,7 @@ class ServiceOrderController extends Controller
 
             return back()
                 ->withErrors([
-                    'order' =>
-                        'No fue posible registrar la solicitud.',
+                    'order' => 'No fue posible registrar la solicitud.',
                 ])
                 ->withInput();
         }
@@ -155,21 +149,19 @@ class ServiceOrderController extends Controller
                 'Pago registrado correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'order' =>
-                        $exception
-                            ->getMessage(),
+                    'order' => $exception
+                        ->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'order' =>
-                        'No fue posible registrar el pago.',
+                    'order' => 'No fue posible registrar el pago.',
                 ]);
         }
     }
@@ -199,21 +191,19 @@ class ServiceOrderController extends Controller
                 'Solicitud cancelada correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'order' =>
-                        $exception
-                            ->getMessage(),
+                    'order' => $exception
+                        ->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'order' =>
-                        'No fue posible cancelar la solicitud.',
+                    'order' => 'No fue posible cancelar la solicitud.',
                 ]);
         }
     }
@@ -243,21 +233,19 @@ class ServiceOrderController extends Controller
                 'Solicitud marcada como lista.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'order' =>
-                        $exception
-                            ->getMessage(),
+                    'order' => $exception
+                        ->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'order' =>
-                        'No fue posible cambiar el estado de la solicitud.',
+                    'order' => 'No fue posible cambiar el estado de la solicitud.',
                 ]);
         }
     }
@@ -287,21 +275,19 @@ class ServiceOrderController extends Controller
                 'Servicio marcado como entregado.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'order' =>
-                        $exception
-                            ->getMessage(),
+                    'order' => $exception
+                        ->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'order' =>
-                        'No fue posible registrar la entrega.',
+                    'order' => 'No fue posible registrar la entrega.',
                 ]);
         }
     }
@@ -343,6 +329,29 @@ class ServiceOrderController extends Controller
         }
     }
 
+    /**
+     * @return array{
+     *     id: string,
+     *     folio: string,
+     *     serviceType: string,
+     *     fileName: string|null,
+     *     quantity: int,
+     *     colorMode: string|null,
+     *     paperSize: string|null,
+     *     sides: string|null,
+     *     observations: string,
+     *     quotedAmount: int|float|null,
+     *     paymentStatus: string,
+     *     paymentReferenceId: string|null,
+     *     status: string,
+     *     requestedAt: string|null,
+     *     paidAt: string|null,
+     *     processingAt: string|null,
+     *     readyAt: string|null,
+     *     deliveredAt: string|null,
+     *     cancelledAt: string|null
+     * }
+     */
     private function orderPayload(
         ServiceOrder $order
     ): array {
@@ -358,81 +367,62 @@ class ServiceOrderController extends Controller
                 ->first();
 
         return [
-            'id' =>
-                (string)
+            'id' => (string)
                 $order->id,
 
-            'folio' =>
-                $order->folio,
+            'folio' => $order->folio,
 
-            'serviceType' =>
-                $order->service_type,
+            'serviceType' => $order->service_type,
 
-            'fileName' =>
-                $printJob?->file_name,
+            'fileName' => $printJob?->file_name,
 
-            'quantity' =>
-                $order->quantity,
+            'quantity' => $order->quantity,
 
-            'colorMode' =>
-                $printJob?->color_mode,
+            'colorMode' => $printJob?->color_mode,
 
-            'paperSize' =>
-                $printJob?->paper_size,
+            'paperSize' => $printJob?->paper_size,
 
-            'sides' =>
-                $printJob?->sides,
+            'sides' => $printJob?->sides,
 
-            'observations' =>
-                $order->observations
+            'observations' => $order->observations
                 ?? '',
 
             /*
              * Mongo guarda centavos.
              * Vue recibe pesos.
              */
-            'quotedAmount' =>
-                $order
-                    ->quoted_amount_cents
+            'quotedAmount' => $order
+                ->quoted_amount_cents
                 !== null
                     ? $order
                         ->quoted_amount_cents
                     / 100
                     : null,
 
-            'paymentStatus' =>
-                $order->payment_status,
+            'paymentStatus' => $order->payment_status,
 
-            'paymentReferenceId' =>
-                $order
-                    ->payment_reference_id,
+            'paymentReferenceId' => $order
+                ->payment_reference_id,
 
-            'status' =>
-                $order->status,
+            'status' => $order->status,
 
-            'requestedAt' =>
-                $order->requested_at
-                    ?->toISOString(),
+            'requestedAt' => $order->requested_at
+                ?->toISOString(),
 
-            'paidAt' =>
-                $order->paid_at
-                    ?->toISOString(),
+            'paidAt' => $order->paid_at
+                ?->toISOString(),
 
-            'processingAt' =>
-                $order->processing_at
-                    ?->toISOString(),
+            'processingAt' => $order->processing_at
+                ?->toISOString(),
 
-            'readyAt' =>
-                $order->ready_at
-                    ?->toISOString(),
+            'readyAt' => $order->ready_at
+                ?->toISOString(),
 
-            'deliveredAt' =>
-                $order->delivered_at
-                    ?->toISOString(),
+            'deliveredAt' => $order->delivered_at
+                ?->toISOString(),
 
-            'cancelledAt' =>
-                $order->cancelled_at
-                    ?->toISOString(),
+            'cancelledAt' => $order->cancelled_at
+                ?->toISOString(),
         ];
     }
 }

@@ -4,8 +4,9 @@ namespace App\Services\StudentServices\Library;
 
 use App\Models\StudentServices\Library\LibraryFine;
 use App\Models\StudentServices\Library\Loan;
-use InvalidArgumentException;
+use App\Services\StudentServices\Audit\ServiceAuditor;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use MongoDB\BSON\ObjectId;
 use RuntimeException;
 
@@ -25,7 +26,7 @@ class FineService
         string $reason,
         ?string $notes = null
     ): LibraryFine {
-        if (!in_array($type, self::TYPES, true)) {
+        if (! in_array($type, self::TYPES, true)) {
             throw new InvalidArgumentException(
                 'El tipo de multa no es válido.'
             );
@@ -59,37 +60,26 @@ class FineService
         }
 
         return LibraryFine::create([
-            'folio' =>
-                'MUL-'.now()->format('Ymd').'-'.Str::upper(Str::random(5)),
-            'student_id' =>
-                $loan->student_id,
+            'folio' => 'MUL-'.now()->format('Ymd').'-'.Str::upper(Str::random(5)),
+            'student_id' => $loan->student_id,
 
-            'loan_id' =>
-                $loan->id,
+            'loan_id' => $loan->id,
 
-            'type' =>
-                $type,
+            'type' => $type,
 
-            'amount_cents' =>
-                $amountCents,
+            'amount_cents' => $amountCents,
 
-            'reason' =>
-                trim($reason),
+            'reason' => trim($reason),
 
-            'status' =>
-                'pending',
+            'status' => 'pending',
 
-            'generated_at' =>
-                now(),
+            'generated_at' => now(),
 
-            'payment_reference_id' =>
-                null,
+            'payment_reference_id' => null,
 
-            'paid_at' =>
-                null,
+            'paid_at' => null,
 
-            'notes' =>
-                $notes,
+            'notes' => $notes,
         ]);
     }
 
@@ -113,14 +103,11 @@ class FineService
         }
 
         $fine->update([
-            'status' =>
-                'paid',
+            'status' => 'paid',
 
-            'payment_reference_id' =>
-                $paymentReferenceId,
+            'payment_reference_id' => $paymentReferenceId,
 
-            'paid_at' =>
-                now(),
+            'paid_at' => now(),
         ]);
 
         return $fine->fresh();
@@ -137,12 +124,19 @@ class FineService
         }
 
         $fine->update([
-            'status' =>
-                'waived',
+            'status' => 'waived',
 
-            'notes' =>
-                $notes ?? $fine->notes,
+            'notes' => $notes ?? $fine->notes,
         ]);
+
+        app(ServiceAuditor::class)->record(
+            'library.fine.waived',
+            'library_fine',
+            (string) $fine->id,
+            ['status' => 'pending', 'amount_cents' => $fine->amount_cents],
+            ['status' => 'waived'],
+            $notes
+        );
 
         return $fine->fresh();
     }
@@ -158,14 +152,37 @@ class FineService
         }
 
         $fine->update([
-            'status' =>
-                'cancelled',
+            'status' => 'cancelled',
 
-            'notes' =>
-                $notes ?? $fine->notes,
+            'notes' => $notes ?? $fine->notes,
         ]);
 
+        app(ServiceAuditor::class)->record(
+            'library.fine.cancelled',
+            'library_fine',
+            (string) $fine->id,
+            ['status' => 'pending', 'amount_cents' => $fine->amount_cents],
+            ['status' => 'cancelled'],
+            $notes
+        );
+
         return $fine->fresh();
+    }
+
+    /**
+     * Bloqueo de biblioteca (5.2): con una multa pendiente el alumno no puede
+     * pedir, renovar ni reservar. Pagarla, condonarla o cancelarla lo libera.
+     *
+     * @throws RuntimeException
+     */
+    public function ensureNoPendingFines(
+        string $studentId
+    ): void {
+        if ($this->hasPendingFines(trim($studentId))) {
+            throw new RuntimeException(
+                'El alumno tiene multas pendientes. Debe pagarlas o resolverlas antes de usar la biblioteca.'
+            );
+        }
     }
 
     public function hasPendingFines(

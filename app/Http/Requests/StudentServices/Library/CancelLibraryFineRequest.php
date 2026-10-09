@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\StudentServices\Library;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CancelLibraryFineRequest extends FormRequest
@@ -11,6 +12,9 @@ class CancelLibraryFineRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [

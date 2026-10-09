@@ -3,6 +3,7 @@
 namespace App\Services\StudentServices\RestSpaces;
 
 use App\Models\StudentServices\RestSpaces\RestSpace;
+use App\Services\StudentServices\Audit\ServiceAuditor;
 use App\Services\StudentServices\Calendars\AvailabilityService;
 use App\Services\StudentServices\Calendars\BookableResources;
 use App\Services\StudentServices\Calendars\BookingService;
@@ -17,7 +18,8 @@ class RestSpaceService
 {
     public function __construct(
         private AvailabilityService $availability,
-        private BookingService $bookings
+        private BookingService $bookings,
+        private ServiceAuditor $auditor
     ) {}
 
     /**
@@ -80,6 +82,14 @@ class RestSpaceService
             );
         }
 
+        $this->auditor->record(
+            'rest_space.maintenance.started',
+            'rest_space',
+            (string) $space->id,
+            ['status' => 'available'],
+            ['status' => 'maintenance', 'cancelled_bookings' => $affected->count()]
+        );
+
         return $affected->count();
     }
 
@@ -93,5 +103,13 @@ class RestSpaceService
         }
 
         $space->update(['status' => 'available']);
+
+        $this->auditor->record(
+            'rest_space.maintenance.finished',
+            'rest_space',
+            (string) $space->id,
+            ['status' => 'maintenance'],
+            ['status' => 'available']
+        );
     }
 }

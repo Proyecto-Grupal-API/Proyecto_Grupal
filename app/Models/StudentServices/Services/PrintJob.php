@@ -2,14 +2,28 @@
 
 namespace App\Models\StudentServices\Services;
 
+use Carbon\CarbonInterface;
 use MongoDB\BSON\ObjectId;
 use MongoDB\Laravel\Eloquent\Model;
 
+/**
+ * @property-read string $id
+ * @property ObjectId|string $service_order_id
+ * @property string $job_type
+ * @property string|null $file_name
+ * @property string|null $file_path
+ * @property string|null $file_mime
+ * @property string|null $color_mode
+ * @property string|null $paper_size
+ * @property string|null $sides
+ * @property CarbonInterface|null $created_at
+ * @property CarbonInterface|null $updated_at
+ */
 class PrintJob extends Model
 {
     protected $connection = 'mongodb';
 
-    protected $collection = 'print_jobs';
+    protected $table = 'print_jobs';
 
     protected $fillable = [
         'service_order_id',
@@ -28,7 +42,7 @@ class PrintJob extends Model
     ];
 
     public function setServiceOrderIdAttribute(
-        $value
+        mixed $value
     ): void {
         $this->attributes[
         'service_order_id'

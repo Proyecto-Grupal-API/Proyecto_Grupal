@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\StudentServices\Rentals;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ReturnRentalRequest extends FormRequest
@@ -11,6 +12,9 @@ class ReturnRentalRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [
@@ -30,11 +34,9 @@ class ReturnRentalRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'condition.required' =>
-                'Debes indicar la condición del equipo.',
+            'condition.required' => 'Debes indicar la condición del equipo.',
 
-            'condition.in' =>
-                'La condición seleccionada no es válida.',
+            'condition.in' => 'La condición seleccionada no es válida.',
         ];
     }
 }

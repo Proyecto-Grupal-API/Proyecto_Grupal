@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\StudentServices\Reservations;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreReservationRequest extends FormRequest
@@ -11,6 +12,9 @@ class StoreReservationRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [
@@ -50,8 +54,7 @@ class StoreReservationRequest extends FormRequest
             'date.required' => 'Selecciona una fecha.',
             'start_time.required' => 'Selecciona la hora de inicio.',
             'end_time.required' => 'Selecciona la hora de fin.',
-            'end_time.after' =>
-                'La hora de fin debe ser posterior a la de inicio.',
+            'end_time.after' => 'La hora de fin debe ser posterior a la de inicio.',
         ];
     }
 }

@@ -55,6 +55,20 @@ const form = useForm({
     action: 'loan' as ActionType,
     reference: '',
     condition: 'good',
+    damage_charge: '',
+});
+
+const chargesDamage = computed(
+    () =>
+        form.service === 'rental' &&
+        form.action === 'return' &&
+        (form.condition === 'damaged' || form.condition === 'maintenance'),
+);
+
+watch(chargesDamage, (charges) => {
+    if (!charges) {
+        form.damage_charge = '';
+    }
 });
 
 const visibleResult = computed(() =>
@@ -180,6 +194,7 @@ function validateAccess() {
             dismissedResultId.value = null;
             form.credential = '';
             form.reference = '';
+            form.damage_charge = '';
 
             nextTick(() => credentialInput.value?.focus());
         },
@@ -384,6 +399,29 @@ function clearResult() {
                                 </option>
                                 <option value="lost">Extraviado</option>
                             </select>
+
+                            <small v-if="form.condition === 'lost'">
+                                Un equipo extraviado cobra el depósito completo.
+                            </small>
+                        </div>
+
+                        <div v-if="chargesDamage" class="form-field full">
+                            <label
+                                >Cargo por daños (se toma del depósito)</label
+                            >
+
+                            <input
+                                v-model="form.damage_charge"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                            />
+
+                            <small>
+                                Deja 0 si no hay cargo. No puede superar el
+                                depósito retenido.
+                            </small>
                         </div>
                     </div>
 

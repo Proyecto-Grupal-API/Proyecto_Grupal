@@ -4,9 +4,11 @@ namespace App\Services\StudentServices\Calendars;
 
 use App\Models\StudentServices\Calendars\CalendarBlock;
 use App\Models\StudentServices\Calendars\ResourceCalendar;
+use App\Models\StudentServices\Reservations\Facility;
+use App\Models\StudentServices\RestSpaces\RestSpace;
+use App\Services\StudentServices\Audit\ServiceAuditor;
 use Carbon\CarbonInterface;
 use MongoDB\BSON\ObjectId;
-use MongoDB\Laravel\Eloquent\Model;
 use RuntimeException;
 
 /**
@@ -17,7 +19,8 @@ class CalendarSettingsService
     public function __construct(
         private AvailabilityService $availability,
         private BookingService $bookings,
-        private CalendarRuleChecker $checker
+        private CalendarRuleChecker $checker,
+        private ServiceAuditor $auditor
     ) {}
 
     /**
@@ -29,11 +32,12 @@ class CalendarSettingsService
      */
     public function updateRules(
         string $type,
-        Model $resource,
+        Facility|RestSpace $resource,
         array $data,
         ?string $updatedBy = null
     ): ResourceCalendar {
         $calendar = $this->availability->calendarFor($type, $resource);
+        $before = $calendar->rules();
 
         $rules = [
             ...$calendar->rules(),
@@ -68,6 +72,16 @@ class CalendarSettingsService
 
         $calendar->save();
 
+        $this->auditor->record(
+            'calendar.rules.updated',
+            $type,
+            (string) $resource->getKey(),
+            $before,
+            $calendar->rules(),
+            null,
+            $updatedBy
+        );
+
         return $calendar->fresh();
     }
 
@@ -81,7 +95,7 @@ class CalendarSettingsService
      */
     public function createBlock(
         string $type,
-        Model $resource,
+        Facility|RestSpace $resource,
         CarbonInterface $start,
         CarbonInterface $end,
         string $reason,
@@ -120,6 +134,16 @@ class CalendarSettingsService
             $this->bookings->cancel($type, $booking, 'system', 'Bloqueo de calendario: '.trim($reason));
         }
 
+        $this->auditor->record(
+            'calendar.block.created',
+            'calendar_block',
+            (string) $block->id,
+            null,
+            ['resource_type' => $type, 'resource_id' => (string) $resource->getKey(), 'start_at' => $start->toIso8601String(), 'end_at' => $end->toIso8601String(), 'cancelled_bookings' => $affected->count()],
+            trim($reason),
+            $createdBy
+        );
+
         return [
             'block' => $block,
             'cancelled' => $affected->count(),
@@ -128,7 +152,18 @@ class CalendarSettingsService
 
     public function deleteBlock(CalendarBlock $block): void
     {
+        $snapshot = ['resource_type' => $block->resource_type, 'resource_id' => (string) $block->resource_id, 'reason' => $block->reason];
+        $blockId = (string) $block->id;
+
         $block->delete();
+
+        $this->auditor->record(
+            'calendar.block.deleted',
+            'calendar_block',
+            $blockId,
+            $snapshot,
+            null
+        );
     }
 
     public function findBlock(string $blockId): ?CalendarBlock

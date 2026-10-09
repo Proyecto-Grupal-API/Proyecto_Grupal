@@ -13,6 +13,14 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
+    # La app guarda usuarios y Servicios al Estudiante en MongoDB; sin este
+    # servicio las pruebas no tienen base de datos.
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -23,6 +31,7 @@ jobs:
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: '8.5'
+          extensions: mongodb
           tools: composer:v2
           coverage: none
 
@@ -36,3 +45,6 @@ jobs:
 
       - name: Run CI Checks
         run: composer ci:check
+        env:
+          DB_URI: mongodb://127.0.0.1:27017
+          DB_DATABASE: campus_digital_ci

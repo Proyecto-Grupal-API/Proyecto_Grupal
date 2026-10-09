@@ -79,16 +79,13 @@ const closeForm = () => {
 
 const submitBook = () => {
     if (editingBookId.value === null) {
-        form.post(
-            '/servicios-estudiante/biblioteca/libros',
-            {
-                preserveScroll: true,
+        form.post('/servicios-estudiante/biblioteca/libros', {
+            preserveScroll: true,
 
-                onSuccess: () => {
-                    closeForm();
-                },
+            onSuccess: () => {
+                closeForm();
             },
-        );
+        });
 
         return;
     }
@@ -108,7 +105,7 @@ const submitBook = () => {
 const deactivateBook = (book: Book) => {
     const confirmed = window.confirm(
         `¿Deseas desactivar "${book.title}"?\n\n` +
-        'El libro no se eliminará de la base de datos.',
+            'El libro no se eliminará de la base de datos.',
     );
 
     if (!confirmed) {
@@ -136,21 +133,17 @@ const deactivateBook = (book: Book) => {
                     EQUIPO 5 · SERVICIOS AL ESTUDIANTE
                 </span>
 
-                <h2>
-                    Biblioteca digital del campus
-                </h2>
+                <h2>Biblioteca digital del campus</h2>
 
                 <p>
-                    Administra el catálogo de libros, ejemplares,
-                    préstamos, reservas y servicios relacionados
-                    con la biblioteca universitaria.
+                    Administra el catálogo de libros, ejemplares, préstamos,
+                    reservas y servicios relacionados con la biblioteca
+                    universitaria.
                 </p>
             </div>
 
             <div class="hero-stat">
-                <span class="hero-stat-label">
-                    Libros activos
-                </span>
+                <span class="hero-stat-label"> Libros activos </span>
 
                 <strong>
                     {{ books.length }}
@@ -162,10 +155,7 @@ const deactivateBook = (book: Book) => {
             <div>
                 <h3>Catálogo</h3>
 
-                <p>
-                    Libros activos registrados actualmente
-                    en el sistema.
-                </p>
+                <p>Libros activos registrados actualmente en el sistema.</p>
             </div>
 
             <button
@@ -178,10 +168,7 @@ const deactivateBook = (book: Book) => {
             </button>
         </section>
 
-        <section
-            v-if="showForm"
-            class="form-panel"
-        >
+        <section v-if="showForm" class="form-panel">
             <div class="form-header">
                 <div>
                     <span class="section-label">
@@ -209,19 +196,12 @@ const deactivateBook = (book: Book) => {
                     </p>
                 </div>
 
-                <button
-                    type="button"
-                    class="close-button"
-                    @click="closeForm"
-                >
+                <button type="button" class="close-button" @click="closeForm">
                     ×
                 </button>
             </div>
 
-            <form
-                class="book-form"
-                @submit.prevent="submitBook"
-            >
+            <form class="book-form" @submit.prevent="submitBook">
                 <div class="form-grid">
                     <div class="form-field">
                         <label for="title">
@@ -236,18 +216,13 @@ const deactivateBook = (book: Book) => {
                             placeholder="Ej. Clean Code"
                         />
 
-                        <small
-                            v-if="form.errors.title"
-                            class="field-error"
-                        >
+                        <small v-if="form.errors.title" class="field-error">
                             {{ form.errors.title }}
                         </small>
                     </div>
 
                     <div class="form-field">
-                        <label for="isbn">
-                            ISBN
-                        </label>
+                        <label for="isbn"> ISBN </label>
 
                         <input
                             id="isbn"
@@ -256,10 +231,7 @@ const deactivateBook = (book: Book) => {
                             placeholder="9780132350884"
                         />
 
-                        <small
-                            v-if="form.errors.isbn"
-                            class="field-error"
-                        >
+                        <small v-if="form.errors.isbn" class="field-error">
                             {{ form.errors.isbn }}
                         </small>
                     </div>
@@ -281,18 +253,13 @@ const deactivateBook = (book: Book) => {
                             Si hay varios autores, sepáralos con comas.
                         </small>
 
-                        <small
-                            v-if="form.errors.authors"
-                            class="field-error"
-                        >
+                        <small v-if="form.errors.authors" class="field-error">
                             {{ form.errors.authors }}
                         </small>
                     </div>
 
                     <div class="form-field">
-                        <label for="publisher">
-                            Editorial
-                        </label>
+                        <label for="publisher"> Editorial </label>
 
                         <input
                             id="publisher"
@@ -301,18 +268,13 @@ const deactivateBook = (book: Book) => {
                             placeholder="Prentice Hall"
                         />
 
-                        <small
-                            v-if="form.errors.publisher"
-                            class="field-error"
-                        >
+                        <small v-if="form.errors.publisher" class="field-error">
                             {{ form.errors.publisher }}
                         </small>
                     </div>
 
                     <div class="form-field">
-                        <label for="edition">
-                            Edición
-                        </label>
+                        <label for="edition"> Edición </label>
 
                         <input
                             id="edition"
@@ -321,10 +283,7 @@ const deactivateBook = (book: Book) => {
                             placeholder="1"
                         />
 
-                        <small
-                            v-if="form.errors.edition"
-                            class="field-error"
-                        >
+                        <small v-if="form.errors.edition" class="field-error">
                             {{ form.errors.edition }}
                         </small>
                     </div>
@@ -352,9 +311,7 @@ const deactivateBook = (book: Book) => {
                     </div>
 
                     <div class="form-field">
-                        <label for="category">
-                            Categoría
-                        </label>
+                        <label for="category"> Categoría </label>
 
                         <input
                             id="category"
@@ -363,18 +320,13 @@ const deactivateBook = (book: Book) => {
                             placeholder="Programación"
                         />
 
-                        <small
-                            v-if="form.errors.category"
-                            class="field-error"
-                        >
+                        <small v-if="form.errors.category" class="field-error">
                             {{ form.errors.category }}
                         </small>
                     </div>
 
                     <div class="form-field form-field-full">
-                        <label for="description">
-                            Descripción
-                        </label>
+                        <label for="description"> Descripción </label>
 
                         <textarea
                             id="description"
@@ -411,23 +363,16 @@ const deactivateBook = (book: Book) => {
                             form.processing
                                 ? 'Guardando...'
                                 : editingBookId === null
-                                    ? 'Guardar libro'
-                                    : 'Guardar cambios'
+                                  ? 'Guardar libro'
+                                  : 'Guardar cambios'
                         }}
                     </button>
                 </div>
             </form>
         </section>
 
-        <section
-            v-if="books.length > 0"
-            class="books-grid"
-        >
-            <article
-                v-for="book in books"
-                :key="book.id"
-                class="book-card"
-            >
+        <section v-if="books.length > 0" class="books-grid">
+            <article v-for="book in books" :key="book.id" class="book-card">
                 <div class="book-cover">
                     <span>
                         {{ book.title.charAt(0).toUpperCase() }}
@@ -440,9 +385,7 @@ const deactivateBook = (book: Book) => {
                             {{ book.category ?? 'Sin categoría' }}
                         </span>
 
-                        <span class="book-status">
-                            Activo
-                        </span>
+                        <span class="book-status"> Activo </span>
                     </div>
 
                     <h4>
@@ -491,10 +434,7 @@ const deactivateBook = (book: Book) => {
                         </div>
                     </div>
 
-                    <p
-                        v-if="book.description"
-                        class="description"
-                    >
+                    <p v-if="book.description" class="description">
                         {{ book.description }}
                     </p>
 
@@ -519,21 +459,14 @@ const deactivateBook = (book: Book) => {
             </article>
         </section>
 
-        <section
-            v-else
-            class="empty-state"
-        >
-            <div class="empty-icon">
-                ▤
-            </div>
+        <section v-else class="empty-state">
+            <div class="empty-icon">▤</div>
 
-            <h3>
-                No hay libros activos
-            </h3>
+            <h3>No hay libros activos</h3>
 
             <p>
-                Utiliza el botón "Agregar libro" para crear
-                un registro en el catálogo.
+                Utiliza el botón "Agregar libro" para crear un registro en el
+                catálogo.
             </p>
         </section>
     </StudentServicesLayout>

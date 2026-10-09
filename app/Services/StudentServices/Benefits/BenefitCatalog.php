@@ -184,14 +184,15 @@ class BenefitCatalog
      */
     private function activePeriods(): array
     {
-        return LockerPeriod::query()
+        $periods = LockerPeriod::query()
             ->where('status', 'active')
             ->where('ends_at', '>', now())
             ->orderBy('starts_at')
             ->get()
             ->map(fn (LockerPeriod $period): array => $this->periodPayload($period))
-            ->values()
             ->all();
+
+        return array_values($periods);
     }
 
     /**

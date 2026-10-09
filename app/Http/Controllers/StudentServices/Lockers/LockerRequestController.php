@@ -11,6 +11,7 @@ use App\Models\StudentServices\Lockers\LockerPeriod;
 use App\Models\StudentServices\Lockers\LockerRequest;
 use App\Services\StudentServices\Lockers\LockerAssignmentService;
 use App\Services\StudentServices\Lockers\LockerRequestService;
+use App\Services\StudentServices\Payments\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,8 +23,7 @@ class LockerRequestController extends Controller
     public function __construct(
         private readonly LockerRequestService $requests,
         private readonly LockerAssignmentService $assignments
-    ) {
-    }
+    ) {}
 
     public function index(
         Request $request
@@ -34,8 +34,7 @@ class LockerRequestController extends Controller
                 ->keyBy(
                     fn (
                         LockerPeriod $period
-                    ) =>
-                    (string)
+                    ) => (string)
                     $period->id
                 );
 
@@ -45,8 +44,7 @@ class LockerRequestController extends Controller
                 ->keyBy(
                     fn (
                         Locker $locker
-                    ) =>
-                    (string)
+                    ) => (string)
                     $locker->id
                 );
 
@@ -81,94 +79,78 @@ class LockerRequestController extends Controller
                                 ->locker_id
                             !== null
                                 ? $lockers
-                                ->get(
-                                    (string)
-                                    $lockerRequest
-                                        ->locker_id
-                                )
+                                    ->get(
+                                        (string)
+                                        $lockerRequest
+                                            ->locker_id
+                                    )
                                 : null;
 
                         return [
-                            'id' =>
-                                (string)
+                            'id' => (string)
                                 $lockerRequest->id,
 
-                            'folio' =>
-                                $lockerRequest
-                                    ->folio,
+                            'folio' => $lockerRequest
+                                ->folio,
 
-                            'student_id' =>
-                                $lockerRequest
-                                    ->student_id,
+                            'student_id' => $lockerRequest
+                                ->student_id,
 
-                            'period_id' =>
-                                (string)
+                            'period_id' => (string)
                                 $lockerRequest
                                     ->period_id,
 
-                            'period_name' =>
-                                $period?->name
+                            'period_name' => $period->name
                                 ??
                                 'Periodo no encontrado',
 
-                            'locker_id' =>
-                                $lockerRequest
-                                    ->locker_id
+                            'locker_id' => $lockerRequest
+                                ->locker_id
                                 !== null
                                     ? (string)
                                 $lockerRequest
                                     ->locker_id
                                     : null,
 
-                            'locker_code' =>
-                                $locker?->code,
+                            'locker_code' => $locker?->code,
 
-                            'preferred_size' =>
-                                $lockerRequest
-                                    ->preferred_size,
+                            'preferred_size' => $lockerRequest
+                                ->preferred_size,
 
-                            'preferred_building' =>
-                                $lockerRequest
-                                    ->preferred_building,
+                            'preferred_building' => $lockerRequest
+                                ->preferred_building,
 
-                            'request_type' =>
-                                $lockerRequest
-                                    ->request_type,
+                            'request_type' => $lockerRequest
+                                ->request_type,
 
-                            'status' =>
-                                $lockerRequest
-                                    ->status,
+                            'status' => $lockerRequest
+                                ->status,
 
-                            'amount' =>
+                            'amount' => Money::toPesos(
                                 $lockerRequest
-                                    ->amount
-                                !== null
-                                    ? (string)
-                                $lockerRequest
-                                    ->amount
-                                    : null,
+                                    ->amountInCents()
+                            ),
 
-                            'payment_reference' =>
-                                $lockerRequest
-                                    ->payment_reference,
+                            'amount_cents' => $lockerRequest
+                                ->amountInCents(),
 
-                            'paid_at' =>
-                                $lockerRequest
-                                    ->paid_at
-                                    ?->format(
-                                        'Y-m-d H:i'
-                                    ),
+                            'payment_reference' => $lockerRequest
+                                ->payment_reference,
 
-                            'created_at' =>
-                                $lockerRequest
-                                    ->created_at
-                                    ?->format(
-                                        'Y-m-d H:i'
-                                    ),
+                            'paid_at' => $lockerRequest
+                                ->paid_at
+                                ?->format(
+                                    'Y-m-d H:i'
+                                ),
 
-                            'notes' =>
-                                $lockerRequest
-                                    ->notes,
+                            'created_at' => $lockerRequest
+                                ->created_at
+                                ?->format(
+                                    'Y-m-d H:i'
+                                ),
+
+                            'notes' => $lockerRequest
+                                ->notes,
                         ];
                     }
                 )
@@ -179,15 +161,13 @@ class LockerRequestController extends Controller
                 ->filter(
                     fn (
                         LockerPeriod $period
-                    ) =>
-                        $period->status ===
+                    ) => $period->status ===
                         'active'
                 )
                 ->map(
                     fn (
                         LockerPeriod $period
-                    ) =>
-                    $period->toPayload()
+                    ) => $period->toPayload()
                 )
                 ->values();
 
@@ -196,32 +176,27 @@ class LockerRequestController extends Controller
                 ->filter(
                     fn (
                         Locker $locker
-                    ) =>
-                        $locker->status ===
+                    ) => $locker->status ===
                         'available'
                 )
                 ->groupBy(
                     fn (
                         Locker $locker
-                    ) =>
-                        $locker->building
+                    ) => $locker->building
                         .'|'
                         .$locker->size
                 )
                 ->map(
                     fn ($group) => [
-                        'building' =>
-                            $group
-                                ->first()
-                                ->building,
+                        'building' => $group
+                            ->first()
+                            ->building,
 
-                        'size' =>
-                            $group
-                                ->first()
-                                ->size,
+                        'size' => $group
+                            ->first()
+                            ->size,
 
-                        'count' =>
-                            $group->count(),
+                        'count' => $group->count(),
                     ]
                 )
                 ->values();
@@ -229,48 +204,40 @@ class LockerRequestController extends Controller
         return Inertia::render(
             'student-services/lockers/Requests',
             [
-                'requests' =>
-                    $requests,
+                'requests' => $requests,
 
-                'periods' =>
-                    $activePeriods,
+                'periods' => $activePeriods,
 
-                'availability' =>
-                    $availability,
+                'availability' => $availability,
 
-                'available_lockers' =>
-                    $lockers
-                        ->filter(
-                            fn (
-                                Locker $locker
-                            ) =>
-                                $locker
-                                    ->status
-                                ===
-                                'available'
-                        )
-                        ->sortBy(
-                            fn (
-                                Locker $locker
-                            ) =>
-                                $locker
-                                    ->building
-                                .$locker
-                                    ->zone
-                                .$locker
-                                    ->code
-                        )
-                        ->map(
-                            fn (
-                                Locker $locker
-                            ) =>
-                            $locker
-                                ->toPayload()
-                        )
-                        ->values(),
+                'available_lockers' => $lockers
+                    ->filter(
+                        fn (
+                            Locker $locker
+                        ) => $locker
+                            ->status
+                            ===
+                            'available'
+                    )
+                    ->sortBy(
+                        fn (
+                            Locker $locker
+                        ) => $locker
+                            ->building
+                        .$locker
+                            ->zone
+                        .$locker
+                            ->code
+                    )
+                    ->map(
+                        fn (
+                            Locker $locker
+                        ) => $locker
+                            ->toPayload()
+                    )
+                    ->values(),
 
-                'current_student_id' =>
-                    (string)
+                'current_student_id' => (string)
                     $request
                         ->user()
                         ->id,
@@ -298,18 +265,17 @@ class LockerRequestController extends Controller
                         $data['building']
                     )
                         ? trim(
-                        $data['building']
-                    )
+                            $data['building']
+                        )
                         : null
                 );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'status' =>
-                        $exception
-                            ->getMessage(),
+                    'status' => $exception
+                        ->getMessage(),
                 ]);
         }
 
@@ -347,13 +313,12 @@ class LockerRequestController extends Controller
                             ->id
                     );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'status' =>
-                        $exception
-                            ->getMessage(),
+                    'status' => $exception
+                        ->getMessage(),
                 ]);
         }
 
@@ -379,13 +344,12 @@ class LockerRequestController extends Controller
                     $lockerRequest
                 );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'status' =>
-                        $exception
-                            ->getMessage(),
+                    'status' => $exception
+                        ->getMessage(),
                 ]);
         }
 
@@ -407,16 +371,14 @@ class LockerRequestController extends Controller
         $locker =
             Locker::find(
                 $request
-                    ->validated()[
-                'locker_id'
-                ]
+                    ->string('locker_id')
+                    ->value()
             );
 
         if ($locker === null) {
             return back()
                 ->withErrors([
-                    'locker_id' =>
-                        'El locker seleccionado no existe.',
+                    'locker_id' => 'El locker seleccionado no existe.',
                 ]);
         }
 
@@ -431,13 +393,12 @@ class LockerRequestController extends Controller
                         ->id
                 );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'status' =>
-                        $exception
-                            ->getMessage(),
+                    'status' => $exception
+                        ->getMessage(),
                 ]);
         }
 
