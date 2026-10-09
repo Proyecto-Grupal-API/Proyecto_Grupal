@@ -29,6 +29,7 @@ function cashAdminCleanup(): void
     $ids = CashRegister::where('association_id', 'like', 'test-fc-cash-admin-%')->pluck('id');
     $shiftIds = CashShift::whereIn('cash_register_id', $ids)->pluck('id');
     CashRegisterChange::whereIn('cash_register_id', $ids)->delete();
+    \App\Domains\Financial\Models\CashReceipt::whereIn('cash_movement_id', CashMovement::whereIn('cash_shift_id', $shiftIds)->select('id'))->delete();
     CashMovement::whereIn('cash_shift_id', $shiftIds)->delete();
     CashShift::whereIn('id', $shiftIds)->delete(); CashRegister::whereIn('id', $ids)->delete();
     ServiceClient::where('client_id', 'like', 'test-fc-cash-admin-%')->delete();

@@ -135,7 +135,7 @@ async function submit() {
             if ([401, 403, 404, 419, 422].includes(exception.response?.status)) pending.value = null;
             throw exception;
         }
-        pending.value = null; success.value = `${titles[request.action]}: operación confirmada.`;
+        pending.value = null; success.value = `${titles[request.action]}: operación confirmada.${result.data.data.folio ? ` Folio: ${result.data.data.folio}.` : ''}`;
         form.amount = ''; form.reason = ''; form.wallet = '';
         if (request.action === 'open') shiftId.value = result.data.data.id;
         try {
@@ -218,7 +218,7 @@ function abandon() {
                 </section>
                 <section v-if="summary" class="panel">
                     <h2>Historial de efectivo</h2>
-                    <div class="mt-4 overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr><th>Fecha</th><th>Movimiento</th><th>Importe</th><th>Responsable y motivo</th></tr></thead><tbody><tr v-for="item in movements" :key="item.id"><td>{{ date(item.created_at) }}</td><td>{{ typeLabel(item.type) }}<p class="note break-all">{{ item.reference_type }} {{ item.reference_id }}</p></td><td class="whitespace-nowrap">{{ money(item.amount_cents) }}</td><td class="break-all">{{ item.actor_id }}<p class="note">{{ item.reason }}</p></td></tr></tbody></table></div>
+                    <div class="mt-4 overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr><th>Fecha</th><th>Movimiento</th><th>Importe</th><th>Responsable y motivo</th><th>Comprobante</th></tr></thead><tbody><tr v-for="item in movements" :key="item.id"><td>{{ date(item.created_at) }}</td><td>{{ typeLabel(item.type) }}<p class="note break-all">{{ item.reference_type }} {{ item.reference_id }}</p></td><td class="whitespace-nowrap">{{ money(item.amount_cents) }}</td><td class="break-all">{{ item.actor_id }}<p class="note">{{ item.reason }}</p></td><td><a v-if="item.receipt_id" :href="route('financial.cash.receipts.print', { associationId: association, receiptId: item.receipt_id })" target="_blank" rel="noopener" class="font-semibold text-[#00338D]">Ver e imprimir</a><span v-else class="note">Sin comprobante</span><p v-if="item.folio" class="note mt-2 break-all">{{ item.folio }}</p></td></tr></tbody></table></div>
                     <p v-if="!movements.length" class="note mt-4">No hay movimientos registrados en este turno.</p>
                     <div v-if="pages.movements?.last_page > 1" class="pagination"><button :disabled="busy || !!pending || pages.movements.current_page === 1" @click="paginate('movements', pages.movements.current_page - 1)">Anterior</button><span>Página {{ pages.movements.current_page }} de {{ pages.movements.last_page }}</span><button :disabled="busy || !!pending || pages.movements.current_page === pages.movements.last_page" @click="paginate('movements', pages.movements.current_page + 1)">Siguiente</button></div>
                 </section>

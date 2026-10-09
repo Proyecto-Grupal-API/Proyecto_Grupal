@@ -19,6 +19,7 @@ function cashApiCleanup(): void
     if (config('database.connections.sqlsrv.database') !== 'campus_digital_financial_testing') throw new RuntimeException('Usar exclusivamente la base financiera de pruebas.');
     $registers = CashRegister::where('association_id', 'like', 'test-fc-cash-api-%')->pluck('id');
     $shifts = CashShift::whereIn('cash_register_id', $registers)->pluck('id');
+    \App\Domains\Financial\Models\CashReceipt::whereIn('cash_movement_id', CashMovement::whereIn('cash_shift_id', $shifts)->select('id'))->delete();
     CashMovement::whereIn('cash_shift_id', $shifts)->delete();
     CashShift::whereIn('id', $shifts)->delete(); CashRegister::whereIn('id', $registers)->delete();
     ServiceClient::where('client_id', 'like', 'test-fc-cash-api-%')->delete();

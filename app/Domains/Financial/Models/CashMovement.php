@@ -5,6 +5,7 @@ namespace App\Domains\Financial\Models;
 use App\Domains\Financial\Enums\CashMovementType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class CashMovement extends Model
 {
@@ -25,6 +26,11 @@ class CashMovement extends Model
     protected $casts = [
         'type' => CashMovementType::class, 'amount_cents' => 'integer', 'cash_shift_id' => 'integer',
     ];
+
+    public function receipt(): HasOne
+    {
+        return $this->hasOne(CashReceipt::class);
+    }
 
     public function shift(): BelongsTo
     {

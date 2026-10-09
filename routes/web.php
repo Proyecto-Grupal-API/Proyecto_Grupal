@@ -76,6 +76,8 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
         Route::get('/context', [$cash, 'context'])->name('context');
         Route::get('/administracion', [\App\Http\Controllers\Financial\CashRegisterAdministrationWebController::class, 'index'])->name('administration');
         Route::prefix('asociaciones/{associationId}')->group(function () use ($cash) {
+            Route::get('/receipts/{receiptId}', [$cash, 'receipt'])->whereUuid('receiptId')->name('receipts.show');
+            Route::get('/receipts/{receiptId}/imprimir', [$cash, 'printReceipt'])->whereUuid('receiptId')->name('receipts.print');
             $admin = \App\Http\Controllers\Financial\CashRegisterAdministrationWebController::class;
             Route::post('/registers', [$admin, 'storeRegister'])->name('registers.store');
             Route::patch('/registers/{registerId}', [$admin, 'updateRegister'])->whereUuid('registerId')->name('registers.update');

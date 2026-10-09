@@ -28,6 +28,12 @@ class CashWebController extends CashController
         return Inertia::render('Financial/Cash');
     }
 
+    public function printReceipt(Request $request, string $associationId, string $receiptId): Response
+    {
+        $this->authorizeAssociation($request, $associationId, 'read');
+        return Inertia::render('Financial/CashReceipt', ['receipt' => $this->findReceipt($associationId, $receiptId)->snapshot]);
+    }
+
     public function context(Request $request, CashAuthorizationProvider $provider): JsonResponse
     {
         $values = $request->validate(['association_id' => ['required', 'string', 'max:255']]);

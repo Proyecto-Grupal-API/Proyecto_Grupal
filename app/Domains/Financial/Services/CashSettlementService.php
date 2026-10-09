@@ -61,11 +61,14 @@ class CashSettlementService
             $operation = $service->complete($operation, trim($key));
             $operation->cash_shift_id = $shift->public_id;
             $operation->save();
-            CashMovement::create(['public_id' => (string) Str::uuid(), 'cash_shift_id' => $shift->id,
+            $movement = CashMovement::create(['public_id' => (string) Str::uuid(), 'cash_shift_id' => $shift->id,
                 'type' => $incoming ? CashMovementType::TOPUP : CashMovementType::WITHDRAWAL,
                 'amount_cents' => $amount, 'idempotency_key' => trim($key), 'request_hash' => $hash,
                 'actor_id' => trim($actor), 'reason' => trim($reason), 'wallet_id' => $wallet->public_id,
                 'reference_type' => $incoming ? 'TOPUP' : 'WITHDRAWAL', 'reference_id' => $operation->public_id]);
+            $receipt = app(CashReceiptService::class)->issue($movement);
+            $operation->folio = $receipt->folio;
+            $operation->save();
             return $operation->fresh();
             });
         } catch (FinancialLimitExceededException $exception) {

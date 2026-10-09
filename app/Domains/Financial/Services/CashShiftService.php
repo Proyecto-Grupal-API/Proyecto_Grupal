@@ -63,9 +63,11 @@ class CashShiftService
             $expected = $this->getSummary($shiftId)['expected_amount_cents'];
             $delta = $type === CashMovementType::CASH_OUT ? -$amount : $amount;
             if ($expected + $delta < 0) throw new InvalidArgumentException('No hay efectivo suficiente en el turno.');
-            return CashMovement::create(['public_id' => (string) Str::uuid(), 'cash_shift_id' => $shift->id,
+            $movement = CashMovement::create(['public_id' => (string) Str::uuid(), 'cash_shift_id' => $shift->id,
                 'type' => $type, 'amount_cents' => $amount, 'idempotency_key' => trim($key), 'request_hash' => $hash,
                 'actor_id' => trim($actor), 'reason' => trim($reason), 'reference_type' => $referenceType, 'reference_id' => $referenceId])->fresh();
+            app(CashReceiptService::class)->issue($movement);
+            return $movement;
         });
     }
 

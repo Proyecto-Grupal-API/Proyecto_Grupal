@@ -7,6 +7,7 @@ use App\Domains\Financial\Enums\CashMovementType;
 use App\Domains\Financial\Exceptions\FinancialLimitExceededException;
 use App\Domains\Financial\Models\CashMovement;
 use App\Domains\Financial\Models\CashRegister;
+use App\Domains\Financial\Models\CashReceipt;
 use App\Domains\Financial\Models\CashShift;
 use App\Domains\Financial\Models\Wallet;
 use App\Domains\Financial\Services\CashShiftService;
@@ -89,8 +90,20 @@ class CashController extends Controller
     {
         $this->authorizeAssociation($request, $associationId, 'read');
         $shift = $this->shift($associationId, $shiftId);
-        return $this->paginated($request, $shift->movements()->orderByDesc('id')->paginate($this->pageSize($request)),
+        return $this->paginated($request, $shift->movements()->with('receipt')->orderByDesc('id')->paginate($this->pageSize($request)),
             fn ($movement) => $this->movementData($movement));
+    }
+
+    protected function findReceipt(string $associationId, string $receiptId): CashReceipt
+    {
+        return CashReceipt::where('public_id', $receiptId)->whereHas('movement.shift.cashRegister',
+            fn ($query) => $query->where('association_id', $associationId))->firstOrFail();
+    }
+
+    public function receipt(Request $request, string $associationId, string $receiptId): JsonResponse
+    {
+        $this->authorizeAssociation($request, $associationId, 'read');
+        return $this->ok($request, $this->findReceipt($associationId, $receiptId)->snapshot);
     }
 
     public function open(Request $request, string $associationId, string $registerId): JsonResponse
@@ -150,9 +163,11 @@ class CashController extends Controller
             $operation = $incoming
                 ? $this->settlements->topUp($shift->public_id, $wallet, $values['amount_cents'], $key, $actor, $values['reason'])
                 : $this->settlements->withdraw($shift->public_id, $wallet, $values['amount_cents'], $key, $actor, $values['reason']);
+            $receipt = CashMovement::where('idempotency_key', $key)->firstOrFail()->receipt;
             return ['id' => strtolower($operation->public_id), 'wallet_id' => strtolower($operation->wallet_id),
                 'cash_shift_id' => strtolower($operation->cash_shift_id), 'amount_cents' => $operation->amount_cents,
-                'currency' => $operation->currency, 'status' => $operation->status->value, 'actor_id' => $operation->agent_id];
+                'currency' => $operation->currency, 'status' => $operation->status->value, 'actor_id' => $operation->agent_id,
+                'folio' => $operation->folio, 'receipt_id' => $receipt ? strtolower($receipt->public_id) : null];
         });
     }
 
@@ -203,6 +218,7 @@ class CashController extends Controller
             'amount_cents' => $movement->amount_cents, 'actor_id' => $movement->actor_id, 'reason' => $movement->reason,
             'wallet_id' => $movement->wallet_id ? strtolower($movement->wallet_id) : null,
             'reference_type' => $movement->reference_type, 'reference_id' => $movement->reference_id,
-            'created_at' => $movement->created_at?->toISOString()];
+            'created_at' => $movement->created_at?->toISOString(),
+            'folio' => $movement->receipt?->folio, 'receipt_id' => $movement->receipt ? strtolower($movement->receipt->public_id) : null];
     }
 }
