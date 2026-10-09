@@ -132,7 +132,7 @@ test('a rejected limit change leaves no history entry', function () {
 // Carreras y evidencia
 // ------------------------------------------------------------------
 
-test('concurrent requests that pass the preventive check are recorded as an explicit excess, without changing money', function () {
+test('already posted operations exceeding a daily limit retain explicit excess evidence without changing money', function () {
     $wallet = fcWallet('race-daily');
 
     fcLimit($wallet, [
@@ -143,14 +143,15 @@ test('concurrent requests that pass the preventive check are recorded as an expl
 
     $topUps = app(TopUpService::class);
 
-    // Ambas solicitudes se evalúan antes de que exista movimiento alguno:
-    // el control preventivo no puede reservar el cupo (no hay reserva
-    // atómica en esta arquitectura) y ambas pasan.
+    // Fixture de dos movimientos ya contabilizados: verifica el detector de
+    // excedentes. No completa efectivo mediante el endpoint genérico.
     $first = $topUps->create($wallet, 7000, TopUpMethod::EFECTIVO);
     $second = $topUps->create($wallet, 7000, TopUpMethod::EFECTIVO);
 
-    $topUps->complete($first, fcKey('race-1'));
-    $topUps->complete($second, fcKey('race-2'));
+    app(LedgerService::class)->credit($wallet, 7000, MovementType::RECARGA, fcKey('race-1'), 'TOPUP', $first->public_id);
+    $first->update(['status' => \App\Domains\Financial\Enums\TopUpStatus::COMPLETADA]);
+    app(LedgerService::class)->credit($wallet, 7000, MovementType::RECARGA, fcKey('race-2'), 'TOPUP', $second->public_id);
+    $second->update(['status' => \App\Domains\Financial\Enums\TopUpStatus::COMPLETADA]);
 
     $alerts = fcAlertsForWallet($wallet);
 

@@ -19,6 +19,8 @@ use App\Domains\Financial\Services\WalletService;
 use Illuminate\Foundation\Testing\TestCase;
 use Illuminate\Support\Str;
 
+require_once __DIR__ . '/Support/CashCompletionFixtures.php';
+
 class FinancialAdjustmentServiceTest extends TestCase
 {
     private ?Wallet $wallet = null;
@@ -1748,7 +1750,7 @@ public function test_it_refunds_a_withdrawal_only_after_recovery_confirmation():
 
     $withdrawalKey = 'withdrawal-original-' . Str::uuid();
 
-    $withdrawalService->complete($withdrawal, $withdrawalKey);
+    testHistoricalWithdrawal($withdrawal, $withdrawalKey);
 
     $original = FinancialTransaction::where(
         'idempotency_key',
@@ -1911,7 +1913,7 @@ public function test_it_prevents_reusing_a_withdrawal_recovery_receipt(): void
     );
 
     $withdrawalKey = 'recovery-withdrawal-' . Str::uuid();
-    $withdrawalService->complete($withdrawal, $withdrawalKey);
+    testHistoricalWithdrawal($withdrawal, $withdrawalKey);
 
     $original = FinancialTransaction::where(
         'idempotency_key',

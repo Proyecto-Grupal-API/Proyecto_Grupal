@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/Support/CashCompletionFixtures.php';
+beforeEach(function () { testCashCompletionCleanup(); });
+
 use App\Domains\Financial\Enums\AlertOutcome;
 use App\Domains\Financial\Enums\AlertStatus;
 use App\Domains\Financial\Enums\AlertType;
@@ -23,6 +26,7 @@ use Illuminate\Support\Facades\DB;
 require_once __DIR__ . '/Support/FinancialControlHelpers.php';
 
 afterEach(function () {
+    testCashCompletionCleanup();
     fcCleanup();
 });
 
@@ -154,7 +158,7 @@ test('links the alert to the completed top up', function () {
 
     expect(fcAlertsForWallet($wallet))->toHaveCount(0);
 
-    $service->complete($topUp, fcKey('alert-topup-complete'));
+    testCompleteCashTopUp($topUp, fcKey('alert-topup-complete'));
 
     $alert = fcAlertsForWallet($wallet)->first();
 

@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/Support/CashCompletionFixtures.php';
+beforeEach(function () { testCashCompletionCleanup(); });
+
 use App\Domains\Financial\Enums\TopUpMethod;
 use App\Domains\Financial\Enums\TopUpStatus;
 use App\Domains\Financial\Enums\WalletType;
@@ -14,6 +17,7 @@ use App\Domains\Financial\Enums\TransactionStatus;
 use App\Domains\Financial\Models\FinancialTransaction;
 
 afterEach(function () {
+    testCashCompletionCleanup();
     $wallet = Wallet::where(
         'owner_id',
         'test-topup-user'
@@ -107,7 +111,7 @@ test('completes a top up and credits the wallet through the ledger', function ()
         'test-reference-001'
     );
 
-    $completedTopUp = $service->complete(
+    $completedTopUp = testCompleteCashTopUp(
         $topUp,
         'test-topup-complete'
     );
@@ -164,17 +168,17 @@ test('does not allow the same top up to be completed twice', function () {
         'test-reference-001'
     );
 
-    $service->complete(
+    testCompleteCashTopUp(
         $topUp,
         'test-topup-first-completion'
     );
 
-    expect(fn () => $service->complete(
+    expect(fn () => testCompleteCashTopUp(
         $topUp,
         'test-topup-second-completion'
     ))->toThrow(
         InvalidArgumentException::class,
-        'Solo una recarga pendiente puede completarse.'
+        'La solicitud pendiente no corresponde a esta liquidación de caja.'
     );
 
     $wallet->refresh();
@@ -271,7 +275,7 @@ test('does not complete a top up if the wallet becomes inactive', function () {
     $wallet->status = WalletStatus::BLOQUEADA;
     $wallet->save();
 
-    expect(fn () => $service->complete(
+    expect(fn () => testCompleteCashTopUp(
         $topUp,
         'test-topup-inactive-wallet'
     ))->toThrow(
@@ -379,12 +383,12 @@ test('allows retrying the same top up with the same idempotency key', function (
         'test-reference-retry'
     );
 
-    $service->complete(
+    testCompleteCashTopUp(
         $topUp,
         'test-topup-same-idempotency-key'
     );
 
-    $service->complete(
+    testCompleteCashTopUp(
         $topUp,
         'test-topup-same-idempotency-key'
     );
@@ -432,7 +436,7 @@ test('does not complete a different top up with an already used idempotency key'
         TopUpMethod::EFECTIVO
     );
 
-    $service->complete(
+    testCompleteCashTopUp(
         $firstTopUp,
         'test-topup-collision-key'
     );
@@ -443,7 +447,7 @@ test('does not complete a different top up with an already used idempotency key'
         TopUpMethod::EFECTIVO
     );
 
-    expect(fn () => $service->complete(
+    expect(fn () => testCompleteCashTopUp(
         $secondTopUp,
         'test-topup-collision-key'
     ))->toThrow(InvalidArgumentException::class);

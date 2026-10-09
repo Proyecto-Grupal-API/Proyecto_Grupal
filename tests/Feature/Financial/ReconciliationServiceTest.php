@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/Support/CashCompletionFixtures.php';
+beforeEach(function () { testCashCompletionCleanup(); });
+
 use App\Domains\Financial\Enums\CashReconciliationStatus;
 use App\Domains\Financial\Enums\DifferenceStatus;
 use App\Domains\Financial\Enums\MovementType;
@@ -22,6 +25,7 @@ use Illuminate\Support\Str;
 require_once __DIR__ . '/Support/FinancialControlHelpers.php';
 
 afterEach(function () {
+    testCashCompletionCleanup();
     fcCleanup();
 });
 
@@ -57,7 +61,7 @@ test('a consistent day reconciles without differences and without changing balan
 
     $topUps = app(TopUpService::class);
     $topUp = $topUps->create($wallet, 2000, TopUpMethod::EFECTIVO);
-    $topUps->complete($topUp, fcKey('rec-ok-topup'));
+    testCompleteCashTopUp($topUp, fcKey('rec-ok-topup'));
 
     $balanceBefore = $wallet->fresh()->available_balance_cents;
     $entriesBefore = LedgerEntry::whereIn('wallet_id', [$wallet->public_id, $other->public_id])->count();

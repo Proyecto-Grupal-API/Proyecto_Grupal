@@ -77,6 +77,11 @@ class TopUpService
                     ->lockForUpdate()
                     ->firstOrFail();
 
+                // Check the locked database row; changing an in-memory model cannot bypass this gate.
+                if ($lockedTopUp->method === TopUpMethod::EFECTIVO) {
+                    throw new InvalidArgumentException('Las operaciones en efectivo solo pueden completarse desde Caja y turnos.');
+                }
+
                if ($lockedTopUp->status !== TopUpStatus::PENDIENTE) {
     $existingTransaction = FinancialTransaction::where(
         'idempotency_key',

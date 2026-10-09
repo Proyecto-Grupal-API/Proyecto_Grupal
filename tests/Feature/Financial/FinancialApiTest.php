@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/Support/CashCompletionFixtures.php';
+
 use App\Domains\Financial\Enums\WalletType;
 use App\Domains\Financial\Models\Wallet;
 use App\Domains\Financial\Services\WalletService;
@@ -553,89 +555,17 @@ test('financial write scope can create a top up', function () {
     )->toBeTrue();
 });
 
-test('completes a top up through the financial api', function () {
-    $this->withoutMiddleware(
-        ValidateServiceToken::class
-    );
-
-    $wallet = app(WalletService::class)->create(
-        'USER',
-        'test-financial-api-topup-user',
-        WalletType::USUARIO
-    );
-
-    $topUp = app(
-        \App\Domains\Financial\Services\TopUpService::class
-    )->create(
-        $wallet,
-        25000,
-        \App\Domains\Financial\Enums\TopUpMethod::EFECTIVO,
-        'test-agent-complete',
-        'test-api-topup-complete'
-    );
-
-    expect($topUp->status)
-        ->toBe(TopUpStatus::PENDIENTE)
-        ->and($wallet->available_balance_cents)
-        ->toBe(0);
-
-    $response = $this->postJson(
-        '/api/v1/financial/topups/'
-            . $topUp->public_id
-            . '/complete',
-        [],
-        [
-            'Idempotency-Key' =>
-                'test-financial-api-topup-complete',
-        ]
-    );
-
-    $response
-        ->assertOk()
-        ->assertJsonPath(
-            'data.status',
-            TopUpStatus::COMPLETADA->value
-        )
-        ->assertJsonPath(
-            'data.amount_cents',
-            25000
-        )
-        ->assertJsonPath(
-            'meta.api_version',
-            'v1'
-        );
-
-    $wallet->refresh();
-    $topUp->refresh();
-
-    expect($wallet->available_balance_cents)
-        ->toBe(25000)
-        ->and($topUp->status)
-        ->toBe(TopUpStatus::COMPLETADA);
-
-    $transaction = FinancialTransaction::where(
-        'idempotency_key',
-        'test-financial-api-topup-complete'
-    )->first();
-
-    expect($transaction)->not->toBeNull()
-        ->and($transaction->reference_type)
-        ->toBe('TOPUP')
-        ->and(strtolower($transaction->reference_id))
-        ->toBe(strtolower($topUp->public_id));
-
-    $ledgerEntry = LedgerEntry::where(
-        'transaction_id',
-        $transaction->public_id
-    )->first();
-
-    expect($ledgerEntry)->not->toBeNull()
-        ->and($ledgerEntry->movement_type)
-        ->toBe(MovementType::RECARGA)
-        ->and($ledgerEntry->amount_cents)
-        ->toBe(25000)
-        ->and($ledgerEntry->available_balance_after_cents)
-        ->toBe(25000);
+test('generic top up api refuses cash completion without changing money', function () {
+    $this->withoutMiddleware(ValidateServiceToken::class);
+    $wallet = app(WalletService::class)->create('USER', 'test-financial-api-topup-user', WalletType::USUARIO);
+    $topUp = app(\App\Domains\Financial\Services\TopUpService::class)->create($wallet, 25000, \App\Domains\Financial\Enums\TopUpMethod::EFECTIVO);
+    foreach (['test-financial-api-topup-complete'] as $key) {
+        $this->postJson('/api/v1/financial/topups/'.$topUp->public_id.'/complete', [], ['Idempotency-Key' => $key])
+            ->assertStatus(409)->assertJsonPath('meta.api_version', 'v1');
+    }
+    expect($wallet->fresh()->available_balance_cents)->toBe(0)
+        ->and($topUp->fresh()->status)->toBe(TopUpStatus::PENDIENTE)
+        ->and(FinancialTransaction::where('reference_type', 'TOPUP')->where('reference_id', $topUp->public_id)->count())->toBe(0);
 });
 
 test('top up completion requires an idempotency key', function () {
@@ -685,144 +615,29 @@ test('top up completion requires an idempotency key', function () {
             ->exists()
     )->toBeFalse();
 });
-test('retrying top up completion with the same idempotency key does not duplicate money', function () {
-    $this->withoutMiddleware(
-        ValidateServiceToken::class
-    );
-
-    $wallet = app(WalletService::class)->create(
-        'USER',
-        'test-financial-api-topup-user',
-        WalletType::USUARIO
-    );
-
-    $topUp = app(
-        \App\Domains\Financial\Services\TopUpService::class
-    )->create(
-        $wallet,
-        25000,
-        \App\Domains\Financial\Enums\TopUpMethod::EFECTIVO
-    );
-
-    $url = '/api/v1/financial/topups/'
-        . $topUp->public_id
-        . '/complete';
-
-    $headers = [
-        'Idempotency-Key' =>
-            'test-financial-api-topup-retry',
-    ];
-
-    $firstResponse = $this->postJson(
-        $url,
-        [],
-        $headers
-    );
-
-    $secondResponse = $this->postJson(
-        $url,
-        [],
-        $headers
-    );
-
-    $firstResponse
-        ->assertOk()
-        ->assertJsonPath(
-            'data.status',
-            TopUpStatus::COMPLETADA->value
-        );
-
-    $secondResponse
-        ->assertOk()
-        ->assertJsonPath(
-            'data.status',
-            TopUpStatus::COMPLETADA->value
-        );
-
-    $wallet->refresh();
-    $topUp->refresh();
-
-    expect($wallet->available_balance_cents)
-        ->toBe(25000)
-        ->and($topUp->status)
-        ->toBe(TopUpStatus::COMPLETADA);
-
-    $transactions = FinancialTransaction::where(
-        'idempotency_key',
-        'test-financial-api-topup-retry'
-    )->get();
-
-    expect($transactions)->toHaveCount(1);
-
-    $transaction = $transactions->first();
-
-    expect(
-        LedgerEntry::where(
-            'transaction_id',
-            $transaction->public_id
-        )->count()
-    )->toBe(1);
+test('generic cash completion remains blocked on repeated requests', function () {
+    $this->withoutMiddleware(ValidateServiceToken::class);
+    $wallet = app(WalletService::class)->create('USER', 'test-financial-api-topup-user', WalletType::USUARIO);
+    $topUp = app(\App\Domains\Financial\Services\TopUpService::class)->create($wallet, 25000, \App\Domains\Financial\Enums\TopUpMethod::EFECTIVO);
+    foreach (['test-financial-api-topup-retry', 'test-financial-api-topup-retry'] as $key) {
+        $this->postJson('/api/v1/financial/topups/'.$topUp->public_id.'/complete', [], ['Idempotency-Key' => $key])
+            ->assertStatus(409)->assertJsonPath('meta.api_version', 'v1');
+    }
+    expect($wallet->fresh()->available_balance_cents)->toBe(0)
+        ->and($topUp->fresh()->status)->toBe(TopUpStatus::PENDIENTE)
+        ->and(FinancialTransaction::where('reference_type', 'TOPUP')->where('reference_id', $topUp->public_id)->count())->toBe(0);
 });
-test('top up completion rejects a different idempotency key after completion', function () {
-    $this->withoutMiddleware(
-        ValidateServiceToken::class
-    );
-
-    $wallet = app(WalletService::class)->create(
-        'USER',
-        'test-financial-api-topup-user',
-        WalletType::USUARIO
-    );
-
-    $topUp = app(
-        \App\Domains\Financial\Services\TopUpService::class
-    )->create(
-        $wallet,
-        25000,
-        \App\Domains\Financial\Enums\TopUpMethod::EFECTIVO
-    );
-
-    $url = '/api/v1/financial/topups/'
-        . $topUp->public_id
-        . '/complete';
-
-    $this->postJson(
-        $url,
-        [],
-        [
-            'Idempotency-Key' => 'test-topup-key-first',
-        ]
-    )->assertOk();
-
-    $response = $this->postJson(
-        $url,
-        [],
-        [
-            'Idempotency-Key' => 'test-topup-key-different',
-        ]
-    );
-
-    $response->assertStatus(409);
-
-    $wallet->refresh();
-    $topUp->refresh();
-
-    expect($wallet->available_balance_cents)
-        ->toBe(25000)
-        ->and($topUp->status)
-        ->toBe(TopUpStatus::COMPLETADA);
-
-    expect(
-        FinancialTransaction::where(
-            'reference_type',
-            'TOPUP'
-        )
-            ->where(
-                'reference_id',
-                $topUp->public_id
-            )
-            ->count()
-    )->toBe(1);
+test('generic cash completion rejects different keys without creating movements', function () {
+    $this->withoutMiddleware(ValidateServiceToken::class);
+    $wallet = app(WalletService::class)->create('USER', 'test-financial-api-topup-user', WalletType::USUARIO);
+    $topUp = app(\App\Domains\Financial\Services\TopUpService::class)->create($wallet, 25000, \App\Domains\Financial\Enums\TopUpMethod::EFECTIVO);
+    foreach (['test-topup-key-first', 'test-topup-key-different'] as $key) {
+        $this->postJson('/api/v1/financial/topups/'.$topUp->public_id.'/complete', [], ['Idempotency-Key' => $key])
+            ->assertStatus(409)->assertJsonPath('meta.api_version', 'v1');
+    }
+    expect($wallet->fresh()->available_balance_cents)->toBe(0)
+        ->and($topUp->fresh()->status)->toBe(TopUpStatus::PENDIENTE)
+        ->and(FinancialTransaction::where('reference_type', 'TOPUP')->where('reference_id', $topUp->public_id)->count())->toBe(0);
 });
 
 test('returns a top up through the financial api', function () {
@@ -2365,7 +2180,7 @@ test('refund api completes a withdrawal only after recovery', function () {
     );
 
     $withdrawalKey = 'api-withdrawal-original-' . str()->uuid();
-    $withdrawalService->complete($withdrawal, $withdrawalKey);
+    testHistoricalWithdrawal($withdrawal, $withdrawalKey);
 
     $original = FinancialTransaction::where(
         'idempotency_key',

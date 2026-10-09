@@ -123,7 +123,7 @@ test('completes a withdrawal and debits the wallet through the ledger', function
     $withdrawal = $service->create(
         $wallet,
         10000,
-        WithdrawalMethod::EFECTIVO,
+        WithdrawalMethod::TRANSFERENCIA,
         'test-agent-001'
     );
 
@@ -176,7 +176,7 @@ test('does not allow the same withdrawal to be completed twice', function () {
     $withdrawal = $service->create(
         $wallet,
         10000,
-        WithdrawalMethod::EFECTIVO
+        WithdrawalMethod::TRANSFERENCIA
     );
 
     $service->complete(
@@ -267,7 +267,7 @@ test('does not complete a withdrawal if the wallet becomes inactive', function (
     $withdrawal = $service->create(
         $wallet,
         10000,
-        WithdrawalMethod::EFECTIVO
+        WithdrawalMethod::TRANSFERENCIA
     );
 
     $wallet->status = WalletStatus::BLOQUEADA;
