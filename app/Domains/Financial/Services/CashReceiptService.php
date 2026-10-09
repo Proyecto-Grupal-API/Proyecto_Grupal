@@ -46,6 +46,11 @@ class CashReceiptService
             $snapshot['cash_confirmation_id'] = strtolower($confirmation->public_id);
             $snapshot['student_confirmed_by'] = $confirmation->confirmed_by;
             $snapshot['student_confirmed_at'] = $confirmation->confirmed_at?->toISOString();
+            $snapshot['supervisor_required'] = $confirmation->supervisor_required;
+            $snapshot['approval_policy'] = $confirmation->approval_policy_snapshot;
+            $snapshot['supervisor_id'] = $confirmation->supervisor_id;
+            $snapshot['supervisor_reason'] = $confirmation->supervisor_reason;
+            $snapshot['supervisor_reviewed_at'] = $confirmation->supervisor_reviewed_at?->toISOString();
         }
         if ($movement->type === CashMovementType::WITHDRAWAL_RECOVERY) {
             $refund = FinancialRefundRequest::where('public_id', $movement->reference_id)->firstOrFail();

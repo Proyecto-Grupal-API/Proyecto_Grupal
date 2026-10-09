@@ -41,6 +41,8 @@ class CashOperationConfirmationController extends CashController
             'wallet_id' => strtolower($proof->wallet_id), 'operation' => $proof->operation, 'amount_cents' => $proof->amount_cents,
             'currency' => $proof->currency, 'reason' => $proof->reason, 'expires_at' => $proof->expires_at->toISOString(),
             'confirmed_at' => $proof->confirmed_at?->toISOString(),
+            'supervisor_required' => $proof->supervisor_required, 'supervisor_status' => $proof->supervisor_status,
+            'approval_policy_version' => $proof->approval_policy_snapshot['version'] ?? 0,
             'student_url' => route('financial.cash.confirmations.student.show', ['confirmationId' => $proof->public_id], false)];
     }
 }

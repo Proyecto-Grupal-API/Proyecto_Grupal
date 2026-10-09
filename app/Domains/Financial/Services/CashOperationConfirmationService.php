@@ -35,9 +35,12 @@ class CashOperationConfirmationService
                 throw new InvalidArgumentException('La confirmación requiere una wallet de usuario activa y de la moneda de la caja.');
             $ttl = (int) config('financial.cash.confirmation_ttl_seconds', 300);
             if ($ttl < 60 || $ttl > 900) throw new InvalidArgumentException('La vigencia de confirmación debe estar entre 60 y 900 segundos.');
+            $policy = app(CashApprovalPolicyService::class)->snapshot($shift->cashRegister->association_id, $operation, $wallet->currency);
+            $required = $policy['enabled'] && $amount >= $policy['threshold_cents'];
             return CashOperationConfirmation::create(['public_id' => (string) Str::uuid(), 'cash_shift_id' => $shift->id,
                 'wallet_id' => $wallet->public_id, 'operator_id' => trim($actor), 'student_id' => (string) $wallet->owner_id,
                 'operation' => $operation, 'amount_cents' => $amount, 'currency' => $wallet->currency, 'reason' => trim($reason),
+                'supervisor_required' => $required, 'approval_policy_snapshot' => $policy, 'supervisor_status' => $required ? 'PENDING' : null,
                 'status' => 'PENDING', 'request_key' => trim($key), 'request_hash' => $hash, 'expires_at' => now()->addSeconds($ttl)])->fresh();
         });
     }
@@ -95,6 +98,7 @@ class CashOperationConfirmationService
                     return $settle($proof);
                 }
                 if ($proof->status !== 'CONFIRMED' || ! $proof->expires_at->isFuture()) throw new InvalidArgumentException('Se requiere una confirmación vigente del estudiante.');
+                app(CashSupervisorApprovalService::class)->assertApproved($proof, $shift->cashRegister->association_id);
                 $proof->settlement_key = trim($key); $proof->save();
                 $result = $settle($proof);
                 $movement = CashMovement::where('idempotency_key', trim($key))->where('cash_shift_id', $shift->id)->firstOrFail();

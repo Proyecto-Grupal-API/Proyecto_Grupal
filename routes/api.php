@@ -60,6 +60,11 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
     Route::prefix('financial')->middleware('financial.correlation')->group(function () {
         // Asociación autorizada además del scope OAuth. Nunca hereda financial:read/write.
         Route::prefix('cash/associations/{associationId}')->group(function () {
+            $approvals = \App\Http\Controllers\Financial\CashApprovalController::class;
+            Route::get('/approval-policies', [$approvals, 'policies'])->middleware('oauth.service:financial:cash:approval:read');
+            Route::post('/approval-policies', [$approvals, 'configurePolicy'])->middleware('oauth.service:financial:cash:approval:manage');
+            Route::get('/approval-policies/history', [$approvals, 'policyHistory'])->middleware('oauth.service:financial:cash:approval:read');
+            Route::get('/approval-requests', [$approvals, 'reviewQueue'])->middleware('oauth.service:financial:cash:approval:read');
             $confirmations = \App\Http\Controllers\Financial\CashOperationConfirmationController::class;
             Route::post('/shifts/{shiftId}/confirmations', [$confirmations, 'store'])->whereUuid('shiftId')->middleware('oauth.service:financial:cash:operate');
             Route::get('/shifts/{shiftId}/confirmations/{confirmationId}', [$confirmations, 'showConfirmation'])->whereUuid(['shiftId', 'confirmationId'])->middleware('oauth.service:financial:cash:operate');

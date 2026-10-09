@@ -37,7 +37,7 @@ const actionPermission = computed(() => action.value === 'recover' ? permissions
 const canOperate = computed(() => actionPermission.value && (action.value === 'open' ? !!registerId.value
     : !!summary.value && summary.value.status === 'OPEN' && (['adjustments', 'close'].includes(action.value) || actorOwnsShift.value))
     && (action.value !== 'recover' || (selectedRefund.value?.status === 'APROBADA' && !selectedRefund.value.recovery)));
-const canSubmit = computed(() => canOperate.value && (!['topups', 'withdrawals'].includes(action.value) || confirmation.value?.status === 'CONFIRMED'));
+const canSubmit = computed(() => canOperate.value && (!['topups', 'withdrawals'].includes(action.value) || (confirmation.value?.status === 'CONFIRMED' && (!confirmation.value.supervisor_required || confirmation.value.supervisor_status === 'APPROVED'))));
 const money = value => new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency.value }).format((value || 0) / 100);
 const date = value => value ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—';
 const statusLabel = value => ({ OPEN: 'Abierto', CLOSED: 'Cerrado', ACTIVE: 'Activa', INACTIVE: 'Inactiva' }[value] || value);
@@ -215,6 +215,7 @@ function abandon() {
 <template>
     <Head title="Caja y turnos" />
     <AuthenticatedLayout>
+        <div class="mx-auto max-w-7xl px-6 pt-4"><Link :href="route('financial.cash.approvals')" class="font-semibold text-[#00338D]">Segunda autorización y políticas de caja →</Link></div>
         <template #header>
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div><p class="text-xs font-bold uppercase tracking-widest text-sky-600">Finanzas · 2.8</p><h2 class="mt-1 text-2xl font-bold text-[#00338D]">Caja y turnos</h2></div>
@@ -286,6 +287,7 @@ function abandon() {
                             <button v-if="preparing" type="button" class="secondary" :disabled="busy" @click="discardPreparation">Descartar reintento de confirmación</button>
                             <template v-if="confirmation">
                                 <p><strong>Estado:</strong> {{ ({ PENDING: 'Esperando al estudiante', CONFIRMED: 'Confirmada', REJECTED: 'Rechazada', EXPIRED: 'Vencida', CANCELLED: 'Cancelada', CONSUMED: 'Operación finalizada' })[confirmation.status] }}</p>
+                                <p v-if="confirmation.supervisor_required">Segunda autorización: {{ ({ PENDING: 'Esperando supervisor', APPROVED: 'Aprobada', REJECTED: 'Rechazada' })[confirmation.supervisor_status] }} · Política versión {{ confirmation.approval_policy_version }}</p>
                                 <p>Vence: {{ date(confirmation.expires_at) }}</p>
                                 <p>El estudiante puede abrir «Confirmaciones de caja» desde su wallet o usar este enlace en su propia sesión:</p>
                                 <input :value="confirmationLink" readonly aria-label="Enlace para el estudiante" class="w-full" />

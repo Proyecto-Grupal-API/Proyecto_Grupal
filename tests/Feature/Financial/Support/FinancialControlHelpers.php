@@ -122,6 +122,9 @@ if (!function_exists('fcWallet')) {
 
     function fcCleanup(): void
     {
+        $approvalPolicyIds = \App\Domains\Financial\Models\CashApprovalPolicy::where('association_id', 'like', FC_PREFIX . '%')->pluck('id');
+        \App\Domains\Financial\Models\CashApprovalPolicyChange::whereIn('cash_approval_policy_id', $approvalPolicyIds)->delete();
+        \App\Domains\Financial\Models\CashApprovalPolicy::whereIn('id', $approvalPolicyIds)->delete();
         // Remove only test confirmations before their wallet/movement foreign keys.
         \App\Domains\Financial\Models\CashOperationConfirmation::where('request_key', 'like', FC_PREFIX . '%')->delete();
         $walletIds = Wallet::where('owner_id', 'like', FC_PREFIX . '%')

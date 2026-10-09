@@ -81,8 +81,16 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
         $cash = \App\Http\Controllers\Financial\CashWebController::class;
         Route::get('/', [$cash, 'index'])->name('index');
         Route::get('/context', [$cash, 'context'])->name('context');
+        Route::get('/autorizaciones', [\App\Http\Controllers\Financial\CashApprovalWebController::class, 'index'])->name('approvals');
         Route::get('/administracion', [\App\Http\Controllers\Financial\CashRegisterAdministrationWebController::class, 'index'])->name('administration');
         Route::prefix('asociaciones/{associationId}')->group(function () use ($cash) {
+            $approvals = \App\Http\Controllers\Financial\CashApprovalWebController::class;
+            Route::get('/approval-policies', [$approvals, 'policies'])->name('approval-policies.index');
+            Route::post('/approval-policies', [$approvals, 'configurePolicy'])->name('approval-policies.configure');
+            Route::get('/approval-policies/history', [$approvals, 'policyHistory'])->name('approval-policies.history');
+            Route::get('/approval-requests', [$approvals, 'reviewQueue'])->name('approval-requests.index');
+            Route::post('/approval-requests/{confirmationId}/{decision}', [$approvals, 'reviewOperation'])
+                ->whereUuid('confirmationId')->whereIn('decision', ['approve', 'reject'])->name('approval-requests.review');
             $confirmations = \App\Http\Controllers\Financial\CashOperationConfirmationWebController::class;
             Route::post('/shifts/{shiftId}/confirmations', [$confirmations, 'store'])->whereUuid('shiftId')->name('confirmations.store');
             Route::get('/shifts/{shiftId}/confirmations/{confirmationId}', [$confirmations, 'showConfirmation'])->whereUuid(['shiftId', 'confirmationId'])->name('confirmations.show');

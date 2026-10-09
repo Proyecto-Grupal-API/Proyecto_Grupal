@@ -98,7 +98,9 @@ class CashSettlementService
             $ledger = app(LedgerService::class);
             $identity = $confirmation ? ['cash_confirmation_id' => strtolower($confirmation->public_id),
                 'student_id' => $confirmation->student_id, 'student_confirmed_by' => $confirmation->confirmed_by,
-                'student_confirmed_at' => $confirmation->confirmed_at->toISOString()] : [];
+                'student_confirmed_at' => $confirmation->confirmed_at->toISOString(),
+                'supervisor_required' => $confirmation->supervisor_required, 'approval_policy' => $confirmation->approval_policy_snapshot,
+                'supervisor_id' => $confirmation->supervisor_id, 'supervisor_reason' => $confirmation->supervisor_reason, 'supervisor_reviewed_at' => $confirmation->supervisor_reviewed_at?->toISOString()] : [];
             if ($incoming) $ledger->credit($currentWallet, $amount, MovementType::RECARGA, trim($key), 'TOPUP', $operation->public_id,
                 array_merge(['topup_method' => TopUpMethod::EFECTIVO->value], $identity));
             else $ledger->debit($currentWallet, $amount, MovementType::RETIRO, trim($key), 'WITHDRAWAL', $operation->public_id,

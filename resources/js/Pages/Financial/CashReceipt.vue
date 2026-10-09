@@ -30,6 +30,9 @@ const print = () => window.print();
                     <div v-if="receipt.refund_request_id"><dt>Solicitud de devolución</dt><dd>{{ receipt.refund_request_id }}</dd></div><div v-if="receipt.original_transaction_id"><dt>Transacción original</dt><dd>{{ receipt.original_transaction_id }}</dd></div>
                     <div class="sm:col-span-2"><dt>Motivo</dt><dd class="whitespace-pre-wrap">{{ receipt.reason }}</dd></div>
                     <div v-if="receipt.cash_confirmation_id"><dt>Confirmación del titular</dt><dd>{{ receipt.cash_confirmation_id }}</dd></div>
+                    <div v-if="receipt.supervisor_required"><dt>Supervisor autorizado</dt><dd>{{ receipt.supervisor_id }} · Política versión {{ receipt.approval_policy?.version }}</dd></div>
+                    <div v-if="receipt.supervisor_reason"><dt>Motivo de la autorización</dt><dd>{{ receipt.supervisor_reason }}</dd></div>
+                    <div v-if="receipt.supervisor_reviewed_at"><dt>Segunda autorización el</dt><dd>{{ new Date(receipt.supervisor_reviewed_at).toLocaleString('es-MX') }}</dd></div>
                     <div v-if="receipt.student_confirmed_at"><dt>Confirmado por el titular el</dt><dd>{{ new Date(receipt.student_confirmed_at).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }) }}</dd></div>
                 </dl>
                 <p v-if="receipt.movement_type === 'WITHDRAWAL_RECOVERY'" class="mb-4 text-sm text-slate-600">Este comprobante confirma la recepción física del efectivo. La devolución a la wallet se procesa por separado.</p>
