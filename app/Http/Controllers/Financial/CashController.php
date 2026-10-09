@@ -180,7 +180,7 @@ class CashController extends Controller
         }
     }
 
-    private function shiftData(CashShift $shift): array
+    protected function shiftData(CashShift $shift): array
     {
         return ['id' => strtolower($shift->public_id), 'cash_register_id' => strtolower($shift->cashRegister->public_id),
             'association_id' => $shift->cashRegister->association_id, 'currency' => $shift->cashRegister->currency,

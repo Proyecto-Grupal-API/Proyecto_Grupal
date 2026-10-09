@@ -57,6 +57,9 @@ const formatDate = (date) => {
         >
             <div class="mx-auto max-w-7xl">
                 <div class="mb-5 flex flex-wrap justify-end gap-3">
+                    <Link :href="route('financial.cash.index')" class="rounded-xl border border-[#00338D] px-5 py-3 text-sm font-semibold text-[#00338D] hover:bg-blue-50">
+                        Caja y turnos
+                    </Link>
                     <Link :href="route('financial.controls.index')" class="rounded-xl border border-[#00338D] px-5 py-3 text-sm font-semibold text-[#00338D] hover:bg-blue-50">
                         Límites, alertas y conciliación
                     </Link>

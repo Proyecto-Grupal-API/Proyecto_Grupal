@@ -70,6 +70,24 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
             ->whereUuid(['reconciliationId', 'differenceId'])->middleware($gate . ':reconciliation.resolve')->name('reconciliations.resolve');
     });
 
+    Route::prefix('finanzas/caja')->name('financial.cash.')->middleware('financial.correlation')->group(function () {
+        $cash = \App\Http\Controllers\Financial\CashWebController::class;
+        Route::get('/', [$cash, 'index'])->name('index');
+        Route::get('/context', [$cash, 'context'])->name('context');
+        Route::prefix('asociaciones/{associationId}')->group(function () use ($cash) {
+            Route::get('/registers', [$cash, 'registers'])->name('registers');
+            Route::get('/registers/{registerId}/shifts', [$cash, 'shifts'])->name('shifts')->whereUuid('registerId');
+            Route::get('/shifts/{shiftId}', [$cash, 'show'])->name('show')->whereUuid('shiftId');
+            Route::get('/shifts/{shiftId}/movements', [$cash, 'movements'])->name('movements')->whereUuid('shiftId');
+            Route::post('/registers/{registerId}/shifts', [$cash, 'open'])->name('open')->whereUuid('registerId');
+            Route::post('/shifts/{shiftId}/movements', [$cash, 'move'])->name('move')->whereUuid('shiftId');
+            Route::post('/shifts/{shiftId}/adjustments', [$cash, 'adjust'])->name('adjust')->whereUuid('shiftId');
+            Route::post('/shifts/{shiftId}/topups', [$cash, 'topUp'])->name('topups')->whereUuid('shiftId');
+            Route::post('/shifts/{shiftId}/withdrawals', [$cash, 'withdraw'])->name('withdrawals')->whereUuid('shiftId');
+            Route::post('/shifts/{shiftId}/close', [$cash, 'close'])->name('close')->whereUuid('shiftId');
+        });
+    });
+
     Route::get('/finanzas', [FinancialController::class, 'index'])
         ->name('financial.dashboard');
 
