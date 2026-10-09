@@ -34,6 +34,11 @@ class FinancialRefundRequest extends Model
         'completed_at' => 'datetime',
      ];
 
+    public function withdrawalRecovery()
+    {
+        return $this->hasOne(FinancialWithdrawalRecovery::class, 'refund_request_id', 'public_id');
+    }
+
     public function requestTransaction()
     {
         return $this->belongsTo(

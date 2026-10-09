@@ -1,7 +1,7 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
 const props = defineProps({ receipt: { type: Object, required: true } });
-const labels = { CASH_IN: 'Entrada de efectivo', CASH_OUT: 'Salida de efectivo', ADJUSTMENT: 'Ajuste de efectivo', TOPUP: 'Recarga en efectivo', WITHDRAWAL: 'Retiro en efectivo' };
+const labels = { CASH_IN: 'Entrada de efectivo', CASH_OUT: 'Salida de efectivo', ADJUSTMENT: 'Ajuste de efectivo', TOPUP: 'Recarga en efectivo', WITHDRAWAL: 'Retiro en efectivo', WITHDRAWAL_RECOVERY: 'Recuperación de efectivo de un retiro' };
 const formatMoney = () => {
     try { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: props.receipt.currency }).format(props.receipt.amount_cents / 100); }
     catch { return `${(props.receipt.amount_cents / 100).toFixed(2)} ${props.receipt.currency}`; }
@@ -27,8 +27,10 @@ const print = () => window.print();
                     <div v-if="receipt.wallet_id"><dt>Wallet</dt><dd>{{ receipt.wallet_id }}</dd></div><div><dt>Movimiento de caja</dt><dd>{{ receipt.movement_id }}</dd></div>
                     <div v-if="receipt.reference_id"><dt>Operación relacionada</dt><dd>{{ receipt.reference_type }} · {{ receipt.reference_id }}</dd></div>
                     <div v-if="receipt.financial_transaction_id"><dt>Transacción financiera</dt><dd>{{ receipt.financial_transaction_id }}</dd></div>
+                    <div v-if="receipt.refund_request_id"><dt>Solicitud de devolución</dt><dd>{{ receipt.refund_request_id }}</dd></div><div v-if="receipt.original_transaction_id"><dt>Transacción original</dt><dd>{{ receipt.original_transaction_id }}</dd></div>
                     <div class="sm:col-span-2"><dt>Motivo</dt><dd class="whitespace-pre-wrap">{{ receipt.reason }}</dd></div>
                 </dl>
+                <p v-if="receipt.movement_type === 'WITHDRAWAL_RECOVERY'" class="mb-4 text-sm text-slate-600">Este comprobante confirma la recepción física del efectivo. La devolución a la wallet se procesa por separado.</p>
                 <footer class="border-t border-slate-200 pt-4 text-xs text-slate-500">Este comprobante conserva los datos registrados al confirmar el movimiento. Su consulta e impresión no ejecutan otra operación.</footer>
             </article>
         </div>

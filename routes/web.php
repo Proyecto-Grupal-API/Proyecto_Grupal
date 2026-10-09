@@ -76,6 +76,10 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
         Route::get('/context', [$cash, 'context'])->name('context');
         Route::get('/administracion', [\App\Http\Controllers\Financial\CashRegisterAdministrationWebController::class, 'index'])->name('administration');
         Route::prefix('asociaciones/{associationId}')->group(function () use ($cash) {
+            $recoveries = \App\Http\Controllers\Financial\CashWithdrawalRecoveryWebController::class;
+            Route::get('/withdrawal-refunds', [$recoveries, 'index'])->name('withdrawal-refunds.index');
+            Route::post('/shifts/{shiftId}/withdrawal-refunds/{refundId}/recover', [$recoveries, 'recover'])
+                ->whereUuid(['shiftId', 'refundId'])->name('withdrawal-refunds.recover');
             Route::get('/receipts/{receiptId}', [$cash, 'receipt'])->whereUuid('receiptId')->name('receipts.show');
             Route::get('/receipts/{receiptId}/imprimir', [$cash, 'printReceipt'])->whereUuid('receiptId')->name('receipts.print');
             $admin = \App\Http\Controllers\Financial\CashRegisterAdministrationWebController::class;

@@ -41,7 +41,7 @@ class CashController extends Controller
         return CashRegister::where('association_id', $associationId)->where('public_id', $registerId)->firstOrFail();
     }
 
-    private function shift(string $associationId, string $shiftId): CashShift
+    protected function shift(string $associationId, string $shiftId): CashShift
     {
         $registerIds = CashRegister::where('association_id', $associationId)->select('id');
         return CashShift::whereIn('cash_register_id', $registerIds)->where('public_id', $shiftId)->firstOrFail();

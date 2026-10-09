@@ -38,7 +38,7 @@ class CashWebController extends CashController
     {
         $values = $request->validate(['association_id' => ['required', 'string', 'max:255']]);
         $permissions = [];
-        foreach (['read', 'operate', 'adjust', 'close', 'manage'] as $action) {
+        foreach (['read', 'operate', 'adjust', 'close', 'manage', 'recover'] as $action) {
             $permissions[$action] = $provider->allows($this->authenticatedActor($request), $values['association_id'], $action);
         }
         return $this->ok($request, ['association_id' => $values['association_id'], 'permissions' => $permissions]);

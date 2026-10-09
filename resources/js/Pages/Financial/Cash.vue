@@ -6,34 +6,38 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
 const associationInput = ref('');
 const association = ref('');
-const permissions = ref({ read: false, operate: false, adjust: false, close: false, manage: false });
+const permissions = ref({ read: false, operate: false, adjust: false, close: false, manage: false, recover: false });
 const registers = ref([]);
 const shifts = ref([]);
 const movements = ref([]);
+const refunds = ref([]);
+const refundId = ref('');
 const registerId = ref('');
 const shiftId = ref('');
 const summary = ref(null);
-const pages = reactive({ registers: null, shifts: null, movements: null });
+const pages = reactive({ registers: null, shifts: null, movements: null, refunds: null });
 const busy = ref(false);
 const error = ref('');
 const success = ref('');
 const pending = ref(null);
 const action = ref('open');
 const form = reactive({ amount: '', wallet: '', reason: '', type: 'CASH_IN' });
+const selectedRefund = computed(() => refunds.value.find(item => item.id === refundId.value));
 const register = computed(() => registers.value.find(item => item.id === registerId.value));
 const currency = computed(() => summary.value?.currency || register.value?.currency || 'MXN');
 const base = computed(() => `/finanzas/caja/asociaciones/${encodeURIComponent(association.value)}`);
 const actorOwnsShift = computed(() => summary.value?.is_operator === true);
 const titles = { open: 'Abrir turno', topups: 'Recarga en efectivo', withdrawals: 'Retiro en efectivo',
-    movements: 'Entrada o salida de efectivo', adjustments: 'Ajuste de efectivo', close: 'Cerrar turno y realizar arqueo' };
-const actionPermission = computed(() => action.value === 'adjustments' ? permissions.value.adjust
+    movements: 'Entrada o salida de efectivo', adjustments: 'Ajuste de efectivo', close: 'Cerrar turno y realizar arqueo', recover: 'Recuperar efectivo de un retiro' };
+const actionPermission = computed(() => action.value === 'recover' ? permissions.value.recover : action.value === 'adjustments' ? permissions.value.adjust
     : action.value === 'close' ? permissions.value.close : permissions.value.operate);
 const canSubmit = computed(() => actionPermission.value && (action.value === 'open' ? !!registerId.value
-    : !!summary.value && summary.value.status === 'OPEN' && (['adjustments', 'close'].includes(action.value) || actorOwnsShift.value)));
+    : !!summary.value && summary.value.status === 'OPEN' && (['adjustments', 'close'].includes(action.value) || actorOwnsShift.value))
+    && (action.value !== 'recover' || (selectedRefund.value?.status === 'APROBADA' && !selectedRefund.value.recovery)));
 const money = value => new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency.value }).format((value || 0) / 100);
 const date = value => value ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—';
 const statusLabel = value => ({ OPEN: 'Abierto', CLOSED: 'Cerrado', ACTIVE: 'Activa', INACTIVE: 'Inactiva' }[value] || value);
-const typeLabel = value => ({ CASH_IN: 'Entrada', CASH_OUT: 'Salida', TOPUP: 'Recarga', WITHDRAWAL: 'Retiro', ADJUSTMENT: 'Ajuste' }[value] || value);
+const typeLabel = value => ({ CASH_IN: 'Entrada', CASH_OUT: 'Salida', TOPUP: 'Recarga', WITHDRAWAL: 'Retiro', ADJUSTMENT: 'Ajuste', WITHDRAWAL_RECOVERY: 'Recuperación de retiro' }[value] || value);
 
 function explain(exception) {
     const response = exception.response;
@@ -52,19 +56,22 @@ async function run(task) {
 }
 async function getList(kind, url, page = 1) {
     const { data } = await axios.get(url, { params: { page, per_page: 10 } });
-    ({ registers, shifts, movements })[kind].value = data.data;
+    ({ registers, shifts, movements, refunds })[kind].value = data.data;
     pages[kind] = data.meta.pagination;
 }
 async function connect() {
     if (pending.value) return;
     await run(async () => {
-        association.value = ''; registers.value = []; shifts.value = []; movements.value = [];
+        association.value = ''; registers.value = []; shifts.value = []; movements.value = []; refunds.value = []; refundId.value = '';
         registerId.value = ''; shiftId.value = ''; summary.value = null; success.value = '';
-        permissions.value = { read: false, operate: false, adjust: false, close: false, manage: false };
+        permissions.value = { read: false, operate: false, adjust: false, close: false, manage: false, recover: false };
         Object.keys(pages).forEach(key => { pages[key] = null; });
         const { data } = await axios.get('/finanzas/caja/context', { params: { association_id: associationInput.value.trim() } });
         association.value = data.data.association_id; permissions.value = data.data.permissions;
-        if (permissions.value.read) await getList('registers', `${base.value}/registers`);
+        if (permissions.value.read) {
+            await getList('registers', `${base.value}/registers`);
+            await getList('refunds', `${base.value}/withdrawal-refunds`);
+        }
     });
 }
 async function chooseRegister() {
@@ -91,8 +98,13 @@ async function paginate(kind, page) {
         } else if (kind === 'shifts') {
             shiftId.value = ''; summary.value = null; movements.value = [];
             await getList(kind, `${base.value}/registers/${registerId.value}/shifts`, page);
-        } else await getList(kind, `${base.value}/shifts/${shiftId.value}/movements`, page);
+        } else if (kind === 'refunds') await getList(kind, `${base.value}/withdrawal-refunds`, page);
+        else await getList(kind, `${base.value}/shifts/${shiftId.value}/movements`, page);
     });
+}
+function prepareRecovery(item) {
+    if (busy.value || pending.value) return;
+    refundId.value = item.id; action.value = 'recover'; form.amount = (item.amount_cents / 100).toFixed(2); form.reason = '';
 }
 function cents() {
     const value = form.amount.trim();
@@ -108,9 +120,9 @@ async function submit() {
     if (busy.value || (!pending.value && !canSubmit.value)) return;
     if (!pending.value) {
         try {
-            const amount = cents();
+            const amount = action.value === 'recover' ? selectedRefund.value.amount_cents : cents();
             if (action.value !== 'open' && !form.reason.trim()) throw new Error('Escribe el motivo de la operación.');
-            const payload = action.value === 'open' ? { opening_amount_cents: amount }
+            const payload = action.value === 'recover' ? { reason: form.reason.trim() } : action.value === 'open' ? { opening_amount_cents: amount }
                 : action.value === 'close' ? { counted_amount_cents: amount, reason: form.reason.trim() }
                 : { amount_cents: amount, reason: form.reason.trim() };
             if (['topups', 'withdrawals'].includes(action.value)) {
@@ -119,7 +131,7 @@ async function submit() {
             }
             if (action.value === 'movements') payload.type = form.type;
             if (!window.confirm(`${titles[action.value]} por ${money(amount)}. ¿Confirmas que el importe corresponde al efectivo físico?`)) return;
-            const url = action.value === 'open' ? `${base.value}/registers/${registerId.value}/shifts`
+            const url = action.value === 'recover' ? `${base.value}/shifts/${shiftId.value}/withdrawal-refunds/${refundId.value}/recover` : action.value === 'open' ? `${base.value}/registers/${registerId.value}/shifts`
                 : `${base.value}/shifts/${shiftId.value}/${action.value}`;
             pending.value = { url, payload, action: action.value, key: crypto.randomUUID() };
         } catch (exception) { error.value = exception.message; return; }
@@ -141,6 +153,7 @@ async function submit() {
         try {
             await getList('shifts', `${base.value}/registers/${registerId.value}/shifts`);
             await snapshot();
+            if (request.action === 'recover') await getList('refunds', `${base.value}/withdrawal-refunds`);
         } catch (exception) {
             summary.value = null;
             error.value = `La operación fue confirmada, pero no pudimos actualizar el resumen. ${explain(exception)}`;
@@ -197,9 +210,17 @@ function abandon() {
                     <p class="note mt-4 break-all">Responsable: {{ summary.agent_id }} · Turno: {{ summary.id }}</p>
                     <p v-if="summary.status === 'CLOSED'" class="note mt-2">Cerrado por {{ summary.closed_by }} el {{ date(summary.closed_at) }}. Motivo: {{ summary.closing_reason }}</p>
                 </section>
+                <section v-if="association && permissions.read" class="panel">
+                    <div class="flex flex-wrap items-center justify-between gap-3"><h2>Devoluciones de retiros de la asociación</h2><button class="secondary" :disabled="busy || !!pending" @click="run(() => getList('refunds', `${base}/withdrawal-refunds`))">Actualizar solicitudes</button></div>
+                    <p class="note mt-3">Selecciona una solicitud aprobada y el turno que recibe el efectivo. La recuperación registra una entrada física; la devolución a la wallet se completa por separado en Retenciones y devoluciones.</p>
+                    <div class="mt-4 overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr><th>Solicitud</th><th>Importe</th><th>Estado</th><th>Recuperación</th></tr></thead><tbody><tr v-for="item in refunds" :key="item.id"><td class="break-all">{{ item.id }}<p class="note">Wallet: {{ item.wallet_id }}</p></td><td class="whitespace-nowrap">{{ (item.amount_cents / 100).toFixed(2) }} {{ item.currency }}</td><td>{{ item.status }}</td><td><a v-if="item.recovery?.receipt_id" :href="route('financial.cash.receipts.print', { associationId: association, receiptId: item.recovery.receipt_id })" target="_blank" rel="noopener" class="font-semibold text-[#00338D]">Ver recuperación</a><button v-else class="secondary" :disabled="busy || !!pending || !permissions.recover || item.status !== 'APROBADA' || !!item.recovery" @click="prepareRecovery(item)">Preparar recuperación</button></td></tr></tbody></table></div>
+                    <p v-if="!refunds.length" class="note mt-4">No hay solicitudes de devolución de retiros de caja.</p>
+                    <div v-if="pages.refunds?.last_page > 1" class="pagination"><button :disabled="busy || !!pending || pages.refunds.current_page === 1" @click="paginate('refunds', pages.refunds.current_page - 1)">Anterior</button><span>Página {{ pages.refunds.current_page }} de {{ pages.refunds.last_page }}</span><button :disabled="busy || !!pending || pages.refunds.current_page === pages.refunds.last_page" @click="paginate('refunds', pages.refunds.current_page + 1)">Siguiente</button></div>
+                    <Link :href="route('financial.adjustments.index')" class="mt-4 inline-block text-sm font-semibold text-[#00338D]">Ver Retenciones y devoluciones</Link>
+                </section>
                 <section v-if="registerId && permissions.read" class="panel">
                     <h2>Registrar operación</h2>
-                    <label class="mt-4">Operación<select v-model="action" :disabled="busy || !!pending"><option value="open">Abrir turno</option><option value="topups">Recarga en efectivo</option><option value="withdrawals">Retiro en efectivo</option><option value="movements">Entrada o salida física</option><option value="adjustments">Ajuste de efectivo</option><option value="close">Cierre y arqueo</option></select></label>
+                    <label class="mt-4">Operación<select v-model="action" :disabled="busy || !!pending"><option value="open">Abrir turno</option><option value="topups">Recarga en efectivo</option><option value="withdrawals">Retiro en efectivo</option><option value="movements">Entrada o salida física</option><option value="adjustments">Ajuste de efectivo</option><option value="close">Cierre y arqueo</option><option value="recover">Recuperar efectivo de un retiro</option></select></label>
                     <p v-if="!actionPermission" class="note mt-3">Esta acción requiere un permiso que tu cuenta no tiene.</p>
                     <p v-else-if="action !== 'open' && !summary" class="note mt-3">Selecciona un turno antes de continuar.</p>
                     <p v-else-if="action !== 'open' && summary?.status === 'CLOSED'" class="note mt-3">El turno está cerrado. Puedes consultar su historial.</p>
@@ -207,7 +228,8 @@ function abandon() {
                     <form class="mt-4 space-y-4" @submit.prevent="submit">
                         <fieldset class="grid gap-4 sm:grid-cols-2" :disabled="busy || !!pending || !canSubmit">
                             <label v-if="action === 'movements'">Tipo<select v-model="form.type"><option value="CASH_IN">Entrada de efectivo</option><option value="CASH_OUT">Salida de efectivo</option></select></label>
-                            <label> {{ action === 'open' ? 'Fondo inicial' : action === 'close' ? 'Efectivo contado' : 'Importe' }} ({{ currency }})<input v-model="form.amount" required inputmode="decimal" placeholder="100.00" /></label>
+                            <label v-if="action !== 'recover'"> {{ action === 'open' ? 'Fondo inicial' : action === 'close' ? 'Efectivo contado' : 'Importe' }} ({{ currency }})<input v-model="form.amount" required inputmode="decimal" placeholder="100.00" /></label>
+                            <div v-if="action === 'recover'" class="sm:col-span-2"><p class="note">Solicitud: {{ selectedRefund?.id || 'Selecciona una solicitud desde el listado anterior.' }}</p><strong v-if="selectedRefund">Importe aprobado: {{ (selectedRefund.amount_cents / 100).toFixed(2) }} {{ selectedRefund.currency }}</strong></div>
                             <label v-if="['topups', 'withdrawals'].includes(action)">Identificador de wallet<input v-model="form.wallet" required maxlength="36" placeholder="UUID de la wallet" /></label>
                             <label v-if="action !== 'open'" class="sm:col-span-2">Motivo<textarea v-model="form.reason" required maxlength="1000" rows="2" /></label>
                         </fieldset>

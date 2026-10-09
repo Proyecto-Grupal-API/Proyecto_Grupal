@@ -60,6 +60,10 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
     Route::prefix('financial')->middleware('financial.correlation')->group(function () {
         // Asociación autorizada además del scope OAuth. Nunca hereda financial:read/write.
         Route::prefix('cash/associations/{associationId}')->group(function () {
+            $recoveries = \App\Http\Controllers\Financial\CashWithdrawalRecoveryController::class;
+            Route::get('/withdrawal-refunds', [$recoveries, 'index'])->middleware('oauth.service:financial:cash:read');
+            Route::post('/shifts/{shiftId}/withdrawal-refunds/{refundId}/recover', [$recoveries, 'recover'])
+                ->whereUuid(['shiftId', 'refundId'])->middleware('oauth.service:financial:cash:recover');
             Route::get('/receipts/{receiptId}', [\App\Http\Controllers\Financial\CashController::class, 'receipt'])
                 ->whereUuid('receiptId')->middleware('oauth.service:financial:cash:read');
             $admin = \App\Http\Controllers\Financial\CashRegisterAdministrationController::class;

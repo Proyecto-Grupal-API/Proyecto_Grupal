@@ -19,13 +19,18 @@ class FinancialWithdrawalRecovery extends Model
         'recovery_reference',
         'confirmed_by',
         'confirmed_at',
-        'notes',
+        'notes', 'cash_movement_id', 'cash_shift_id',
     ];
 
     protected $casts = [
         'amount_cents' => 'integer',
         'confirmed_at' => 'datetime',
     ];
+
+    public function cashMovement()
+    {
+        return $this->belongsTo(CashMovement::class, 'cash_movement_id', 'public_id');
+    }
 
     public function refundRequest()
     {

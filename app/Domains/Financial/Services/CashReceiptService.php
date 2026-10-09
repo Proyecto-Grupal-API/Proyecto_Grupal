@@ -7,6 +7,7 @@ use App\Domains\Financial\Enums\TransactionStatus;
 use App\Domains\Financial\Models\CashMovement;
 use App\Domains\Financial\Models\CashReceipt;
 use App\Domains\Financial\Models\FinancialTransaction;
+use App\Domains\Financial\Models\FinancialRefundRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use LogicException;
@@ -40,6 +41,11 @@ class CashReceiptService
             'reference_type' => $movement->reference_type,
             'reference_id' => $movement->reference_id && $transaction ? strtolower($movement->reference_id) : $movement->reference_id,
             'financial_transaction_id' => $transaction ? strtolower($transaction->public_id) : null];
+        if ($movement->type === CashMovementType::WITHDRAWAL_RECOVERY) {
+            $refund = FinancialRefundRequest::where('public_id', $movement->reference_id)->firstOrFail();
+            $snapshot['refund_request_id'] = strtolower($refund->public_id);
+            $snapshot['original_transaction_id'] = strtolower($refund->original_transaction_id);
+        }
         return CashReceipt::create(['public_id' => $id, 'cash_movement_id' => $movement->id, 'folio' => $folio,
             'snapshot' => $snapshot, 'issued_at' => $issued])->fresh();
     }

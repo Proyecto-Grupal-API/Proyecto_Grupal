@@ -13,6 +13,9 @@ use App\Domains\Financial\Models\Wallet;
 use App\Domains\Financial\Models\FinancialWithdrawalRecovery;
 use App\Domains\Financial\Models\Withdrawal;
 use App\Domains\Financial\Models\PurchasePayment;
+use App\Domains\Financial\Models\CashMovement;
+use App\Domains\Financial\Models\CashShift;
+use App\Domains\Financial\Enums\CashMovementType;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -322,7 +325,8 @@ class FinancialAdjustmentService
     FinancialRefundRequest $refundRequest,
     string $recoveryReference,
     string $confirmedBy,
-    ?string $notes = null
+    ?string $notes = null,
+    ?CashMovement $cashMovement = null
 ): FinancialWithdrawalRecovery {
     $recoveryReference = trim($recoveryReference);
 
@@ -349,7 +353,8 @@ class FinancialAdjustmentService
             $refundRequest,
             $recoveryReference,
             $confirmedBy,
-            $notes
+            $notes,
+            $cashMovement
         ) {
             $original = FinancialTransaction::where(
                 'public_id',
@@ -374,6 +379,12 @@ class FinancialAdjustmentService
                 );
             }
 
+            $cashWithdrawal = $original->reference_type === 'WITHDRAWAL'
+                ? Withdrawal::where('public_id', $original->reference_id)->firstOrFail() : null;
+            if ($cashWithdrawal?->cash_shift_id || $cashMovement) {
+                $cashMovement = $this->validateCashRecovery($cashWithdrawal, $request, $cashMovement, $confirmedBy, $recoveryReference);
+            }
+
             // Repetir la misma confirmación no crea otro registro.
             $existing = FinancialWithdrawalRecovery::where(
                 'refund_request_id',
@@ -384,7 +395,8 @@ class FinancialAdjustmentService
                 if (
                     $existing->recovery_reference !== $recoveryReference ||
                     $existing->confirmed_by !== $confirmedBy ||
-                    $existing->amount_cents !== $request->amount_cents
+                    $existing->amount_cents !== $request->amount_cents ||
+                    strtolower((string) $existing->cash_movement_id) !== strtolower((string) $cashMovement?->public_id)
                 ) {
                     throw new InvalidArgumentException(
                         'La recuperación ya fue confirmada con datos diferentes.'
@@ -484,6 +496,8 @@ class FinancialAdjustmentService
                 'confirmed_by' => $confirmedBy,
                 'confirmed_at' => now(),
                 'notes' => $notes,
+                'cash_movement_id' => $cashMovement?->public_id,
+                'cash_shift_id' => $cashMovement?->shift->public_id,
             ]);
         }
     );
@@ -702,6 +716,15 @@ if ($isWithdrawal) {
         ->lockForUpdate()
         ->firstOrFail();
 
+    if ($withdrawal->cash_shift_id) {
+        $cashMovement = $recovery->cash_movement_id
+            ? CashMovement::where('public_id', $recovery->cash_movement_id)->first() : null;
+        $cashMovement = $this->validateCashRecovery($withdrawal, $request, $cashMovement, $recovery->confirmed_by, $recovery->recovery_reference);
+        if (strtolower((string) $recovery->cash_shift_id) !== strtolower($cashMovement->shift->public_id)) {
+            throw new InvalidArgumentException('La recuperación no corresponde al turno que recibió el efectivo.');
+        }
+    }
+
     if ($withdrawalWallet->currency !== $recovery->currency) {
         throw new InvalidArgumentException(
             'La moneda recuperada no corresponde a la wallet.'
@@ -721,6 +744,8 @@ if ($isWithdrawal) {
                     : ($isWithdrawal ? 'RETIRO' : 'PAGO'),
                 'recovery_id' => $recovery?->public_id,
                 'recovery_reference' => $recovery?->recovery_reference,
+                'cash_recovery_movement_id' => $recovery?->cash_movement_id,
+                'cash_recovery_shift_id' => $recovery?->cash_shift_id,
             ];
 
             $ledger = app(LedgerService::class);
@@ -1057,6 +1082,35 @@ if ($isWithdrawal) {
         } catch (\Illuminate\Database\UniqueConstraintViolationException $exception) {
             throw new InvalidArgumentException('La clave de idempotencia ya pertenece a otra operación.', 0, $exception);
         }
+    }
+
+    private function validateCashRecovery(?Withdrawal $withdrawal, FinancialRefundRequest $request,
+        ?CashMovement $movement, string $actor, string $reference): CashMovement
+    {
+        if (! $withdrawal?->cash_shift_id || ! $movement?->exists) {
+            throw new InvalidArgumentException('Los retiros de caja requieren registrar la recuperación de efectivo desde un turno autorizado de Caja y turnos.');
+        }
+        $movement = CashMovement::where('public_id', $movement->public_id)->firstOrFail();
+        $origin = CashShift::where('public_id', $withdrawal->cash_shift_id)->firstOrFail();
+        $destination = $movement->shift;
+        $receipt = $movement->receipt;
+        if ($movement->type !== CashMovementType::WITHDRAWAL_RECOVERY || $movement->amount_cents !== $request->amount_cents
+            || $movement->actor_id !== $actor || $movement->reference_type !== 'WITHDRAWAL_RECOVERY'
+            || strtolower((string) $movement->reference_id) !== strtolower($request->public_id)
+            || strtolower((string) $movement->wallet_id) !== strtolower($withdrawal->wallet_id)
+            || $destination->cashRegister->association_id !== $origin->cashRegister->association_id
+            || $destination->cashRegister->currency !== $withdrawal->currency || $destination->agent_id !== $actor
+            || ! $receipt || $receipt->folio !== $reference
+            || $receipt->snapshot['amount_cents'] !== $request->amount_cents
+            || $receipt->snapshot['movement_type'] !== 'WITHDRAWAL_RECOVERY'
+            || $receipt->snapshot['association_id'] !== $origin->cashRegister->association_id
+            || $receipt->snapshot['currency'] !== $withdrawal->currency
+            || strtolower((string) $receipt->snapshot['wallet_id']) !== strtolower($withdrawal->wallet_id)
+            || strtolower($receipt->snapshot['cash_shift_id']) !== strtolower($destination->public_id)
+            || strtolower($receipt->snapshot['movement_id']) !== strtolower($movement->public_id)) {
+            throw new InvalidArgumentException('El movimiento y comprobante de caja no corresponden a la recuperación del retiro.');
+        }
+        return $movement;
     }
 
     private function rejectPurchaseAdjustment(

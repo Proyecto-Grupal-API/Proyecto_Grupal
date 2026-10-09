@@ -87,7 +87,7 @@ class CashShiftService
     {
         $sums = $shift->movements()->select('type')->selectRaw('SUM(amount_cents) AS total')->groupBy('type')->get()->keyBy(fn ($row) => $row->type->value);
         $sum = fn (string $type) => (int) ($sums->get($type)?->total ?? 0);
-        $in = $sum('CASH_IN') + $sum('TOPUP'); $out = $sum('CASH_OUT') + $sum('WITHDRAWAL'); $adjust = $sum('ADJUSTMENT');
+        $in = $sum('CASH_IN') + $sum('TOPUP') + $sum('WITHDRAWAL_RECOVERY'); $out = $sum('CASH_OUT') + $sum('WITHDRAWAL'); $adjust = $sum('ADJUSTMENT');
         return ['shift' => $shift, 'opening_amount_cents' => $shift->opening_amount_cents, 'cash_in_cents' => $in,
             'cash_out_cents' => $out, 'adjustment_cents' => $adjust,
             'expected_amount_cents' => $shift->opening_amount_cents + $in - $out + $adjust];

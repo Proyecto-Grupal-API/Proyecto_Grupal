@@ -9,4 +9,5 @@ enum CashMovementType: string
     case TOPUP = 'TOPUP';
     case WITHDRAWAL = 'WITHDRAWAL';
     case ADJUSTMENT = 'ADJUSTMENT';
+    case WITHDRAWAL_RECOVERY = 'WITHDRAWAL_RECOVERY';
 }
