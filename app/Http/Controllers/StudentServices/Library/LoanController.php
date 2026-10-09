@@ -16,13 +16,11 @@ use Inertia\Response;
 use RuntimeException;
 use Throwable;
 
-
 class LoanController extends Controller
 {
     public function __construct(
         private readonly LoanService $loanService
-    ) {
-    }
+    ) {}
 
     public function index(): Response
     {
@@ -36,8 +34,7 @@ class LoanController extends Controller
             )
             ->get()
             ->map(
-                fn (Loan $loan) =>
-                $this->loanPayload(
+                fn (Loan $loan) => $this->loanPayload(
                     $loan
                 )
             )
@@ -51,8 +48,7 @@ class LoanController extends Controller
                 )
                 ->get()
                 ->map(
-                    fn (BookCopy $copy) =>
-                    $this->copyPayload(
+                    fn (BookCopy $copy) => $this->copyPayload(
                         $copy
                     )
                 )
@@ -61,11 +57,9 @@ class LoanController extends Controller
         return Inertia::render(
             'student-services/library/Loans',
             [
-                'loans' =>
-                    $loans,
+                'loans' => $loans,
 
-                'availableCopies' =>
-                    $availableCopies,
+                'availableCopies' => $availableCopies,
             ]
         );
     }
@@ -79,7 +73,7 @@ class LoanController extends Controller
         try {
             $copy =
                 BookCopy::findOrFail(
-                    $data['copy_id']
+                    $request->string('copy_id')->value()
                 );
 
             $this->loanService
@@ -97,9 +91,8 @@ class LoanController extends Controller
         } catch (RuntimeException $exception) {
             return back()
                 ->withErrors([
-                    'loan' =>
-                        $exception
-                            ->getMessage(),
+                    'loan' => $exception
+                        ->getMessage(),
                 ])
                 ->withInput();
         } catch (Throwable $exception) {
@@ -107,8 +100,7 @@ class LoanController extends Controller
 
             return back()
                 ->withErrors([
-                    'loan' =>
-                        'No fue posible registrar el préstamo.',
+                    'loan' => 'No fue posible registrar el préstamo.',
                 ])
                 ->withInput();
         }
@@ -142,17 +134,15 @@ class LoanController extends Controller
         } catch (RuntimeException $exception) {
             return back()
                 ->withErrors([
-                    'loan' =>
-                        $exception
-                            ->getMessage(),
+                    'loan' => $exception
+                        ->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'loan' =>
-                        'No fue posible renovar el préstamo.',
+                    'loan' => 'No fue posible renovar el préstamo.',
                 ]);
         }
     }
@@ -183,21 +173,34 @@ class LoanController extends Controller
         } catch (RuntimeException $exception) {
             return back()
                 ->withErrors([
-                    'loan' =>
-                        $exception
-                            ->getMessage(),
+                    'loan' => $exception
+                        ->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'loan' =>
-                        'No fue posible registrar la devolución.',
+                    'loan' => 'No fue posible registrar la devolución.',
                 ]);
         }
     }
 
+    /**
+     * @return array{
+     *     id: string,
+     *     copy_id: string,
+     *     copy_code: string,
+     *     book_title: string,
+     *     student_id: string,
+     *     borrowed_at: string|null,
+     *     due_at: string|null,
+     *     returned_at: string|null,
+     *     status: string,
+     *     renewal_count: int,
+     *     notes: string|null
+     * }
+     */
     private function loanPayload(
         Loan $loan
     ): array {
@@ -217,48 +220,46 @@ class LoanController extends Controller
         }
 
         return [
-            'id' =>
-                (string) $loan->id,
+            'id' => (string) $loan->id,
 
-            'copy_id' =>
-                (string) $loan->copy_id,
+            'copy_id' => (string) $loan->copy_id,
 
-            'copy_code' =>
-                $copy?->code ??
-                    $copy?->inventory_code ??
-                    $copy?->barcode ??
+            'copy_code' => $copy->code ??
+                    $copy->inventory_code ??
+                    $copy->barcode ??
                     (string) $loan->copy_id,
 
-            'book_title' =>
-                $book?->title ??
+            'book_title' => $book->title ??
                 'Libro no disponible',
 
-            'student_id' =>
-                $loan->student_id,
+            'student_id' => $loan->student_id,
 
-            'borrowed_at' =>
-                $loan->borrowed_at
-                    ?->toISOString(),
+            'borrowed_at' => $loan->borrowed_at
+                ?->toISOString(),
 
-            'due_at' =>
-                $loan->due_at
-                    ?->toISOString(),
+            'due_at' => $loan->due_at
+                ?->toISOString(),
 
-            'returned_at' =>
-                $loan->returned_at
-                    ?->toISOString(),
+            'returned_at' => $loan->returned_at
+                ?->toISOString(),
 
-            'status' =>
-                $loan->status,
+            'status' => $loan->status,
 
-            'renewal_count' =>
-                $loan->renewal_count,
+            'renewal_count' => $loan->renewal_count,
 
-            'notes' =>
-                $loan->notes,
+            'notes' => $loan->notes,
         ];
     }
 
+    /**
+     * @return array{
+     *     id: string,
+     *     code: string,
+     *     book_id: string|null,
+     *     book_title: string,
+     *     status: string
+     * }
+     */
     private function copyPayload(
         BookCopy $copy
     ): array {
@@ -271,26 +272,21 @@ class LoanController extends Controller
         }
 
         return [
-            'id' =>
-                (string) $copy->id,
+            'id' => (string) $copy->id,
 
-            'code' =>
-                $copy->code ??
+            'code' => $copy->code ??
                     $copy->inventory_code ??
                     $copy->barcode ??
                     (string) $copy->id,
 
-            'book_id' =>
-                $copy->book_id
+            'book_id' => $copy->book_id
                     ? (string) $copy->book_id
                     : null,
 
-            'book_title' =>
-                $book?->title ??
+            'book_title' => $book->title ??
                 'Libro',
 
-            'status' =>
-                $copy->status,
+            'status' => $copy->status,
         ];
     }
 }

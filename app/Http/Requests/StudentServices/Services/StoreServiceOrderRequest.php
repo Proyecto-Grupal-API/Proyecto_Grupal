@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\StudentServices\Services;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -12,6 +13,9 @@ class StoreServiceOrderRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         $serviceType = $this->input(
@@ -116,50 +120,35 @@ class StoreServiceOrderRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'service_type.required' =>
-                'Selecciona el tipo de servicio.',
+            'service_type.required' => 'Selecciona el tipo de servicio.',
 
-            'service_type.in' =>
-                'El tipo de servicio seleccionado no es válido.',
+            'service_type.in' => 'El tipo de servicio seleccionado no es válido.',
 
-            'quantity.required' =>
-                'La cantidad es obligatoria.',
+            'quantity.required' => 'La cantidad es obligatoria.',
 
-            'quantity.integer' =>
-                'La cantidad debe ser un número entero.',
+            'quantity.integer' => 'La cantidad debe ser un número entero.',
 
-            'quantity.min' =>
-                'La cantidad debe ser mayor a cero.',
+            'quantity.min' => 'La cantidad debe ser mayor a cero.',
 
-            'color_mode.required' =>
-                'Selecciona el modo de color.',
+            'color_mode.required' => 'Selecciona el modo de color.',
 
-            'color_mode.in' =>
-                'El modo de color seleccionado no es válido.',
+            'color_mode.in' => 'El modo de color seleccionado no es válido.',
 
-            'paper_size.required' =>
-                'Selecciona el tamaño de papel.',
+            'paper_size.required' => 'Selecciona el tamaño de papel.',
 
-            'paper_size.in' =>
-                'El tamaño de papel seleccionado no es válido.',
+            'paper_size.in' => 'El tamaño de papel seleccionado no es válido.',
 
-            'sides.required' =>
-                'Selecciona la configuración de caras.',
+            'sides.required' => 'Selecciona la configuración de caras.',
 
-            'sides.in' =>
-                'La configuración de caras no es válida.',
+            'sides.in' => 'La configuración de caras no es válida.',
 
-            'file.required' =>
-                'Debes seleccionar el archivo que deseas imprimir.',
+            'file.required' => 'Debes seleccionar el archivo que deseas imprimir.',
 
-            'file.file' =>
-                'El archivo seleccionado no es válido.',
+            'file.file' => 'El archivo seleccionado no es válido.',
 
-            'file.mimes' =>
-                'El archivo debe ser PDF, DOC, DOCX, PNG, JPG o JPEG.',
+            'file.mimes' => 'El archivo debe ser PDF, DOC, DOCX, PNG, JPG o JPEG.',
 
-            'file.max' =>
-                'El archivo no puede superar los 10 MB.',
+            'file.max' => 'El archivo no puede superar los 10 MB.',
         ];
     }
 }

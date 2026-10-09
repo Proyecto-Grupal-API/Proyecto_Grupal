@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\StudentServices\Lockers;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ValidateLockerAccessRequest extends FormRequest
@@ -11,6 +12,9 @@ class ValidateLockerAccessRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [

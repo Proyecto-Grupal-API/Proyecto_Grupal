@@ -39,33 +39,23 @@ const form = useForm({
 });
 
 const availableCount = computed(() => {
-    return props.copies.filter(
-        (copy) => copy.status === 'available',
-    ).length;
+    return props.copies.filter((copy) => copy.status === 'available').length;
 });
 
 const loanedCount = computed(() => {
-    return props.copies.filter(
-        (copy) => copy.status === 'loaned',
-    ).length;
+    return props.copies.filter((copy) => copy.status === 'loaned').length;
 });
 
 const reservedCount = computed(() => {
-    return props.copies.filter(
-        (copy) => copy.status === 'reserved',
-    ).length;
+    return props.copies.filter((copy) => copy.status === 'reserved').length;
 });
 
 const maintenanceCount = computed(() => {
-    return props.copies.filter(
-        (copy) => copy.status === 'maintenance',
-    ).length;
+    return props.copies.filter((copy) => copy.status === 'maintenance').length;
 });
 
 const lostCount = computed(() => {
-    return props.copies.filter(
-        (copy) => copy.status === 'lost',
-    ).length;
+    return props.copies.filter((copy) => copy.status === 'lost').length;
 });
 
 const statusLabel = (status: string) => {
@@ -122,16 +112,13 @@ const closeForm = () => {
 
 const submitCopy = () => {
     if (editingCopyId.value === null) {
-        form.post(
-            '/servicios-estudiante/biblioteca/ejemplares',
-            {
-                preserveScroll: true,
+        form.post('/servicios-estudiante/biblioteca/ejemplares', {
+            preserveScroll: true,
 
-                onSuccess: () => {
-                    closeForm();
-                },
+            onSuccess: () => {
+                closeForm();
             },
-        );
+        });
 
         return;
     }
@@ -228,24 +215,18 @@ const restoreAvailable = (copy: Copy) => {
     >
         <section class="summary">
             <div>
-                <span class="section-label">
-                    BIBLIOTECA
-                </span>
+                <span class="section-label"> BIBLIOTECA </span>
 
-                <h2>
-                    Ejemplares físicos
-                </h2>
+                <h2>Ejemplares físicos</h2>
 
                 <p>
-                    Administra las copias físicas registradas
-                    en el catálogo de biblioteca.
+                    Administra las copias físicas registradas en el catálogo de
+                    biblioteca.
                 </p>
             </div>
 
             <div class="total-box">
-                <span>
-                    Total de ejemplares
-                </span>
+                <span> Total de ejemplares </span>
 
                 <strong>
                     {{ copies.length }}
@@ -288,13 +269,10 @@ const restoreAvailable = (copy: Copy) => {
         <section class="content-panel">
             <div class="panel-header">
                 <div>
-                    <h3>
-                        Ejemplares registrados
-                    </h3>
+                    <h3>Ejemplares registrados</h3>
 
                     <p>
-                        Cada registro representa una copia física
-                        de un libro.
+                        Cada registro representa una copia física de un libro.
                     </p>
                 </div>
 
@@ -307,10 +285,7 @@ const restoreAvailable = (copy: Copy) => {
                 </button>
             </div>
 
-            <section
-                v-if="showForm"
-                class="form-panel"
-            >
+            <section v-if="showForm" class="form-panel">
                 <div class="form-header">
                     <div>
                         <span class="form-label">
@@ -347,10 +322,7 @@ const restoreAvailable = (copy: Copy) => {
                     </button>
                 </div>
 
-                <form
-                    class="copy-form"
-                    @submit.prevent="submitCopy"
-                >
+                <form class="copy-form" @submit.prevent="submitCopy">
                     <div class="form-grid">
                         <div class="form-field form-field-full">
                             <label for="book_id">
@@ -362,13 +334,11 @@ const restoreAvailable = (copy: Copy) => {
                                 id="book_id"
                                 v-model="form.book_id"
                                 :disabled="
-                                    editingCopyStatus === 'loaned'
-                                    || editingCopyStatus === 'reserved'
+                                    editingCopyStatus === 'loaned' ||
+                                    editingCopyStatus === 'reserved'
                                 "
                             >
-                                <option value="">
-                                    Selecciona un libro
-                                </option>
+                                <option value="">Selecciona un libro</option>
 
                                 <option
                                     v-for="book in books"
@@ -376,18 +346,14 @@ const restoreAvailable = (copy: Copy) => {
                                     :value="book.id"
                                 >
                                     {{ book.title }}
-                                    {{
-                                        book.isbn
-                                            ? ` - ${book.isbn}`
-                                            : ''
-                                    }}
+                                    {{ book.isbn ? ` - ${book.isbn}` : '' }}
                                 </option>
                             </select>
 
                             <small
                                 v-if="
-                                    editingCopyStatus === 'loaned'
-                                    || editingCopyStatus === 'reserved'
+                                    editingCopyStatus === 'loaned' ||
+                                    editingCopyStatus === 'reserved'
                                 "
                                 class="field-help"
                             >
@@ -416,18 +382,13 @@ const restoreAvailable = (copy: Copy) => {
                                 placeholder="LIB-0002"
                             />
 
-                            <small
-                                v-if="form.errors.code"
-                                class="field-error"
-                            >
+                            <small v-if="form.errors.code" class="field-error">
                                 {{ form.errors.code }}
                             </small>
                         </div>
 
                         <div class="form-field">
-                            <label for="barcode">
-                                Código de barras
-                            </label>
+                            <label for="barcode"> Código de barras </label>
 
                             <input
                                 id="barcode"
@@ -466,9 +427,7 @@ const restoreAvailable = (copy: Copy) => {
                         </div>
 
                         <div class="form-field form-field-full">
-                            <label for="notes">
-                                Notas
-                            </label>
+                            <label for="notes"> Notas </label>
 
                             <textarea
                                 id="notes"
@@ -477,21 +436,14 @@ const restoreAvailable = (copy: Copy) => {
                                 placeholder="Observaciones del ejemplar..."
                             />
 
-                            <small
-                                v-if="form.errors.notes"
-                                class="field-error"
-                            >
+                            <small v-if="form.errors.notes" class="field-error">
                                 {{ form.errors.notes }}
                             </small>
                         </div>
                     </div>
 
-                    <div
-                        v-if="editingCopyId === null"
-                        class="information-box"
-                    >
-                        Los nuevos ejemplares se registran
-                        automáticamente como
+                    <div v-if="editingCopyId === null" class="information-box">
+                        Los nuevos ejemplares se registran automáticamente como
                         <strong>Disponibles</strong>.
                     </div>
 
@@ -514,141 +466,121 @@ const restoreAvailable = (copy: Copy) => {
                                 form.processing
                                     ? 'Guardando...'
                                     : editingCopyId === null
-                                        ? 'Guardar ejemplar'
-                                        : 'Guardar cambios'
+                                      ? 'Guardar ejemplar'
+                                      : 'Guardar cambios'
                             }}
                         </button>
                     </div>
                 </form>
             </section>
 
-            <div
-                v-if="copies.length > 0"
-                class="table-container"
-            >
+            <div v-if="copies.length > 0" class="table-container">
                 <table>
                     <thead>
-                    <tr>
-                        <th>Código</th>
-                        <th>Libro</th>
-                        <th>ISBN</th>
-                        <th>Código de barras</th>
-                        <th>Ubicación</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
+                        <tr>
+                            <th>Código</th>
+                            <th>Libro</th>
+                            <th>ISBN</th>
+                            <th>Código de barras</th>
+                            <th>Ubicación</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    <tr
-                        v-for="copy in copies"
-                        :key="copy.id"
-                    >
-                        <td>
-                            <strong class="copy-code">
-                                {{ copy.code }}
-                            </strong>
-                        </td>
-
-                        <td>
-                            <div class="book-info">
-                                <strong>
-                                    {{ copy.book_title }}
+                        <tr v-for="copy in copies" :key="copy.id">
+                            <td>
+                                <strong class="copy-code">
+                                    {{ copy.code }}
                                 </strong>
+                            </td>
 
-                                <small v-if="copy.notes">
-                                    {{ copy.notes }}
-                                </small>
-                            </div>
-                        </td>
+                            <td>
+                                <div class="book-info">
+                                    <strong>
+                                        {{ copy.book_title }}
+                                    </strong>
 
-                        <td>
-                            {{
-                                copy.book_isbn
-                                ?? 'No registrado'
-                            }}
-                        </td>
+                                    <small v-if="copy.notes">
+                                        {{ copy.notes }}
+                                    </small>
+                                </div>
+                            </td>
 
-                        <td>
-                            {{
-                                copy.barcode
-                                ?? 'No registrado'
-                            }}
-                        </td>
+                            <td>
+                                {{ copy.book_isbn ?? 'No registrado' }}
+                            </td>
 
-                        <td>
-                            {{
-                                copy.location
-                                ?? 'Sin ubicación'
-                            }}
-                        </td>
+                            <td>
+                                {{ copy.barcode ?? 'No registrado' }}
+                            </td>
 
-                        <td>
+                            <td>
+                                {{ copy.location ?? 'Sin ubicación' }}
+                            </td>
+
+                            <td>
                                 <span
                                     class="status"
                                     :class="`status-${copy.status}`"
                                 >
                                     {{ statusLabel(copy.status) }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            <div class="actions">
-                                <button
-                                    type="button"
-                                    class="action-button edit"
-                                    @click="openEditForm(copy)"
-                                >
-                                    Editar
-                                </button>
+                            <td>
+                                <div class="actions">
+                                    <button
+                                        type="button"
+                                        class="action-button edit"
+                                        @click="openEditForm(copy)"
+                                    >
+                                        Editar
+                                    </button>
 
-                                <button
-                                    v-if="copy.status === 'available'"
-                                    type="button"
-                                    class="action-button maintenance"
-                                    @click="sendToMaintenance(copy)"
-                                >
-                                    Mantenimiento
-                                </button>
+                                    <button
+                                        v-if="copy.status === 'available'"
+                                        type="button"
+                                        class="action-button maintenance"
+                                        @click="sendToMaintenance(copy)"
+                                    >
+                                        Mantenimiento
+                                    </button>
 
-                                <button
-                                    v-if="copy.status === 'maintenance'"
-                                    type="button"
-                                    class="action-button available"
-                                    @click="restoreAvailable(copy)"
-                                >
-                                    Disponible
-                                </button>
+                                    <button
+                                        v-if="copy.status === 'maintenance'"
+                                        type="button"
+                                        class="action-button available"
+                                        @click="restoreAvailable(copy)"
+                                    >
+                                        Disponible
+                                    </button>
 
-                                <button
-                                    v-if="
-                                            copy.status === 'available'
-                                            || copy.status === 'maintenance'
+                                    <button
+                                        v-if="
+                                            copy.status === 'available' ||
+                                            copy.status === 'maintenance'
                                         "
-                                    type="button"
-                                    class="action-button lost"
-                                    @click="markAsLost(copy)"
-                                >
-                                    Extraviado
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                                        type="button"
+                                        class="action-button lost"
+                                        @click="markAsLost(copy)"
+                                    >
+                                        Extraviado
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div
-                v-else
-                class="empty-state"
-            >
-                <h3>
-                    No hay ejemplares registrados
-                </h3>
+            <div v-else class="empty-state">
+                <h3>No hay ejemplares registrados</h3>
 
                 <p>
-                    Utiliza "Agregar ejemplar" para registrar
-                    la primera copia física.
+                    Utiliza "Agregar ejemplar" para registrar la primera copia
+                    física.
                 </p>
             </div>
         </section>

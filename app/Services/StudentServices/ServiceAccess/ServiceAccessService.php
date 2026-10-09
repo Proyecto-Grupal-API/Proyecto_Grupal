@@ -7,9 +7,12 @@ use App\Models\StudentServices\Library\BookReservation;
 use App\Models\StudentServices\Library\Loan;
 use App\Models\StudentServices\Rentals\Asset;
 use App\Models\StudentServices\Rentals\Rental;
+use App\Models\StudentServices\Reservations\Reservation;
+use App\Models\StudentServices\RestSpaces\RestBooking;
 use App\Models\StudentServices\ServiceAccess\ServiceCheckin;
 use App\Models\StudentServices\ServiceAccess\ServiceEvent;
 use App\Models\StudentServices\Services\ServiceOrder;
+use App\Services\StudentServices\Audit\ServiceAuditor;
 use App\Services\StudentServices\Calendars\BookableResources;
 use App\Services\StudentServices\Calendars\BookingService;
 use App\Services\StudentServices\Calendars\BookingStatus;
@@ -23,7 +26,6 @@ use App\Services\StudentServices\Services\ServiceOrderService;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use MongoDB\BSON\ObjectId;
-use MongoDB\Laravel\Eloquent\Model;
 use RuntimeException;
 
 /**
@@ -64,11 +66,12 @@ class ServiceAccessService
         private ReservationService $bookReservations,
         private LockerAssignmentService $lockers,
         private RentalService $rentals,
-        private ServiceOrderService $serviceOrders
+        private ServiceOrderService $serviceOrders,
+        private ServiceAuditor $auditor
     ) {}
 
     /**
-     * @param  array{credential: string, method: string, service: string, action: string, reference?: string|null, condition?: string|null}  $input
+     * @param  array{credential: string, method: string, service: string, action: string, reference?: string|null, condition?: string|null, damage_charge_cents?: int|null}  $input
      */
     public function validate(array $input, ?string $operatorId = null): ServiceCheckin
     {
@@ -112,7 +115,7 @@ class ServiceAccessService
                 'rest.checkin' => $this->bookingCheckIn(BookableResources::REST_SPACE, $student['student_id'], $reference),
                 'rest.checkout' => $this->bookingCheckOut(BookableResources::REST_SPACE, $student['student_id'], $reference),
                 'rental.pickup' => $this->rentalPickup($student['student_id'], $reference),
-                'rental.return' => $this->rentalReturn($student['student_id'], $reference, (string) ($input['condition'] ?? 'good')),
+                'rental.return' => $this->rentalReturn($student['student_id'], $reference, (string) ($input['condition'] ?? 'good'), $input['damage_charge_cents'] ?? null),
                 'service.delivery' => $this->serviceDelivery($student['student_id'], $reference),
                 default => throw new InvalidArgumentException('Operación no soportada.'),
             };
@@ -220,8 +223,8 @@ class ServiceAccessService
 
         $result = $this->lockers->validateAccess($reference);
 
-        if (! ($result['granted'] ?? false)) {
-            throw new RuntimeException($result['message'] ?? 'Acceso denegado.');
+        if (! $result['granted']) {
+            throw new RuntimeException($result['message']);
         }
 
         $this->assertOwner($result['student_id'] ?? null, $studentId, 'El locker está asignado a otro estudiante.');
@@ -260,7 +263,7 @@ class ServiceAccessService
         $resource = $this->bookings->resourceOf($type, $booking);
 
         return [
-            'message' => 'Entrada registrada en '.($resource?->name ?? 'el recurso')." hasta las {$booking->end_at->format('H:i')}.",
+            'message' => 'Entrada registrada en '.($resource->name ?? 'el recurso')." hasta las {$booking->end_at->format('H:i')}.",
             'reference' => (string) $booking->folio,
             'reference_id' => (string) $booking->id,
             'event' => $type.'.checked_in',
@@ -315,11 +318,12 @@ class ServiceAccessService
             throw new RuntimeException('La renta está vencida; corresponde registrar la devolución, no la entrega.');
         }
 
+        $rental = $this->rentals->markPickedUp($rental);
         $asset = Asset::find((string) $rental->asset_id);
 
         return [
-            'message' => 'Entrega de '.($asset?->name ?? 'equipo')." validada. Devolver a más tardar el {$rental->due_at->format('d/m/Y')}.",
-            'reference' => (string) ($asset?->inventory_item_id ?? $rental->id),
+            'message' => 'Entrega de '.($asset->name ?? 'equipo')." validada. Devolver a más tardar el {$rental->due_at->format('d/m/Y')}.",
+            'reference' => (string) ($asset->inventory_item_id ?? $rental->id),
             'reference_id' => (string) $rental->id,
             'event' => 'rental.picked_up',
         ];
@@ -328,7 +332,7 @@ class ServiceAccessService
     /**
      * @return array{message: string, reference: string, reference_id: string, event: string, data?: array<string, mixed>}
      */
-    private function rentalReturn(string $studentId, string $reference, string $condition): array
+    private function rentalReturn(string $studentId, string $reference, string $condition, ?int $damageChargeCents = null): array
     {
         if (! in_array($condition, self::RENTAL_CONDITIONS, true)) {
             throw new RuntimeException('La condición de devolución no es válida.');
@@ -338,15 +342,15 @@ class ServiceAccessService
 
         $this->assertOwner($rental->student_id, $studentId, 'La renta pertenece a otro estudiante.');
 
-        $rental = $this->rentals->returnRental($rental, $condition, 'Devolución registrada desde validación de servicios (5.11).');
+        $rental = $this->rentals->returnRental($rental, $condition, 'Devolución registrada desde validación de servicios (5.11).', $damageChargeCents);
         $asset = Asset::find((string) $rental->asset_id);
 
         return [
-            'message' => 'Devolución de '.($asset?->name ?? 'equipo').' registrada.',
-            'reference' => (string) ($asset?->inventory_item_id ?? $rental->id),
+            'message' => 'Devolución de '.($asset->name ?? 'equipo').' registrada.',
+            'reference' => (string) ($asset->inventory_item_id ?? $rental->id),
             'reference_id' => (string) $rental->id,
             'event' => 'rental.returned',
-            'data' => ['condition' => $condition],
+            'data' => ['condition' => $condition, 'damage_charge_cents' => (int) $rental->damage_charge_cents],
         ];
     }
 
@@ -375,7 +379,7 @@ class ServiceAccessService
         ];
     }
 
-    private function currentBookingFor(string $type, string $studentId): ?Model
+    private function currentBookingFor(string $type, string $studentId): Reservation|RestBooking|null
     {
         $now = now();
 
@@ -475,7 +479,7 @@ class ServiceAccessService
      */
     private function record(array $data): ServiceCheckin
     {
-        return ServiceCheckin::create([
+        $checkin = ServiceCheckin::create([
             'folio' => $this->bookings->newFolio('EVT'),
             'student_id' => null,
             'student_name' => null,
@@ -483,5 +487,19 @@ class ServiceAccessService
             ...$data,
             'scanned_at' => now(),
         ]);
+
+        if (! $checkin->granted) {
+            $this->auditor->record(
+                'service_access.denied',
+                'service_checkin',
+                (string) $checkin->id,
+                null,
+                ['service' => $checkin->service, 'action' => $checkin->action, 'student_id' => $checkin->student_id, 'method' => $checkin->method],
+                $checkin->message,
+                $checkin->operator_id
+            );
+        }
+
+        return $checkin;
     }
 }

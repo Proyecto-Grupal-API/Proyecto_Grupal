@@ -50,7 +50,7 @@ class BookController extends Controller
         $data = $request->validated();
 
         if (
-            !empty($data['isbn']) &&
+            ! empty($data['isbn']) &&
             Book::query()
                 ->where('isbn', $data['isbn'])
                 ->exists()
@@ -89,7 +89,7 @@ class BookController extends Controller
 
         $data = $request->validated();
 
-        if (!empty($data['isbn'])) {
+        if (! empty($data['isbn'])) {
             $isbnExists = Book::query()
                 ->where('isbn', $data['isbn'])
                 ->where(
@@ -147,6 +147,9 @@ class BookController extends Controller
         );
     }
 
+    /**
+     * @return list<string>
+     */
     private function parseAuthors(string $authors): array
     {
         return array_values(

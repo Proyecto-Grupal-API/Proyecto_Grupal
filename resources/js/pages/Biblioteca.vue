@@ -17,11 +17,9 @@ import { Head } from '@inertiajs/vue3';
             justify-content: center;
         "
     >
-        <h1 style="font-size: 40px; font-weight: bold;">
-            Biblioteca
-        </h1>
+        <h1 style="font-size: 40px; font-weight: bold">Biblioteca</h1>
 
-        <p style="font-size: 20px;">
+        <p style="font-size: 20px">
             Laravel + Vue + Inertia funcionando correctamente.
         </p>
     </div>

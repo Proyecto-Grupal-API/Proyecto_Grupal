@@ -6,12 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StudentServices\Lockers\SaveLockerPeriodRequest;
 use App\Models\StudentServices\Lockers\Locker;
 use App\Models\StudentServices\Lockers\LockerPeriod;
+use App\Services\StudentServices\Payments\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
-use MongoDB\BSON\Decimal128;
 use MongoDB\BSON\ObjectId;
 
 class LockerPeriodController extends Controller
@@ -28,16 +28,14 @@ class LockerPeriodController extends Controller
                 ->map(
                     fn (
                         LockerPeriod $period
-                    ) =>
-                    $period->toPayload()
+                    ) => $period->toPayload()
                 )
                 ->values();
 
         return Inertia::render(
             'student-services/lockers/Periods',
             [
-                'periods' =>
-                    $periods,
+                'periods' => $periods,
             ]
         );
     }
@@ -62,37 +60,30 @@ class LockerPeriodController extends Controller
         ) {
             return back()
                 ->withErrors([
-                    'code' =>
-                        'Ya existe un periodo con ese código.',
+                    'code' => 'Ya existe un periodo con ese código.',
                 ]);
         }
 
         LockerPeriod::create([
-            'code' =>
-                $code,
+            'code' => $code,
 
-            'name' =>
-                trim(
-                    $data['name']
-                ),
+            'name' => trim(
+                $data['name']
+            ),
 
-            'starts_at' =>
-                Carbon::parse(
-                    $data['starts_at']
-                )->startOfDay(),
+            'starts_at' => Carbon::parse(
+                $data['starts_at']
+            )->startOfDay(),
 
-            'ends_at' =>
-                Carbon::parse(
-                    $data['ends_at']
-                )->endOfDay(),
+            'ends_at' => Carbon::parse(
+                $data['ends_at']
+            )->endOfDay(),
 
-            'prices' =>
-                $this->buildPrices(
-                    $data['prices']
-                ),
+            'prices_cents' => $this->buildPrices(
+                $data['prices']
+            ),
 
-            'status' =>
-                'active',
+            'status' => 'active',
         ]);
 
         return back()->with(
@@ -116,8 +107,7 @@ class LockerPeriodController extends Controller
         ) {
             return back()
                 ->withErrors([
-                    'status' =>
-                        'Un periodo cerrado no se puede editar.',
+                    'status' => 'Un periodo cerrado no se puede editar.',
                 ]);
         }
 
@@ -147,34 +137,28 @@ class LockerPeriodController extends Controller
         if ($codeExists) {
             return back()
                 ->withErrors([
-                    'code' =>
-                        'Ya existe otro periodo con ese código.',
+                    'code' => 'Ya existe otro periodo con ese código.',
                 ]);
         }
 
         $period->update([
-            'code' =>
-                $code,
+            'code' => $code,
 
-            'name' =>
-                trim(
-                    $data['name']
-                ),
+            'name' => trim(
+                $data['name']
+            ),
 
-            'starts_at' =>
-                Carbon::parse(
-                    $data['starts_at']
-                )->startOfDay(),
+            'starts_at' => Carbon::parse(
+                $data['starts_at']
+            )->startOfDay(),
 
-            'ends_at' =>
-                Carbon::parse(
-                    $data['ends_at']
-                )->endOfDay(),
+            'ends_at' => Carbon::parse(
+                $data['ends_at']
+            )->endOfDay(),
 
-            'prices' =>
-                $this->buildPrices(
-                    $data['prices']
-                ),
+            'prices_cents' => $this->buildPrices(
+                $data['prices']
+            ),
         ]);
 
         return back()->with(
@@ -197,14 +181,12 @@ class LockerPeriodController extends Controller
         ) {
             return back()
                 ->withErrors([
-                    'status' =>
-                        'El periodo ya está cerrado.',
+                    'status' => 'El periodo ya está cerrado.',
                 ]);
         }
 
         $period->update([
-            'status' =>
-                'closed',
+            'status' => 'closed',
         ]);
 
         return back()->with(
@@ -214,8 +196,10 @@ class LockerPeriodController extends Controller
     }
 
     /**
-     * Convierte los precios a Decimal128
-     * para almacenarlos en MongoDB.
+     * Convierte los costos capturados en pesos a centavos enteros.
+     *
+     * @param  array<string, mixed>  $prices
+     * @return array<string, int>
      */
     private function buildPrices(
         array $prices
@@ -223,18 +207,11 @@ class LockerPeriodController extends Controller
         $result = [];
 
         foreach (
-            Locker::SIZES
-            as $size
+            Locker::SIZES as $size
         ) {
             $result[$size] =
-                new Decimal128(
-                    number_format(
-                        (float)
-                        $prices[$size],
-                        2,
-                        '.',
-                        ''
-                    )
+                Money::toCents(
+                    $prices[$size]
                 );
         }
 

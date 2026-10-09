@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\StudentServices\Library;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreBookCopyRequest extends FormRequest
@@ -11,6 +12,9 @@ class StoreBookCopyRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [
@@ -49,29 +53,21 @@ class StoreBookCopyRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'book_id.required' =>
-                'Debes seleccionar un libro.',
+            'book_id.required' => 'Debes seleccionar un libro.',
 
-            'book_id.regex' =>
-                'El identificador del libro no es válido.',
+            'book_id.regex' => 'El identificador del libro no es válido.',
 
-            'code.required' =>
-                'El código del ejemplar es obligatorio.',
+            'code.required' => 'El código del ejemplar es obligatorio.',
 
-            'code.max' =>
-                'El código del ejemplar es demasiado largo.',
+            'code.max' => 'El código del ejemplar es demasiado largo.',
 
-            'barcode.max' =>
-                'El código de barras es demasiado largo.',
+            'barcode.max' => 'El código de barras es demasiado largo.',
 
-            'location.required' =>
-                'La ubicación del ejemplar es obligatoria.',
+            'location.required' => 'La ubicación del ejemplar es obligatoria.',
 
-            'location.max' =>
-                'La ubicación es demasiado larga.',
+            'location.max' => 'La ubicación es demasiado larga.',
 
-            'notes.max' =>
-                'Las notas no pueden superar los 1000 caracteres.',
+            'notes.max' => 'Las notas no pueden superar los 1000 caracteres.',
         ];
     }
 }

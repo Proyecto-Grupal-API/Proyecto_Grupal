@@ -16,28 +16,26 @@ class ReservationController extends Controller
 {
     public function __construct(
         private FacilityReservationService $reservations
-    ) {
-    }
+    ) {}
 
     public function store(
         StoreReservationRequest $request
     ): RedirectResponse {
         $data = $request->validated();
 
-        $facility = Facility::find($data['facility_id']);
+        $facility = Facility::find($request->string('facility_id')->value());
 
         if ($facility === null) {
             return back()->withErrors([
-                'facility_id' =>
-                    'La instalación seleccionada no existe.',
+                'facility_id' => 'La instalación seleccionada no existe.',
             ]);
         }
 
         $start = Carbon::parse(
-            $data['date'] . ' ' . $data['start_time']
+            $data['date'].' '.$data['start_time']
         );
         $end = Carbon::parse(
-            $data['date'] . ' ' . $data['end_time']
+            $data['date'].' '.$data['end_time']
         );
 
         try {

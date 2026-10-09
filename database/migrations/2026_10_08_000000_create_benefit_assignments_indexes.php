@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use MongoDB\Laravel\Connection;
 
 /**
  * Índices de benefit_assignments (API de beneficios del Equipo 5).
@@ -17,7 +18,7 @@ return new class extends Migration
             return;
         }
 
-        $collection = DB::connection('mongodb')->getCollection('benefit_assignments');
+        $collection = $this->mongo()->getCollection('benefit_assignments');
 
         $collection->createIndex(['client_id' => 1, 'idempotency_key' => 1], ['unique' => true, 'name' => 'client_idempotency_unique']);
         $collection->createIndex(['client_id' => 1, 'application_id' => 1], ['name' => 'client_application']);
@@ -30,10 +31,21 @@ return new class extends Migration
             return;
         }
 
-        $collection = DB::connection('mongodb')->getCollection('benefit_assignments');
+        $collection = $this->mongo()->getCollection('benefit_assignments');
 
         foreach (['client_idempotency_unique', 'client_application', 'student_benefit_status'] as $index) {
             $collection->dropIndex($index);
         }
+    }
+
+    private function mongo(): Connection
+    {
+        $connection = DB::connection('mongodb');
+
+        if (! $connection instanceof Connection) {
+            throw new RuntimeException('La conexión [mongodb] no usa el driver de MongoDB.');
+        }
+
+        return $connection;
     }
 };
