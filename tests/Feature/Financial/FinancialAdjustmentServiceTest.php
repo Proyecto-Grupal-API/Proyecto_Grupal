@@ -261,4 +261,155 @@ public function test_it_rejects_refund_with_same_key_and_different_amount(): voi
         $this->wallet->available_balance_cents
     );
 }
+public function test_it_rejects_refund_greater_than_original_payment(): void
+{
+    $walletService = app(WalletService::class);
+    $ledgerService = app(LedgerService::class);
+    $adjustmentService = app(
+        FinancialAdjustmentService::class
+    );
+
+    $ownerId = 'refund-limit-' . Str::uuid();
+
+    $this->wallet = $walletService->create(
+        ownerType: 'STUDENT',
+        ownerId: $ownerId,
+        walletType: WalletType::USUARIO
+    );
+
+    $ledgerService->credit(
+        wallet: $this->wallet,
+        amountCents: 100000,
+        movementType: MovementType::RECARGA,
+        idempotencyKey: 'refund-credit-' . Str::uuid()
+    );
+
+    $payment = $ledgerService->debit(
+        wallet: $this->wallet,
+        amountCents: 30000,
+        movementType: MovementType::PAGO,
+        idempotencyKey: 'refund-payment-' . Str::uuid()
+    );
+
+    $idempotencyKey = 'refund-limit-' . Str::uuid();
+
+    try {
+        $adjustmentService->refund(
+            originalTransaction: $payment,
+            amountCents: 40000,
+            idempotencyKey: $idempotencyKey,
+            reason: 'Solicitud superior al pago original'
+        );
+
+        $this->fail(
+            'Se esperaba rechazar una devolución superior al pago.'
+        );
+    } catch (\InvalidArgumentException $exception) {
+        $this->assertSame(
+            'El monto solicitado supera el saldo disponible para devolución.',
+            $exception->getMessage()
+        );
+    }
+
+    $this->assertSame(
+        0,
+        FinancialTransaction::where(
+            'idempotency_key',
+            $idempotencyKey
+        )->count()
+    );
+
+    $this->wallet->refresh();
+
+    $this->assertSame(
+        70000,
+        $this->wallet->available_balance_cents
+    );
+}
+public function test_it_rejects_refunds_exceeding_accumulated_limit(): void
+{
+    $walletService = app(WalletService::class);
+    $ledgerService = app(LedgerService::class);
+    $adjustmentService = app(
+        FinancialAdjustmentService::class
+    );
+
+    $ownerId = 'refund-accumulated-' . Str::uuid();
+
+    $this->wallet = $walletService->create(
+        ownerType: 'STUDENT',
+        ownerId: $ownerId,
+        walletType: WalletType::USUARIO
+    );
+
+    $ledgerService->credit(
+        wallet: $this->wallet,
+        amountCents: 100000,
+        movementType: MovementType::RECARGA,
+        idempotencyKey: 'refund-credit-' . Str::uuid()
+    );
+
+    $payment = $ledgerService->debit(
+        wallet: $this->wallet,
+        amountCents: 30000,
+        movementType: MovementType::PAGO,
+        idempotencyKey: 'refund-payment-' . Str::uuid()
+    );
+
+    $firstRefund = $adjustmentService->refund(
+        originalTransaction: $payment,
+        amountCents: 15000,
+        idempotencyKey: 'refund-first-' . Str::uuid()
+    );
+
+    $secondRefund = $adjustmentService->refund(
+        originalTransaction: $payment,
+        amountCents: 10000,
+        idempotencyKey: 'refund-second-' . Str::uuid()
+    );
+
+    $rejectedKey = 'refund-third-' . Str::uuid();
+
+    try {
+        $adjustmentService->refund(
+            originalTransaction: $payment,
+            amountCents: 10000,
+            idempotencyKey: $rejectedKey
+        );
+
+        $this->fail(
+            'Se esperaba rechazar la devolución acumulada.'
+        );
+    } catch (\InvalidArgumentException $exception) {
+        $this->assertSame(
+            'El monto solicitado supera el saldo disponible para devolución.',
+            $exception->getMessage()
+        );
+    }
+
+    $this->assertSame(
+        TransactionStatus::PENDIENTE,
+        $firstRefund->status
+    );
+
+    $this->assertSame(
+        TransactionStatus::PENDIENTE,
+        $secondRefund->status
+    );
+
+    $this->assertSame(
+        0,
+        FinancialTransaction::where(
+            'idempotency_key',
+            $rejectedKey
+        )->count()
+    );
+
+    $this->wallet->refresh();
+
+    $this->assertSame(
+        70000,
+        $this->wallet->available_balance_cents
+    );
+}
 }
