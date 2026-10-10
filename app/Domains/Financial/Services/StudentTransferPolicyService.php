@@ -4,6 +4,7 @@ use App\Domains\Financial\Contracts\TransferAuthorizationProvider;
 use App\Domains\Financial\Models\StudentTransferPolicy;
 use App\Domains\Financial\Models\StudentTransferPolicyChange;
 use DateTimeZone;
+use App\Domains\Financial\Data\TransferAuditContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -16,14 +17,14 @@ class StudentTransferPolicyService
     {
         return $p->only(['policy_key', 'enabled', 'minimum_cents', 'maximum_cents', 'daily_cents', 'monthly_cents', 'business_timezone', 'version', 'confirmation_seconds']);
     }
-    public function update(string $userId, int $expectedVersion, array $changes, string $reason): StudentTransferPolicy
+    public function update(string $userId, int $expectedVersion, array $changes, string $reason, ?TransferAuditContext $audit = null): StudentTransferPolicy
     {
         if (!$this->authorization->canManagePolicy($userId)) { throw new AuthorizationException('No puedes administrar las políticas de transferencias.'); }
         if (!preg_match('/^[a-f0-9]{24}$/i', $userId) || trim($reason) === '' || mb_strlen($reason) > 1000 || $expectedVersion < 1
             || $changes === [] || array_diff(array_keys($changes), ['enabled', 'minimum_cents', 'maximum_cents', 'daily_cents', 'monthly_cents', 'business_timezone', 'confirmation_seconds'])) {
             throw new InvalidArgumentException('Responsable, motivo, versión o cambios no válidos.');
         }
-        return DB::connection('sqlsrv')->transaction(function () use ($userId, $expectedVersion, $changes, $reason) {
+        return DB::connection('sqlsrv')->transaction(function () use ($userId, $expectedVersion, $changes, $reason, $audit) {
             $p = StudentTransferPolicy::where('policy_key', 'STUDENT_MXN')->lockForUpdate()->firstOrFail();
             if ($p->version !== $expectedVersion) { throw new InvalidArgumentException('La política cambió; consulta la versión vigente.'); }
             // A timezone change cannot redefine already-counted periods in the active month.
@@ -37,7 +38,7 @@ class StudentTransferPolicyService
             $p->version++; $p->updated_by = 'user:' . strtolower($userId); $p->save();
             StudentTransferPolicyChange::create(['public_id' => (string) Str::uuid(), 'policy_key' => $p->policy_key,
                 'version' => $p->version, 'actor_id' => $p->updated_by, 'reason' => trim($reason),
-                'before_data' => $before, 'after_data' => $this->snapshot($p)]);
+                'audit_context' => ($audit ?? TransferAuditContext::internal())->toArray(), 'before_data' => $before, 'after_data' => $this->snapshot($p)]);
             return $p;
         });
     }

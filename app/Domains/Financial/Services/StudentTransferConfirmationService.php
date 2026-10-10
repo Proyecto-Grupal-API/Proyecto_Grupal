@@ -10,7 +10,8 @@ use App\Domains\Financial\Models\StudentTransferConfirmation;
 use App\Domains\Financial\Models\StudentTransferPolicy;
 use App\Domains\Financial\Models\Wallet;
 use App\Domains\Financial\Support\FinancialJobLock;
-use App\Models\User;
+use App\Domains\Financial\Contracts\TransferAccountProvider;
+use App\Domains\Financial\Data\TransferAuditContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -19,17 +20,18 @@ class StudentTransferConfirmationService
 {
     public function __construct(private readonly TransferAuthorizationProvider $authorization,
         private readonly TransferRecipientProvider $recipients, private readonly StudentTransferPolicyService $policies,
-        private readonly StudentTransferService $transfers, private readonly FinancialJobLock $locks) {}
+        private readonly StudentTransferService $transfers, private readonly FinancialJobLock $locks, private readonly TransferAccountProvider $accounts) {}
     public function prepare(string $senderId, string $method, string $value, int $amount, StudentTransferKind $kind,
-        ?string $concept, string $key, ?string $ip = null): StudentTransferConfirmation
+        ?string $concept, string $key, ?string $ip = null, ?TransferAuditContext $audit = null): StudentTransferConfirmation
     {
+        $audit ??= TransferAuditContext::internal();
         $senderId = strtolower($senderId); $key = $this->key($key); $concept = trim($concept ?? ''); $value = trim($value);
         $source = $this->wallet($senderId); $this->canSend($senderId, $source);
         if ($amount < 1 || $amount > 9007199254740991 || mb_strlen($concept) > 255 || !in_array($method, ['USER_ID', 'ENROLLMENT', 'QR'], true) || $value === '' || mb_strlen($value) > 500) {
             throw new InvalidArgumentException('Datos de solicitud no válidos.');
         }
         $hash = hash('sha256', json_encode([$senderId, $method, $value, $amount, $kind->value, $concept], JSON_THROW_ON_ERROR));
-        return $this->locked('preview:' . hash('sha256', $key), function ($lockKey, $token) use ($senderId, $source, $method, $value, $amount, $kind, $concept, $key, $hash, $ip) {
+        return $this->locked('preview:' . hash('sha256', $key), function ($lockKey, $token) use ($senderId, $source, $method, $value, $amount, $kind, $concept, $key, $hash, $ip, $audit) {
             $existing = StudentTransferConfirmation::where('request_key', $key)->first();
             if ($existing) {
                 if (!hash_equals($existing->request_hash, $hash)) { throw new InvalidArgumentException('La clave ya pertenece a otra solicitud.'); }
@@ -43,26 +45,27 @@ class StudentTransferConfirmationService
             $recipientId = strtolower($recipient['user_id']); $destination = $this->wallet($recipientId);
             if ($recipientId === $senderId) { throw new InvalidArgumentException('El destinatario debe ser otra persona.'); }
             if (!$this->authorization->canReceive($recipientId, $destination)) { throw new AuthorizationException('El destinatario no tiene habilitada la recepción.'); }
-            foreach ([$senderId, $recipientId] as $id) { $u = User::find($id); if (!$u || !$u->email_verified_at || $u->account_activation_pending) { throw new InvalidArgumentException('Se requieren cuentas activas y verificadas.'); } }
-            return DB::connection('sqlsrv')->transaction(function () use ($senderId, $source, $destination, $recipientId, $recipient, $method, $amount, $kind, $concept, $key, $hash, $lockKey, $token, $ip) {
+            foreach ([$senderId, $recipientId] as $id) { $this->accounts->assertActive($id); }
+            return DB::connection('sqlsrv')->transaction(function () use ($senderId, $source, $destination, $recipientId, $recipient, $method, $amount, $kind, $concept, $key, $hash, $lockKey, $token, $ip, $audit) {
                 $this->locks->assertOwned($lockKey, $token, 180);
                 $p = StudentTransferPolicy::where('policy_key', 'STUDENT_MXN')->lockForUpdate()->firstOrFail(); $snapshot = $this->policies->snapshot($p); $this->policies->validate($snapshot);
                 if (!$p->enabled || $amount < $p->minimum_cents || $amount > $p->maximum_cents) { throw new InvalidArgumentException('El monto o la habilitación no cumplen la política vigente.'); }
                 if ($source->status !== WalletStatus::ACTIVA || $destination->status !== WalletStatus::ACTIVA || $source->available_balance_cents < $amount) { throw new InvalidArgumentException('Wallet inactiva o saldo disponible insuficiente.'); }
                 return StudentTransferConfirmation::create(['public_id' => (string) Str::uuid(), 'request_key' => $key, 'request_hash' => $hash,
                     'sender_id' => $senderId, 'recipient_id' => $recipientId, 'source_wallet_id' => $source->public_id, 'destination_wallet_id' => $destination->public_id,
-                    'kind' => $kind->value, 'amount_cents' => $amount, 'concept' => $concept ?: null, 'identity_method' => $method,
-                    'recipient_snapshot' => ['user_id' => $recipientId, 'name' => $recipient['name'], 'enrollment_number' => $recipient['enrollment_number'] ?? null],
+                    'kind' => $kind->value, 'amount_cents' => $amount, 'concept' => $concept === '' ? null : $concept, 'identity_method' => $method,
+                    'preparation_audit' => $audit->toArray(), 'recipient_snapshot' => ['user_id' => $recipientId, 'name' => $recipient['name'], 'enrollment_number' => $recipient['enrollment_number'] ?? null],
                     'policy_snapshot' => $snapshot, 'status' => 'PENDIENTE', 'duration_seconds' => $p->confirmation_seconds,
                     'expires_at' => now()->addSeconds($p->confirmation_seconds), 'requested_ip' => $ip,
                     'correlation_id' => app(\App\Domains\Financial\Support\FinancialCorrelation::class)->id()]);
             });
         });
     }
-    public function confirm(string $senderId, string $id, string $key, ?string $ip = null): StudentTransfer
+    public function confirm(string $senderId, string $id, string $key, ?string $ip = null, ?TransferAuditContext $audit = null): StudentTransfer
     {
+        $audit ??= TransferAuditContext::internal();
         $key = $this->key($key);
-        return $this->locked('confirm-key:' . $key, function ($lockKey, $token) use ($senderId, $id, $key, $ip) {
+        return $this->locked('confirm-key:' . $key, function ($lockKey, $token) use ($senderId, $id, $key, $ip, $audit) {
             $c = $this->owned($senderId, $id); $source = Wallet::where('public_id', $c->source_wallet_id)->firstOrFail(); $this->canSend($senderId, $source);
             $destination = Wallet::where('public_id', $c->destination_wallet_id)->firstOrFail();
             if (!$this->authorization->canReceive($c->recipient_id, $destination)) { throw new AuthorizationException('La recepción ya no está autorizada.'); }
@@ -79,23 +82,23 @@ class StudentTransferConfirmationService
             });
             // No outer financial transaction: 2.10 must persist blocked evidence after rollback.
             return $this->transfers->execute($senderId, $source, $destination, $c->amount_cents, StudentTransferKind::from($c->kind), $c->concept,
-                'confirmation:' . strtolower($c->public_id), function (StudentTransfer $transfer) use ($senderId, $id, $key, $lockKey, $token, $ip) {
+                'confirmation:' . strtolower($c->public_id), function (StudentTransfer $transfer) use ($senderId, $id, $key, $lockKey, $token, $ip, $audit) {
                     $this->locks->assertOwned($lockKey, $token, 180);
                     $locked = $this->owned($senderId, $id, true); $this->pending($locked);
                     if ($locked->execution_key !== $key || strtolower($transfer->recipient_id) !== strtolower($locked->recipient_id)
                         || strtolower($transfer->source_wallet_id) !== strtolower($locked->source_wallet_id)
                         || strtolower($transfer->destination_wallet_id) !== strtolower($locked->destination_wallet_id)) { throw new InvalidArgumentException('La identidad del envío cambió.'); }
-                    $locked->status = 'COMPLETADA'; $locked->student_transfer_id = $transfer->public_id; $locked->confirmed_at = now(); $locked->confirmed_ip = $ip; $locked->save();
-                });
+                    $locked->confirmation_audit = $audit->toArray(); $locked->status = 'COMPLETADA'; $locked->student_transfer_id = $transfer->public_id; $locked->confirmed_at = now(); $locked->confirmed_ip = $ip; $locked->save();
+                }, $audit);
         });
     }
-    public function cancel(string $senderId, string $id): StudentTransferConfirmation
+    public function cancel(string $senderId, string $id, ?TransferAuditContext $audit = null): StudentTransferConfirmation
     {
-        return DB::connection('sqlsrv')->transaction(function () use ($senderId, $id) {
+        return DB::connection('sqlsrv')->transaction(function () use ($senderId, $id, $audit) {
             $c = $this->owned($senderId, $id, true);
             if ($c->status === 'CANCELADA') { return $c; }
             if ($c->status !== 'PENDIENTE') { throw new InvalidArgumentException('Un envío completado no se puede cancelar.'); }
-            $c->status = 'CANCELADA'; $c->cancelled_at = now(); $c->save(); return $c;
+            $c->cancellation_audit = ($audit ?? TransferAuditContext::internal())->toArray(); $c->status = 'CANCELADA'; $c->cancelled_at = now(); $c->save(); return $c;
         });
     }
     public function owned(string $senderId, string $id, bool $lock = false): StudentTransferConfirmation

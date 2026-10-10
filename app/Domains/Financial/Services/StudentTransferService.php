@@ -14,22 +14,24 @@ use App\Domains\Financial\Models\StudentTransfer;
 use App\Domains\Financial\Models\StudentTransferPolicy;
 use App\Domains\Financial\Models\Wallet;
 use App\Domains\Financial\Support\FinancialJobLock;
-use App\Models\User;
+use App\Domains\Financial\Contracts\TransferAccountProvider;
+use App\Domains\Financial\Data\TransferAuditContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
-/** Domain execution only. A future controller must verify an explicit, server-bound confirmation. */
+/** Domain execution only. Web/API controllers must verify an explicit, server-bound confirmation. */
 class StudentTransferService
 {
     public function __construct(private readonly TransferAuthorizationProvider $authorization,
         private readonly StudentTransferPolicyService $policies, private readonly LedgerService $ledger,
         private readonly FinancialLimitService $limits, private readonly TransactionAlertService $alerts,
-        private readonly FinancialJobLock $locks) {}
+        private readonly FinancialJobLock $locks, private readonly TransferAccountProvider $accounts) {}
     public function execute(string $senderId, Wallet $source, Wallet $destination, int $amountCents,
-        StudentTransferKind $kind, ?string $concept, string $idempotencyKey, ?callable $onCompleted = null): StudentTransfer
+        StudentTransferKind $kind, ?string $concept, string $idempotencyKey, ?callable $onCompleted = null, ?TransferAuditContext $audit = null): StudentTransfer
     {
+        $audit ??= TransferAuditContext::internal();
         $senderId = strtolower($senderId); $key = strtolower(trim($idempotencyKey)); $concept = trim($concept ?? '');
         if (!preg_match('/^[a-f0-9]{24}$/', $senderId) || !preg_match('/^[a-z0-9._:-]{1,255}$/', $key)
             || $amountCents < 1 || $amountCents > 9007199254740991 || mb_strlen($concept) > 255) {
@@ -43,7 +45,7 @@ class StudentTransferService
         if (!$token) { throw new InvalidArgumentException('La solicitud está en proceso; reintenta con la misma clave.'); }
         try {
             try {
-                return DB::connection('sqlsrv')->transaction(function () use ($senderId, $source, $destination, $amountCents, $kind, $concept, $key, $hash, $lockKey, $token, $onCompleted) {
+                return DB::connection('sqlsrv')->transaction(function () use ($senderId, $source, $destination, $amountCents, $kind, $concept, $key, $hash, $lockKey, $token, $onCompleted, $audit) {
                     $this->locks->assertOwned($lockKey, $token, 180);
                     $existing = StudentTransfer::where('idempotency_key', $key)->first();
                     if ($existing) {
@@ -83,15 +85,15 @@ class StudentTransferService
                     $transaction = $this->ledger->transfer($from, $to, $amountCents, $ledgerKey,
                         $kind === StudentTransferKind::REGALO ? 'STUDENT_GIFT' : 'STUDENT_TRANSFER', $id,
                         ['student_transfer_id' => $id, 'transfer_kind' => $kind->value, 'actor_id' => 'user:' . $senderId,
-                            'sender_id' => $senderId, 'recipient_id' => strtolower($to->owner_id), 'concept' => $concept ?: null,
-                            'policy' => $snapshot]);
+                            'sender_id' => $senderId, 'recipient_id' => strtolower($to->owner_id), 'concept' => $concept === '' ? null : $concept,
+                            'policy' => $snapshot, 'audit_context' => $audit->toArray()]);
                     $this->locks->assertOwned($lockKey, $token, 180);
                     $transfer = StudentTransfer::create(['public_id' => $id, 'idempotency_key' => $key, 'request_hash' => $hash,
                         'source_wallet_id' => $from->public_id, 'destination_wallet_id' => $to->public_id,
                         'sender_id' => $senderId, 'recipient_id' => strtolower($to->owner_id), 'actor_id' => 'user:' . $senderId,
-                        'kind' => $kind, 'amount_cents' => $amountCents, 'currency' => 'MXN', 'concept' => $concept ?: null,
+                        'kind' => $kind, 'amount_cents' => $amountCents, 'currency' => 'MXN', 'concept' => $concept === '' ? null : $concept,
                         'status' => TransactionStatus::COMPLETADA->value, 'financial_transaction_id' => $transaction->public_id,
-                        'policy_version' => $policy->version, 'policy_snapshot' => $snapshot, 'completed_at' => $at->setTimezone(config('app.timezone'))]);
+                        'audit_context' => $audit->toArray(), 'policy_version' => $policy->version, 'policy_snapshot' => $snapshot, 'completed_at' => $at->setTimezone(config('app.timezone'))]);
                     if ($onCompleted !== null) { $onCompleted($transfer); }
                     return $transfer;
                 });
@@ -119,7 +121,6 @@ class StudentTransferService
     }
     private function activeAccount(string $userId): void
     {
-        $u = User::find($userId);
-        if (!$u || $u->account_activation_pending || !$u->email_verified_at) { throw new InvalidArgumentException('El emisor y destinatario deben tener cuentas activas y verificadas.'); }
+        $this->accounts->assertActive($userId);
     }
 }

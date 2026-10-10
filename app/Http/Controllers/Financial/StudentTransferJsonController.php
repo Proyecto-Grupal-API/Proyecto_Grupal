@@ -20,7 +20,9 @@ use InvalidArgumentException;
 abstract class StudentTransferJsonController extends Controller
 {
     public function __construct(protected readonly StudentTransferConfirmationService $flow,
-        protected readonly StudentTransferPolicyService $policies, protected readonly TransferAuthorizationProvider $authorization) {}
+        protected readonly StudentTransferPolicyService $policies, protected readonly TransferAuthorizationProvider $authorization,
+        protected readonly \App\Domains\Financial\Services\TransferAuditContextResolver $audit,
+        protected readonly \App\Domains\Financial\Services\StudentTransferQueryService $queries) {}
     abstract protected function actor(Request $r): string;
     public function prepare(Request $r)
     {
@@ -30,7 +32,7 @@ abstract class StudentTransferJsonController extends Controller
             $data = $r->validate(['identity_method' => ['required', Rule::in(['USER_ID', 'ENROLLMENT', 'QR'])], 'recipient' => ['required', 'string', 'max:500', 'regex:/\S/u'],
                 'amount_cents' => ['required', 'integer', 'min:1', 'max:9007199254740991'], 'kind' => ['required', Rule::enum(StudentTransferKind::class)], 'concept' => ['nullable', 'string', 'max:255']]);
             $key = $this->header($r); $existing = StudentTransferConfirmation::where('request_key', strtolower(trim($key)))->exists();
-            $c = $this->flow->prepare($actor, $data['identity_method'], $data['recipient'], (int) $data['amount_cents'], StudentTransferKind::from($data['kind']), $data['concept'] ?? null, $key, $r->ip());
+            $c = $this->flow->prepare($actor, $data['identity_method'], $data['recipient'], (int) $data['amount_cents'], StudentTransferKind::from($data['kind']), $data['concept'] ?? null, $key, $r->ip(), $this->audit->resolve($r, $actor));
             return response()->json(['data' => $this->confirmation($c), 'replayed' => $existing], $existing ? 200 : 201);
         });
     }
@@ -51,25 +53,23 @@ abstract class StudentTransferJsonController extends Controller
             if (array_diff(array_keys($r->all()), ['confirmed'])) { return response()->json(['message' => 'La confirmación no permite cambiar los datos del envío.'], 422); }
             $r->validate(['confirmed' => ['required', 'accepted']]); $key = $this->header($r);
             $before = $this->flow->owned($this->actor($r), $confirmationId); $replayed = $before->status === 'COMPLETADA';
-            $transfer = $this->flow->confirm($this->actor($r), $confirmationId, $key, $r->ip());
+            $transfer = $this->flow->confirm($this->actor($r), $confirmationId, $key, $r->ip(), $this->audit->resolve($r, $this->actor($r)));
             return response()->json(['data' => $this->transfer($transfer, $this->actor($r)), 'replayed' => $replayed], $replayed ? 200 : 201);
         });
     }
     public function cancel(Request $r, string $confirmationId)
     {
-        return $this->run(fn () => response()->json(['data' => $this->confirmation($this->flow->cancel($this->actor($r), $confirmationId))]));
+        return $this->run(fn () => response()->json(['data' => $this->confirmation($this->flow->cancel($this->actor($r), $confirmationId, $this->audit->resolve($r, $this->actor($r))))]));
     }
     public function listing(Request $r)
     {
-        $r->validate(['page' => ['nullable', 'integer', 'min:1', 'max:1000000']]); $actor = $this->actor($r);
-        $rows = StudentTransfer::where(fn ($q) => $q->where('sender_id', $actor)->orWhere('recipient_id', $actor))->latest('id')->paginate(20);
-        return response()->json(['data' => $rows->getCollection()->map(fn ($t) => $this->transfer($t, $actor))->values(),
-            'meta' => ['current_page' => $rows->currentPage(), 'last_page' => $rows->lastPage(), 'total' => $rows->total()]]);
+        $filters = $r->validate(['page' => ['nullable', 'integer', 'min:1', 'max:1000000'],
+            'kind' => ['nullable', Rule::enum(StudentTransferKind::class)], 'direction' => ['nullable', Rule::in(['SALIDA', 'ENTRADA'])]]);
+        return response()->json($this->queries->listing($this->actor($r), $filters));
     }
     public function show(Request $r, string $transferId)
     {
-        $actor = $this->actor($r); $t = StudentTransfer::where('public_id', $transferId)->where(fn ($q) => $q->where('sender_id', $actor)->orWhere('recipient_id', $actor))->firstOrFail();
-        return response()->json(['data' => $this->transfer($t, $actor)]);
+        return response()->json(['data' => $this->queries->detail($this->actor($r), $transferId)]);
     }
     public function currentPolicy(Request $r)
     {
@@ -85,7 +85,7 @@ abstract class StudentTransferJsonController extends Controller
         $changes = array_diff_key($data, array_flip(['expected_version', 'reason']));
         if (isset($changes['enabled'])) { $changes['enabled'] = (bool) $changes['enabled']; }
         foreach (['minimum_cents', 'maximum_cents', 'daily_cents', 'monthly_cents', 'confirmation_seconds'] as $f) { if (isset($changes[$f])) { $changes[$f] = (int) $changes[$f]; } }
-        return $this->run(fn () => response()->json(['data' => $this->policies->snapshot($this->policies->update($this->actor($r), $data['expected_version'], $changes, $data['reason']))]));
+        return $this->run(fn () => response()->json(['data' => $this->policies->snapshot($this->policies->update($this->actor($r), $data['expected_version'], $changes, $data['reason'], $this->audit->resolve($r, $this->actor($r))))]));
     }
     public function policyHistory(Request $r)
     {
@@ -93,7 +93,8 @@ abstract class StudentTransferJsonController extends Controller
         $r->validate(['page' => ['nullable', 'integer', 'min:1', 'max:1000000']]);
         $rows = StudentTransferPolicyChange::where('policy_key', 'STUDENT_MXN')->latest('id')->paginate(20);
         return response()->json(['data' => $rows->getCollection()->map(fn ($a) => ['id' => strtolower($a->public_id), 'version' => $a->version,
-            'actor_id' => $a->actor_id, 'reason' => $a->reason, 'before' => $a->before_data, 'after' => $a->after_data, 'created_at' => $a->created_at?->toISOString()]),
+            'actor_id' => $a->actor_id, 'reason' => $a->reason, 'before' => $a->before_data, 'after' => $a->after_data,
+            'trace' => $a->audit_context ? ['channel' => $a->audit_context['channel'] ?? null, 'correlation_id' => $a->audit_context['correlation_id'] ?? null] : null, 'created_at' => $a->created_at?->toISOString()]),
             'meta' => ['current_page' => $rows->currentPage(), 'last_page' => $rows->lastPage(), 'total' => $rows->total()]]);
     }
     private function confirmation(StudentTransferConfirmation $c): array
@@ -104,11 +105,7 @@ abstract class StudentTransferJsonController extends Controller
     }
     private function transfer(StudentTransfer $t, string $actor): array
     {
-        $transaction = FinancialTransaction::where('public_id', $t->financial_transaction_id)->firstOrFail();
-        return ['id' => strtolower($t->public_id), 'kind' => $t->kind->value, 'amount_cents' => $t->amount_cents, 'currency' => $t->currency,
-            'concept' => $t->concept, 'direction' => $t->sender_id === $actor ? 'SALIDA' : 'ENTRADA', 'sender_id' => $t->sender_id, 'recipient_id' => $t->recipient_id,
-            'status' => $transaction->status->value, 'executed_status' => $t->status, 'completed_at' => $t->completed_at?->toISOString(),
-            'financial_transaction_id' => strtolower($t->financial_transaction_id), 'policy' => $t->policy_snapshot];
+        return $this->queries->serialize($t, $actor);
     }
     private function header(Request $r): string
     {

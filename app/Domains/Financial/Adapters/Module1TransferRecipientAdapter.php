@@ -12,6 +12,12 @@ class Module1TransferRecipientAdapter implements TransferRecipientProvider
     public function __construct(private readonly IdentityProvider $identity) {}
     public function resolve(string $method, string $value, string $actorId, ?string $ip): array
     {
+        try { return $this->resolveAvailable($method, $value, $actorId, $ip); }
+        catch (InvalidArgumentException | FinancialDependencyUnavailableException $e) { throw $e; }
+        catch (Throwable $e) { throw new FinancialDependencyUnavailableException('La consulta del destinatario no está disponible.', 0, $e); }
+    }
+    private function resolveAvailable(string $method, string $value, string $actorId, ?string $ip): array
+    {
         $value = trim($value); $id = null;
         if ($method === 'USER_ID') {
             if (!preg_match('/^[a-f0-9]{24}$/i', $value)) { throw new InvalidArgumentException('Identificador de usuario no válido.'); }

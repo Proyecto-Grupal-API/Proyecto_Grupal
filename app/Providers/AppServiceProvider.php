@@ -25,6 +25,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(\App\Domains\Financial\Contracts\TransferAccountProvider::class,
+            \App\Domains\Financial\Adapters\Module1TransferAccountAdapter::class);
+        $this->app->bind(\App\Domains\Financial\Contracts\TransferSessionContextProvider::class,
+            \App\Domains\Financial\Adapters\Module1TransferSessionContextAdapter::class);
         $this->app->bind(\App\Domains\Financial\Contracts\TransferDelegationProvider::class,
             \App\Domains\Financial\Adapters\PendingTransferDelegationProvider::class);
         $this->app->bind(\App\Domains\Financial\Contracts\TransferRecipientProvider::class,
