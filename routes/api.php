@@ -279,3 +279,26 @@ Route::prefix('v1')->middleware('oauth.service')->group(function () {
         });
     });
 });
+
+// Independent API transport; services and JSON actions are shared with web.
+Route::prefix('v1/financial/student-transfers')->middleware(['oauth.service', 'financial.correlation'])->group(function () {
+    $controller = \App\Http\Controllers\Financial\StudentTransferApiController::class;
+    $delegation = \App\Http\Middleware\ResolveTransferDelegation::class;
+    $routes = [
+        ['get', '/records', 'listing', 'read', 'history'],
+        ['get', '/confirmations', 'pendingConfirmations', 'read', 'pending'],
+        ['get', '/confirmations/{confirmationId}', 'showConfirmation', 'read', 'preview'],
+        ['post', '/confirmations', 'prepare', 'prepare', 'prepare'],
+        ['post', '/confirmations/{confirmationId}/confirm', 'confirm', 'confirm', 'confirm'],
+        ['post', '/confirmations/{confirmationId}/cancel', 'cancel', 'cancel', 'cancel'],
+        ['get', '/policy', 'currentPolicy', 'read', 'policy-read'],
+        ['get', '/policy/history', 'policyHistory', 'policy:manage', 'policy-history'],
+        ['patch', '/policy', 'updatePolicy', 'policy:manage', 'policy-update'],
+        ['get', '/{transferId}', 'show', 'read', 'detail'],
+    ];
+    foreach ($routes as [$verb, $path, $method, $scope, $action]) {
+        Route::$verb($path, [$controller, $method])
+            ->middleware(['oauth.service:financial:transfer:' . $scope, $delegation . ':' . $action])
+            ->whereUuid('confirmationId')->whereUuid('transferId');
+    }
+});

@@ -25,6 +25,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(\App\Domains\Financial\Contracts\TransferDelegationProvider::class,
+            \App\Domains\Financial\Adapters\PendingTransferDelegationProvider::class);
         $this->app->bind(\App\Domains\Financial\Contracts\TransferRecipientProvider::class,
             \App\Domains\Financial\Adapters\Module1TransferRecipientAdapter::class);
         $this->app->bind(\App\Domains\Financial\Contracts\TransferAuthorizationProvider::class,
@@ -50,6 +52,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Facades\RateLimiter::for('student-transfer-api', function (\Illuminate\Http\Request $request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(30)->by(
+                (string) $request->attributes->get('oauth_client_id') . '|' . $request->route()->getActionMethod()
+            );
+        });
+
         FinancialTransaction::observe(FinancialTransactionObserver::class);
 
         Vite::prefetch(concurrency: 3);
