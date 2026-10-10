@@ -60,7 +60,7 @@ function stGrant(bool $send = true, bool $receive = true, bool $manage = true): 
 }
 function stWallet($test, int $balance = 0): Wallet
 {
-    $u = User::factory()->create(); $u->forceFill(['email_verified_at' => now(), 'account_activation_pending' => false])->save();
+    $u = User::factory()->create(['email' => 'test-transfer-' . Str::uuid() . '@example.test']); $u->forceFill(['email_verified_at' => now(), 'account_activation_pending' => false])->save();
     $test->stUsers[] = (string) $u->getKey();
     $w = app(WalletService::class)->create('USER', (string) $u->getKey(), WalletType::USUARIO); $test->stWallets[] = $w->public_id;
     if ($balance) { app(LedgerService::class)->credit($w, $balance, MovementType::RECARGA, 'test-st-seed-' . Str::uuid(), 'TEST_SEED', $w->public_id); }

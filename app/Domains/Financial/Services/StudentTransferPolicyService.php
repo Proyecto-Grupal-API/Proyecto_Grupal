@@ -14,13 +14,13 @@ class StudentTransferPolicyService
     public function current(): StudentTransferPolicy { return StudentTransferPolicy::where('policy_key', 'STUDENT_MXN')->firstOrFail(); }
     public function snapshot(StudentTransferPolicy $p): array
     {
-        return $p->only(['policy_key', 'enabled', 'minimum_cents', 'maximum_cents', 'daily_cents', 'monthly_cents', 'business_timezone', 'version']);
+        return $p->only(['policy_key', 'enabled', 'minimum_cents', 'maximum_cents', 'daily_cents', 'monthly_cents', 'business_timezone', 'version', 'confirmation_seconds']);
     }
     public function update(string $userId, int $expectedVersion, array $changes, string $reason): StudentTransferPolicy
     {
         if (!$this->authorization->canManagePolicy($userId)) { throw new AuthorizationException('No puedes administrar las políticas de transferencias.'); }
         if (!preg_match('/^[a-f0-9]{24}$/i', $userId) || trim($reason) === '' || mb_strlen($reason) > 1000 || $expectedVersion < 1
-            || $changes === [] || array_diff(array_keys($changes), ['enabled', 'minimum_cents', 'maximum_cents', 'daily_cents', 'monthly_cents', 'business_timezone'])) {
+            || $changes === [] || array_diff(array_keys($changes), ['enabled', 'minimum_cents', 'maximum_cents', 'daily_cents', 'monthly_cents', 'business_timezone', 'confirmation_seconds'])) {
             throw new InvalidArgumentException('Responsable, motivo, versión o cambios no válidos.');
         }
         return DB::connection('sqlsrv')->transaction(function () use ($userId, $expectedVersion, $changes, $reason) {
@@ -43,6 +43,9 @@ class StudentTransferPolicyService
     }
     public function validate(array $data): void
     {
+        if (!is_int($data['confirmation_seconds'] ?? null) || $data['confirmation_seconds'] < 1 || $data['confirmation_seconds'] > 2147483647) {
+            throw new InvalidArgumentException('El plazo de confirmación debe ser un entero positivo de segundos.');
+        }
         foreach (['minimum_cents', 'maximum_cents', 'daily_cents', 'monthly_cents'] as $f) {
             if (!is_int($data[$f] ?? null) || $data[$f] < 1 || $data[$f] > 9007199254740991) { throw new InvalidArgumentException('Los límites deben ser enteros positivos de centavos.'); }
         }

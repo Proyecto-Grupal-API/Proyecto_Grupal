@@ -28,6 +28,20 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
+    Route::prefix('finanzas/transferencias')->name('financial.transfers.')->middleware('financial.correlation')->group(function () {
+        $transfers = \App\Http\Controllers\Financial\StudentTransferWebController::class;
+        Route::get('/', [$transfers, 'index'])->name('index');
+        Route::get('/records', [$transfers, 'listing'])->name('records');
+        Route::get('/confirmations', [$transfers, 'pendingConfirmations'])->name('pending');
+        Route::post('/confirmations', [$transfers, 'prepare'])->middleware('throttle:30,1')->name('prepare');
+        Route::get('/confirmations/{confirmationId}', [$transfers, 'showConfirmation'])->whereUuid('confirmationId')->name('confirmation');
+        Route::post('/confirmations/{confirmationId}/confirm', [$transfers, 'confirm'])->whereUuid('confirmationId')->middleware('throttle:30,1')->name('confirm');
+        Route::post('/confirmations/{confirmationId}/cancel', [$transfers, 'cancel'])->whereUuid('confirmationId')->name('cancel');
+        Route::patch('/policy', [$transfers, 'updatePolicy'])->name('policy.update');
+        Route::get('/policy/history', [$transfers, 'policyHistory'])->name('policy.history');
+        Route::get('/{transferId}', [$transfers, 'show'])->whereUuid('transferId')->name('show');
+    });
+
     Route::prefix('finanzas/bonos/administracion')->name('financial.bonuses.admin.')->middleware('financial.correlation')->group(function () {
         $admin = \App\Http\Controllers\Financial\BonusAdministrationWebController::class;
         Route::get('/', [$admin, 'index'])->name('index');

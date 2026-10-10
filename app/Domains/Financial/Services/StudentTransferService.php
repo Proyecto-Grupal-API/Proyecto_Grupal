@@ -28,7 +28,7 @@ class StudentTransferService
         private readonly FinancialLimitService $limits, private readonly TransactionAlertService $alerts,
         private readonly FinancialJobLock $locks) {}
     public function execute(string $senderId, Wallet $source, Wallet $destination, int $amountCents,
-        StudentTransferKind $kind, ?string $concept, string $idempotencyKey): StudentTransfer
+        StudentTransferKind $kind, ?string $concept, string $idempotencyKey, ?callable $onCompleted = null): StudentTransfer
     {
         $senderId = strtolower($senderId); $key = strtolower(trim($idempotencyKey)); $concept = trim($concept ?? '');
         if (!preg_match('/^[a-f0-9]{24}$/', $senderId) || !preg_match('/^[a-z0-9._:-]{1,255}$/', $key)
@@ -43,7 +43,7 @@ class StudentTransferService
         if (!$token) { throw new InvalidArgumentException('La solicitud está en proceso; reintenta con la misma clave.'); }
         try {
             try {
-                return DB::connection('sqlsrv')->transaction(function () use ($senderId, $source, $destination, $amountCents, $kind, $concept, $key, $hash, $lockKey, $token) {
+                return DB::connection('sqlsrv')->transaction(function () use ($senderId, $source, $destination, $amountCents, $kind, $concept, $key, $hash, $lockKey, $token, $onCompleted) {
                     $this->locks->assertOwned($lockKey, $token, 180);
                     $existing = StudentTransfer::where('idempotency_key', $key)->first();
                     if ($existing) {
@@ -86,12 +86,14 @@ class StudentTransferService
                             'sender_id' => $senderId, 'recipient_id' => strtolower($to->owner_id), 'concept' => $concept ?: null,
                             'policy' => $snapshot]);
                     $this->locks->assertOwned($lockKey, $token, 180);
-                    return StudentTransfer::create(['public_id' => $id, 'idempotency_key' => $key, 'request_hash' => $hash,
+                    $transfer = StudentTransfer::create(['public_id' => $id, 'idempotency_key' => $key, 'request_hash' => $hash,
                         'source_wallet_id' => $from->public_id, 'destination_wallet_id' => $to->public_id,
                         'sender_id' => $senderId, 'recipient_id' => strtolower($to->owner_id), 'actor_id' => 'user:' . $senderId,
                         'kind' => $kind, 'amount_cents' => $amountCents, 'currency' => 'MXN', 'concept' => $concept ?: null,
                         'status' => TransactionStatus::COMPLETADA->value, 'financial_transaction_id' => $transaction->public_id,
                         'policy_version' => $policy->version, 'policy_snapshot' => $snapshot, 'completed_at' => $at->setTimezone(config('app.timezone'))]);
+                    if ($onCompleted !== null) { $onCompleted($transfer); }
+                    return $transfer;
                 });
             } catch (FinancialLimitExceededException $e) {
                 // Persist 2.10 evidence AFTER the rejected SQL transaction has rolled back.
