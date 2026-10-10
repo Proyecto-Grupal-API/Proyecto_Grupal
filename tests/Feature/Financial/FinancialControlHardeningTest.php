@@ -392,6 +392,7 @@ test('a concurrent reconciliation for the same date is rejected, and an expired 
 // ------------------------------------------------------------------
 
 test('without the cash integration the run declares it explicitly', function () {
+    $this->app->instance(\App\Domains\Financial\Contracts\CashReconciliationSource::class, new \App\Domains\Financial\Adapters\PendingCashReconciliationSource());
     $wallet = fcWallet('cash-pending');
 
     $run = app(ReconciliationService::class)->run(fcHardToday(), 'test-fc-reconciler', [$wallet->public_id]);

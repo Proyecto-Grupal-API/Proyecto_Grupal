@@ -163,6 +163,7 @@ test('a read token cannot change alerts or run reconciliations', function () {
 });
 
 test('a reconciliation request is idempotent and a concurrent one answers 409', function () {
+    $this->app->instance(\App\Domains\Financial\Contracts\CashReconciliationSource::class, new \App\Domains\Financial\Adapters\PendingCashReconciliationSource());
     $wallet = fcWallet('api-h-rec');
     $control = fchToken($this, 'svc_test_fch_control', 'financial:control');
     $headers = ['Authorization' => "Bearer {$control}", 'Idempotency-Key' => 'test-fc-api-rec-1'];

@@ -19,6 +19,7 @@ class Bonus extends Model
         'beneficiary_id',
         'issuer_type',
         'issuer_id',
+        'issuer_scope_type', 'issuer_scope_id',
         'type',
         'original_amount_cents',
         'remaining_amount_cents',
@@ -42,6 +43,15 @@ class Bonus extends Model
         'allows_partial_use' => 'boolean',
     ];
  
+    protected static function booted(): void
+    {
+        static::updating(function (self $bonus): void {
+            if ($bonus->isDirty(['issuer_type', 'issuer_id', 'issuer_scope_type', 'issuer_scope_id'])) {
+                throw new \InvalidArgumentException('El emisor y el contexto de un bono registrado son inmutables.');
+            }
+        });
+    }
+
     public function restrictions(): HasMany
 {
     return $this->hasMany(

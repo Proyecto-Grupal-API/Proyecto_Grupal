@@ -19,6 +19,7 @@ class BonusAdministrationWebController extends Controller
 {
     public function index(Request $request)
     {
+        if (config('financial.bonus_roles.enabled')) { return app(BonusRoleAdministrationWebController::class)->index($request); }
         $permissions = [];
         foreach (['view', 'issue', 'cancel', 'view.all', 'cancel.all'] as $action) {
             $permissions[$action] = $this->allowed($request, 'bonus.' . $action);
@@ -30,6 +31,7 @@ class BonusAdministrationWebController extends Controller
     }
     public function listing(Request $request)
     {
+        if (config('financial.bonus_roles.enabled')) { return app(BonusRoleAdministrationWebController::class)->listing($request); }
         $this->authorizeAction($request, 'bonus.view');
         $data = $request->validate(['page' => ['nullable', 'integer', 'min:1', 'max:1000000'],
             'beneficiary_id' => ['nullable', 'string', 'size:24', 'regex:/\A[0-9a-fA-F]{24}\z/']]);
@@ -48,6 +50,7 @@ class BonusAdministrationWebController extends Controller
     }
     public function beneficiary(Request $request, string $userId)
     {
+        if (config('financial.bonus_roles.enabled')) { return app(BonusRoleAdministrationWebController::class)->beneficiary($request, $userId); }
         $this->authorizeAction($request, 'bonus.issue');
         $user = User::find(strtolower($userId));
         abort_unless($user && !$user->account_activation_pending, 404);
@@ -55,6 +58,7 @@ class BonusAdministrationWebController extends Controller
     }
     public function store(Request $request)
     {
+        if (config('financial.bonus_roles.enabled')) { return app(BonusRoleAdministrationWebController::class)->store($request); }
         $this->authorizeAction($request, 'bonus.issue');
         $data = $request->validate([
             'beneficiary_id' => ['required', 'string', 'size:24', 'regex:/\A[0-9a-fA-F]{24}\z/'],
@@ -74,6 +78,7 @@ class BonusAdministrationWebController extends Controller
     }
     public function cancel(Request $request, string $bonusId)
     {
+        if (config('financial.bonus_roles.enabled')) { return app(BonusRoleAdministrationWebController::class)->cancel($request, $bonusId); }
         $this->authorizeAction($request, 'bonus.cancel');
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000', 'regex:/\S/u']]);
         $bonus = $this->scoped($request, 'bonus.cancel.all')->where('public_id', $bonusId)->firstOrFail();
@@ -82,6 +87,7 @@ class BonusAdministrationWebController extends Controller
     }
     public function history(Request $request, string $bonusId)
     {
+        if (config('financial.bonus_roles.enabled')) { return app(BonusRoleAdministrationWebController::class)->history($request, $bonusId); }
         $this->authorizeAction($request, 'bonus.view');
         $request->validate(['page' => ['nullable', 'integer', 'min:1', 'max:1000000']]);
         $bonus = $this->scoped($request, 'bonus.view.all')->where('public_id', $bonusId)->firstOrFail();

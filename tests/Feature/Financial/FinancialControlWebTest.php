@@ -149,6 +149,7 @@ test('web alert review keeps evidence and history and cannot reopen a final stat
 });
 
 test('web reconciliation requires a header and retries the same run without changing balances', function () {
+    $this->app->instance(\App\Domains\Financial\Contracts\CashReconciliationSource::class, new \App\Domains\Financial\Adapters\PendingCashReconciliationSource());
     $user = cwUser(); $this->actingAs($user); cwAllow(['reconciliation.view', 'reconciliation.run']);
     $wallet = fcWallet('controlui-run', 10000);
     $payload = ['business_date' => now(config('financial.business_timezone'))->toDateString(), 'wallet_ids' => [$wallet->public_id], 'actor_id' => 'forged'];

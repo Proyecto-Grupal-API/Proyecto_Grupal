@@ -52,6 +52,7 @@ function fcDifferenceCodes(Reconciliation $reconciliation): array
 }
 
 test('a consistent day reconciles without differences and without changing balances', function () {
+    $this->app->instance(\App\Domains\Financial\Contracts\CashReconciliationSource::class, new \App\Domains\Financial\Adapters\PendingCashReconciliationSource());
     $wallet = fcWallet('rec-ok', 30000);
     $other = fcWallet('rec-ok-other');
 

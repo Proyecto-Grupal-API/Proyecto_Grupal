@@ -22,12 +22,16 @@ class BonusAdministrationService
     public function __construct(private readonly BonusService $bonuses, private readonly FinancialWebAuthorizer $access,
         private readonly BonusAuthorizationProvider $issuers, private readonly FinancialJobLock $locks) {}
 
-    public function issue(string $userId, array $data, string $key): array
+    public function issue(string $userId, array $data, string $key, ?array $audit = null): array
     {
-        $this->authorize($userId, 'bonus.issue');
         $type = BonusType::from($data['type']);
-        if (!$this->issuers->canIssueBonus('USER', $userId, $type)) {
-            throw new AuthorizationException('El emisor no tiene autorización para este tipo de bono.');
+        $context = null;
+        if (config('financial.bonus_roles.enabled')) {
+            $context = new \App\Domains\Financial\Data\BonusIssuerContext($data['issuer_scope_type'] ?? null, $data['issuer_scope_id'] ?? null);
+            app(BonusRoleAccess::class)->requireIssue($userId, $type, $context);
+        } else {
+            $this->authorize($userId, 'bonus.issue');
+            if (!$this->issuers->canIssueBonus('USER', $userId, $type)) { throw new AuthorizationException('El emisor no tiene autorización para este tipo de bono.'); }
         }
         $start = CarbonImmutable::parse($data['valid_from'])->setTimezone(config('app.timezone', 'UTC'));
         $end = CarbonImmutable::parse($data['expires_at'])->setTimezone(config('app.timezone', 'UTC'));
@@ -39,11 +43,15 @@ class BonusAdministrationService
             'expires_at' => $end->utc()->format('Y-m-d\TH:i:s.uP'), 'combinable' => (bool) ($data['combinable'] ?? false),
             'allows_partial_use' => (bool) ($data['allows_partial_use'] ?? false),
             'external_reference' => trim((string) ($data['external_reference'] ?? '')) ?: null,
-            'restrictions' => $restrictions, 'reason' => trim($data['reason'])];
-        return $this->run($userId, 'ISSUE', $payload, $key, function () use ($userId, $payload, $type, $start, $end) {
-            $beneficiary = User::find($payload['beneficiary_id']);
-            if (!$beneficiary || $beneficiary->account_activation_pending) {
-                throw new InvalidArgumentException('El beneficiario no existe o su cuenta está pendiente de activación.');
+            'restrictions' => $restrictions, 'reason' => trim($data['reason']), ...($context?->toArray() ?? [])];
+        return $this->run($userId, 'ISSUE', $payload, $key, function () use ($userId, $payload, $type, $start, $end, $context) {
+            if ($context !== null) { app(BonusRoleAccess::class)->requireIssue($userId, $type, $context); }
+            if ($context !== null) {
+                $beneficiary = app(\App\Domains\Financial\Contracts\BonusBeneficiaryProvider::class)->findActive($payload['beneficiary_id']);
+                if (!$beneficiary || ($beneficiary['id'] ?? null) !== $payload['beneficiary_id']) { throw new InvalidArgumentException('El beneficiario no existe o su cuenta no está activa y verificada.'); }
+            } else {
+                $beneficiary = User::find($payload['beneficiary_id']);
+                if (!$beneficiary || $beneficiary->account_activation_pending) { throw new InvalidArgumentException('El beneficiario no existe o su cuenta está pendiente de activación.'); }
             }
             if ($end->lte($start) || $end->lte(now())) {
                 throw new InvalidArgumentException('La vigencia debe terminar después de su inicio y en una fecha futura.');
@@ -56,36 +64,39 @@ class BonusAdministrationService
                 && !in_array($type->value, array_column($payload['restrictions'], 'type'), true)) {
                 throw new InvalidArgumentException('Este tipo de bono requiere al menos una restricción del mismo tipo.');
             }
+            if ($context?->scopeType === 'business') {
+                $businesses = array_column(array_filter($payload['restrictions'], fn ($r) => $r['type'] === 'NEGOCIO'), 'target_id');
+                if ($businesses !== [$context->scopeId]) { throw new InvalidArgumentException('Una emisión de negocio debe restringirse únicamente al negocio autorizado.'); }
+            }
             $bonus = $this->bonuses->issue('USER', $payload['beneficiary_id'], 'USER', $userId, $type,
-                $payload['amount_cents'], $start, $end, $payload['combinable'], $payload['allows_partial_use'], $payload['external_reference']);
+                $payload['amount_cents'], $start, $end, $payload['combinable'], $payload['allows_partial_use'], $payload['external_reference'], $context);
             foreach ($payload['restrictions'] as $restriction) {
                 $this->bonuses->addRestriction($bonus->public_id, BonusRestrictionType::from($restriction['type']), $restriction['target_id']);
             }
             // Initial issuance entry receives the administrator's actual reason atomically.
             $bonus->ledgerEntries()->where('movement_type', 'EMISION')->update(['reason' => $payload['reason'], 'actor_id' => 'user:' . $userId]);
             return [$bonus->fresh(), null];
-        });
+        }, $audit);
     }
 
-    public function cancel(string $userId, Bonus $bonus, string $reason, string $key): array
+    public function cancel(string $userId, Bonus $bonus, string $reason, string $key, ?array $audit = null): array
     {
-        $this->authorize($userId, 'bonus.cancel');
-        if (!$this->isIssuer($userId, $bonus) && !$this->access->allows($userId, 'bonus.cancel.all')) {
-            throw new AuthorizationException('No tienes permiso para cancelar bonos de otro emisor.');
+        if (config('financial.bonus_roles.enabled')) { app(BonusRoleAccess::class)->requireCancel($userId, $bonus); }
+        else {
+            $this->authorize($userId, 'bonus.cancel');
+            if (!$this->isIssuer($userId, $bonus) && !$this->access->allows($userId, 'bonus.cancel.all')) { throw new AuthorizationException(); }
         }
         return $this->run($userId, 'CANCEL', ['bonus_id' => strtolower($bonus->public_id), 'reason' => trim($reason)], $key,
             function () use ($userId, $bonus, $reason) {
                 $locked = Bonus::where('public_id', $bonus->public_id)->lockForUpdate()->firstOrFail();
-                // Recheck scope using locked persisted issuer, not stale request objects.
-                if (!$this->isIssuer($userId, $locked) && !$this->access->allows($userId, 'bonus.cancel.all')) {
-                    throw new AuthorizationException();
-                }
+                if (config('financial.bonus_roles.enabled')) { app(BonusRoleAccess::class)->requireCancel($userId, $locked); }
+                elseif (!$this->isIssuer($userId, $locked) && !$this->access->allows($userId, 'bonus.cancel.all')) { throw new AuthorizationException(); }
                 $before = $this->snapshot($locked);
                 return [$this->bonuses->cancel($locked->public_id, 'user:' . $userId, trim($reason)), $before];
-            });
+            }, $audit);
     }
 
-    private function run(string $userId, string $action, array $payload, string $key, callable $callback): array
+    private function run(string $userId, string $action, array $payload, string $key, callable $callback, ?array $audit = null): array
     {
         $key = strtolower(trim($key));
         if (!preg_match('/\A[A-Za-z0-9._:-]+\z/', $key) || strlen($key) > 255 || trim($payload['reason'] ?? '') === '') {
@@ -97,7 +108,7 @@ class BonusAdministrationService
         $token = $this->locks->acquire($lockKey, 180);
         if (!$token) { throw new InvalidArgumentException('Esta solicitud está en curso. Reintenta con la misma llave.'); }
         try {
-            return DB::connection('sqlsrv')->transaction(function () use ($key, $hash, $actor, $action, $payload, $callback, $lockKey, $token) {
+            return DB::connection('sqlsrv')->transaction(function () use ($key, $hash, $actor, $action, $payload, $callback, $lockKey, $token, $audit) {
                 $existing = BonusAdministrativeOperation::where('idempotency_key', $key)->first();
                 if ($existing) {
                     if (!hash_equals($existing->request_hash, $hash)) {
@@ -110,7 +121,7 @@ class BonusAdministrationService
                 $operation = BonusAdministrativeOperation::create([
                     'public_id' => (string) Str::uuid(), 'bonus_id' => $bonus->public_id, 'action' => $action,
                     'actor_id' => $actor, 'idempotency_key' => $key, 'request_hash' => $hash, 'reason' => $payload['reason'],
-                    'request_data' => $payload, 'before_data' => $before, 'after_data' => $this->snapshot($bonus), 'created_at' => now(),
+                    'request_data' => $audit === null ? $payload : [...$payload, 'audit_context' => $audit], 'before_data' => $before, 'after_data' => $this->snapshot($bonus), 'created_at' => now(),
                 ]);
                 return ['operation' => $operation, 'replayed' => false];
             });
@@ -129,7 +140,8 @@ class BonusAdministrationService
     {
         return ['id' => strtolower($bonus->public_id), 'status' => $bonus->status->value, 'type' => $bonus->type->value,
             'beneficiary_type' => $bonus->beneficiary_type, 'beneficiary_id' => $bonus->beneficiary_id,
-            'issuer_type' => $bonus->issuer_type, 'issuer_id' => $bonus->issuer_id, 'currency' => $bonus->currency,
+            'issuer_type' => $bonus->issuer_type, 'issuer_id' => $bonus->issuer_id,
+            'issuer_scope_type' => $bonus->issuer_scope_type, 'issuer_scope_id' => $bonus->issuer_scope_id, 'currency' => $bonus->currency,
             'original_amount_cents' => $bonus->original_amount_cents, 'remaining_amount_cents' => $bonus->remaining_amount_cents,
             'valid_from' => $bonus->valid_from?->toISOString(), 'expires_at' => $bonus->expires_at?->toISOString(),
             'combinable' => $bonus->combinable, 'allows_partial_use' => $bonus->allows_partial_use,

@@ -1,11 +1,17 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-const props = defineProps({ permissions: Object, types: Array, userId: String, timezone: String });
+const props = defineProps({ permissions: Object, types: Array, userId: String, timezone: String, issuerContexts: Array, roleIntegration: Boolean });
+const scopeLabels = { business: 'Negocio', association: 'Asociación', council: 'Consejo', service: 'Servicio' };
 const labels = { BECA: 'Beca', CAMPANIA: 'Campaña', BENEFICIO: 'Beneficio', NEGOCIO: 'Negocio', CATEGORIA: 'Categoría', ISSUE: 'Emisión', CANCEL: 'Cancelación' };
 const form = ref({ beneficiary_id: '', type: 'BENEFICIO', amount: '', valid_from: '', expires_at: '', combinable: false, allows_partial_use: false, external_reference: '', reason: '', restrictions: [] });
+const contextIndex = ref(0);
+const chosenContext = computed(() => (props.issuerContexts || [])[contextIndex.value]);
+const permittedTypes = computed(() => props.roleIntegration ? (chosenContext.value?.types || []) : props.types);
+const optionalGlobalScope = ref(''); const optionalGlobalId = ref('');
+watch(chosenContext, (context) => { if (context && !context.types.includes(form.value.type)) form.value.type = context.types[0]; }, { immediate: true });
 const captureZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const recipient = ref(null); const issueAttempt = ref(null); const issueBusy = ref(false);
 const message = ref(''); const error = ref(''); const records = ref([]); const meta = ref(null); const listBusy = ref(false);
@@ -20,6 +26,12 @@ function cents(value) {
     if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('Introduce un importe mayor que cero, con hasta dos decimales.');
     return amount;
 }
+
+const businessScope = computed(() => chosenContext.value?.scope_type === 'business' ? chosenContext.value.scope_id : (chosenContext.value?.scope_type === null && optionalGlobalScope.value === 'business' ? optionalGlobalId.value.trim() : null));
+watch(businessScope, id => {
+    if (issueAttempt.value) return;
+    if (id) form.value.restrictions = [...form.value.restrictions.filter(r => r.type !== 'NEGOCIO'), { type: 'NEGOCIO', target_id: id }];
+}, { immediate: true });
 async function lookup() {
     error.value = ''; const id = form.value.beneficiary_id.trim().toLowerCase(); recipient.value = null;
     try { const r = await axios.get(route('financial.bonuses.admin.beneficiary', id)); if (form.value.beneficiary_id.trim().toLowerCase() === id) recipient.value = r.data.data; }
@@ -39,6 +51,7 @@ async function issue() {
             if (!recipient.value || recipient.value.id !== form.value.beneficiary_id.trim().toLowerCase()) throw new Error('Comprueba la cuenta beneficiaria antes de emitir.');
             if (!form.value.valid_from || !form.value.expires_at) throw new Error('Completa las fechas de vigencia.');
             const payload = { ...form.value, beneficiary_id: recipient.value.id, amount_cents: cents(form.value.amount), valid_from: new Date(form.value.valid_from).toISOString(), expires_at: new Date(form.value.expires_at).toISOString(), restrictions: form.value.restrictions.map(row => ({ ...row })) };
+            if (props.roleIntegration) { payload.issuer_scope_type = chosenContext.value?.scope_type ?? (optionalGlobalScope.value || null); payload.issuer_scope_id = chosenContext.value?.scope_id ?? (optionalGlobalScope.value ? optionalGlobalId.value.trim() : null); }
             delete payload.amount; issueAttempt.value = { key: crypto.randomUUID(), payload };
         }
         issueBusy.value = true;
@@ -83,19 +96,21 @@ onMounted(() => load());
             <p v-if="!permissions.view && !permissions.issue && !permissions.cancel" class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-[#00338D]">La administración requiere autorización. Tu cuenta puede consultar sus propios bonos en Mis bonos.</p>
             <p v-if="error" role="alert" class="rounded-xl bg-red-50 p-4 text-sm text-red-700">{{ error }}</p><p v-if="message" role="status" class="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800">{{ message }}</p>
             <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 class="text-xl font-bold text-[#00338D]">Emitir un bono</h2><p class="mt-2 text-sm text-slate-500">Se registra en MXN. El bono conserva su propio saldo y condiciones.</p>
+                <div class="flex flex-wrap justify-between gap-3"><h2 class="text-xl font-bold text-[#00338D]">Emitir un bono</h2><Link v-if="permissions.manage_roles" :href="route('financial.bonuses.roles.index')" class="text-sm font-semibold text-[#00338D]">Administrar roles de bonos</Link></div><p class="mt-2 text-sm text-slate-500">Se registra en MXN. El bono conserva su propio saldo y condiciones.</p>
                 <p v-if="!permissions.issue" class="mt-4 text-sm text-slate-500">No tienes permiso para emitir bonos.</p>
                 <form v-else @submit.prevent="issue" class="mt-5 space-y-4">
                     <fieldset :disabled="issueBusy || !!issueAttempt" class="grid gap-4 sm:grid-cols-2 disabled:opacity-70">
+                        <label v-if="roleIntegration" class="text-sm text-slate-600 sm:col-span-2">Ámbito autorizado<select v-model="contextIndex" class="mt-1 w-full rounded-lg border-slate-300"><option v-for="(context, i) in issuerContexts" :key="i" :value="i">{{ context.scope_type ? `${scopeLabels[context.scope_type]}: ${context.scope_id}` : 'Administración global' }}</option></select></label>
+                        <template v-if="roleIntegration && chosenContext?.scope_type === null"><label class="text-sm text-slate-600">Emitir para un contexto específico (opcional)<select v-model="optionalGlobalScope" class="mt-1 w-full rounded-lg border-slate-300"><option value="">Emisión global</option><option value="business">Negocio</option><option value="association">Asociación</option><option value="council">Consejo</option><option value="service">Servicio</option></select></label><label v-if="optionalGlobalScope" class="text-sm text-slate-600">Identificador del contexto<input v-model="optionalGlobalId" required maxlength="100" class="mt-1 w-full rounded-lg border-slate-300" /></label></template>
                         <label class="text-sm text-slate-600">Identificador de cuenta beneficiaria<input v-model="form.beneficiary_id" @input="recipient = null" required maxlength="24" class="mt-1 w-full rounded-lg border-slate-300" /><button type="button" @click="lookup" class="mt-2 text-sm font-semibold text-[#00338D]">Comprobar cuenta</button><span v-if="recipient" class="ml-3 font-semibold text-emerald-700">{{ recipient.name }}</span></label>
-                        <label class="text-sm text-slate-600">Tipo<select v-model="form.type" class="mt-1 w-full rounded-lg border-slate-300"><option v-for="value in types" :key="value" :value="value">{{ labels[value] }}</option></select></label>
+                        <label class="text-sm text-slate-600">Tipo<select v-model="form.type" class="mt-1 w-full rounded-lg border-slate-300"><option v-for="value in permittedTypes" :key="value" :value="value">{{ labels[value] }}</option></select></label>
                         <label class="text-sm text-slate-600">Importe en pesos (MXN)<input v-model="form.amount" required inputmode="decimal" placeholder="Ejemplo: 100.00" class="mt-1 w-full rounded-lg border-slate-300" /></label>
                         <label class="text-sm text-slate-600">Referencia externa (opcional)<input v-model="form.external_reference" maxlength="255" class="mt-1 w-full rounded-lg border-slate-300" /></label>
                         <label class="text-sm text-slate-600">Inicio de vigencia<input v-model="form.valid_from" required type="datetime-local" class="mt-1 w-full rounded-lg border-slate-300" /></label><label class="text-sm text-slate-600">Vencimiento<input v-model="form.expires_at" required type="datetime-local" class="mt-1 w-full rounded-lg border-slate-300" /></label>
                         <p class="text-xs text-slate-500 sm:col-span-2">Zona horaria de captura: {{ captureZone }}. Revisa las fechas antes de emitir.</p>
                         <label class="text-sm"><input v-model="form.combinable" type="checkbox" class="mr-2 rounded" />Puede combinarse con otros bonos</label><label class="text-sm"><input v-model="form.allows_partial_use" type="checkbox" class="mr-2 rounded" />Permite uso parcial</label>
                         <label class="text-sm text-slate-600 sm:col-span-2">Motivo de emisión<textarea v-model="form.reason" required maxlength="1000" class="mt-1 w-full rounded-lg border-slate-300" /></label>
-                        <div class="sm:col-span-2"><h3 class="font-semibold text-[#00338D]">Restricciones iniciales</h3><p class="mt-1 text-xs text-slate-500">Negocio y Categoría requieren al menos una restricción del mismo tipo. Usa los identificadores registrados en el sistema correspondiente.</p>
+                        <div class="sm:col-span-2"><h3 class="font-semibold text-[#00338D]">Restricciones iniciales</h3><p class="mt-1 text-xs text-slate-500">Negocio y Categoría requieren al menos una restricción del mismo tipo. Usa los identificadores registrados en el sistema correspondiente. Una emisión de negocio debe incluir únicamente su negocio autorizado.</p>
                             <div v-for="(restriction, index) in form.restrictions" :key="index" class="mt-3 flex flex-wrap gap-2"><select v-model="restriction.type" class="rounded-lg border-slate-300 text-sm"><option value="NEGOCIO">Negocio</option><option value="CATEGORIA">Categoría</option></select><input v-model="restriction.target_id" required maxlength="255" placeholder="Identificador del destino" class="flex-1 rounded-lg border-slate-300 text-sm" /><button type="button" @click="form.restrictions.splice(index, 1)" class="text-sm text-red-700">Quitar</button></div>
                             <button type="button" :disabled="form.restrictions.length >= 50" @click="form.restrictions.push({ type: 'NEGOCIO', target_id: '' })" class="mt-3 text-sm font-semibold text-[#00338D]">Agregar restricción</button>
                         </div>
@@ -111,7 +126,7 @@ onMounted(() => load());
                 </template>
             </section>
             <section v-if="selected" class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div class="flex justify-between gap-3"><h2 class="font-bold text-[#00338D]">Auditoría del bono</h2><button @click="selected = null" :disabled="cancelBusy" class="text-sm text-slate-500">Cerrar</button></div><p class="mt-2 break-all text-xs text-slate-500">{{ selected.id }}</p><p v-if="auditBusy" role="status" class="mt-4 text-sm text-slate-500">Cargando auditoría…</p>
-                <article v-for="entry in audit" :key="entry.id" class="mt-4 rounded-xl border border-slate-200 p-4"><p class="font-semibold">{{ labels[entry.action] }} · {{ date(entry.created_at) }}</p><p class="mt-1 text-sm text-slate-600">{{ entry.reason }}</p><p class="mt-1 break-all text-xs text-slate-500">Responsable: {{ entry.actor_id }}</p><p class="mt-2 text-sm">Saldo anterior: {{ entry.before ? money(entry.before.remaining_amount_cents, entry.before.currency) : 'Bono nuevo' }} · Saldo posterior: {{ money(entry.after.remaining_amount_cents, entry.after.currency) }} · {{ entry.after.status }}</p><details class="mt-3 text-sm"><summary class="cursor-pointer text-[#00338D]">Condiciones registradas</summary><p class="mt-2">Tipo: {{ labels[entry.after.type] }} · Cuenta: {{ entry.after.beneficiary_id }}</p><p>Vigencia: {{ date(entry.after.valid_from) }} — {{ date(entry.after.expires_at) }}</p><p>Combinable: {{ entry.after.combinable ? 'Sí' : 'No' }} · Uso parcial: {{ entry.after.allows_partial_use ? 'Sí' : 'No' }}</p><p v-for="(restriction, i) in entry.after.restrictions" :key="i" class="break-all">{{ labels[restriction.type] }}: {{ restriction.target_id }}</p></details></article>
+                <article v-for="entry in audit" :key="entry.id" class="mt-4 rounded-xl border border-slate-200 p-4"><p class="font-semibold">{{ labels[entry.action] }} · {{ date(entry.created_at) }}</p><p class="mt-1 text-sm text-slate-600">{{ entry.reason }}</p><p class="mt-1 break-all text-xs text-slate-500">Responsable: {{ entry.actor_id }}</p><p class="mt-2 text-sm">Saldo anterior: {{ entry.before ? money(entry.before.remaining_amount_cents, entry.before.currency) : 'Bono nuevo' }} · Saldo posterior: {{ money(entry.after.remaining_amount_cents, entry.after.currency) }} · {{ entry.after.status }}</p><details class="mt-3 text-sm"><summary class="cursor-pointer text-[#00338D]">Condiciones registradas</summary><p class="mt-2">Tipo: {{ labels[entry.after.type] }} · Cuenta: {{ entry.after.beneficiary_id }}</p><p v-if="entry.after.issuer_scope_type">Ámbito: {{ scopeLabels[entry.after.issuer_scope_type] }} · {{ entry.after.issuer_scope_id }}</p><p>Vigencia: {{ date(entry.after.valid_from) }} — {{ date(entry.after.expires_at) }}</p><p>Combinable: {{ entry.after.combinable ? 'Sí' : 'No' }} · Uso parcial: {{ entry.after.allows_partial_use ? 'Sí' : 'No' }}</p><p v-for="(restriction, i) in entry.after.restrictions" :key="i" class="break-all">{{ labels[restriction.type] }}: {{ restriction.target_id }}</p></details></article>
                 <p v-if="!audit.length && !auditBusy" class="mt-4 text-sm text-slate-500">No hay operaciones administrativas de este módulo para el bono. Se conserva su historial financiero previo.</p><nav v-if="auditMeta && auditMeta.last_page > 1" class="mt-5 flex justify-center gap-4"><button :disabled="cancelBusy || auditBusy || auditMeta.current_page <= 1" @click="showAudit(selected, auditMeta.current_page - 1)">Anterior</button><span>{{ auditMeta.current_page }} / {{ auditMeta.last_page }}</span><button :disabled="cancelBusy || auditBusy || auditMeta.current_page >= auditMeta.last_page" @click="showAudit(selected, auditMeta.current_page + 1)">Siguiente</button></nav>
                 <form v-if="selected.can_cancel" @submit.prevent="cancel" class="mt-6 border-t border-slate-200 pt-5"><h3 class="font-bold text-red-700">Cancelar el saldo restante</h3><p class="mt-1 text-sm text-slate-500">La cancelación conserva el historial y no acredita la wallet.</p><label class="mt-3 block text-sm">Motivo<textarea v-model="cancelReason" :disabled="cancelBusy || !!cancelAttempt" required maxlength="1000" class="mt-1 w-full rounded-lg border-slate-300" /></label><button :disabled="cancelBusy" class="mt-3 rounded-lg bg-red-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{{ cancelBusy ? 'Procesando…' : cancelAttempt ? 'Reintentar cancelación' : 'Confirmar cancelación' }}</button></form>
             </section>

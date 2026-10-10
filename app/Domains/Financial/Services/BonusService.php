@@ -33,7 +33,8 @@ class BonusService
     CarbonInterface $expiresAt,
     bool $combinable = false,
     bool $allowsPartialUse = false,
-    ?string $externalReference = null
+    ?string $externalReference = null,
+    ?\App\Domains\Financial\Data\BonusIssuerContext $issuerContext = null
     ): Bonus {
     if ($amountCents <= 0) {
         throw new InvalidArgumentException(
@@ -47,15 +48,11 @@ class BonusService
         );
     }
 
-    if (!$this->bonusAuthorization->canIssueBonus(
-        $issuerType,
-        $issuerId,
-        $type
-    )) {
-        throw new InvalidArgumentException(
-            'El emisor no está autorizado para asignar este tipo de bono.'
-        );
-    }
+    $authorized = $issuerContext === null
+        ? $this->bonusAuthorization->canIssueBonus($issuerType, $issuerId, $type)
+        : ($this->bonusAuthorization instanceof \App\Domains\Financial\Contracts\ContextualBonusAuthorizationProvider
+            && $this->bonusAuthorization->canIssueInContext($issuerType, $issuerId, $type, $issuerContext));
+    if (!$authorized) { throw new InvalidArgumentException('El emisor no está autorizado para asignar este tipo de bono.'); }
 
     if ($issuerType === '' || $issuerId === '') {
         throw new InvalidArgumentException(
@@ -81,7 +78,8 @@ class BonusService
         $expiresAt,
         $combinable,
         $allowsPartialUse,
-        $externalReference
+        $externalReference,
+        $issuerContext
     ): Bonus {
         $status = $validFrom->isFuture()
             ? BonusStatus::PENDIENTE
@@ -93,6 +91,7 @@ class BonusService
             'beneficiary_id' => $beneficiaryId,
             'issuer_type' => $issuerType,
             'issuer_id' => $issuerId,
+            ...($issuerContext?->toArray() ?? []),
             'type' => $type,
             'original_amount_cents' => $amountCents,
             'remaining_amount_cents' => $amountCents,
