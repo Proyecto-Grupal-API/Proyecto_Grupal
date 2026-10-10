@@ -14,6 +14,7 @@ class RoleController extends Controller
         return Inertia::render('Roles/Index', [
             'userRoles' => $user->roles ?? [],
             'twoFactorEnabled' => ! empty($user->two_factor_secret),
+            'twoFactorConfirmed' => ! empty($user->two_factor_secret) && ! empty($user->two_factor_confirmed_at),
         ]);
     }
     public function assign(Request $request)
