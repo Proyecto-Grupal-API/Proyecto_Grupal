@@ -13,7 +13,7 @@ class RoleAssignment extends AuthorizationLifecycleRecord
     protected $fillable = [
         'user_id', 'role_key', 'scope_type', 'scope_id', 'campus_id', 'status',
         'starts_at', 'ends_at', 'assigned_at', 'assigned_by', 'reason',
-        'origin', 'assignment_audit', 'source_key', 'source_fingerprint',
+        'origin', 'source_key', 'source_fingerprint',
     ];
 
     protected function identityFields(): array

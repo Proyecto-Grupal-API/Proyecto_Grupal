@@ -39,7 +39,6 @@ const showingNavigationDropdown = ref(false);
                                 <NavLink :href="route('roles.index')" :active="route().current('roles.index')">
                                     Roles y Seguridad
                                 </NavLink>
-                                <NavLink v-if="$page.props.campusAuthorization?.canManage" :href="route('campus.authorization.index')" :active="route().current('campus.authorization.*')">Administrar acceso</NavLink>
                                 <NavLink :href="route('security.devices.index')" :active="route().current('security.devices.index')">
                                     Dispositivos
                                 </NavLink>
@@ -104,7 +103,6 @@ const showingNavigationDropdown = ref(false);
                         <ResponsiveNavLink :href="route('roles.index')" :active="route().current('roles.index')">
                             Roles y Seguridad
                         </ResponsiveNavLink>
-                        <ResponsiveNavLink v-if="$page.props.campusAuthorization?.canManage" :href="route('campus.authorization.index')" :active="route().current('campus.authorization.*')">Administrar acceso</ResponsiveNavLink>
                         <ResponsiveNavLink :href="route('security.devices.index')" :active="route().current('security.devices.index')">
                             Dispositivos
                         </ResponsiveNavLink>

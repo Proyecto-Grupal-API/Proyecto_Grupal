@@ -5,27 +5,16 @@ use App\Domains\Financial\Models\{PurchasePayment,Wallet,TopUp,LegacyCashReceipt
 use App\Domains\Financial\Services\{WalletService,LedgerService};
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use CampusDigital\Authorization\{Kernel,Store,Directory};
+require_once __DIR__.'/Support/ReceiptAuthorizationFixture.php';
 
 beforeEach(function(){
     if(!app()->environment('testing')||config('database.connections.sqlsrv.database')!=='campus_digital_financial_testing'
        ||config('database.connections.mongodb.database')!=='campus_virtual_testing')throw new RuntimeException('Solo bases de pruebas.');
     DB::connection('sqlsrv')->beginTransaction();$this->dp29Users=[];$this->withoutVite();$this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class);
-    $store=new class implements Store {
-        public array $rows=[];
-        public function transaction(callable $work):mixed {$old=$this->rows;try{return $work();}catch(Throwable $e){$this->rows=$old;throw $e;}}
-        public function get(string $key):?array{return $this->rows[$key]??null;}
-        public function put(string $key,array $value):void{$this->rows[$key]=$value;}
-    };
-    $directory=new class implements Directory {
-        public array $inactive=[];
-        public function account(string $identity):?array{return ['identity'=>$identity,'active'=>!in_array($identity,$this->inactive,true),'verified'=>true];}
-        public function scopeExists(string $type,string $id):bool{return ($type==='business'&&in_array($id,['dp29-business-a','dp29-business-b'],true))||($type==='association'&&$id==='dp29-association');}
-    };
-    $this->dp29Directory=$directory;
-    config(['campus_authorization.enabled'=>true,'financial_receipts.administration_provider'=>'campus']);
-    $this->dp29Kernel=new Kernel($store,$directory,config('campus_authorization.catalog'),true);
-    app()->instance(Kernel::class,$this->dp29Kernel);
+    $this->dp29Access = new \Tests\ReceiptAuthorizationFixture('dp29');
+    $this->dp29Directory = $this->dp29Access;
+    app()->instance(\App\Domains\Financial\Contracts\ReceiptAdministrativeAuthorization::class,$this->dp29Access);
+    app()->instance(\App\Domains\Financial\Contracts\LegacyCashReceiptAuthorization::class,$this->dp29Access);
 });
 afterEach(function(){
     while(DB::connection('sqlsrv')->transactionLevel()>0)DB::connection('sqlsrv')->rollBack();
@@ -34,7 +23,7 @@ afterEach(function(){
 function dp29User($test,bool $confirmed=true):array {
     $u=User::factory()->create();$u->forceFill(['email_verified_at'=>now(),'account_activation_pending'=>false,
         'two_factor_secret'=>$confirmed?encrypt('fixture-secret'):null,'two_factor_confirmed_at'=>$confirmed?now():null])->save();
-    $test->dp29Users[]=(string)$u->getKey();$principal=$test->dp29Kernel->register((string)$u->getKey());
+    $test->dp29Users[]=(string)$u->getKey();$principal=(string)$u->getKey();
     $w=app(WalletService::class)->create('USER',(string)$u->getKey(),WalletType::USUARIO);
     return [$u,$w,$principal];
 }
@@ -47,7 +36,7 @@ function dp29Lookup(string $source,string $id,Wallet $w,?array $scope=null,array
     return '/finanzas/comprobantes-administracion/lookup?'.http_build_query(array_merge(['source'=>$source,'operation_id'=>$id,'wallet_id'=>$w->public_id],
         $scope?['scope_type'=>$scope['type'],'scope_id'=>$scope['id']]:[],$extra));
 }
-function dp29Bootstrap($test,string $principal):void {$test->dp29Kernel->seat(null,2,$principal,'Administrador de pruebas',true);}
+function dp29Bootstrap($test,string $principal):void {$test->dp29Access->allowGlobal($principal);}
 
 function dp29Cash($test,Wallet $w):array {
     $r=TopUp::create(['public_id'=>(string)Str::uuid(),'wallet_id'=>$w->public_id,'amount_cents'=>1000,

@@ -17,18 +17,13 @@ class RolePermission extends Model
 
     // Stable catalog keys avoid coupling mappings to environment-specific ObjectIds.
     public const MAPPINGS = [
-        'business_owner' => ['business.manage', 'business.members.manage', 'business.operate', 'business.sales.operate', 'business.inventory.operate', ...\App\Domains\Identity\Authorization\FinancialRoleCatalog::MAPPINGS['business_owner']],
+        'business_owner' => ['business.manage', 'business.members.manage', 'business.operate', 'business.sales.operate', 'business.inventory.operate'],
         'business_manager' => ['business.operate', 'business.sales.operate', 'business.inventory.operate'],
         'cashier' => ['business.sales.operate'],
         'inventory_manager' => ['business.inventory.operate'],
         'organization_manager' => ['organizations.institutional.manage'],
         'career_coordinator' => ['academic.program.coordinate'],
         'department_head' => ['academic.department.manage'],
-        'auditor' => \App\Domains\Identity\Authorization\FinancialRoleCatalog::MAPPINGS['auditor'],
-        'admin' => \App\Domains\Identity\Authorization\FinancialRoleCatalog::MAPPINGS['admin'],
-        'consejo_estudiantil' => \App\Domains\Identity\Authorization\FinancialRoleCatalog::MAPPINGS['consejo_estudiantil'],
-        'scholarship_committee' => \App\Domains\Identity\Authorization\FinancialRoleCatalog::MAPPINGS['scholarship_committee'],
-        'association_president' => \App\Domains\Identity\Authorization\FinancialRoleCatalog::MAPPINGS['association_president'],
     ];
 
     protected static function booted(): void

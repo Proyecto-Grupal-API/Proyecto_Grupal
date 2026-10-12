@@ -5,27 +5,16 @@ use App\Domains\Financial\Models\{PurchasePayment,Wallet,TopUp,LegacyCashReceipt
 use App\Domains\Financial\Services\{WalletService,LedgerService};
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use CampusDigital\Authorization\{Kernel,Store,Directory};
+require_once __DIR__.'/Support/ReceiptAuthorizationFixture.php';
 
 beforeEach(function(){
     if(!app()->environment('testing')||config('database.connections.sqlsrv.database')!=='campus_digital_financial_testing'
        ||config('database.connections.mongodb.database')!=='campus_virtual_testing')throw new RuntimeException('Solo bases de pruebas.');
     DB::connection('sqlsrv')->beginTransaction();$this->hr29Users=[];$this->withoutVite();$this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class);
-    $store=new class implements Store {
-        public array $rows=[];
-        public function transaction(callable $work):mixed {$old=$this->rows;try{return $work();}catch(Throwable $e){$this->rows=$old;throw $e;}}
-        public function get(string $key):?array{return $this->rows[$key]??null;}
-        public function put(string $key,array $value):void{$this->rows[$key]=$value;}
-    };
-    $directory=new class implements Directory {
-        public array $inactive=[];
-        public function account(string $identity):?array{return ['identity'=>$identity,'active'=>!in_array($identity,$this->inactive,true),'verified'=>true];}
-        public function scopeExists(string $type,string $id):bool{return ($type==='business'&&in_array($id,['hr29-business-a','hr29-business-b'],true))||($type==='association'&&$id==='hr29-association');}
-    };
-    $this->hr29Directory=$directory;
-    config(['campus_authorization.enabled'=>true,'financial_receipts.administration_provider'=>'campus']);
-    $this->hr29Kernel=new Kernel($store,$directory,config('campus_authorization.catalog'),true);
-    app()->instance(Kernel::class,$this->hr29Kernel);
+    $this->hr29Access = new \Tests\ReceiptAuthorizationFixture('hr29');
+    $this->hr29Directory = $this->hr29Access;
+    app()->instance(\App\Domains\Financial\Contracts\ReceiptAdministrativeAuthorization::class,$this->hr29Access);
+    app()->instance(\App\Domains\Financial\Contracts\LegacyCashReceiptAuthorization::class,$this->hr29Access);
 });
 afterEach(function(){
     while(DB::connection('sqlsrv')->transactionLevel()>0)DB::connection('sqlsrv')->rollBack();
@@ -34,7 +23,7 @@ afterEach(function(){
 function hr29User($test,bool $confirmed=true):array {
     $u=User::factory()->create();$u->forceFill(['email_verified_at'=>now(),'account_activation_pending'=>false,
         'two_factor_secret'=>$confirmed?encrypt('fixture-secret'):null,'two_factor_confirmed_at'=>$confirmed?now():null])->save();
-    $test->hr29Users[]=(string)$u->getKey();$principal=$test->hr29Kernel->register((string)$u->getKey());
+    $test->hr29Users[]=(string)$u->getKey();$principal=(string)$u->getKey();
     $w=app(WalletService::class)->create('USER',(string)$u->getKey(),WalletType::USUARIO);
     return [$u,$w,$principal];
 }
@@ -47,7 +36,7 @@ function hr29Lookup(string $source,string $id,Wallet $w,?array $scope=null,array
     return '/finanzas/comprobantes-administracion/lookup?'.http_build_query(array_merge(['source'=>$source,'operation_id'=>$id,'wallet_id'=>$w->public_id],
         $scope?['scope_type'=>$scope['type'],'scope_id'=>$scope['id']]:[],$extra));
 }
-function hr29Bootstrap($test,string $principal):void {$test->hr29Kernel->seat(null,2,$principal,'Administrador de pruebas',true);}
+function hr29Bootstrap($test,string $principal):void {$test->hr29Access->allowGlobal($principal);}
 
 function hr29Cash($test,Wallet $w):array {
     $r=TopUp::create(['public_id'=>(string)Str::uuid(),'wallet_id'=>$w->public_id,'amount_cents'=>1000,
@@ -68,10 +57,10 @@ function hr29Record($test,User $admin,Wallet $wallet):array {
 }
 function hr29History(string $suffix=''):string {return '/finanzas/comprobantes-administracion/history'.$suffix;}
 
-test('review history requires authentication global seat and confirmed second factor',function(){
+test('review history requires authentication trusted administrator and confirmed second factor',function(){
     $this->getJson(hr29History())->assertUnauthorized();$this->getJson(hr29History('/records'))->assertUnauthorized();
     [$admin,$aw,$global]=hr29User($this);hr29Bootstrap($this,$global);[$operator,$ow,$principal]=hr29User($this);
-    $this->hr29Kernel->grant($global,$principal,2,['module.2.9.read','module.2.9.configure'],null,true,null,'Permiso modular');
+    $this->hr29Access->allowScope($principal,['module.2.9.read','module.2.9.configure'],null,true,null,'Permiso modular');
     $this->actingAs($operator)->getJson(hr29History('/records'))->assertForbidden();
     $admin->forceFill(['two_factor_confirmed_at'=>null])->save();$this->actingAs($admin)->getJson(hr29History())->assertForbidden();
 });

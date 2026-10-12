@@ -7,7 +7,8 @@ return [
             'reference_id'=>'50cbf60a-b4af-4f3e-bbfa-972edb736462', 'amount_cents'=>10000,
         ],
     ],
-    'administration_provider' => env('FINANCIAL_RECEIPT_ADMIN_PROVIDER', 'pending'),
+    'administration_provider' => 'pending', // Await the approved Identity contract.
     // A trusted integration replaces this binding. Never fall back on failure.
-    'delegation_provider' => App\Domains\Financial\Adapters\PendingReceiptDelegationProvider::class,
+    'delegation_provider' => env('FINANCIAL_RECEIPT_DELEGATION_PROVIDER', App\Domains\Financial\Adapters\PendingReceiptDelegationProvider::class),
+    'delegation_ttl_seconds' => (int) env('FINANCIAL_RECEIPT_DELEGATION_TTL_SECONDS',600),
 ];

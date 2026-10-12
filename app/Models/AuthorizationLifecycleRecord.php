@@ -20,7 +20,7 @@ abstract class AuthorizationLifecycleRecord extends Model
         'is_current' => 'boolean', 'revision' => 'integer', 'generation' => 'integer',
         'starts_at' => 'datetime', 'ends_at' => 'datetime', 'assigned_at' => 'datetime',
         'joined_at' => 'datetime', 'suspended_at' => 'datetime', 'revoked_at' => 'datetime',
-        'transitions' => AsBsonArray::class, 'assignment_audit' => AsBsonArray::class,
+        'transitions' => AsBsonArray::class,
     ];
 
     public const STATUSES = ['pending', 'active', 'suspended', 'revoked'];
@@ -63,7 +63,6 @@ abstract class AuthorizationLifecycleRecord extends Model
             $record->validateUserReference('assigned_by');
             $record->validateUserReference('revoked_by');
             $record->validateContext();
-            $record->initial_reason ??= $record->reason;
             if (! in_array($record->status, ['pending', 'active'], true) || ! $record->is_current || $record->revision !== 1) {
                 throw ValidationException::withMessages(['status' => 'Una nueva generación debe comenzar pending o active, current y revision 1.']);
             }
@@ -114,7 +113,7 @@ abstract class AuthorizationLifecycleRecord extends Model
         return $query;
     }
 
-    public function transitionTo(string $status, mixed $actorId = null, ?string $reason = null, ?array $audit = null): void
+    public function transitionTo(string $status, mixed $actorId = null, ?string $reason = null): void
     {
         if (! $this->exists || $this->isDirty() || ! $this->is_current
             || ! in_array($status, self::TRANSITIONS[$this->status] ?? [], true)) {
@@ -132,7 +131,7 @@ abstract class AuthorizationLifecycleRecord extends Model
         $changes = ['status' => $status, 'revision' => $this->revision + 1, 'reason' => $reason,
             'transitions' => [...($this->transitions ?? []), [
                 'from' => $this->status, 'to' => $status, 'actor_id' => $actorId,
-                'reason' => $reason, 'audit' => $audit, 'at' => now()->toIso8601String(), 'revision' => $this->revision + 1,
+                'reason' => $reason, 'at' => now()->toIso8601String(), 'revision' => $this->revision + 1,
             ]],
         ];
         if ($status === 'suspended') {

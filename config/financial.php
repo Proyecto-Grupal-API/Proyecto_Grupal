@@ -19,8 +19,6 @@ $csv = static fn (?string $value): array => array_values(array_filter(array_map(
 )));
 
 return [
-    'bonus_roles' => ['enabled' => env('FINANCIAL_BONUS_ROLE_INTEGRATION', false),
-        'authorizer' => \App\Domains\Identity\Services\FinancialCapabilityAuthorization::class],
     'cash' => ['reconciliation_enabled' => env('FINANCIAL_CASH_RECONCILIATION_ENABLED', false),
         'confirmation_ttl_seconds' => (int) env('FINANCIAL_CASH_CONFIRMATION_TTL_SECONDS', 300)],
 

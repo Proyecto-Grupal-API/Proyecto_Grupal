@@ -26,13 +26,8 @@ class BonusAdministrationService
     {
         $type = BonusType::from($data['type']);
         $context = null;
-        if (config('financial.bonus_roles.enabled')) {
-            $context = new \App\Domains\Financial\Data\BonusIssuerContext($data['issuer_scope_type'] ?? null, $data['issuer_scope_id'] ?? null);
-            app(BonusRoleAccess::class)->requireIssue($userId, $type, $context);
-        } else {
-            $this->authorize($userId, 'bonus.issue');
-            if (!$this->issuers->canIssueBonus('USER', $userId, $type)) { throw new AuthorizationException('El emisor no tiene autorización para este tipo de bono.'); }
-        }
+        $this->authorize($userId, 'bonus.issue');
+        if (!$this->issuers->canIssueBonus('USER', $userId, $type)) { throw new AuthorizationException('El emisor no tiene autorización para este tipo de bono.'); }
         $start = CarbonImmutable::parse($data['valid_from'])->setTimezone(config('app.timezone', 'UTC'));
         $end = CarbonImmutable::parse($data['expires_at'])->setTimezone(config('app.timezone', 'UTC'));
         $restrictions = collect($data['restrictions'] ?? [])->map(fn ($row) => [
@@ -45,14 +40,8 @@ class BonusAdministrationService
             'external_reference' => trim((string) ($data['external_reference'] ?? '')) ?: null,
             'restrictions' => $restrictions, 'reason' => trim($data['reason']), ...($context?->toArray() ?? [])];
         return $this->run($userId, 'ISSUE', $payload, $key, function () use ($userId, $payload, $type, $start, $end, $context) {
-            if ($context !== null) { app(BonusRoleAccess::class)->requireIssue($userId, $type, $context); }
-            if ($context !== null) {
-                $beneficiary = app(\App\Domains\Financial\Contracts\BonusBeneficiaryProvider::class)->findActive($payload['beneficiary_id']);
-                if (!$beneficiary || ($beneficiary['id'] ?? null) !== $payload['beneficiary_id']) { throw new InvalidArgumentException('El beneficiario no existe o su cuenta no está activa y verificada.'); }
-            } else {
-                $beneficiary = User::find($payload['beneficiary_id']);
-                if (!$beneficiary || $beneficiary->account_activation_pending) { throw new InvalidArgumentException('El beneficiario no existe o su cuenta está pendiente de activación.'); }
-            }
+            $beneficiary = User::find($payload['beneficiary_id']);
+            if (!$beneficiary || $beneficiary->deleted_at || $beneficiary->account_activation_pending || $beneficiary->must_change_password || !$beneficiary->hasVerifiedEmail()) { throw new InvalidArgumentException('El beneficiario no existe o no está activo y verificado.'); }
             if ($end->lte($start) || $end->lte(now())) {
                 throw new InvalidArgumentException('La vigencia debe terminar después de su inicio y en una fecha futura.');
             }
@@ -81,16 +70,12 @@ class BonusAdministrationService
 
     public function cancel(string $userId, Bonus $bonus, string $reason, string $key, ?array $audit = null): array
     {
-        if (config('financial.bonus_roles.enabled')) { app(BonusRoleAccess::class)->requireCancel($userId, $bonus); }
-        else {
-            $this->authorize($userId, 'bonus.cancel');
-            if (!$this->isIssuer($userId, $bonus) && !$this->access->allows($userId, 'bonus.cancel.all')) { throw new AuthorizationException(); }
-        }
+        $this->authorize($userId, 'bonus.cancel');
+        if (!$this->isIssuer($userId, $bonus) && !$this->access->allows($userId, 'bonus.cancel.all')) { throw new AuthorizationException(); }
         return $this->run($userId, 'CANCEL', ['bonus_id' => strtolower($bonus->public_id), 'reason' => trim($reason)], $key,
             function () use ($userId, $bonus, $reason) {
                 $locked = Bonus::where('public_id', $bonus->public_id)->lockForUpdate()->firstOrFail();
-                if (config('financial.bonus_roles.enabled')) { app(BonusRoleAccess::class)->requireCancel($userId, $locked); }
-                elseif (!$this->isIssuer($userId, $locked) && !$this->access->allows($userId, 'bonus.cancel.all')) { throw new AuthorizationException(); }
+                if (!$this->isIssuer($userId, $locked) && !$this->access->allows($userId, 'bonus.cancel.all')) { throw new AuthorizationException(); }
                 $before = $this->snapshot($locked);
                 return [$this->bonuses->cancel($locked->public_id, 'user:' . $userId, trim($reason)), $before];
             }, $audit);

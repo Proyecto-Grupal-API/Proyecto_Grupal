@@ -20,7 +20,6 @@ class Permission extends Model
     protected $casts = ['active' => 'boolean'];
 
     public const CATALOG = [
-        ...\App\Domains\Identity\Authorization\FinancialRoleCatalog::PERMISSIONS,
         'business.manage' => ['Administrar negocio', 'business'],
         'business.members.manage' => ['Administrar integrantes del negocio', 'business'],
         'business.operate' => ['Operar negocio', 'business'],
@@ -38,7 +37,7 @@ class Permission extends Model
                 'key' => ['required', Rule::in(array_keys(self::CATALOG))],
                 'display_name' => ['required', 'string', 'max:150'],
                 'description' => ['nullable', 'string', 'max:1000'],
-                'domain' => ['required', Rule::in(['business', 'institutional', 'financial', 'identity'])],
+                'domain' => ['required', Rule::in(['business', 'institutional'])],
                 'active' => ['required', 'boolean'],
             ])->validate();
 

@@ -59,7 +59,6 @@ class Role extends Model
     public const NEW_ROLES = [
         'business_owner', 'business_manager', 'cashier', 'inventory_manager', 'buyer',
         'rewards_admin', 'auditor', 'organization_manager', 'career_coordinator', 'department_head',
-        ...\App\Domains\Identity\Authorization\FinancialRoleCatalog::NEW_ROLES,
     ];
 
     public const FOUNDATION_ROLES = [...self::VALID_ROLES, ...self::NEW_ROLES];
@@ -72,7 +71,6 @@ class Role extends Model
         'rewards_admin' => null, 'auditor' => null,
         'organization_manager' => 'campus', 'career_coordinator' => 'academic_program',
         'department_head' => 'department',
-        ...\App\Domains\Identity\Authorization\FinancialRoleCatalog::NEW_ROLE_SCOPES,
     ];
 
     /**

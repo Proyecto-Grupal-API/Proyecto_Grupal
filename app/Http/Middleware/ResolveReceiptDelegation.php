@@ -38,7 +38,7 @@ class ResolveReceiptDelegation
             }
         } catch (UnauthorizedHttpException | AccessDeniedHttpException $e) { throw $e; }
         catch (\Throwable $e) {
-            report($e);
+            logger()->error('Receipt delegation dependency failed.', ['exception_type'=>$e::class, 'correlation_id'=>app(\App\Domains\Financial\Support\FinancialCorrelation::class)->id()]);
             return response()->json(['message' => 'La autorización de comprobantes no está disponible.'], 503);
         }
         $request->attributes->set('receipt_delegated_user_id', strtolower($user));

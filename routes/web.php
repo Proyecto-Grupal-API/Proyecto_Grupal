@@ -42,7 +42,7 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
         Route::get('/{transferId}', [$transfers, 'show'])->whereUuid('transferId')->name('show');
     });
 
-    Route::prefix('finanzas/bonos/administracion')->name('financial.bonuses.admin.')->middleware(['financial.correlation', \App\Http\Middleware\RenderBonusRoleDependencyFailures::class])->group(function () {
+    Route::prefix('finanzas/bonos/administracion')->name('financial.bonuses.admin.')->middleware(['financial.correlation'])->group(function () {
         $admin = \App\Http\Controllers\Financial\BonusAdministrationWebController::class;
         Route::get('/', [$admin, 'index'])->name('index');
         Route::get('/records', [$admin, 'listing'])->name('records');
@@ -50,15 +50,6 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
         Route::post('/issue', [$admin, 'store'])->name('issue');
         Route::post('/{bonusId}/cancel', [$admin, 'cancel'])->whereUuid('bonusId')->name('cancel');
         Route::get('/{bonusId}/history', [$admin, 'history'])->whereUuid('bonusId')->name('history');
-    });
-
-    Route::prefix('finanzas/bonos/roles')->name('financial.bonuses.roles.')->middleware(['financial.correlation', \App\Http\Middleware\RenderBonusRoleDependencyFailures::class])->group(function () {
-        $roles = \App\Http\Controllers\Identity\BonusRoleAssignmentsController::class;
-        Route::get('/', [$roles, 'index'])->name('index');
-        Route::get('/lookup', [$roles, 'lookup'])->name('lookup');
-        Route::get('/records', [$roles, 'records'])->name('records');
-        Route::post('/', [$roles, 'assign'])->middleware('throttle:20,1')->name('assign');
-        Route::post('/{assignmentId}/revoke', [$roles, 'revoke'])->where('assignmentId', '[a-f0-9]{24}')->middleware('throttle:20,1')->name('revoke');
     });
 
     Route::prefix('finanzas/bonos')->name('financial.bonuses.')->group(function () {
