@@ -20,13 +20,19 @@ class PersonalReceiptWebController extends Controller
             'hasWallet' => (bool) $wallet,
         ]);
     }
-    public function show(Request $request, string $source, string $operationId) {
+    private function receipt(Request $request, string $source, string $operationId):array {
         $wallet = $this->wallet($request); abort_unless($wallet, 404);
         $receipt = match ($source) {
             'transaction' => $this->receipts->transaction($wallet, $operationId),
             'purchase' => $this->receipts->purchase($wallet, $operationId),
             default => abort(404),
         };
-        return Inertia::render('Financial/PersonalReceipt', ['receipt' => $receipt]);
+        return $receipt;
+    }
+    public function show(Request $request,string $source,string $operationId) {
+        return Inertia::render('Financial/PersonalReceipt',['receipt'=>$this->receipt($request,$source,$operationId)]);
+    }
+    public function downloadPdf(Request $request,string $source,string $operationId,\App\Domains\Financial\Services\ReceiptPdfService $pdf) {
+        return $pdf->download($this->receipt($request,$source,$operationId));
     }
 }

@@ -16,6 +16,7 @@ const print = () => window.print();
         <div class="mx-auto max-w-3xl">
             <nav class="screen-only mb-5 flex flex-wrap items-center justify-between gap-3">
                 <Link :href="route('financial.cash.index')" class="font-semibold text-[#00338D]">Volver a Caja y turnos</Link>
+                <a :href="route('financial.cash.receipts.pdf', {associationId: receipt.association_id, receiptId: receipt.id})" class="rounded-xl bg-[#00338D] px-5 py-3 font-semibold text-white">Descargar PDF</a>
                 <button type="button" class="rounded-xl bg-[#00338D] px-5 py-3 font-semibold text-white" @click="print">Imprimir o guardar PDF</button>
             </nav>
             <article class="receipt rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-10">

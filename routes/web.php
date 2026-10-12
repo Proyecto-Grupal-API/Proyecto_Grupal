@@ -147,6 +147,7 @@ Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group
             Route::post('/shifts/{shiftId}/withdrawal-refunds/{refundId}/recover', [$recoveries, 'recover'])
                 ->whereUuid(['shiftId', 'refundId'])->name('withdrawal-refunds.recover');
             Route::get('/receipts/{receiptId}', [$cash, 'receipt'])->whereUuid('receiptId')->name('receipts.show');
+            Route::get('/receipts/{receiptId}/pdf', [$cash, 'downloadReceiptPdf'])->whereUuid('receiptId')->middleware('throttle:20,1')->name('receipts.pdf');
             Route::get('/receipts/{receiptId}/imprimir', [$cash, 'printReceipt'])->whereUuid('receiptId')->name('receipts.print');
             $admin = \App\Http\Controllers\Financial\CashRegisterAdministrationWebController::class;
             Route::post('/registers', [$admin, 'storeRegister'])->name('registers.store');

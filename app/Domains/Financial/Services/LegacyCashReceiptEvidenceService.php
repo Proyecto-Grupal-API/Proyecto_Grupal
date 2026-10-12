@@ -8,6 +8,8 @@ class LegacyCashReceiptEvidenceService
     public function notice(Wallet $wallet,FinancialTransaction $t):?array {
         $review=LegacyCashReceiptReview::where('transaction_id',$t->public_id)->where('wallet_id',$wallet->public_id)->first();
         if(!$review)return null;
+        if(!is_array($review->snapshot)||!hash_equals($review->evidence_hash,$this->hash($review->snapshot)))
+            throw new ConflictHttpException('La copia de evidencia de la revisión requiere investigación.');
         if(!hash_equals($review->evidence_hash,$this->hash($this->evidence($wallet,$t))))
             throw new ConflictHttpException('La evidencia cambió después de la revisión histórica.');
         return ['review_id'=>strtolower($review->public_id),'classification'=>$review->classification,

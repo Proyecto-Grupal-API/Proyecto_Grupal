@@ -34,6 +34,12 @@ class CashWebController extends CashController
         return Inertia::render('Financial/CashReceipt', ['receipt' => $this->findReceipt($associationId, $receiptId)->snapshot]);
     }
 
+    public function downloadReceiptPdf(Request $request,string $associationId,string $receiptId,\App\Domains\Financial\Services\ReceiptPdfService $pdf) {
+        $this->authorizeAssociation($request,$associationId,'read');
+        $receipt=$this->findReceipt($associationId,$receiptId);
+        return $pdf->download($pdf->cash($receipt->snapshot));
+    }
+
     public function context(Request $request, CashAuthorizationProvider $provider): JsonResponse
     {
         $values = $request->validate(['association_id' => ['required', 'string', 'max:255']]);
