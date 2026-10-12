@@ -10,6 +10,7 @@ const date = value => value ? new Date(value).toLocaleString('es-MX') : '';
 <template #header><h2 class="text-2xl font-bold text-[#00338D]">Mis comprobantes · 2.9</h2></template>
 <div class="bg-[#F5F8FC] min-h-screen p-6"><div class="max-w-5xl mx-auto">
 <Link :href="route('financial.dashboard')" class="text-blue-800">Volver a Finanzas</Link>
+<div class="mt-3"><Link :href="route('financial.receipts.admin.index')" class="text-blue-800">Consulta administrativa</Link></div>
 <section class="bg-white rounded-xl border p-6 mt-5">
 <p class="mb-5 text-slate-600">Consulta la evidencia de tus operaciones y guarda una copia con la impresión del navegador.</p>
 <p v-if="!hasWallet">Aún no tienes una wallet registrada.</p>

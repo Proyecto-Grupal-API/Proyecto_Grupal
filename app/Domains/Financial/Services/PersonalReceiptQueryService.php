@@ -44,6 +44,7 @@ class PersonalReceiptQueryService
             'original_transaction_id' => $transaction->original_transaction_id,
             'entries' => $this->entries($wallet, $transaction->public_id), 'purchase' => null,
             'cash_receipts' => $this->cash($wallet, $transaction),
+            'historical_notice' => app(LegacyCashReceiptEvidenceService::class)->notice($wallet,$transaction),
         ];
     }
 

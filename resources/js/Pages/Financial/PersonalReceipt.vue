@@ -13,6 +13,7 @@ const print = () => window.print();
 <article class="receipt-paper bg-white border rounded-xl p-7">
 <h1 class="text-2xl font-bold text-[#00338D]">Campus Digital · Comprobante de operación</h1>
 <p class="font-mono text-sm break-all mt-4">{{ receipt.id }}</p><p>{{ date(receipt.created_at) }} · {{ receipt.status }} · {{ receipt.currency }}</p>
+<p v-if="receipt.historical_notice" class="bg-amber-50 p-3 mt-3">{{receipt.historical_notice.message}}</p>
 <p class="mt-2 text-sm">Este documento muestra tu participación en la operación; los saldos de otras wallets no se incluyen.</p>
 <div v-if="receipt.purchase" class="mt-6 border-t pt-4"><h2 class="font-bold">Desglose del pago</h2>
 <p>Total: {{ money(receipt.purchase.total_amount_cents, receipt.currency) }}</p>
