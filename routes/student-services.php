@@ -4,17 +4,17 @@ use App\Http\Controllers\StudentServices\Benefits\PrintScholarshipPaymentControl
 use App\Http\Controllers\StudentServices\Calendars\AvailabilityController;
 use App\Http\Controllers\StudentServices\Library\BookController;
 use App\Http\Controllers\StudentServices\Library\BookCopyController;
+use App\Http\Controllers\StudentServices\Library\BookReservationController;
+use App\Http\Controllers\StudentServices\Library\LibraryFineController;
+use App\Http\Controllers\StudentServices\Library\LoanController;
 use App\Http\Controllers\StudentServices\Lockers\LockerAccessController;
 use App\Http\Controllers\StudentServices\Lockers\LockerAssignmentController;
 use App\Http\Controllers\StudentServices\Lockers\LockerController;
 use App\Http\Controllers\StudentServices\Lockers\LockerPeriodController;
 use App\Http\Controllers\StudentServices\Lockers\LockerRequestController;
+use App\Http\Controllers\StudentServices\Rentals\RentalController;
 use App\Http\Controllers\StudentServices\Reservations\FacilityController;
 use App\Http\Controllers\StudentServices\Reservations\ReservationController;
-use App\Http\Controllers\StudentServices\Library\LoanController;
-use App\Http\Controllers\StudentServices\Library\BookReservationController;
-use App\Http\Controllers\StudentServices\Library\LibraryFineController;
-use App\Http\Controllers\StudentServices\Rentals\RentalController;
 use App\Http\Controllers\StudentServices\RestSpaces\RestBookingController;
 use App\Http\Controllers\StudentServices\RestSpaces\RestSpaceController;
 use App\Http\Controllers\StudentServices\ServiceAccess\ServiceAccessController;
@@ -435,7 +435,6 @@ Route::middleware(['auth', 'verified'])
             '/biblioteca/multas/{fineId}/cancelar',
             [LibraryFineController::class, 'cancel']
         )->name('library.fines.cancel');
-
 
         /*
 |--------------------------------------------------------------------------

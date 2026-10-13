@@ -22,8 +22,7 @@ class LibraryFineController extends Controller
 {
     public function __construct(
         private readonly FineService $fineService
-    ) {
-    }
+    ) {}
 
     public function index(): Response
     {
@@ -34,8 +33,7 @@ class LibraryFineController extends Controller
             )
             ->get()
             ->map(
-                fn (LibraryFine $fine) =>
-                $this->finePayload(
+                fn (LibraryFine $fine) => $this->finePayload(
                     $fine
                 )
             )
@@ -48,8 +46,7 @@ class LibraryFineController extends Controller
             )
             ->get()
             ->map(
-                fn (Loan $loan) =>
-                $this->loanPayload(
+                fn (Loan $loan) => $this->loanPayload(
                     $loan
                 )
             )
@@ -58,11 +55,9 @@ class LibraryFineController extends Controller
         return Inertia::render(
             'student-services/library/Fines',
             [
-                'fines' =>
-                    $fines,
+                'fines' => $fines,
 
-                'loans' =>
-                    $loans,
+                'loans' => $loans,
             ]
         );
     }
@@ -76,7 +71,7 @@ class LibraryFineController extends Controller
         try {
             $loan =
                 Loan::findOrFail(
-                    $data['loan_id']
+                    $request->string('loan_id')->value()
                 );
 
             $this->fineService
@@ -93,13 +88,12 @@ class LibraryFineController extends Controller
                 'Multa registrada correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'fine' =>
-                        $exception
-                            ->getMessage(),
+                    'fine' => $exception
+                        ->getMessage(),
                 ])
                 ->withInput();
         } catch (Throwable $exception) {
@@ -107,8 +101,7 @@ class LibraryFineController extends Controller
 
             return back()
                 ->withErrors([
-                    'fine' =>
-                        'No fue posible registrar la multa.',
+                    'fine' => 'No fue posible registrar la multa.',
                 ])
                 ->withInput();
         }
@@ -140,21 +133,19 @@ class LibraryFineController extends Controller
                 'Pago registrado correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'fine' =>
-                        $exception
-                            ->getMessage(),
+                    'fine' => $exception
+                        ->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'fine' =>
-                        'No fue posible registrar el pago.',
+                    'fine' => 'No fue posible registrar el pago.',
                 ]);
         }
     }
@@ -183,21 +174,19 @@ class LibraryFineController extends Controller
                 'Multa condonada correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'fine' =>
-                        $exception
-                            ->getMessage(),
+                    'fine' => $exception
+                        ->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'fine' =>
-                        'No fue posible condonar la multa.',
+                    'fine' => 'No fue posible condonar la multa.',
                 ]);
         }
     }
@@ -226,25 +215,41 @@ class LibraryFineController extends Controller
                 'Multa cancelada correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'fine' =>
-                        $exception
-                            ->getMessage(),
+                    'fine' => $exception
+                        ->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'fine' =>
-                        'No fue posible cancelar la multa.',
+                    'fine' => 'No fue posible cancelar la multa.',
                 ]);
         }
     }
 
+    /**
+     * @return array{
+     *     id: string,
+     *     folio: string,
+     *     student_id: string,
+     *     loan_id: string,
+     *     book_title: string,
+     *     copy_code: string|null,
+     *     type: string,
+     *     amount_cents: int,
+     *     reason: string,
+     *     status: string,
+     *     generated_at: string|null,
+     *     payment_reference_id: string|null,
+     *     paid_at: string|null,
+     *     notes: string|null
+     * }
+     */
     private function finePayload(
         LibraryFine $fine
     ): array {
@@ -273,59 +278,56 @@ class LibraryFineController extends Controller
         }
 
         return [
-            'id' =>
-                (string) $fine->id,
+            'id' => (string) $fine->id,
 
-            'folio' =>
-                $fine->folio
+            'folio' => $fine->folio
                 ?? 'MUL-'.strtoupper(substr((string) $fine->id, -6)),
 
-            'student_id' =>
-                $fine->student_id,
+            'student_id' => $fine->student_id,
 
-            'loan_id' =>
-                (string)
+            'loan_id' => (string)
                 $fine->loan_id,
 
-            'book_title' =>
-                $book?->title ??
+            'book_title' => $book->title ??
                 'Libro no disponible',
 
-            'copy_code' =>
-                $copy?->code ??
-                    $copy?->inventory_code ??
-                    $copy?->barcode ??
+            'copy_code' => $copy->code ??
+                    $copy->inventory_code ??
+                    $copy->barcode ??
                     null,
 
-            'type' =>
-                $fine->type,
+            'type' => $fine->type,
 
-            'amount_cents' =>
-                $fine->amount_cents,
+            'amount_cents' => $fine->amount_cents,
 
-            'reason' =>
-                $fine->reason,
+            'reason' => $fine->reason,
 
-            'status' =>
-                $fine->status,
+            'status' => $fine->status,
 
-            'generated_at' =>
-                $fine->generated_at
-                    ?->toISOString(),
+            'generated_at' => $fine->generated_at
+                ?->toISOString(),
 
-            'payment_reference_id' =>
-                $fine
-                    ->payment_reference_id,
+            'payment_reference_id' => $fine
+                ->payment_reference_id,
 
-            'paid_at' =>
-                $fine->paid_at
-                    ?->toISOString(),
+            'paid_at' => $fine->paid_at
+                ?->toISOString(),
 
-            'notes' =>
-                $fine->notes,
+            'notes' => $fine->notes,
         ];
     }
 
+    /**
+     * @return array{
+     *     id: string,
+     *     student_id: string,
+     *     book_title: string,
+     *     copy_code: string,
+     *     status: string,
+     *     borrowed_at: string|null,
+     *     due_at: string|null
+     * }
+     */
     private function loanPayload(
         Loan $loan
     ): array {
@@ -346,33 +348,26 @@ class LibraryFineController extends Controller
         }
 
         return [
-            'id' =>
-                (string) $loan->id,
+            'id' => (string) $loan->id,
 
-            'student_id' =>
-                $loan->student_id,
+            'student_id' => $loan->student_id,
 
-            'book_title' =>
-                $book?->title ??
+            'book_title' => $book->title ??
                 'Libro no disponible',
 
-            'copy_code' =>
-                $copy?->code ??
-                    $copy?->inventory_code ??
-                    $copy?->barcode ??
+            'copy_code' => $copy->code ??
+                    $copy->inventory_code ??
+                    $copy->barcode ??
                     (string)
                     $loan->copy_id,
 
-            'status' =>
-                $loan->status,
+            'status' => $loan->status,
 
-            'borrowed_at' =>
-                $loan->borrowed_at
-                    ?->toISOString(),
+            'borrowed_at' => $loan->borrowed_at
+                ?->toISOString(),
 
-            'due_at' =>
-                $loan->due_at
-                    ?->toISOString(),
+            'due_at' => $loan->due_at
+                ?->toISOString(),
         ];
     }
 }

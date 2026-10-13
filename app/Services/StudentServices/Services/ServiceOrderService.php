@@ -48,7 +48,7 @@ class ServiceOrderService
         }
 
         if (
-            !in_array(
+            ! in_array(
                 $serviceType,
                 self::SERVICE_TYPES,
                 true
@@ -78,7 +78,7 @@ class ServiceOrderService
         ) {
             if (
                 $colorMode === null ||
-                !in_array(
+                ! in_array(
                     $colorMode,
                     self::COLOR_MODES,
                     true
@@ -114,7 +114,7 @@ class ServiceOrderService
         ) {
             if (
                 $sides === null ||
-                !in_array(
+                ! in_array(
                     $sides,
                     self::SIDES,
                     true
@@ -162,50 +162,35 @@ class ServiceOrderService
 
             $order =
                 ServiceOrder::create([
-                    'folio' =>
-                        $folio,
+                    'folio' => $folio,
 
-                    'student_id' =>
-                        $studentId,
+                    'student_id' => $studentId,
 
-                    'service_type' =>
-                        $serviceType,
+                    'service_type' => $serviceType,
 
-                    'quantity' =>
-                        $quantity,
+                    'quantity' => $quantity,
 
-                    'observations' =>
-                        $observations,
+                    'observations' => $observations,
 
-                    'quoted_amount_cents' =>
-                        $quotedAmountCents,
+                    'quoted_amount_cents' => $quotedAmountCents,
 
-                    'payment_status' =>
-                        'pending',
+                    'payment_status' => 'pending',
 
-                    'payment_reference_id' =>
-                        null,
+                    'payment_reference_id' => null,
 
-                    'status' =>
-                        'awaiting_payment',
+                    'status' => 'awaiting_payment',
 
-                    'requested_at' =>
-                        now(),
+                    'requested_at' => now(),
 
-                    'paid_at' =>
-                        null,
+                    'paid_at' => null,
 
-                    'processing_at' =>
-                        null,
+                    'processing_at' => null,
 
-                    'ready_at' =>
-                        null,
+                    'ready_at' => null,
 
-                    'delivered_at' =>
-                        null,
+                    'delivered_at' => null,
 
-                    'cancelled_at' =>
-                        null,
+                    'cancelled_at' => null,
                 ]);
 
             if (
@@ -220,29 +205,21 @@ class ServiceOrderService
                 )
             ) {
                 PrintJob::create([
-                    'service_order_id' =>
-                        $order->id,
+                    'service_order_id' => $order->id,
 
-                    'job_type' =>
-                        $serviceType,
+                    'job_type' => $serviceType,
 
-                    'file_name' =>
-                        $file?->getClientOriginalName(),
+                    'file_name' => $file?->getClientOriginalName(),
 
-                    'file_path' =>
-                        $storedFilePath,
+                    'file_path' => $storedFilePath,
 
-                    'file_mime' =>
-                        $file?->getClientMimeType(),
+                    'file_mime' => $file?->getClientMimeType(),
 
-                    'color_mode' =>
-                        $colorMode,
+                    'color_mode' => $colorMode,
 
-                    'paper_size' =>
-                        $paperSize,
+                    'paper_size' => $paperSize,
 
-                    'sides' =>
-                        $sides,
+                    'sides' => $sides,
                 ]);
             }
 
@@ -262,7 +239,7 @@ class ServiceOrderService
             }
 
             if (
-                $storedFilePath !== null &&
+                is_string($storedFilePath) &&
                 \Storage::disk(
                     'local'
                 )->exists(
@@ -284,7 +261,7 @@ class ServiceOrderService
         ServiceOrder $order
     ): ServiceOrder {
         if (
-            !in_array(
+            ! in_array(
                 $order->status,
                 [
                     'pending',
@@ -300,11 +277,9 @@ class ServiceOrderService
         }
 
         $order->update([
-            'status' =>
-                'cancelled',
+            'status' => 'cancelled',
 
-            'cancelled_at' =>
-                now(),
+            'cancelled_at' => now(),
         ]);
 
         return $order->fresh();
@@ -337,20 +312,15 @@ class ServiceOrderService
         }
 
         $order->update([
-            'payment_status' =>
-                'paid',
+            'payment_status' => 'paid',
 
-            'payment_reference_id' =>
-                $paymentReferenceId,
+            'payment_reference_id' => $paymentReferenceId,
 
-            'paid_at' =>
-                now(),
+            'paid_at' => now(),
 
-            'status' =>
-                'processing',
+            'status' => 'processing',
 
-            'processing_at' =>
-                now(),
+            'processing_at' => now(),
         ]);
 
         return $order->fresh();
@@ -369,11 +339,9 @@ class ServiceOrderService
         }
 
         $order->update([
-            'status' =>
-                'ready',
+            'status' => 'ready',
 
-            'ready_at' =>
-                now(),
+            'ready_at' => now(),
         ]);
 
         return $order->fresh();
@@ -392,15 +360,29 @@ class ServiceOrderService
         }
 
         $order->update([
-            'status' =>
-                'delivered',
+            'status' => 'delivered',
 
-            'delivered_at' =>
-                now(),
+            'delivered_at' => now(),
         ]);
 
         return $order->fresh();
     }
+
+    /**
+     * Precio unitario en centavos por tipo de servicio y modo de color.
+     * Se calcula en enteros (sin float), como pide el documento de diseño.
+     */
+    private const UNIT_PRICE_CENTS = [
+        'printing' => ['bw' => 200, 'color' => 500],
+        'copy' => ['bw' => 150, 'color' => 400],
+        'scanning' => ['bw' => 300, 'color' => 300],
+        'binding' => ['bw' => 4500, 'color' => 4500],
+    ];
+
+    /**
+     * Descuento de impresión o copia a doble cara: 10 %.
+     */
+    private const DOUBLE_SIDED_PERCENT = 90;
 
     public function calculateQuote(
         string $serviceType,
@@ -408,71 +390,32 @@ class ServiceOrderService
         ?string $colorMode = null,
         ?string $sides = null
     ): int {
-        $amountPesos = 0.0;
-
-        switch ($serviceType) {
-            case 'printing':
-                $amountPesos =
-                    $quantity *
-                    (
-                    $colorMode === 'color'
-                        ? 5
-                        : 2
-                    );
-                break;
-
-            case 'copy':
-                $amountPesos =
-                    $quantity *
-                    (
-                    $colorMode === 'color'
-                        ? 4
-                        : 1.5
-                    );
-                break;
-
-            case 'scanning':
-                $amountPesos =
-                    $quantity * 3;
-                break;
-
-            case 'binding':
-                $amountPesos =
-                    $quantity * 45;
-                break;
-
-            default:
-                throw new InvalidArgumentException(
-                    'El tipo de servicio no es válido.'
-                );
+        if (! array_key_exists($serviceType, self::UNIT_PRICE_CENTS)) {
+            throw new InvalidArgumentException(
+                'El tipo de servicio no es válido.'
+            );
         }
+
+        $unit = self::UNIT_PRICE_CENTS[$serviceType][$colorMode === 'color' ? 'color' : 'bw'];
+        $amountCents = $quantity * $unit;
 
         if (
             $sides === 'double' &&
-            in_array(
-                $serviceType,
-                [
-                    'printing',
-                    'copy',
-                ],
-                true
-            )
+            in_array($serviceType, ['printing', 'copy'], true)
         ) {
-            $amountPesos *= 0.9;
+            $amountCents = intdiv($amountCents * self::DOUBLE_SIDED_PERCENT + 50, 100);
         }
 
-        return (int) round(
-            $amountPesos * 100
-        );
+        return $amountCents;
     }
 
     private function generateFolio(): string
     {
         do {
             $folio =
-                'SER-' .
-                now()->format('Y') .
-                '-' .
+                'SER-'.
+                now()->format('Y').
+                '-'.
                 strtoupper(
                     substr(
                         bin2hex(

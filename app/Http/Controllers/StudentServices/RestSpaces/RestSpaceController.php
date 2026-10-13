@@ -75,7 +75,7 @@ class RestSpaceController extends Controller
         $maxAdvanceDays = max([1, ...array_map(fn (array $rule): int => (int) $rule['max_advance_days'], $rules)]);
         $from = now()->startOfDay();
         $to = now()->addDays($maxAdvanceDays + 1)->endOfDay();
-        $ids = $spaces->pluck('id')->all();
+        $ids = array_values($spaceModels->map(fn (RestSpace $space): string => $space->id)->all());
 
         return Inertia::render('student-services/rest-spaces/Index', [
             'spaces' => $spaces,
@@ -90,7 +90,7 @@ class RestSpaceController extends Controller
     public function store(StoreRestSpaceRequest $request): RedirectResponse
     {
         try {
-            $this->spaces->create($request->validated());
+            $this->spaces->create($request->spaceData());
         } catch (RuntimeException $exception) {
             return back()->withErrors(['space' => $exception->getMessage()])->withInput();
         }

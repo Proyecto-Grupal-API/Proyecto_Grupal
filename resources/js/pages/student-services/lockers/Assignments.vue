@@ -3,15 +3,9 @@ import StudentServicesLayout from '@/layouts/StudentServicesLayout.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
-type AssignmentStatus =
-    | 'active'
-    | 'released'
-    | 'expired';
+type AssignmentStatus = 'active' | 'released' | 'expired';
 
-type AssignmentSource =
-    | 'paid'
-    | 'council'
-    | 'scholarship';
+type AssignmentSource = 'paid' | 'council' | 'scholarship';
 
 interface Assignment {
     id: string;
@@ -71,30 +65,22 @@ const props = defineProps<{
     summary: Summary;
 }>();
 
-const BASE_URL =
-    '/servicios-estudiante/lockers';
+const BASE_URL = '/servicios-estudiante/lockers';
 
 const search = ref('');
 const statusFilter = ref('');
 const sourceFilter = ref('');
 
-const showSponsoredForm =
-    ref(false);
+const showSponsoredForm = ref(false);
 
-const actionMode = ref<
-    'renew' | 'release' | null
->(null);
+const actionMode = ref<'renew' | 'release' | null>(null);
 
-const selectedAssignment =
-    ref<Assignment | null>(null);
+const selectedAssignment = ref<Assignment | null>(null);
 
 const sponsoredForm = useForm({
     student_id: '',
     period_id: '',
-    request_type:
-        'scholarship' as
-            | 'council'
-            | 'scholarship',
+    request_type: 'scholarship' as 'council' | 'scholarship',
     locker_id: '',
     size: '',
     reference: '',
@@ -109,77 +95,48 @@ const releaseForm = useForm({
     reason: '',
 });
 
-const filteredAssignments =
-    computed(() => {
-        const term =
-            search.value
-                .trim()
-                .toLowerCase();
+const filteredAssignments = computed(() => {
+    const term = search.value.trim().toLowerCase();
 
-        return props.assignments.filter(
-            (assignment) => {
-                if (
-                    statusFilter.value &&
-                    assignment.status !==
-                    statusFilter.value
-                ) {
-                    return false;
-                }
-
-                if (
-                    sourceFilter.value &&
-                    assignment.source !==
-                    sourceFilter.value
-                ) {
-                    return false;
-                }
-
-                if (!term) {
-                    return true;
-                }
-
-                return [
-                    assignment.folio,
-                    assignment.student_id,
-                    assignment.locker_code,
-                    assignment.period_name,
-                    assignment.locker_location ??
-                    '',
-                ].some((value) =>
-                    value
-                        .toLowerCase()
-                        .includes(term),
-                );
-            },
-        );
-    });
-
-const sponsoredAvailableLockers =
-    computed(() => {
-        if (
-            sponsoredForm.locker_id
-        ) {
-            return props.available_lockers;
+    return props.assignments.filter((assignment) => {
+        if (statusFilter.value && assignment.status !== statusFilter.value) {
+            return false;
         }
 
-        if (!sponsoredForm.size) {
-            return props.available_lockers;
+        if (sourceFilter.value && assignment.source !== sourceFilter.value) {
+            return false;
         }
 
-        return props.available_lockers.filter(
-            (locker) =>
-                locker.size ===
-                sponsoredForm.size,
-        );
-    });
+        if (!term) {
+            return true;
+        }
 
-function statusLabel(
-    status: AssignmentStatus,
-): string {
-    const labels: Record<
-        AssignmentStatus,
-        string
-    > = {
+        return [
+            assignment.folio,
+            assignment.student_id,
+            assignment.locker_code,
+            assignment.period_name,
+            assignment.locker_location ?? '',
+        ].some((value) => value.toLowerCase().includes(term));
+    });
+});
+
+const sponsoredAvailableLockers = computed(() => {
+    if (sponsoredForm.locker_id) {
+        return props.available_lockers;
+    }
+
+    if (!sponsoredForm.size) {
+        return props.available_lockers;
+    }
+
+    return props.available_lockers.filter(
+        (locker) => locker.size === sponsoredForm.size,
+    );
+});
+
+function statusLabel(status: AssignmentStatus): string {
+    const labels: Record<AssignmentStatus, string> = {
         active: 'Activa',
         released: 'Liberada',
         expired: 'Expirada',
@@ -188,13 +145,8 @@ function statusLabel(
     return labels[status];
 }
 
-function sourceLabel(
-    source: AssignmentSource,
-): string {
-    const labels: Record<
-        AssignmentSource,
-        string
-    > = {
+function sourceLabel(source: AssignmentSource): string {
+    const labels: Record<AssignmentSource, string> = {
         paid: 'Renta pagada',
         council: 'Consejo',
         scholarship: 'Beca',
@@ -203,17 +155,12 @@ function sourceLabel(
     return labels[source];
 }
 
-function sizeLabel(
-    size: string | null,
-): string {
+function sizeLabel(size: string | null): string {
     if (!size) {
         return '—';
     }
 
-    const labels: Record<
-        string,
-        string
-    > = {
+    const labels: Record<string, string> = {
         small: 'Chico',
         medium: 'Mediano',
         large: 'Grande',
@@ -222,18 +169,14 @@ function sizeLabel(
     return labels[size] ?? size;
 }
 
-function formatDate(
-    value: string | null,
-): string {
+function formatDate(value: string | null): string {
     if (!value) {
         return '—';
     }
 
-    const clean =
-        value.slice(0, 10);
+    const clean = value.slice(0, 10);
 
-    const parts =
-        clean.split('-');
+    const parts = clean.split('-');
 
     if (parts.length !== 3) {
         return value;
@@ -246,8 +189,7 @@ function openSponsoredForm() {
     sponsoredForm.reset();
     sponsoredForm.clearErrors();
 
-    sponsoredForm.request_type =
-        'scholarship';
+    sponsoredForm.request_type = 'scholarship';
 
     showSponsoredForm.value = true;
 
@@ -261,28 +203,21 @@ function closeSponsoredForm() {
     sponsoredForm.reset();
     sponsoredForm.clearErrors();
 
-    showSponsoredForm.value =
-        false;
+    showSponsoredForm.value = false;
 }
 
 function submitSponsored() {
-    sponsoredForm.post(
-        `${BASE_URL}/asignaciones/beca`,
-        {
-            preserveScroll: true,
+    sponsoredForm.post(`${BASE_URL}/asignaciones/beca`, {
+        preserveScroll: true,
 
-            onSuccess: () => {
-                closeSponsoredForm();
-            },
+        onSuccess: () => {
+            closeSponsoredForm();
         },
-    );
+    });
 }
 
-function openRenew(
-    assignment: Assignment,
-) {
-    selectedAssignment.value =
-        assignment;
+function openRenew(assignment: Assignment) {
+    selectedAssignment.value = assignment;
 
     renewForm.reset();
     renewForm.clearErrors();
@@ -291,10 +226,7 @@ function openRenew(
 }
 
 function submitRenew() {
-    if (
-        selectedAssignment.value ===
-        null
-    ) {
+    if (selectedAssignment.value === null) {
         return;
     }
 
@@ -310,11 +242,8 @@ function submitRenew() {
     );
 }
 
-function openRelease(
-    assignment: Assignment,
-) {
-    selectedAssignment.value =
-        assignment;
+function openRelease(assignment: Assignment) {
+    selectedAssignment.value = assignment;
 
     releaseForm.reset();
     releaseForm.clearErrors();
@@ -323,10 +252,7 @@ function openRelease(
 }
 
 function submitRelease() {
-    if (
-        selectedAssignment.value ===
-        null
-    ) {
+    if (selectedAssignment.value === null) {
         return;
     }
 
@@ -344,8 +270,7 @@ function submitRelease() {
 
 function closeAction() {
     actionMode.value = null;
-    selectedAssignment.value =
-        null;
+    selectedAssignment.value = null;
 
     renewForm.reset();
     releaseForm.reset();
@@ -354,19 +279,20 @@ function closeAction() {
     releaseForm.clearErrors();
 }
 
-function goToAccess(
-    assignment: Assignment,
-) {
-    router.visit(
-        `${BASE_URL}/acceso`,
-        {
-            data: {
-                locker:
-                assignment.locker_code,
-            },
+function goToAccess(assignment: Assignment) {
+    router.visit(`${BASE_URL}/acceso`, {
+        data: {
+            locker: assignment.locker_code,
         },
-    );
+    });
 }
+
+/**
+ * Errores del servidor que no corresponden a un campo del formulario
+ * (por ejemplo, reglas de negocio devueltas con withErrors).
+ */
+const serverError = (form: { errors: object }, key: string) =>
+    (form.errors as Record<string, string | undefined>)[key];
 </script>
 
 <template>
@@ -376,132 +302,86 @@ function goToAccess(
     >
         <section class="hero">
             <div>
-                <span class="hero-label">
-                    LOCKERS · MÓDULO 5.4
-                </span>
+                <span class="hero-label"> LOCKERS · MÓDULO 5.4 </span>
 
-                <h2>
-                    Asignaciones
-                </h2>
+                <h2>Asignaciones</h2>
 
                 <p>
-                    Consulta lockers
-                    asignados, realiza
-                    renovaciones y administra
-                    asignaciones otorgadas por
-                    beca o Consejo
+                    Consulta lockers asignados, realiza renovaciones y
+                    administra asignaciones otorgadas por beca o Consejo
                     Estudiantil.
                 </p>
             </div>
 
             <div class="hero-total">
-                <span>
-                    Asignaciones
-                </span>
+                <span> Asignaciones </span>
 
                 <strong>
                     {{ summary.total }}
                 </strong>
 
-                <small>
-                    registros totales
-                </small>
+                <small> registros totales </small>
             </div>
         </section>
 
         <section class="stats-grid">
             <article class="stat-card">
-                <span>
-                    Activas
-                </span>
+                <span> Activas </span>
 
                 <strong>
                     {{ summary.active }}
                 </strong>
 
-                <small>
-                    Lockers en uso
-                </small>
+                <small> Lockers en uso </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Liberadas
-                </span>
+                <span> Liberadas </span>
 
                 <strong>
                     {{ summary.released }}
                 </strong>
 
-                <small>
-                    Finalizadas
-                </small>
+                <small> Finalizadas </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Expiradas
-                </span>
+                <span> Expiradas </span>
 
                 <strong>
                     {{ summary.expired }}
                 </strong>
 
-                <small>
-                    Periodo vencido
-                </small>
+                <small> Periodo vencido </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Lockers disponibles
-                </span>
+                <span> Lockers disponibles </span>
 
                 <strong>
-                    {{
-                        available_lockers.length
-                    }}
+                    {{ available_lockers.length }}
                 </strong>
 
-                <small>
-                    Para nuevas asignaciones
-                </small>
+                <small> Para nuevas asignaciones </small>
             </article>
         </section>
 
         <section class="module-navigation">
-            <Link
-                :href="BASE_URL"
-                class="module-link"
-            >
-                Catálogo
-            </Link>
+            <Link :href="BASE_URL" class="module-link"> Catálogo </Link>
 
-            <Link
-                :href="`${BASE_URL}/periodos`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/periodos`" class="module-link">
                 Periodos y costos
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/solicitudes`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/solicitudes`" class="module-link">
                 Solicitudes
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/asignaciones`"
-                class="module-link active"
-            >
+            <Link :href="`${BASE_URL}/asignaciones`" class="module-link active">
                 Asignaciones
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/acceso`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/acceso`" class="module-link">
                 Validar acceso
             </Link>
         </section>
@@ -509,17 +389,12 @@ function goToAccess(
         <section class="content-panel">
             <div class="panel-header">
                 <div>
-                    <span class="panel-label">
-                        ASIGNACIONES
-                    </span>
+                    <span class="panel-label"> ASIGNACIONES </span>
 
-                    <h3>
-                        Lockers asignados
-                    </h3>
+                    <h3>Lockers asignados</h3>
 
                     <p>
-                        Control de asignaciones
-                        activas e historial del
+                        Control de asignaciones activas e historial del
                         servicio.
                     </p>
                 </div>
@@ -527,54 +402,35 @@ function goToAccess(
                 <button
                     type="button"
                     class="primary-button"
-                    @click="
-                        openSponsoredForm
-                    "
+                    @click="openSponsoredForm"
                 >
                     + Asignación especial
                 </button>
             </div>
 
-            <section
-                v-if="
-                    showSponsoredForm
-                "
-                class="form-panel"
-            >
+            <section v-if="showSponsoredForm" class="form-panel">
                 <div class="form-header">
                     <div>
-                        <span class="panel-label">
-                            BECA / CONSEJO
-                        </span>
+                        <span class="panel-label"> BECA / CONSEJO </span>
 
-                        <h3>
-                            Asignación especial
-                        </h3>
+                        <h3>Asignación especial</h3>
 
                         <p>
-                            Asigna un locker sin
-                            requerir el flujo de
-                            renta pagada.
+                            Asigna un locker sin requerir el flujo de renta
+                            pagada.
                         </p>
                     </div>
 
                     <button
                         type="button"
                         class="close-button"
-                        @click="
-                            closeSponsoredForm
-                        "
+                        @click="closeSponsoredForm"
                     >
                         ×
                     </button>
                 </div>
 
-                <form
-                    class="assignment-form"
-                    @submit.prevent="
-                        submitSponsored
-                    "
-                >
+                <form class="assignment-form" @submit.prevent="submitSponsored">
                     <div class="form-grid">
                         <div class="form-field">
                             <label>
@@ -583,26 +439,16 @@ function goToAccess(
                             </label>
 
                             <input
-                                v-model="
-                                    sponsoredForm.student_id
-                                "
+                                v-model="sponsoredForm.student_id"
                                 type="text"
                                 placeholder="Ej. EST-0001"
                             />
 
                             <small
-                                v-if="
-                                    sponsoredForm
-                                        .errors
-                                        .student_id
-                                "
+                                v-if="sponsoredForm.errors.student_id"
                                 class="field-error"
                             >
-                                {{
-                                    sponsoredForm
-                                        .errors
-                                        .student_id
-                                }}
+                                {{ sponsoredForm.errors.student_id }}
                             </small>
                         </div>
 
@@ -612,46 +458,23 @@ function goToAccess(
                                 <span>*</span>
                             </label>
 
-                            <select
-                                v-model="
-                                    sponsoredForm.period_id
-                                "
-                            >
-                                <option value="">
-                                    Selecciona
-                                </option>
+                            <select v-model="sponsoredForm.period_id">
+                                <option value="">Selecciona</option>
 
                                 <option
-                                    v-for="
-                                        period in
-                                        periods
-                                    "
-                                    :key="
-                                        period.id
-                                    "
-                                    :value="
-                                        period.id
-                                    "
+                                    v-for="period in periods"
+                                    :key="period.id"
+                                    :value="period.id"
                                 >
-                                    {{
-                                        period.name
-                                    }}
+                                    {{ period.name }}
                                 </option>
                             </select>
 
                             <small
-                                v-if="
-                                    sponsoredForm
-                                        .errors
-                                        .period_id
-                                "
+                                v-if="sponsoredForm.errors.period_id"
                                 class="field-error"
                             >
-                                {{
-                                    sponsoredForm
-                                        .errors
-                                        .period_id
-                                }}
+                                {{ sponsoredForm.errors.period_id }}
                             </small>
                         </div>
 
@@ -661,151 +484,75 @@ function goToAccess(
                                 <span>*</span>
                             </label>
 
-                            <select
-                                v-model="
-                                    sponsoredForm.request_type
-                                "
-                            >
-                                <option
-                                    value="scholarship"
-                                >
-                                    Beca
-                                </option>
+                            <select v-model="sponsoredForm.request_type">
+                                <option value="scholarship">Beca</option>
 
-                                <option
-                                    value="council"
-                                >
-                                    Consejo
-                                    Estudiantil
+                                <option value="council">
+                                    Consejo Estudiantil
                                 </option>
                             </select>
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Tamaño
-                            </label>
+                            <label> Tamaño </label>
 
                             <select
-                                v-model="
-                                    sponsoredForm.size
-                                "
-                                :disabled="
-                                    Boolean(
-                                        sponsoredForm.locker_id,
-                                    )
-                                "
+                                v-model="sponsoredForm.size"
+                                :disabled="Boolean(sponsoredForm.locker_id)"
                             >
-                                <option value="">
-                                    Selecciona
-                                </option>
+                                <option value="">Selecciona</option>
 
-                                <option value="small">
-                                    Chico
-                                </option>
+                                <option value="small">Chico</option>
 
-                                <option value="medium">
-                                    Mediano
-                                </option>
+                                <option value="medium">Mediano</option>
 
-                                <option value="large">
-                                    Grande
-                                </option>
+                                <option value="large">Grande</option>
                             </select>
 
                             <small
-                                v-if="
-                                    sponsoredForm
-                                        .errors
-                                        .size
-                                "
+                                v-if="sponsoredForm.errors.size"
                                 class="field-error"
                             >
-                                {{
-                                    sponsoredForm
-                                        .errors
-                                        .size
-                                }}
+                                {{ sponsoredForm.errors.size }}
                             </small>
                         </div>
 
-                        <div
-                            class="form-field full"
-                        >
-                            <label>
-                                Locker específico
-                            </label>
+                        <div class="form-field full">
+                            <label> Locker específico </label>
 
-                            <select
-                                v-model="
-                                    sponsoredForm.locker_id
-                                "
-                            >
+                            <select v-model="sponsoredForm.locker_id">
                                 <option value="">
-                                    Asignar
-                                    automáticamente
+                                    Asignar automáticamente
                                 </option>
 
                                 <option
-                                    v-for="
-                                        locker in
-                                        sponsoredAvailableLockers
-                                    "
-                                    :key="
-                                        locker.id
-                                    "
-                                    :value="
-                                        locker.id
-                                    "
+                                    v-for="locker in sponsoredAvailableLockers"
+                                    :key="locker.id"
+                                    :value="locker.id"
                                 >
-                                    {{
-                                        locker.code
-                                    }}
+                                    {{ locker.code }}
                                     ·
-                                    {{
-                                        locker.building
-                                    }}
+                                    {{ locker.building }}
                                     ·
-                                    {{
-                                        locker.zone
-                                    }}
+                                    {{ locker.zone }}
                                     ·
-                                    {{
-                                        sizeLabel(
-                                            locker.size,
-                                        )
-                                    }}
+                                    {{ sizeLabel(locker.size) }}
                                 </option>
                             </select>
 
                             <small
-                                v-if="
-                                    sponsoredForm
-                                        .errors
-                                        .locker_id
-                                "
+                                v-if="sponsoredForm.errors.locker_id"
                                 class="field-error"
                             >
-                                {{
-                                    sponsoredForm
-                                        .errors
-                                        .locker_id
-                                }}
+                                {{ sponsoredForm.errors.locker_id }}
                             </small>
                         </div>
 
-                        <div
-                            class="form-field full"
-                        >
-                            <label>
-                                Referencia /
-                                observación
-                            </label>
+                        <div class="form-field full">
+                            <label> Referencia / observación </label>
 
                             <input
-                                v-model="
-                                    sponsoredForm.reference
-                                "
+                                v-model="sponsoredForm.reference"
                                 type="text"
                                 placeholder="Ej. BECA-2026-001"
                             />
@@ -813,37 +560,23 @@ function goToAccess(
                     </div>
 
                     <div
-                        v-if="
-                            sponsoredForm
-                                .errors
-                                .status
-                        "
+                        v-if="serverError(sponsoredForm, 'status')"
                         class="error-box"
                     >
-                        {{
-                            sponsoredForm
-                                .errors
-                                .status
-                        }}
+                        {{ serverError(sponsoredForm, 'status') }}
                     </div>
 
                     <div class="information-box">
-                        Puedes seleccionar un
-                        locker específico o
-                        indicar solamente el
-                        tamaño para que el
-                        sistema elija uno
-                        disponible
-                        automáticamente.
+                        Puedes seleccionar un locker específico o indicar
+                        solamente el tamaño para que el sistema elija uno
+                        disponible automáticamente.
                     </div>
 
                     <div class="form-actions">
                         <button
                             type="button"
                             class="secondary-button"
-                            @click="
-                                closeSponsoredForm
-                            "
+                            @click="closeSponsoredForm"
                         >
                             Cancelar
                         </button>
@@ -851,9 +584,7 @@ function goToAccess(
                         <button
                             type="submit"
                             class="primary-button"
-                            :disabled="
-                                sponsoredForm.processing
-                            "
+                            :disabled="sponsoredForm.processing"
                         >
                             {{
                                 sponsoredForm.processing
@@ -874,304 +605,191 @@ function goToAccess(
                     />
                 </div>
 
-                <select
-                    v-model="
-                        sourceFilter
-                    "
-                >
-                    <option value="">
-                        Todos los tipos
-                    </option>
+                <select v-model="sourceFilter">
+                    <option value="">Todos los tipos</option>
 
-                    <option value="paid">
-                        Renta pagada
-                    </option>
+                    <option value="paid">Renta pagada</option>
 
-                    <option value="scholarship">
-                        Beca
-                    </option>
+                    <option value="scholarship">Beca</option>
 
-                    <option value="council">
-                        Consejo
-                    </option>
+                    <option value="council">Consejo</option>
                 </select>
 
-                <select
-                    v-model="
-                        statusFilter
-                    "
-                >
-                    <option value="">
-                        Todos los estados
-                    </option>
+                <select v-model="statusFilter">
+                    <option value="">Todos los estados</option>
 
-                    <option value="active">
-                        Activas
-                    </option>
+                    <option value="active">Activas</option>
 
-                    <option value="released">
-                        Liberadas
-                    </option>
+                    <option value="released">Liberadas</option>
 
-                    <option value="expired">
-                        Expiradas
-                    </option>
+                    <option value="expired">Expiradas</option>
                 </select>
             </div>
 
-            <div
-                v-if="
-                    filteredAssignments
-                        .length > 0
-                "
-                class="table-container"
-            >
+            <div v-if="filteredAssignments.length > 0" class="table-container">
                 <table>
                     <thead>
-                    <tr>
-                        <th>Folio</th>
-                        <th>Estudiante</th>
-                        <th>Locker</th>
-                        <th>Periodo</th>
-                        <th>Origen</th>
-                        <th>Vigencia</th>
-                        <th>Renovaciones</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
+                        <tr>
+                            <th>Folio</th>
+                            <th>Estudiante</th>
+                            <th>Locker</th>
+                            <th>Periodo</th>
+                            <th>Origen</th>
+                            <th>Vigencia</th>
+                            <th>Renovaciones</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    <tr
-                        v-for="
-                                assignment in
-                                filteredAssignments
-                            "
-                        :key="
-                                assignment.id
-                            "
-                    >
-                        <td>
-                            <strong class="folio">
-                                {{
-                                    assignment.folio
-                                }}
-                            </strong>
-                        </td>
-
-                        <td>
-                                <span class="student">
-                                    {{
-                                        assignment.student_id
-                                    }}
-                                </span>
-                        </td>
-
-                        <td>
-                            <div class="locker-info">
-                                <strong>
-                                    {{
-                                        assignment.locker_code
-                                    }}
+                        <tr
+                            v-for="assignment in filteredAssignments"
+                            :key="assignment.id"
+                        >
+                            <td>
+                                <strong class="folio">
+                                    {{ assignment.folio }}
                                 </strong>
+                            </td>
 
-                                <small>
-                                    {{
-                                        assignment.locker_location
-                                        ?? 'Sin ubicación'
-                                    }}
-                                </small>
+                            <td>
+                                <span class="student">
+                                    {{ assignment.student_id }}
+                                </span>
+                            </td>
 
-                                <small>
-                                    {{
-                                        sizeLabel(
-                                            assignment.locker_size,
-                                        )
-                                    }}
-                                </small>
-                            </div>
-                        </td>
+                            <td>
+                                <div class="locker-info">
+                                    <strong>
+                                        {{ assignment.locker_code }}
+                                    </strong>
 
-                        <td>
-                            {{
-                                assignment.period_name
-                            }}
-                        </td>
-
-                        <td>
-                            {{
-                                sourceLabel(
-                                    assignment.source,
-                                )
-                            }}
-                        </td>
-
-                        <td>
-                            <div class="dates">
-                                    <span>
+                                    <small>
                                         {{
-                                            formatDate(
-                                                assignment.starts_at,
-                                            )
+                                            assignment.locker_location ??
+                                            'Sin ubicación'
                                         }}
+                                    </small>
+
+                                    <small>
+                                        {{ sizeLabel(assignment.locker_size) }}
+                                    </small>
+                                </div>
+                            </td>
+
+                            <td>
+                                {{ assignment.period_name }}
+                            </td>
+
+                            <td>
+                                {{ sourceLabel(assignment.source) }}
+                            </td>
+
+                            <td>
+                                <div class="dates">
+                                    <span>
+                                        {{ formatDate(assignment.starts_at) }}
                                     </span>
 
-                                <small>
-                                    hasta
-                                    {{
-                                        formatDate(
-                                            assignment.ends_at,
-                                        )
-                                    }}
-                                </small>
-                            </div>
-                        </td>
+                                    <small>
+                                        hasta
+                                        {{ formatDate(assignment.ends_at) }}
+                                    </small>
+                                </div>
+                            </td>
 
-                        <td>
+                            <td>
                                 <span class="renewals">
-                                    {{
-                                        assignment.renewal_count
-                                    }}
+                                    {{ assignment.renewal_count }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
+                            <td>
                                 <span
                                     class="status"
                                     :class="`status-${assignment.status}`"
                                 >
-                                    {{
-                                        statusLabel(
-                                            assignment.status,
-                                        )
-                                    }}
+                                    {{ statusLabel(assignment.status) }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            <div class="actions">
-                                <button
-                                    v-if="
-                                            assignment.status ===
-                                            'active'
-                                        "
-                                    type="button"
-                                    class="action-button renew"
-                                    @click="
-                                            openRenew(
-                                                assignment,
-                                            )
-                                        "
-                                >
-                                    Renovar
-                                </button>
+                            <td>
+                                <div class="actions">
+                                    <button
+                                        v-if="assignment.status === 'active'"
+                                        type="button"
+                                        class="action-button renew"
+                                        @click="openRenew(assignment)"
+                                    >
+                                        Renovar
+                                    </button>
 
-                                <button
-                                    v-if="
-                                            assignment.status ===
-                                            'active'
-                                        "
-                                    type="button"
-                                    class="action-button access"
-                                    @click="
-                                            goToAccess(
-                                                assignment,
-                                            )
-                                        "
-                                >
-                                    Acceso
-                                </button>
+                                    <button
+                                        v-if="assignment.status === 'active'"
+                                        type="button"
+                                        class="action-button access"
+                                        @click="goToAccess(assignment)"
+                                    >
+                                        Acceso
+                                    </button>
 
-                                <button
-                                    v-if="
-                                            assignment.status ===
-                                            'active'
-                                        "
-                                    type="button"
-                                    class="action-button release"
-                                    @click="
-                                            openRelease(
-                                                assignment,
-                                            )
-                                        "
-                                >
-                                    Liberar
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                                    <button
+                                        v-if="assignment.status === 'active'"
+                                        type="button"
+                                        class="action-button release"
+                                        @click="openRelease(assignment)"
+                                    >
+                                        Liberar
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div
-                v-else
-                class="empty-state"
-            >
-                <h3>
-                    No hay asignaciones
-                </h3>
+            <div v-else class="empty-state">
+                <h3>No hay asignaciones</h3>
 
-                <p>
-                    Cambia los filtros o
-                    realiza una nueva
-                    asignación.
-                </p>
+                <p>Cambia los filtros o realiza una nueva asignación.</p>
             </div>
         </section>
 
-        <div
-            v-if="actionMode"
-            class="modal-backdrop"
-            @click.self="closeAction"
-        >
+        <div v-if="actionMode" class="modal-backdrop" @click.self="closeAction">
             <section class="modal">
                 <div class="modal-header">
                     <div>
                         <span class="panel-label">
                             {{
-                                actionMode ===
-                                'renew'
+                                actionMode === 'renew'
                                     ? 'RENOVAR LOCKER'
                                     : 'LIBERAR LOCKER'
                             }}
                         </span>
 
                         <h3>
-                            {{
-                                selectedAssignment
-                                    ?.locker_code
-                            }}
+                            {{ selectedAssignment?.locker_code }}
                         </h3>
 
                         <p>
-                            {{
-                                selectedAssignment
-                                    ?.student_id
-                            }}
+                            {{ selectedAssignment?.student_id }}
                         </p>
                     </div>
 
                     <button
                         type="button"
                         class="close-button"
-                        @click="
-                            closeAction
-                        "
+                        @click="closeAction"
                     >
                         ×
                     </button>
                 </div>
 
                 <form
-                    v-if="
-                        actionMode ===
-                        'renew'
-                    "
+                    v-if="actionMode === 'renew'"
                     class="modal-body"
-                    @submit.prevent="
-                        submitRenew
-                    "
+                    @submit.prevent="submitRenew"
                 >
                     <div class="form-field">
                         <label>
@@ -1179,58 +797,31 @@ function goToAccess(
                             <span>*</span>
                         </label>
 
-                        <select
-                            v-model="
-                                renewForm.period_id
-                            "
-                        >
-                            <option value="">
-                                Selecciona
-                            </option>
+                        <select v-model="renewForm.period_id">
+                            <option value="">Selecciona</option>
 
                             <option
-                                v-for="
-                                    period in
-                                    periods
-                                "
-                                :key="
-                                    period.id
-                                "
-                                :value="
-                                    period.id
-                                "
+                                v-for="period in periods"
+                                :key="period.id"
+                                :value="period.id"
                                 :disabled="
-                                    period.id ===
-                                    selectedAssignment
-                                        ?.period_id
+                                    period.id === selectedAssignment?.period_id
                                 "
                             >
-                                {{
-                                    period.name
-                                }}
+                                {{ period.name }}
                             </option>
                         </select>
 
                         <small
-                            v-if="
-                                renewForm.errors
-                                    .period_id
-                            "
+                            v-if="renewForm.errors.period_id"
                             class="field-error"
                         >
-                            {{
-                                renewForm.errors
-                                    .period_id
-                            }}
+                            {{ renewForm.errors.period_id }}
                         </small>
                     </div>
 
                     <div
-                        v-if="
-                            selectedAssignment
-                                ?.source ===
-                            'paid'
-                        "
+                        v-if="selectedAssignment?.source === 'paid'"
                         class="form-field modal-field"
                     >
                         <label>
@@ -1239,53 +830,36 @@ function goToAccess(
                         </label>
 
                         <input
-                            v-model="
-                                renewForm.payment_reference
-                            "
+                            v-model="renewForm.payment_reference"
                             type="text"
                             placeholder="Ej. PAY-REN-0001"
                         />
 
                         <small
-                            v-if="
-                                renewForm.errors
-                                    .payment_reference
-                            "
+                            v-if="renewForm.errors.payment_reference"
                             class="field-error"
                         >
-                            {{
-                                renewForm.errors
-                                    .payment_reference
-                            }}
+                            {{ renewForm.errors.payment_reference }}
                         </small>
                     </div>
 
                     <div
-                        v-if="
-                            renewForm.errors
-                                .status
-                        "
+                        v-if="serverError(renewForm, 'status')"
                         class="error-box"
                     >
-                        {{
-                            renewForm.errors
-                                .status
-                        }}
+                        {{ serverError(renewForm, 'status') }}
                     </div>
 
                     <div class="information-box">
-                        El estudiante conservará
-                        el mismo locker durante
-                        el nuevo periodo.
+                        El estudiante conservará el mismo locker durante el
+                        nuevo periodo.
                     </div>
 
                     <div class="modal-actions">
                         <button
                             type="button"
                             class="secondary-button"
-                            @click="
-                                closeAction
-                            "
+                            @click="closeAction"
                         >
                             Cancelar
                         </button>
@@ -1293,22 +867,14 @@ function goToAccess(
                         <button
                             type="submit"
                             class="primary-button"
-                            :disabled="
-                                renewForm.processing
-                            "
+                            :disabled="renewForm.processing"
                         >
                             Renovar
                         </button>
                     </div>
                 </form>
 
-                <form
-                    v-else
-                    class="modal-body"
-                    @submit.prevent="
-                        submitRelease
-                    "
-                >
+                <form v-else class="modal-body" @submit.prevent="submitRelease">
                     <div class="form-field">
                         <label>
                             Motivo de liberación
@@ -1316,56 +882,37 @@ function goToAccess(
                         </label>
 
                         <textarea
-                            v-model="
-                                releaseForm.reason
-                            "
+                            v-model="releaseForm.reason"
                             rows="4"
                             placeholder="Ej. Fin de uso del servicio"
                         />
 
                         <small
-                            v-if="
-                                releaseForm.errors
-                                    .reason
-                            "
+                            v-if="releaseForm.errors.reason"
                             class="field-error"
                         >
-                            {{
-                                releaseForm.errors
-                                    .reason
-                            }}
+                            {{ releaseForm.errors.reason }}
                         </small>
                     </div>
 
                     <div
-                        v-if="
-                            releaseForm.errors
-                                .status
-                        "
+                        v-if="serverError(releaseForm, 'status')"
                         class="error-box"
                     >
-                        {{
-                            releaseForm.errors
-                                .status
-                        }}
+                        {{ serverError(releaseForm, 'status') }}
                     </div>
 
                     <div class="information-box">
-                        Al liberar la asignación,
-                        el locker volverá
+                        Al liberar la asignación, el locker volverá
                         automáticamente al estado
-                        <strong>
-                            Disponible
-                        </strong>.
+                        <strong> Disponible </strong>.
                     </div>
 
                     <div class="modal-actions">
                         <button
                             type="button"
                             class="secondary-button"
-                            @click="
-                                closeAction
-                            "
+                            @click="closeAction"
                         >
                             Cancelar
                         </button>
@@ -1373,9 +920,7 @@ function goToAccess(
                         <button
                             type="submit"
                             class="danger-button"
-                            :disabled="
-                                releaseForm.processing
-                            "
+                            :disabled="releaseForm.processing"
                         >
                             Liberar locker
                         </button>
@@ -1428,8 +973,7 @@ function goToAccess(
     min-width: 165px;
     padding: 16px 19px;
     border-radius: 10px;
-    background:
-        rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .hero-total span {
@@ -1452,8 +996,7 @@ function goToAccess(
 .stats-grid {
     margin-top: 18px;
     display: grid;
-    grid-template-columns:
-        repeat(4, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 13px;
 }
 
@@ -1532,8 +1075,7 @@ function goToAccess(
     align-items: center;
     justify-content: space-between;
     gap: 20px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
 }
 
 .panel-label {
@@ -1591,8 +1133,7 @@ function goToAccess(
 }
 
 .form-panel {
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
@@ -1614,8 +1155,7 @@ function goToAccess(
 
 .form-grid {
     display: grid;
-    grid-template-columns:
-        repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 17px 19px;
 }
 
@@ -1693,8 +1233,7 @@ function goToAccess(
     display: flex;
     justify-content: flex-end;
     gap: 9px;
-    border-top:
-        1px solid #e5e9ef;
+    border-top: 1px solid #e5e9ef;
 }
 
 .filters {
@@ -1705,8 +1244,7 @@ function goToAccess(
         180px
         180px;
     gap: 10px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
@@ -1744,8 +1282,7 @@ th {
 
 td {
     padding: 14px;
-    border-top:
-        1px solid #e9edf3;
+    border-top: 1px solid #e9edf3;
     color: #5c6980;
     font-size: 10px;
     vertical-align: middle;
@@ -1869,8 +1406,7 @@ td {
     display: grid;
     place-items: center;
     padding: 20px;
-    background:
-        rgba(18, 29, 47, 0.5);
+    background: rgba(18, 29, 47, 0.5);
 }
 
 .modal {
@@ -1878,15 +1414,12 @@ td {
     overflow: hidden;
     border-radius: 11px;
     background: white;
-    box-shadow:
-        0 18px 50px
-        rgba(0, 0, 0, 0.18);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
 }
 
 @media (max-width: 1000px) {
     .stats-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .filters {
@@ -1922,8 +1455,7 @@ td {
 
     .form-actions,
     .modal-actions {
-        flex-direction:
-            column-reverse;
+        flex-direction: column-reverse;
     }
 }
 

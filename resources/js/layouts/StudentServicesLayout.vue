@@ -10,59 +10,46 @@ defineProps<{
 const page = usePage();
 
 const userName = computed(() => {
-    const user = page.props.auth?.user as {
-        name?: string;
-    } | null | undefined;
+    const user = page.props.auth?.user as
+        | {
+              name?: string;
+          }
+        | null
+        | undefined;
 
     return user?.name ?? 'Usuario';
 });
 
 const userInitials = computed(() => {
-    const parts = userName.value
-        .trim()
-        .split(' ')
-        .filter(Boolean);
+    const parts = userName.value.trim().split(' ').filter(Boolean);
 
     if (parts.length === 0) {
         return 'U';
     }
 
     if (parts.length === 1) {
-        return parts[0]
-            .charAt(0)
-            .toUpperCase();
+        return parts[0].charAt(0).toUpperCase();
     }
 
-    return (
-        parts[0].charAt(0) +
-        parts[1].charAt(0)
-    ).toUpperCase();
+    return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
 });
 
-const currentUrl = computed(
-    () => page.url,
-);
+const currentUrl = computed(() => page.url);
 
 const isExact = (path: string) => {
     return currentUrl.value === path;
 };
 
 const isActive = (path: string) => {
-    return currentUrl.value.startsWith(
-        path,
-    );
+    return currentUrl.value.startsWith(path);
 };
 
 const isLibrary = computed(() => {
-    return currentUrl.value.startsWith(
-        '/servicios-estudiante/biblioteca',
-    );
+    return currentUrl.value.startsWith('/servicios-estudiante/biblioteca');
 });
 
 const isLockers = computed(() => {
-    return currentUrl.value.startsWith(
-        '/servicios-estudiante/lockers',
-    );
+    return currentUrl.value.startsWith('/servicios-estudiante/lockers');
 });
 </script>
 
@@ -70,43 +57,29 @@ const isLockers = computed(() => {
     <div class="campus-shell">
         <aside class="sidebar">
             <div class="brand">
-                <div class="brand-logo">
-                    CD
-                </div>
+                <div class="brand-logo">CD</div>
 
                 <div class="brand-information">
-                    <strong>
-                        Campus Digital
-                    </strong>
+                    <strong> Campus Digital </strong>
 
-                    <span>
-                        Servicios al Estudiante
-                    </span>
+                    <span> Servicios al Estudiante </span>
                 </div>
             </div>
 
             <div class="sidebar-content">
-                <div class="sidebar-title">
-                    SERVICIOS
-                </div>
+                <div class="sidebar-title">SERVICIOS</div>
 
                 <!-- INICIO -->
                 <Link
                     href="/servicios-estudiante"
                     class="sidebar-item"
                     :class="{
-                        active: isExact(
-                            '/servicios-estudiante',
-                        ),
+                        active: isExact('/servicios-estudiante'),
                     }"
                 >
-                    <span class="sidebar-icon">
-                        ◈
-                    </span>
+                    <span class="sidebar-icon"> ◈ </span>
 
-                    <span>
-                        Inicio
-                    </span>
+                    <span> Inicio </span>
                 </Link>
 
                 <!-- BIBLIOTECA 5.1 / 5.2 -->
@@ -117,13 +90,9 @@ const isLockers = computed(() => {
                         active: isLibrary,
                     }"
                 >
-                    <span class="sidebar-icon">
-                        ▣
-                    </span>
+                    <span class="sidebar-icon"> ▣ </span>
 
-                    <span>
-                        Biblioteca
-                    </span>
+                    <span> Biblioteca </span>
 
                     <span
                         class="sidebar-arrow"
@@ -135,17 +104,12 @@ const isLockers = computed(() => {
                     </span>
                 </Link>
 
-                <div
-                    v-if="isLibrary"
-                    class="submenu"
-                >
+                <div v-if="isLibrary" class="submenu">
                     <Link
                         href="/servicios-estudiante/biblioteca"
                         class="submenu-item"
                         :class="{
-                            active: isExact(
-                                '/servicios-estudiante/biblioteca',
-                            ),
+                            active: isExact('/servicios-estudiante/biblioteca'),
                         }"
                     >
                         Catálogo
@@ -208,13 +172,9 @@ const isLockers = computed(() => {
                         active: isLockers,
                     }"
                 >
-                    <span class="sidebar-icon">
-                        ▤
-                    </span>
+                    <span class="sidebar-icon"> ▤ </span>
 
-                    <span>
-                        Lockers
-                    </span>
+                    <span> Lockers </span>
 
                     <span
                         class="sidebar-arrow"
@@ -226,17 +186,12 @@ const isLockers = computed(() => {
                     </span>
                 </Link>
 
-                <div
-                    v-if="isLockers"
-                    class="submenu"
-                >
+                <div v-if="isLockers" class="submenu">
                     <Link
                         href="/servicios-estudiante/lockers"
                         class="submenu-item"
                         :class="{
-                            active: isExact(
-                                '/servicios-estudiante/lockers',
-                            ),
+                            active: isExact('/servicios-estudiante/lockers'),
                         }"
                     >
                         Catálogo
@@ -296,18 +251,12 @@ const isLockers = computed(() => {
                     href="/servicios-estudiante/reservas"
                     class="sidebar-item"
                     :class="{
-                        active: isActive(
-                            '/servicios-estudiante/reservas',
-                        ),
+                        active: isActive('/servicios-estudiante/reservas'),
                     }"
                 >
-                    <span class="sidebar-icon">
-                        ◷
-                    </span>
+                    <span class="sidebar-icon"> ◷ </span>
 
-                    <span>
-                        Reservas
-                    </span>
+                    <span> Reservas </span>
                 </Link>
 
                 <!-- 5.6 -->
@@ -320,13 +269,9 @@ const isLockers = computed(() => {
                         ),
                     }"
                 >
-                    <span class="sidebar-icon">
-                        ◒
-                    </span>
+                    <span class="sidebar-icon"> ◒ </span>
 
-                    <span>
-                        Zonas de descanso
-                    </span>
+                    <span> Zonas de descanso </span>
                 </Link>
 
                 <!-- 5.7 -->
@@ -334,18 +279,12 @@ const isLockers = computed(() => {
                     href="/servicios-estudiante/renta-equipos"
                     class="sidebar-item"
                     :class="{
-                        active: isActive(
-                            '/servicios-estudiante/renta-equipos',
-                        ),
+                        active: isActive('/servicios-estudiante/renta-equipos'),
                     }"
                 >
-                    <span class="sidebar-icon">
-                        ▦
-                    </span>
+                    <span class="sidebar-icon"> ▦ </span>
 
-                    <span>
-                        Renta de equipos
-                    </span>
+                    <span> Renta de equipos </span>
                 </Link>
 
                 <!-- 5.8 -->
@@ -358,13 +297,9 @@ const isLockers = computed(() => {
                         ),
                     }"
                 >
-                    <span class="sidebar-icon">
-                        ▧
-                    </span>
+                    <span class="sidebar-icon"> ▧ </span>
 
-                    <span>
-                        Servicios e impresiones
-                    </span>
+                    <span> Servicios e impresiones </span>
                 </Link>
 
                 <!-- 5.9 -->
@@ -372,18 +307,12 @@ const isLockers = computed(() => {
                     href="/servicios-estudiante/soporte"
                     class="sidebar-item"
                     :class="{
-                        active: isActive(
-                            '/servicios-estudiante/soporte',
-                        ),
+                        active: isActive('/servicios-estudiante/soporte'),
                     }"
                 >
-                    <span class="sidebar-icon">
-                        ◇
-                    </span>
+                    <span class="sidebar-icon"> ◇ </span>
 
-                    <span>
-                        Soporte
-                    </span>
+                    <span> Soporte </span>
                 </Link>
 
                 <!-- 5.10 -->
@@ -396,13 +325,9 @@ const isLockers = computed(() => {
                         ),
                     }"
                 >
-                    <span class="sidebar-icon">
-                        ▥
-                    </span>
+                    <span class="sidebar-icon"> ▥ </span>
 
-                    <span>
-                        Calendarios y cupos
-                    </span>
+                    <span> Calendarios y cupos </span>
                 </Link>
 
                 <!-- 5.11 -->
@@ -415,68 +340,39 @@ const isLockers = computed(() => {
                         ),
                     }"
                 >
-                    <span class="sidebar-icon">
-                        ◎
-                    </span>
+                    <span class="sidebar-icon"> ◎ </span>
 
-                    <span>
-                        Validación de servicios
-                    </span>
+                    <span> Validación de servicios </span>
                 </Link>
             </div>
 
             <div class="sidebar-footer">
-                <span>
-                    Equipo 5
-                </span>
+                <span> Equipo 5 </span>
 
-                <small>
-                    Campus Digital
-                </small>
+                <small> Campus Digital </small>
             </div>
         </aside>
 
         <div class="main-area">
             <header class="global-header">
                 <nav class="global-navigation">
-                    <Link
-                        href="/"
-                        class="global-item home-item"
-                    >
-                        <span>
-                            ⌂
-                        </span>
+                    <Link href="/" class="global-item home-item">
+                        <span> ⌂ </span>
                     </Link>
 
-                    <button
-                        type="button"
-                        class="global-item"
-                        disabled
-                    >
+                    <button type="button" class="global-item" disabled>
                         Mi Perfil
                     </button>
 
-                    <button
-                        type="button"
-                        class="global-item"
-                        disabled
-                    >
+                    <button type="button" class="global-item" disabled>
                         Cartera
                     </button>
 
-                    <button
-                        type="button"
-                        class="global-item"
-                        disabled
-                    >
+                    <button type="button" class="global-item" disabled>
                         Tienda
                     </button>
 
-                    <button
-                        type="button"
-                        class="global-item"
-                        disabled
-                    >
+                    <button type="button" class="global-item" disabled>
                         Mis Productos
                     </button>
 
@@ -487,30 +383,17 @@ const isLockers = computed(() => {
                         Servicios
                     </Link>
 
-                    <button
-                        type="button"
-                        class="global-item"
-                        disabled
-                    >
+                    <button type="button" class="global-item" disabled>
                         Comunidad
                     </button>
 
-                    <button
-                        type="button"
-                        class="global-item"
-                        disabled
-                    >
+                    <button type="button" class="global-item" disabled>
                         Recompensas
                     </button>
                 </nav>
 
                 <div class="header-user">
-                    <button
-                        type="button"
-                        class="notification-button"
-                    >
-                        ♢
-                    </button>
+                    <button type="button" class="notification-button">♢</button>
 
                     <div class="user-avatar">
                         {{ userInitials }}
@@ -521,9 +404,7 @@ const isLockers = computed(() => {
                             {{ userName }}
                         </strong>
 
-                        <span>
-                            Campus Digital
-                        </span>
+                        <span> Campus Digital </span>
                     </div>
                 </div>
             </header>
@@ -531,10 +412,7 @@ const isLockers = computed(() => {
             <section class="page-header">
                 <div>
                     <h1>
-                        {{
-                            title ??
-                            'Servicios al Estudiante'
-                        }}
+                        {{ title ?? 'Servicios al Estudiante' }}
                     </h1>
 
                     <p v-if="subtitle">
@@ -542,9 +420,7 @@ const isLockers = computed(() => {
                     </p>
                 </div>
 
-                <span class="service-badge">
-                    Servicios
-                </span>
+                <span class="service-badge"> Servicios </span>
             </section>
 
             <main class="content">
@@ -566,7 +442,7 @@ const isLockers = computed(() => {
         system-ui,
         -apple-system,
         BlinkMacSystemFont,
-        "Segoe UI",
+        'Segoe UI',
         sans-serif;
 }
 
@@ -589,9 +465,7 @@ const isLockers = computed(() => {
     align-items: center;
     gap: 12px;
     flex-shrink: 0;
-    border-bottom:
-        1px solid
-        rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .brand-logo {
@@ -636,8 +510,7 @@ const isLockers = computed(() => {
 
 .sidebar-content::-webkit-scrollbar-thumb {
     border-radius: 999px;
-    background:
-        rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.16);
 }
 
 .sidebar-title {
@@ -670,8 +543,7 @@ const isLockers = computed(() => {
 }
 
 .sidebar-item:hover:not(.disabled) {
-    background:
-        rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.07);
     color: white;
 }
 
@@ -690,8 +562,7 @@ const isLockers = computed(() => {
 .sidebar-arrow {
     margin-left: auto;
     font-size: 17px;
-    transition:
-        transform 0.15s ease;
+    transition: transform 0.15s ease;
 }
 
 .sidebar-arrow.open {
@@ -706,9 +577,7 @@ const isLockers = computed(() => {
 .submenu {
     margin: -1px 0 7px 31px;
     padding: 4px 0 4px 12px;
-    border-left:
-        1px solid
-        rgba(255, 255, 255, 0.18);
+    border-left: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .submenu-item {
@@ -732,14 +601,12 @@ const isLockers = computed(() => {
 
 .submenu-item:hover:not(.disabled) {
     color: white;
-    background:
-        rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .submenu-item.active {
     color: white;
-    background:
-        rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .submenu-item.disabled {
@@ -752,9 +619,7 @@ const isLockers = computed(() => {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
-    border-top:
-        1px solid
-        rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     color: #9eb8d8;
 }
 
@@ -783,8 +648,7 @@ const isLockers = computed(() => {
     justify-content: space-between;
     gap: 24px;
     background: white;
-    border-bottom:
-        1px solid #e1e6ee;
+    border-bottom: 1px solid #e1e6ee;
 }
 
 .global-navigation {
@@ -878,8 +742,7 @@ const isLockers = computed(() => {
     justify-content: space-between;
     gap: 20px;
     background: white;
-    border-bottom:
-        1px solid #e1e6ee;
+    border-bottom: 1px solid #e1e6ee;
 }
 
 .page-header h1 {
@@ -910,8 +773,7 @@ const isLockers = computed(() => {
 
 @media (max-width: 1150px) {
     .global-navigation {
-        max-width:
-            calc(100vw - 480px);
+        max-width: calc(100vw - 480px);
     }
 
     .user-info {
@@ -925,8 +787,7 @@ const isLockers = computed(() => {
     }
 
     .main-area {
-        width:
-            calc(100% - 210px);
+        width: calc(100% - 210px);
         margin-left: 210px;
     }
 
@@ -935,8 +796,7 @@ const isLockers = computed(() => {
     }
 
     .global-navigation {
-        max-width:
-            calc(100vw - 285px);
+        max-width: calc(100vw - 285px);
     }
 
     .service-badge {
@@ -982,8 +842,7 @@ const isLockers = computed(() => {
     }
 
     .global-navigation {
-        max-width:
-            calc(100vw - 75px);
+        max-width: calc(100vw - 75px);
     }
 
     .notification-button {

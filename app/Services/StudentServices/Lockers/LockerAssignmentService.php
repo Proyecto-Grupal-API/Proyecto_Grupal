@@ -6,8 +6,8 @@ use App\Models\StudentServices\Lockers\Locker;
 use App\Models\StudentServices\Lockers\LockerAssignment;
 use App\Models\StudentServices\Lockers\LockerPeriod;
 use App\Models\StudentServices\Lockers\LockerRequest;
+use App\Services\StudentServices\Audit\ServiceAuditor;
 use Illuminate\Support\Str;
-use MongoDB\BSON\Decimal128;
 use MongoDB\BSON\ObjectId;
 use RuntimeException;
 use Throwable;
@@ -137,24 +137,19 @@ class LockerAssignmentService
 
                 'period_id' => $period->id,
 
-                'student_id' =>
-                    $request->student_id,
+                'student_id' => $request->student_id,
 
-                'request_id' =>
-                    $request->id,
+                'request_id' => $request->id,
 
-                'source' =>
-                    $request->request_type,
+                'source' => $request->request_type,
 
                 'status' => 'active',
 
-                'starts_at' =>
-                    $period->starts_at->isFuture()
+                'starts_at' => $period->starts_at->isFuture()
                         ? $period->starts_at->copy()
                         : now(),
 
-                'ends_at' =>
-                    $period->ends_at->copy(),
+                'ends_at' => $period->ends_at->copy(),
 
                 'released_at' => null,
 
@@ -164,21 +159,17 @@ class LockerAssignmentService
 
                 'renewed_from_id' => null,
 
-                'assigned_by' =>
-                    $assignedBy,
+                'assigned_by' => $assignedBy,
 
-                'notes' =>
-                    $request->notes,
+                'notes' => $request->notes,
             ]);
 
             $request->update([
                 'status' => 'assigned',
 
-                'locker_id' =>
-                    $locker->id,
+                'locker_id' => $locker->id,
 
-                'reviewed_by' =>
-                    $assignedBy,
+                'reviewed_by' => $assignedBy,
 
                 'reviewed_at' => now(),
             ]);
@@ -214,7 +205,7 @@ class LockerAssignmentService
         ?string $assignedBy = null
     ): LockerAssignment {
         if (
-            !in_array(
+            ! in_array(
                 $type,
                 ['council', 'scholarship'],
                 true
@@ -253,42 +244,32 @@ class LockerAssignmentService
                     $size
                 )
                 ?? throw new RuntimeException(
-                'No hay lockers disponibles de ese tamaño.'
-            );
+                    'No hay lockers disponibles de ese tamaño.'
+                );
         }
 
         $request = LockerRequest::create([
-            'folio' =>
-                $this->newFolio(
-                    'LKR-REQ'
-                ),
+            'folio' => $this->newFolio(
+                'LKR-REQ'
+            ),
 
-            'student_id' =>
-                $studentId,
+            'student_id' => $studentId,
 
-            'period_id' =>
-                $period->id,
+            'period_id' => $period->id,
 
             'locker_id' => null,
 
-            'preferred_size' =>
-                $locker->size,
+            'preferred_size' => $locker->size,
 
-            'preferred_building' =>
-                null,
+            'preferred_building' => null,
 
-            'request_type' =>
-                $type,
+            'request_type' => $type,
 
             'status' => 'pending',
 
-            'amount' =>
-                new Decimal128(
-                    '0.00'
-                ),
+            'amount_cents' => 0,
 
-            'payment_reference' =>
-                null,
+            'payment_reference' => null,
 
             'paid_at' => null,
 
@@ -296,8 +277,7 @@ class LockerAssignmentService
 
             'reviewed_at' => null,
 
-            'notes' =>
-                $reference,
+            'notes' => $reference,
         ]);
 
         try {
@@ -355,8 +335,8 @@ class LockerAssignmentService
         $paymentReference =
             $paymentReference !== null
                 ? trim(
-                $paymentReference
-            )
+                    $paymentReference
+                )
                 : null;
 
         if (
@@ -403,14 +383,11 @@ class LockerAssignmentService
                     'active'
                 )
                 ->update([
-                    'status' =>
-                        'released',
+                    'status' => 'released',
 
-                    'released_at' =>
-                        now(),
+                    'released_at' => now(),
 
-                    'release_reason' =>
-                        'Renovado hacia el periodo '
+                    'release_reason' => 'Renovado hacia el periodo '
                         .$newPeriod->code,
                 ]);
 
@@ -422,62 +399,50 @@ class LockerAssignmentService
 
         try {
             return LockerAssignment::create([
-                'folio' =>
-                    $this->newFolio(
-                        'LKR-ASG'
-                    ),
+                'folio' => $this->newFolio(
+                    'LKR-ASG'
+                ),
 
-                'locker_id' =>
-                    $assignment->locker_id,
+                'locker_id' => $assignment->locker_id,
 
-                'period_id' =>
-                    $newPeriod->id,
+                'period_id' => $newPeriod->id,
 
-                'student_id' =>
-                    $assignment->student_id,
+                'student_id' => $assignment->student_id,
 
                 'request_id' => null,
 
-                'source' =>
-                    $assignment->source,
+                'source' => $assignment->source,
 
                 'status' => 'active',
 
-                'starts_at' =>
-                    $newPeriod
-                        ->starts_at
-                        ->isFuture()
+                'starts_at' => $newPeriod
+                    ->starts_at
+                    ->isFuture()
                         ? $newPeriod
-                        ->starts_at
-                        ->copy()
+                            ->starts_at
+                            ->copy()
                         : now(),
 
-                'ends_at' =>
-                    $newPeriod
-                        ->ends_at
-                        ->copy(),
+                'ends_at' => $newPeriod
+                    ->ends_at
+                    ->copy(),
 
                 'released_at' => null,
 
                 'release_reason' => null,
 
-                'renewal_count' =>
-                    ((int)
-                    $assignment
-                        ->renewal_count)
+                'renewal_count' => ((int)
+                $assignment
+                    ->renewal_count)
                     + 1,
 
-                'renewed_from_id' =>
-                    $assignment->id,
+                'renewed_from_id' => $assignment->id,
 
-                'assigned_by' =>
-                    $renewedBy,
+                'assigned_by' => $renewedBy,
 
-                'notes' =>
-                    $assignment->notes,
+                'notes' => $assignment->notes,
 
-                'payment_reference' =>
-                    $paymentReference,
+                'payment_reference' => $paymentReference,
             ]);
         } catch (Throwable $exception) {
             LockerAssignment::query()
@@ -488,11 +453,9 @@ class LockerAssignmentService
                 ->update([
                     'status' => 'active',
 
-                    'released_at' =>
-                        null,
+                    'released_at' => null,
 
-                    'release_reason' =>
-                        null,
+                    'release_reason' => null,
                 ]);
 
             throw new RuntimeException(
@@ -533,17 +496,13 @@ class LockerAssignmentService
                     'active'
                 )
                 ->update([
-                    'status' =>
-                        'released',
+                    'status' => 'released',
 
-                    'released_at' =>
-                        now(),
+                    'released_at' => now(),
 
-                    'release_reason' =>
-                        $reason,
+                    'release_reason' => $reason,
 
-                    'assigned_by' =>
-                        $releasedBy
+                    'assigned_by' => $releasedBy
                         ?? $assignment
                             ->assigned_by,
                 ]);
@@ -569,8 +528,32 @@ class LockerAssignmentService
             ->update([
                 'status' => 'available',
             ]);
+
+        app(ServiceAuditor::class)->record(
+            'locker.assignment.released',
+            'locker_assignment',
+            (string) $assignment->id,
+            [
+                'status' => 'active',
+                'locker_id' => (string) $assignment->locker_id,
+                'student_id' => (string) $assignment->student_id,
+            ],
+            ['status' => 'released'],
+            $reason,
+            $releasedBy
+        );
     }
 
+    /**
+     * @return array{
+     *     granted: bool,
+     *     message: string,
+     *     locker_code?: string,
+     *     student_id?: string,
+     *     folio?: string,
+     *     ends_at?: string|null
+     * }
+     */
     public function validateAccess(
         string $code
     ): array {
@@ -594,8 +577,7 @@ class LockerAssignmentService
             return [
                 'granted' => false,
 
-                'message' =>
-                    'Código no reconocido.',
+                'message' => 'Código no reconocido.',
             ];
         }
 
@@ -606,11 +588,9 @@ class LockerAssignmentService
             return [
                 'granted' => false,
 
-                'locker_code' =>
-                    $locker->code,
+                'locker_code' => $locker->code,
 
-                'message' =>
-                    'Este locker no tiene una asignación activa.',
+                'message' => 'Este locker no tiene una asignación activa.',
             ];
         }
 
@@ -633,35 +613,28 @@ class LockerAssignmentService
             return [
                 'granted' => false,
 
-                'locker_code' =>
-                    $locker->code,
+                'locker_code' => $locker->code,
 
-                'message' =>
-                    'No se encontró una asignación activa para este locker.',
+                'message' => 'No se encontró una asignación activa para este locker.',
             ];
         }
 
         return [
             'granted' => true,
 
-            'locker_code' =>
-                $locker->code,
+            'locker_code' => $locker->code,
 
-            'student_id' =>
-                $assignment->student_id,
+            'student_id' => $assignment->student_id,
 
-            'folio' =>
-                $assignment->folio,
+            'folio' => $assignment->folio,
 
-            'ends_at' =>
-                $assignment
-                    ->ends_at
-                    ?->format(
-                        'Y-m-d'
-                    ),
+            'ends_at' => $assignment
+                ->ends_at
+                ?->format(
+                    'Y-m-d'
+                ),
 
-            'message' =>
-                'Acceso concedido.',
+            'message' => 'Acceso concedido.',
         ];
     }
 

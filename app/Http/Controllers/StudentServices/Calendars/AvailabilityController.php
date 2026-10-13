@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StudentServices\Calendars\StoreCalendarBlockRequest;
 use App\Http\Requests\StudentServices\Calendars\UpdateCalendarRulesRequest;
 use App\Models\StudentServices\Calendars\CalendarBlock;
+use App\Models\StudentServices\Reservations\Facility;
+use App\Models\StudentServices\Reservations\Reservation;
+use App\Models\StudentServices\RestSpaces\RestBooking;
 use App\Models\StudentServices\RestSpaces\RestSpace;
 use App\Services\StudentServices\Calendars\AvailabilityService;
 use App\Services\StudentServices\Calendars\BookableResources;
@@ -17,7 +20,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
-use MongoDB\Laravel\Eloquent\Model;
 use RuntimeException;
 
 /**
@@ -56,7 +58,7 @@ class AvailabilityController extends Controller
                     'id' => $id,
                     'resource_type' => $type,
                     'resource_label' => BookableResources::definition($type)['label'],
-                    ...$this->describe($type, $model),
+                    ...$this->describe($model),
                     'capacity' => (int) $model->capacity,
                     'rules' => $rules[$id],
                 ];
@@ -199,9 +201,9 @@ class AvailabilityController extends Controller
     /**
      * @return array{name: string, category: string, location: string, active: bool}
      */
-    private function describe(string $type, Model $model): array
+    private function describe(Facility|RestSpace $model): array
     {
-        if ($type === BookableResources::REST_SPACE) {
+        if ($model instanceof RestSpace) {
             return [
                 'name' => (string) $model->name,
                 'category' => RestSpace::TYPES[$model->type] ?? (string) $model->type,
@@ -227,11 +229,11 @@ class AvailabilityController extends Controller
         $bookingModel = BookableResources::bookingModel($type);
         $foreignKey = BookableResources::foreignKey($type);
 
-        return $bookingModel::query()
+        $entries = $bookingModel::query()
             ->whereNotNull('waitlisted_at')
             ->where('end_at', '>=', now()->subDays(7))
             ->get()
-            ->map(function (Model $booking) use ($foreignKey, $names, $type): array {
+            ->map(function (Reservation|RestBooking $booking) use ($foreignKey, $names, $type): array {
                 $key = $type.':'.$booking->{$foreignKey};
 
                 $state = match (true) {
@@ -254,7 +256,8 @@ class AvailabilityController extends Controller
                     'status' => $state,
                 ];
             })
-            ->values()
             ->all();
+
+        return array_values($entries);
     }
 }

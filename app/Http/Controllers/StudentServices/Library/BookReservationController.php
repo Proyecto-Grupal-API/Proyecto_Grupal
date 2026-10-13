@@ -24,8 +24,7 @@ class BookReservationController extends Controller
     public function __construct(
         private readonly ReservationService $reservationService,
         private readonly LoanService $loanService
-    ) {
-    }
+    ) {}
 
     public function index(): Response
     {
@@ -35,8 +34,7 @@ class BookReservationController extends Controller
             ->orderBy('reserved_at', 'desc')
             ->get()
             ->map(
-                fn (BookReservation $reservation) =>
-                $this->reservationPayload($reservation)
+                fn (BookReservation $reservation) => $this->reservationPayload($reservation)
             )
             ->values();
 
@@ -57,17 +55,13 @@ class BookReservationController extends Controller
                     ->count();
 
                 return [
-                    'id' =>
-                        (string) $book->id,
+                    'id' => (string) $book->id,
 
-                    'title' =>
-                        $book->title,
+                    'title' => $book->title,
 
-                    'isbn' =>
-                        $book->isbn ?? null,
+                    'isbn' => $book->isbn ?? null,
 
-                    'available_copies' =>
-                        $availableCopies,
+                    'available_copies' => $availableCopies,
                 ];
             })
             ->values();
@@ -75,11 +69,9 @@ class BookReservationController extends Controller
         return Inertia::render(
             'student-services/library/BookReservations',
             [
-                'reservations' =>
-                    $reservations,
+                'reservations' => $reservations,
 
-                'books' =>
-                    $books,
+                'books' => $books,
             ]
         );
     }
@@ -91,7 +83,7 @@ class BookReservationController extends Controller
 
         try {
             $book = Book::findOrFail(
-                $data['book_id']
+                $request->string('book_id')->value()
             );
 
             $this->reservationService
@@ -110,8 +102,7 @@ class BookReservationController extends Controller
         } catch (RuntimeException $exception) {
             return back()
                 ->withErrors([
-                    'reservation' =>
-                        $exception->getMessage(),
+                    'reservation' => $exception->getMessage(),
                 ])
                 ->withInput();
         } catch (Throwable $exception) {
@@ -119,8 +110,7 @@ class BookReservationController extends Controller
 
             return back()
                 ->withErrors([
-                    'reservation' =>
-                        'No fue posible registrar la reserva.',
+                    'reservation' => 'No fue posible registrar la reserva.',
                 ])
                 ->withInput();
         }
@@ -152,16 +142,14 @@ class BookReservationController extends Controller
         } catch (RuntimeException $exception) {
             return back()
                 ->withErrors([
-                    'reservation' =>
-                        $exception->getMessage(),
+                    'reservation' => $exception->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'reservation' =>
-                        'No fue posible asignar el ejemplar.',
+                    'reservation' => 'No fue posible asignar el ejemplar.',
                 ]);
         }
     }
@@ -193,16 +181,14 @@ class BookReservationController extends Controller
         } catch (RuntimeException $exception) {
             return back()
                 ->withErrors([
-                    'reservation' =>
-                        $exception->getMessage(),
+                    'reservation' => $exception->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'reservation' =>
-                        'No fue posible completar la reserva.',
+                    'reservation' => 'No fue posible completar la reserva.',
                 ]);
         }
     }
@@ -233,16 +219,14 @@ class BookReservationController extends Controller
         } catch (RuntimeException $exception) {
             return back()
                 ->withErrors([
-                    'reservation' =>
-                        $exception->getMessage(),
+                    'reservation' => $exception->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'reservation' =>
-                        'No fue posible cancelar la reserva.',
+                    'reservation' => 'No fue posible cancelar la reserva.',
                 ]);
         }
     }
@@ -268,16 +252,14 @@ class BookReservationController extends Controller
         } catch (RuntimeException $exception) {
             return back()
                 ->withErrors([
-                    'reservation' =>
-                        $exception->getMessage(),
+                    'reservation' => $exception->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'reservation' =>
-                        'No fue posible expirar la reserva.',
+                    'reservation' => 'No fue posible expirar la reserva.',
                 ]);
         }
     }
@@ -313,6 +295,22 @@ class BookReservationController extends Controller
         }
     }
 
+    /**
+     * @return array{
+     *     id: string,
+     *     book_id: string,
+     *     book_title: string,
+     *     student_id: string,
+     *     assigned_copy_id: string|null,
+     *     assigned_copy_code: string|null,
+     *     reserved_at: string|null,
+     *     ready_at: string|null,
+     *     expires_at: string|null,
+     *     fulfilled_at: string|null,
+     *     status: string,
+     *     notes: string|null
+     * }
+     */
     private function reservationPayload(
         BookReservation $reservation
     ): array {
@@ -333,54 +331,42 @@ class BookReservationController extends Controller
         }
 
         return [
-            'id' =>
-                (string) $reservation->id,
+            'id' => (string) $reservation->id,
 
-            'book_id' =>
-                (string)
+            'book_id' => (string)
                 $reservation->book_id,
 
-            'book_title' =>
-                $book?->title ??
+            'book_title' => $book->title ??
                 'Libro no disponible',
 
-            'student_id' =>
-                $reservation->student_id,
+            'student_id' => $reservation->student_id,
 
-            'assigned_copy_id' =>
-                $reservation->assigned_copy_id
+            'assigned_copy_id' => $reservation->assigned_copy_id
                     ? (string)
                 $reservation
                     ->assigned_copy_id
                     : null,
 
-            'assigned_copy_code' =>
-                $copy?->code ??
-                    $copy?->inventory_code ??
-                    $copy?->barcode ??
+            'assigned_copy_code' => $copy->code ??
+                    $copy->inventory_code ??
+                    $copy->barcode ??
                     null,
 
-            'reserved_at' =>
-                $reservation->reserved_at
-                    ?->toISOString(),
+            'reserved_at' => $reservation->reserved_at
+                ?->toISOString(),
 
-            'ready_at' =>
-                $reservation->ready_at
-                    ?->toISOString(),
+            'ready_at' => $reservation->ready_at
+                ?->toISOString(),
 
-            'expires_at' =>
-                $reservation->expires_at
-                    ?->toISOString(),
+            'expires_at' => $reservation->expires_at
+                ?->toISOString(),
 
-            'fulfilled_at' =>
-                $reservation->fulfilled_at
-                    ?->toISOString(),
+            'fulfilled_at' => $reservation->fulfilled_at
+                ?->toISOString(),
 
-            'status' =>
-                $reservation->status,
+            'status' => $reservation->status,
 
-            'notes' =>
-                $reservation->notes,
+            'notes' => $reservation->notes,
         ];
     }
 }

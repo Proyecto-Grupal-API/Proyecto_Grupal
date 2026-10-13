@@ -12,8 +12,7 @@ class LockerAccessController extends Controller
 {
     public function __construct(
         private readonly LockerAssignmentService $assignments
-    ) {
-    }
+    ) {}
 
     public function index(): Response
     {
@@ -40,8 +39,7 @@ class LockerAccessController extends Controller
         return Inertia::render(
             'student-services/lockers/Access',
             [
-                'result' =>
-                    $result,
+                'result' => $result,
             ]
         );
     }

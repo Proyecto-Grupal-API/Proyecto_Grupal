@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /*
@@ -58,9 +59,9 @@ function useStudentServicesTestDatabase(): void
 {
     config(['database.connections.mongodb.database' => env('MONGODB_TEST_DATABASE', 'campus_digital_testing')]);
 
-    Illuminate\Support\Facades\DB::purge('mongodb');
+    DB::purge('mongodb');
 
-    $database = Illuminate\Support\Facades\DB::connection('mongodb')->getDatabase();
+    $database = DB::connection('mongodb')->getDatabase();
 
     foreach ($database->listCollectionNames() as $collection) {
         $database->dropCollection($collection);

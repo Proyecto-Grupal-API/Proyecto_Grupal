@@ -2,9 +2,31 @@
 
 namespace App\Models\StudentServices\Lockers;
 
+use Carbon\CarbonInterface;
 use MongoDB\BSON\ObjectId;
 use MongoDB\Laravel\Eloquent\Model;
 
+/**
+ * @property-read string $id
+ * @property string $folio
+ * @property ObjectId|string $locker_id
+ * @property ObjectId|string $period_id
+ * @property string $student_id
+ * @property ObjectId|string|null $request_id
+ * @property string $source
+ * @property string $status
+ * @property CarbonInterface|null $starts_at
+ * @property CarbonInterface|null $ends_at
+ * @property CarbonInterface|null $released_at
+ * @property string|null $release_reason
+ * @property int $renewal_count
+ * @property ObjectId|string|null $renewed_from_id
+ * @property string|null $assigned_by
+ * @property string|null $notes
+ * @property string|null $payment_reference
+ * @property CarbonInterface|null $created_at
+ * @property CarbonInterface|null $updated_at
+ */
 class LockerAssignment extends Model
 {
     public const SOURCES = [
@@ -21,8 +43,7 @@ class LockerAssignment extends Model
 
     protected $connection = 'mongodb';
 
-    protected $collection =
-        'locker_assignments';
+    protected $table = 'locker_assignments';
 
     protected $fillable = [
         'folio',
@@ -54,28 +75,28 @@ class LockerAssignment extends Model
     }
 
     public function setLockerIdAttribute(
-        $value
+        mixed $value
     ): void {
         $this->attributes['locker_id'] =
             $this->toObjectId($value);
     }
 
     public function setPeriodIdAttribute(
-        $value
+        mixed $value
     ): void {
         $this->attributes['period_id'] =
             $this->toObjectId($value);
     }
 
     public function setRequestIdAttribute(
-        $value
+        mixed $value
     ): void {
         $this->attributes['request_id'] =
             $this->toObjectId($value);
     }
 
     public function setRenewedFromIdAttribute(
-        $value
+        mixed $value
     ): void {
         $this->attributes[
         'renewed_from_id'

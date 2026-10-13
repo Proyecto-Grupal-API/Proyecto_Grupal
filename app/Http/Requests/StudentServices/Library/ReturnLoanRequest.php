@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\StudentServices\Library;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ReturnLoanRequest extends FormRequest
@@ -11,6 +12,9 @@ class ReturnLoanRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [

@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\StudentServices\Lockers\Locker;
 use App\Models\StudentServices\Lockers\LockerPeriod;
 use Illuminate\Database\Seeder;
-use MongoDB\BSON\Decimal128;
 
 class LockersSeeder extends Seeder
 {
@@ -20,7 +19,7 @@ class LockersSeeder extends Seeder
         if (
             LockerPeriod::query()->count() > 0
         ) {
-            $this->command?->info(
+            $this->command->info(
                 'locker_periods ya contiene datos.'
             );
 
@@ -30,30 +29,16 @@ class LockersSeeder extends Seeder
         LockerPeriod::create([
             'code' => '2026-B',
 
-            'name' =>
-                'Agosto - Diciembre 2026',
+            'name' => 'Agosto - Diciembre 2026',
 
-            'starts_at' =>
-                '2026-08-24 00:00:00',
+            'starts_at' => '2026-08-24 00:00:00',
 
-            'ends_at' =>
-                '2026-12-18 23:59:59',
+            'ends_at' => '2026-12-18 23:59:59',
 
-            'prices' => [
-                'small' =>
-                    new Decimal128(
-                        '150.00'
-                    ),
-
-                'medium' =>
-                    new Decimal128(
-                        '220.00'
-                    ),
-
-                'large' =>
-                    new Decimal128(
-                        '300.00'
-                    ),
+            'prices_cents' => [
+                'small' => 15000,
+                'medium' => 22000,
+                'large' => 30000,
             ],
 
             'status' => 'active',
@@ -62,36 +47,22 @@ class LockersSeeder extends Seeder
         LockerPeriod::create([
             'code' => '2027-A',
 
-            'name' =>
-                'Enero - Junio 2027',
+            'name' => 'Enero - Junio 2027',
 
-            'starts_at' =>
-                '2027-01-18 00:00:00',
+            'starts_at' => '2027-01-18 00:00:00',
 
-            'ends_at' =>
-                '2027-06-11 23:59:59',
+            'ends_at' => '2027-06-11 23:59:59',
 
-            'prices' => [
-                'small' =>
-                    new Decimal128(
-                        '150.00'
-                    ),
-
-                'medium' =>
-                    new Decimal128(
-                        '220.00'
-                    ),
-
-                'large' =>
-                    new Decimal128(
-                        '300.00'
-                    ),
+            'prices_cents' => [
+                'small' => 15000,
+                'medium' => 22000,
+                'large' => 30000,
             ],
 
             'status' => 'active',
         ]);
 
-        $this->command?->info(
+        $this->command->info(
             'Periodos de lockers creados.'
         );
     }
@@ -101,7 +72,7 @@ class LockersSeeder extends Seeder
         if (
             Locker::query()->count() > 0
         ) {
-            $this->command?->info(
+            $this->command->info(
                 'lockers ya contiene datos.'
             );
 
@@ -162,20 +133,15 @@ class LockersSeeder extends Seeder
                 Locker::create([
                     'code' => $code,
 
-                    'qr_code' =>
-                        'QR-'.$code,
+                    'qr_code' => 'QR-'.$code,
 
-                    'building' =>
-                        $group['building'],
+                    'building' => $group['building'],
 
-                    'zone' =>
-                        $group['zone'],
+                    'zone' => $group['zone'],
 
-                    'size' =>
-                        $group['size'],
+                    'size' => $group['size'],
 
-                    'status' =>
-                        'available',
+                    'status' => 'available',
 
                     'notes' => null,
                 ]);
@@ -194,15 +160,13 @@ class LockersSeeder extends Seeder
             $maintenanceLocker !== null
         ) {
             $maintenanceLocker->update([
-                'status' =>
-                    'maintenance',
+                'status' => 'maintenance',
 
-                'notes' =>
-                    'Puerta atorada, pendiente de revisión.',
+                'notes' => 'Puerta atorada, pendiente de revisión.',
             ]);
         }
 
-        $this->command?->info(
+        $this->command->info(
             '20 lockers de ejemplo creados.'
         );
     }

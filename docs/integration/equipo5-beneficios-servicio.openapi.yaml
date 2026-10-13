@@ -1,432 +1,672 @@
 openapi: 3.1.0
 info:
-  title: Servicios al Estudiante (Equipo 5) — Beneficios de servicio becados
-  version: 1.0.0
-  description: |
-    Respuesta a la solicitud **REQ-M6-E5-001** del Equipo 6 (Comunidad).
+    title: Servicios al Estudiante (Equipo 5) — Beneficios de servicio becados
+    version: 1.0.0
+    description: |
+        Respuesta a la solicitud **REQ-M6-E5-001** del Equipo 6 (Comunidad).
 
-    Convierte becas de servicio aprobadas en asignaciones reales del Equipo 5.
-    Solo se administran dos beneficios: **locker** e **impresiones**
-    (comidas y transporte no pertenecen a este dominio).
+        Convierte becas de servicio aprobadas en asignaciones reales del Equipo 5.
+        Solo se administran dos beneficios: **locker** e **impresiones**
+        (comidas y transporte no pertenecen a este dominio).
 
-    **Autenticación:** servidor a servidor con token de servicio Bearer
-    (OAuth `client_credentials` del Equipo 1 en la app integrada). Scopes:
-    `services:benefits:read` (consultas) y `services:benefits:write`
-    (crear y cancelar). Cada cliente solo ve sus propias asignaciones.
+        **Autenticación:** servidor a servidor con token de servicio Bearer
+        (OAuth `client_credentials` del Equipo 1 en la app integrada). Scopes:
+        `services:benefits:read` (consultas) y `services:benefits:write`
+        (crear y cancelar). Cada cliente solo ve sus propias asignaciones.
 
-    **Idempotencia:** `POST /asignaciones` y `POST /asignaciones/{id}/cancelacion`
-    requieren `Idempotency-Key` (o `clave_idempotencia` en el cuerpo; si vienen
-    ambos deben coincidir). Repetir la clave con el mismo contenido devuelve el
-    mismo resultado (`meta.repetida = true`); con contenido distinto devuelve
-    `409 conflicto_idempotencia`. Un rechazo de negocio (por ejemplo,
-    `sin_disponibilidad`) no deja registro: reintentar después con la misma
-    clave vuelve a evaluar. Ante un timeout, consultar
-    `GET /asignaciones?clave_idempotencia=...` antes de reintentar.
+        **Idempotencia:** `POST /asignaciones` y `POST /asignaciones/{id}/cancelacion`
+        requieren `Idempotency-Key` (o `clave_idempotencia` en el cuerpo; si vienen
+        ambos deben coincidir). Repetir la clave con el mismo contenido devuelve el
+        mismo resultado (`meta.repetida = true`); con contenido distinto devuelve
+        `409 conflicto_idempotencia`. Un rechazo de negocio (por ejemplo,
+        `sin_disponibilidad`) no deja registro: reintentar después con la misma
+        clave vuelve a evaluar. Ante un timeout, consultar
+        `GET /asignaciones?clave_idempotencia=...` antes de reintentar.
 
-    **Convenciones:** JSON UTF-8; ids como cadenas opacas; `beneficiario_id`
-    es el `User._id` (identificador canónico del Equipo 1); fechas ISO 8601 con
-    zona y fin de vigencia exclusivo. Cada respuesta incluye `X-Correlation-Id`
-    (se respeta el que envíe el cliente). Límite: 120 solicitudes/minuto.
+        **Convenciones:** JSON UTF-8; ids como cadenas opacas; `beneficiario_id`
+        es el `User._id` (identificador canónico del Equipo 1); fechas ISO 8601 con
+        zona y fin de vigencia exclusivo. Cada respuesta incluye `X-Correlation-Id`
+        (se respeta el que envíe el cliente). Límite: 120 solicitudes/minuto.
 servers:
-  - url: /api/v1/servicios
+    - url: /api/v1/servicios
 security:
-  - servicio: []
+    - servicio: []
 tags:
-  - name: Catálogo
-  - name: Asignaciones
+    - name: Catálogo
+    - name: Asignaciones
 paths:
-  /beneficios:
-    get:
-      tags: [Catálogo]
-      summary: Catálogo de beneficios de servicio
-      description: Requiere scope `services:benefits:read`. Catálogo pequeño, sin paginación real (`siguiente_cursor` siempre es null).
-      parameters:
-        - in: query
-          name: tipo
-          schema: { type: string, enum: [locker, impresiones] }
-        - in: query
-          name: campus
-          description: Aceptado por compatibilidad; hoy existe un solo campus.
-          schema: { type: string }
-        - in: query
-          name: cursor
-          schema: { type: string }
-      responses:
-        '200':
-          description: Catálogo vigente
-          content:
-            application/json:
-              example:
-                data:
-                  - beneficio_id: locker
-                    tipo: locker
-                    nombre: Locker becado
-                    unidad: periodo
-                    cantidad_por_asignacion: 1
-                    requisitos:
-                      - beneficiario_id debe ser el User._id de un estudiante activo.
-                      - La vigencia solicitada debe traslaparse con un periodo de lockers activo.
-                    restricciones:
-                      - Un locker por estudiante y periodo (también cuenta un locker pagado o en solicitud).
-                      - La vigencia real es la del periodo de lockers asignado.
-                    vigencia:
-                      periodos:
-                        - periodo_id: 6703f0a1b2c3d4e5f6a7b8c9
-                          codigo: 2026-B
-                          nombre: Agosto - Diciembre 2026
-                          inicio: '2026-08-01T00:00:00-06:00'
-                          fin_exclusiva: '2027-01-01T00:00:00-06:00'
-                  - beneficio_id: impresiones
-                    tipo: impresiones
-                    nombre: Saldo de impresiones becado
-                    unidad: paginas
-                    cantidad_maxima: 2000
-                    vigencia: { definida_por: convocatoria }
-                meta: { api_version: v1, correlacion_id: 3f1c..., siguiente_cursor: null }
-        '401': { $ref: '#/components/responses/NoAutenticado' }
-        '403': { $ref: '#/components/responses/SinPermiso' }
-  /disponibilidad:
-    get:
-      tags: [Catálogo]
-      summary: Disponibilidad informativa (no reserva)
-      description: Requiere `services:benefits:read`. La creación vuelve a comprobar y aparta de forma atómica.
-      parameters:
-        - { in: query, name: beneficio_id, required: true, schema: { type: string, enum: [locker, impresiones] } }
-        - { in: query, name: inicio, schema: { type: string, format: date-time } }
-        - { in: query, name: fin, description: Exclusivo, schema: { type: string, format: date-time } }
-        - { in: query, name: cantidad, schema: { type: integer, minimum: 1, default: 1 } }
-        - { in: query, name: edificio, description: 'Alias: zona', schema: { type: string } }
-      responses:
-        '200':
-          description: Resultado de la consulta
-          content:
-            application/json:
-              example:
-                data:
-                  beneficio_id: locker
-                  disponible: false
-                  cantidad_solicitada: 2
-                  cantidad_disponible: 1
-                  edificio: A
-                  periodo: { periodo_id: 6703f0a1b2c3d4e5f6a7b8c9, codigo: 2026-B, inicio: '2026-08-01T00:00:00-06:00', fin_exclusiva: '2027-01-01T00:00:00-06:00' }
-                  por_edificio: [{ edificio: A, disponibles: 1 }, { edificio: B, disponibles: 2 }]
-                  alternativas: [{ edificio: B, disponibles: 2 }]
-                  consultado_en: '2026-10-12T09:00:00-06:00'
-                  nota: 'Consulta informativa: no constituye reserva.'
-                meta: { api_version: v1, correlacion_id: 3f1c... }
-        '422': { $ref: '#/components/responses/Validacion' }
-  /asignaciones:
-    post:
-      tags: [Asignaciones]
-      summary: Crear asignación (idempotente)
-      description: |
-        Requiere `services:benefits:write`. Acepta el contrato v1 que ya genera
-        `BeneficiosBeca::preparar()` de Comunidad (`tipo`, `vigencia_inicio`,
-        `vigencia_fin_exclusiva`, `clave_idempotencia`) o los nombres de la
-        solicitud (`beneficio_id`, `periodo.inicio`, `periodo.fin`).
+    /beneficios:
+        get:
+            tags: [Catálogo]
+            summary: Catálogo de beneficios de servicio
+            description: Requiere scope `services:benefits:read`. Catálogo pequeño, sin paginación real (`siguiente_cursor` siempre es null).
+            parameters:
+                - in: query
+                  name: tipo
+                  schema: { type: string, enum: [locker, impresiones] }
+                - in: query
+                  name: campus
+                  description: Aceptado por compatibilidad; hoy existe un solo campus.
+                  schema: { type: string }
+                - in: query
+                  name: cursor
+                  schema: { type: string }
+            responses:
+                '200':
+                    description: Catálogo vigente
+                    content:
+                        application/json:
+                            example:
+                                data:
+                                    - beneficio_id: locker
+                                      tipo: locker
+                                      nombre: Locker becado
+                                      unidad: periodo
+                                      cantidad_por_asignacion: 1
+                                      requisitos:
+                                          - beneficiario_id debe ser el User._id de un estudiante activo.
+                                          - La vigencia solicitada debe traslaparse con un periodo de lockers activo.
+                                      restricciones:
+                                          - Un locker por estudiante y periodo (también cuenta un locker pagado o en solicitud).
+                                          - La vigencia real es la del periodo de lockers asignado.
+                                      vigencia:
+                                          periodos:
+                                              - periodo_id: 6703f0a1b2c3d4e5f6a7b8c9
+                                                codigo: 2026-B
+                                                nombre: Agosto - Diciembre 2026
+                                                inicio: '2026-08-01T00:00:00-06:00'
+                                                fin_exclusiva: '2027-01-01T00:00:00-06:00'
+                                    - beneficio_id: impresiones
+                                      tipo: impresiones
+                                      nombre: Saldo de impresiones becado
+                                      unidad: paginas
+                                      cantidad_maxima: 2000
+                                      vigencia: { definida_por: convocatoria }
+                                meta:
+                                    {
+                                        api_version: v1,
+                                        correlacion_id: 3f1c...,
+                                        siguiente_cursor: null,
+                                    }
+                '401': { $ref: '#/components/responses/NoAutenticado' }
+                '403': { $ref: '#/components/responses/SinPermiso' }
+    /disponibilidad:
+        get:
+            tags: [Catálogo]
+            summary: Disponibilidad informativa (no reserva)
+            description: Requiere `services:benefits:read`. La creación vuelve a comprobar y aparta de forma atómica.
+            parameters:
+                - {
+                      in: query,
+                      name: beneficio_id,
+                      required: true,
+                      schema: { type: string, enum: [locker, impresiones] },
+                  }
+                - {
+                      in: query,
+                      name: inicio,
+                      schema: { type: string, format: date-time },
+                  }
+                - {
+                      in: query,
+                      name: fin,
+                      description: Exclusivo,
+                      schema: { type: string, format: date-time },
+                  }
+                - {
+                      in: query,
+                      name: cantidad,
+                      schema: { type: integer, minimum: 1, default: 1 },
+                  }
+                - {
+                      in: query,
+                      name: edificio,
+                      description: 'Alias: zona',
+                      schema: { type: string },
+                  }
+            responses:
+                '200':
+                    description: Resultado de la consulta
+                    content:
+                        application/json:
+                            example:
+                                data:
+                                    beneficio_id: locker
+                                    disponible: false
+                                    cantidad_solicitada: 2
+                                    cantidad_disponible: 1
+                                    edificio: A
+                                    periodo:
+                                        {
+                                            periodo_id: 6703f0a1b2c3d4e5f6a7b8c9,
+                                            codigo: 2026-B,
+                                            inicio: '2026-08-01T00:00:00-06:00',
+                                            fin_exclusiva: '2027-01-01T00:00:00-06:00',
+                                        }
+                                    por_edificio:
+                                        [
+                                            { edificio: A, disponibles: 1 },
+                                            { edificio: B, disponibles: 2 },
+                                        ]
+                                    alternativas:
+                                        [{ edificio: B, disponibles: 2 }]
+                                    consultado_en: '2026-10-12T09:00:00-06:00'
+                                    nota: 'Consulta informativa: no constituye reserva.'
+                                meta:
+                                    { api_version: v1, correlacion_id: 3f1c... }
+                '422': { $ref: '#/components/responses/Validacion' }
+    /asignaciones:
+        post:
+            tags: [Asignaciones]
+            summary: Crear asignación (idempotente)
+            description: |
+                Requiere `services:benefits:write`. Acepta el contrato v1 que ya genera
+                `BeneficiosBeca::preparar()` de Comunidad (`tipo`, `vigencia_inicio`,
+                `vigencia_fin_exclusiva`, `clave_idempotencia`) o los nombres de la
+                solicitud (`beneficio_id`, `periodo.inicio`, `periodo.fin`).
 
-        - **locker:** `cantidad` = 1. Se asigna un locker libre (atómico) del
-          periodo activo que se traslapa con la vigencia; la vigencia real es la
-          del periodo. Si otra petición toma el locker primero, se intenta con el
-          siguiente; si ya no hay, `409 sin_disponibilidad`.
-        - **impresiones:** `cantidad` = páginas (1–2000). Se consume al pagar
-          órdenes de impresión del módulo 5.8 dentro de la vigencia.
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/SolicitudAsignacion' }
-            examples:
-              contratoComunidad:
-                summary: Contrato v1 de Comunidad, tal cual
-                value:
-                  version: 1
-                  clave_idempotencia: beca:6704aa11bb22cc33dd44ee55
-                  beneficiario_id: 6701a1b2c3d4e5f6a7b8c9d0
-                  organizacion_id: 6700f0e0d0c0b0a090807060
-                  convocatoria_id: 6702b2c3d4e5f6a7b8c9d0e1
-                  solicitud_id: 6704aa11bb22cc33dd44ee55
-                  folio: BEC-2026-0042
-                  tipo: impresiones
-                  monto_centavos: 0
-                  moneda: MXN
-                  cantidad: 100
-                  vigencia_inicio: '2026-10-12T06:00:00+00:00'
-                  vigencia_fin_exclusiva: '2026-12-20T06:00:00+00:00'
-                  reglas: Uso exclusivo para impresiones académicas.
-              locker:
-                summary: Beca de locker con nombres de la solicitud
-                value:
-                  beneficio_id: locker
-                  beneficiario_id: 6701a1b2c3d4e5f6a7b8c9d0
-                  organizacion_id: 6700f0e0d0c0b0a090807060
-                  convocatoria_id: 6702b2c3d4e5f6a7b8c9d0e1
-                  solicitud_id: 6704aa11bb22cc33dd44ee56
-                  cantidad: 1
-                  periodo: { inicio: '2026-10-12T00:00:00-06:00', fin: '2026-12-20T00:00:00-06:00' }
-                  edificio: A
-      responses:
-        '201':
-          description: Asignación creada
-          headers:
-            Location: { schema: { type: string } }
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/RespuestaAsignacion' }
-              example:
-                data:
-                  asignacion_id: 6706c1d2e3f4a5b6c7d8e9f0
-                  folio: BEN-20261012-K3P9Q
-                  beneficio_id: locker
-                  estado: asignado
-                  clave_idempotencia: beca:6704aa11bb22cc33dd44ee56
-                  beneficiario_id: 6701a1b2c3d4e5f6a7b8c9d0
-                  organizacion_id: 6700f0e0d0c0b0a090807060
-                  convocatoria_id: 6702b2c3d4e5f6a7b8c9d0e1
-                  solicitud_id: 6704aa11bb22cc33dd44ee56
-                  folio_origen: null
-                  cantidad: { unidad: periodo, asignada: 1, consumida: 0, disponible: 1 }
-                  vigencia: { inicio: '2026-10-12T09:00:00-06:00', fin_exclusiva: '2027-01-01T00:00:00-06:00' }
-                  recurso: { tipo: locker, codigo: LKR-A-PB-001, edificio: A, zona: PB }
-                  evidencia: { asignado_en: '2026-10-12T09:00:00-06:00', folio_asignacion_locker: LKR-ASG-20261012-7HQ2M, primer_acceso_en: null, liberado_en: null }
-                  cancelacion: null
-                  creado_en: '2026-10-12T09:00:00-06:00'
-                  actualizado_en: '2026-10-12T09:00:00-06:00'
-                meta: { api_version: v1, correlacion_id: 3f1c..., repetida: false }
-        '200':
-          description: Repetición con la misma clave y el mismo contenido (`meta.repetida = true`), misma asignación.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/RespuestaAsignacion' }
-        '401': { $ref: '#/components/responses/NoAutenticado' }
-        '403': { $ref: '#/components/responses/SinPermiso' }
-        '409':
-          description: Rechazo de negocio o conflicto
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-              examples:
-                sinDisponibilidad:
-                  value: { codigo: sin_disponibilidad, mensaje: No hay lockers disponibles en A., correlacion_id: 3f1c..., detalles: { alternativas: [{ edificio: B, disponibles: 2 }] } }
-                conflictoIdempotencia:
-                  value: { codigo: conflicto_idempotencia, mensaje: La clave de idempotencia ya se usó con un contenido diferente., correlacion_id: 3f1c..., detalles: { asignacion_id: 6706c1d2e3f4a5b6c7d8e9f0 } }
-                beneficiarioConLocker:
-                  value: { codigo: beneficiario_con_locker, mensaje: El beneficiario ya tiene un locker o una solicitud de locker en este periodo., correlacion_id: 3f1c... }
-        '422':
-          description: Datos inválidos o beneficio no soportado
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-              examples:
-                noSoportado:
-                  value: { codigo: beneficio_no_soportado, mensaje: 'El beneficio [comidas] no lo administra Servicios al Estudiante (Equipo 5). Disponibles: locker, impresiones.', correlacion_id: 3f1c... }
-                validacion:
-                  value: { codigo: validacion, mensaje: Indica el inicio de la vigencia (periodo.inicio o vigencia_inicio)., correlacion_id: 3f1c..., detalles: { errores: { vigencia_inicio: ['...'] } } }
-    get:
-      tags: [Asignaciones]
-      summary: Consultar asignaciones del cliente (estado real)
-      description: Requiere `services:benefits:read`. Uso típico tras un timeout, `?clave_idempotencia=beca:{solicitud_id}`.
-      parameters:
-        - { in: query, name: clave_idempotencia, schema: { type: string } }
-        - { in: query, name: solicitud_id, schema: { type: string } }
-        - { in: query, name: convocatoria_id, schema: { type: string } }
-        - { in: query, name: beneficiario_id, schema: { type: string } }
-        - { in: query, name: organizacion_id, schema: { type: string } }
-        - { in: query, name: beneficio_id, schema: { type: string, enum: [locker, impresiones] } }
-        - { in: query, name: limite, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
-        - { in: query, name: cursor, schema: { type: string } }
-      responses:
-        '200':
-          description: Lista paginada (`meta.siguiente_cursor`)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data: { type: array, items: { $ref: '#/components/schemas/Asignacion' } }
-                  meta: { type: object }
-  /asignaciones/{asignacion_id}:
-    get:
-      tags: [Asignaciones]
-      summary: Detalle de una asignación
-      parameters:
-        - { in: path, name: asignacion_id, required: true, schema: { type: string } }
-      responses:
-        '200':
-          description: Asignación
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/RespuestaAsignacion' }
-        '404': { $ref: '#/components/responses/NoEncontrada' }
-  /asignaciones/{asignacion_id}/cancelacion:
-    post:
-      tags: [Asignaciones]
-      summary: Cancelar o liberar (idempotente)
-      description: |
-        Requiere `services:benefits:write`.
-        - **locker:** libera el locker si la asignación sigue activa; si ya terminó, `409 no_cancelable`.
-        - **impresiones:** libera solo el saldo no consumido; lo consumido no se revierte. Sin saldo o con la vigencia terminada, `409 no_cancelable`.
-        Repetir con la misma clave devuelve la misma cancelación; otra clave sobre una asignación ya cancelada, `409 ya_cancelada`.
-        Cancelar nunca modifica el dictamen de Comunidad.
-      parameters:
-        - { in: path, name: asignacion_id, required: true, schema: { type: string } }
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [motivo]
-              properties:
-                motivo: { type: string, maxLength: 500 }
-                referencia_origen: { type: string, maxLength: 150 }
-            example: { motivo: Baja del programa de becas, referencia_origen: DICT-2026-017 }
-      responses:
-        '200':
-          description: Cancelación registrada (o repetida)
-          content:
-            application/json:
-              example:
-                data:
-                  cancelacion_id: CAN-20261020-Z8X1C
-                  estado: cancelado
-                  liberado: true
-                  cantidad_liberada: 70
-                  asignacion: { asignacion_id: 6706c1d2e3f4a5b6c7d8e9f1, beneficio_id: impresiones, estado: cancelado, cantidad: { unidad: paginas, asignada: 100, consumida: 30, disponible: 0 } }
-                meta: { api_version: v1, correlacion_id: 3f1c..., repetida: false }
-        '404': { $ref: '#/components/responses/NoEncontrada' }
-        '409':
-          description: No cancelable o ya cancelada con otra clave
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-              examples:
-                noCancelable:
-                  value: { codigo: no_cancelable, mensaje: 'La asignación de locker ya terminó; no hay recurso que liberar.', correlacion_id: 3f1c... }
-                yaCancelada:
-                  value: { codigo: ya_cancelada, mensaje: La asignación ya fue cancelada con otra solicitud., correlacion_id: 3f1c..., detalles: { cancelacion_id: CAN-20261020-Z8X1C } }
+                - **locker:** `cantidad` = 1. Se asigna un locker libre (atómico) del
+                  periodo activo que se traslapa con la vigencia; la vigencia real es la
+                  del periodo. Si otra petición toma el locker primero, se intenta con el
+                  siguiente; si ya no hay, `409 sin_disponibilidad`.
+                - **impresiones:** `cantidad` = páginas (1–2000). Se consume al pagar
+                  órdenes de impresión del módulo 5.8 dentro de la vigencia.
+            parameters:
+                - $ref: '#/components/parameters/IdempotencyKey'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            { $ref: '#/components/schemas/SolicitudAsignacion' }
+                        examples:
+                            contratoComunidad:
+                                summary: Contrato v1 de Comunidad, tal cual
+                                value:
+                                    version: 1
+                                    clave_idempotencia: beca:6704aa11bb22cc33dd44ee55
+                                    beneficiario_id: 6701a1b2c3d4e5f6a7b8c9d0
+                                    organizacion_id: 6700f0e0d0c0b0a090807060
+                                    convocatoria_id: 6702b2c3d4e5f6a7b8c9d0e1
+                                    solicitud_id: 6704aa11bb22cc33dd44ee55
+                                    folio: BEC-2026-0042
+                                    tipo: impresiones
+                                    monto_centavos: 0
+                                    moneda: MXN
+                                    cantidad: 100
+                                    vigencia_inicio: '2026-10-12T06:00:00+00:00'
+                                    vigencia_fin_exclusiva: '2026-12-20T06:00:00+00:00'
+                                    reglas: Uso exclusivo para impresiones académicas.
+                            locker:
+                                summary: Beca de locker con nombres de la solicitud
+                                value:
+                                    beneficio_id: locker
+                                    beneficiario_id: 6701a1b2c3d4e5f6a7b8c9d0
+                                    organizacion_id: 6700f0e0d0c0b0a090807060
+                                    convocatoria_id: 6702b2c3d4e5f6a7b8c9d0e1
+                                    solicitud_id: 6704aa11bb22cc33dd44ee56
+                                    cantidad: 1
+                                    periodo:
+                                        {
+                                            inicio: '2026-10-12T00:00:00-06:00',
+                                            fin: '2026-12-20T00:00:00-06:00',
+                                        }
+                                    edificio: A
+            responses:
+                '201':
+                    description: Asignación creada
+                    headers:
+                        Location: { schema: { type: string } }
+                    content:
+                        application/json:
+                            schema:
+                                {
+                                    $ref: '#/components/schemas/RespuestaAsignacion',
+                                }
+                            example:
+                                data:
+                                    asignacion_id: 6706c1d2e3f4a5b6c7d8e9f0
+                                    folio: BEN-20261012-K3P9Q
+                                    beneficio_id: locker
+                                    estado: asignado
+                                    clave_idempotencia: beca:6704aa11bb22cc33dd44ee56
+                                    beneficiario_id: 6701a1b2c3d4e5f6a7b8c9d0
+                                    organizacion_id: 6700f0e0d0c0b0a090807060
+                                    convocatoria_id: 6702b2c3d4e5f6a7b8c9d0e1
+                                    solicitud_id: 6704aa11bb22cc33dd44ee56
+                                    folio_origen: null
+                                    cantidad:
+                                        {
+                                            unidad: periodo,
+                                            asignada: 1,
+                                            consumida: 0,
+                                            disponible: 1,
+                                        }
+                                    vigencia:
+                                        {
+                                            inicio: '2026-10-12T09:00:00-06:00',
+                                            fin_exclusiva: '2027-01-01T00:00:00-06:00',
+                                        }
+                                    recurso:
+                                        {
+                                            tipo: locker,
+                                            codigo: LKR-A-PB-001,
+                                            edificio: A,
+                                            zona: PB,
+                                        }
+                                    evidencia:
+                                        {
+                                            asignado_en: '2026-10-12T09:00:00-06:00',
+                                            folio_asignacion_locker: LKR-ASG-20261012-7HQ2M,
+                                            primer_acceso_en: null,
+                                            liberado_en: null,
+                                        }
+                                    cancelacion: null
+                                    creado_en: '2026-10-12T09:00:00-06:00'
+                                    actualizado_en: '2026-10-12T09:00:00-06:00'
+                                meta:
+                                    {
+                                        api_version: v1,
+                                        correlacion_id: 3f1c...,
+                                        repetida: false,
+                                    }
+                '200':
+                    description: Repetición con la misma clave y el mismo contenido (`meta.repetida = true`), misma asignación.
+                    content:
+                        application/json:
+                            schema:
+                                {
+                                    $ref: '#/components/schemas/RespuestaAsignacion',
+                                }
+                '401': { $ref: '#/components/responses/NoAutenticado' }
+                '403': { $ref: '#/components/responses/SinPermiso' }
+                '409':
+                    description: Rechazo de negocio o conflicto
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+                            examples:
+                                sinDisponibilidad:
+                                    value:
+                                        {
+                                            codigo: sin_disponibilidad,
+                                            mensaje: No hay lockers disponibles en A.,
+                                            correlacion_id: 3f1c...,
+                                            detalles:
+                                                {
+                                                    alternativas:
+                                                        [
+                                                            {
+                                                                edificio: B,
+                                                                disponibles: 2,
+                                                            },
+                                                        ],
+                                                },
+                                        }
+                                conflictoIdempotencia:
+                                    value:
+                                        {
+                                            codigo: conflicto_idempotencia,
+                                            mensaje: La clave de idempotencia ya se usó con un contenido diferente.,
+                                            correlacion_id: 3f1c...,
+                                            detalles:
+                                                {
+                                                    asignacion_id: 6706c1d2e3f4a5b6c7d8e9f0,
+                                                },
+                                        }
+                                beneficiarioConLocker:
+                                    value:
+                                        {
+                                            codigo: beneficiario_con_locker,
+                                            mensaje: El beneficiario ya tiene un locker o una solicitud de locker en este periodo.,
+                                            correlacion_id: 3f1c...,
+                                        }
+                '422':
+                    description: Datos inválidos o beneficio no soportado
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+                            examples:
+                                noSoportado:
+                                    value:
+                                        {
+                                            codigo: beneficio_no_soportado,
+                                            mensaje: 'El beneficio [comidas] no lo administra Servicios al Estudiante (Equipo 5). Disponibles: locker, impresiones.',
+                                            correlacion_id: 3f1c...,
+                                        }
+                                validacion:
+                                    value:
+                                        {
+                                            codigo: validacion,
+                                            mensaje: Indica el inicio de la vigencia (periodo.inicio o vigencia_inicio).,
+                                            correlacion_id: 3f1c...,
+                                            detalles:
+                                                {
+                                                    errores:
+                                                        {
+                                                            vigencia_inicio:
+                                                                ['...'],
+                                                        },
+                                                },
+                                        }
+        get:
+            tags: [Asignaciones]
+            summary: Consultar asignaciones del cliente (estado real)
+            description: Requiere `services:benefits:read`. Uso típico tras un timeout, `?clave_idempotencia=beca:{solicitud_id}`.
+            parameters:
+                - {
+                      in: query,
+                      name: clave_idempotencia,
+                      schema: { type: string },
+                  }
+                - { in: query, name: solicitud_id, schema: { type: string } }
+                - { in: query, name: convocatoria_id, schema: { type: string } }
+                - { in: query, name: beneficiario_id, schema: { type: string } }
+                - { in: query, name: organizacion_id, schema: { type: string } }
+                - {
+                      in: query,
+                      name: beneficio_id,
+                      schema: { type: string, enum: [locker, impresiones] },
+                  }
+                - {
+                      in: query,
+                      name: limite,
+                      schema:
+                          {
+                              type: integer,
+                              minimum: 1,
+                              maximum: 100,
+                              default: 20,
+                          },
+                  }
+                - { in: query, name: cursor, schema: { type: string } }
+            responses:
+                '200':
+                    description: Lista paginada (`meta.siguiente_cursor`)
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        {
+                                            type: array,
+                                            items:
+                                                {
+                                                    $ref: '#/components/schemas/Asignacion',
+                                                },
+                                        }
+                                    meta: { type: object }
+    /asignaciones/{asignacion_id}:
+        get:
+            tags: [Asignaciones]
+            summary: Detalle de una asignación
+            parameters:
+                - {
+                      in: path,
+                      name: asignacion_id,
+                      required: true,
+                      schema: { type: string },
+                  }
+            responses:
+                '200':
+                    description: Asignación
+                    content:
+                        application/json:
+                            schema:
+                                {
+                                    $ref: '#/components/schemas/RespuestaAsignacion',
+                                }
+                '404': { $ref: '#/components/responses/NoEncontrada' }
+    /asignaciones/{asignacion_id}/cancelacion:
+        post:
+            tags: [Asignaciones]
+            summary: Cancelar o liberar (idempotente)
+            description: |
+                Requiere `services:benefits:write`.
+                - **locker:** libera el locker si la asignación sigue activa; si ya terminó, `409 no_cancelable`.
+                - **impresiones:** libera solo el saldo no consumido; lo consumido no se revierte. Sin saldo o con la vigencia terminada, `409 no_cancelable`.
+                Repetir con la misma clave devuelve la misma cancelación; otra clave sobre una asignación ya cancelada, `409 ya_cancelada`.
+                Cancelar nunca modifica el dictamen de Comunidad.
+            parameters:
+                - {
+                      in: path,
+                      name: asignacion_id,
+                      required: true,
+                      schema: { type: string },
+                  }
+                - $ref: '#/components/parameters/IdempotencyKey'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [motivo]
+                            properties:
+                                motivo: { type: string, maxLength: 500 }
+                                referencia_origen:
+                                    { type: string, maxLength: 150 }
+                        example:
+                            {
+                                motivo: Baja del programa de becas,
+                                referencia_origen: DICT-2026-017,
+                            }
+            responses:
+                '200':
+                    description: Cancelación registrada (o repetida)
+                    content:
+                        application/json:
+                            example:
+                                data:
+                                    cancelacion_id: CAN-20261020-Z8X1C
+                                    estado: cancelado
+                                    liberado: true
+                                    cantidad_liberada: 70
+                                    asignacion:
+                                        {
+                                            asignacion_id: 6706c1d2e3f4a5b6c7d8e9f1,
+                                            beneficio_id: impresiones,
+                                            estado: cancelado,
+                                            cantidad:
+                                                {
+                                                    unidad: paginas,
+                                                    asignada: 100,
+                                                    consumida: 30,
+                                                    disponible: 0,
+                                                },
+                                        }
+                                meta:
+                                    {
+                                        api_version: v1,
+                                        correlacion_id: 3f1c...,
+                                        repetida: false,
+                                    }
+                '404': { $ref: '#/components/responses/NoEncontrada' }
+                '409':
+                    description: No cancelable o ya cancelada con otra clave
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/Error' }
+                            examples:
+                                noCancelable:
+                                    value:
+                                        {
+                                            codigo: no_cancelable,
+                                            mensaje: 'La asignación de locker ya terminó; no hay recurso que liberar.',
+                                            correlacion_id: 3f1c...,
+                                        }
+                                yaCancelada:
+                                    value:
+                                        {
+                                            codigo: ya_cancelada,
+                                            mensaje: La asignación ya fue cancelada con otra solicitud.,
+                                            correlacion_id: 3f1c...,
+                                            detalles:
+                                                {
+                                                    cancelacion_id: CAN-20261020-Z8X1C,
+                                                },
+                                        }
 components:
-  securitySchemes:
-    servicio:
-      type: http
-      scheme: bearer
-      description: Token de servicio (OAuth client_credentials del Equipo 1 en la app integrada).
-  parameters:
-    IdempotencyKey:
-      in: header
-      name: Idempotency-Key
-      required: false
-      description: Obligatoria salvo que se envíe `clave_idempotencia` en el cuerpo. Sugerido `beca:{solicitud_id}`; para cancelar, una clave distinta (por ejemplo `cancelacion:{solicitud_id}`).
-      schema: { type: string, maxLength: 150 }
-  responses:
-    NoAutenticado:
-      description: Sin token o token inválido
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-          example: { codigo: no_autenticado, mensaje: Se requiere un token de servicio (Bearer)., correlacion_id: 3f1c... }
-    SinPermiso:
-      description: Token sin el scope requerido
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-          example: { codigo: sin_permiso, mensaje: 'El token no tiene el scope requerido: services:benefits:write.', correlacion_id: 3f1c... }
-    NoEncontrada:
-      description: No existe para este cliente
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-          example: { codigo: no_encontrada, mensaje: La asignación no existe para este cliente., correlacion_id: 3f1c... }
-    Validacion:
-      description: Parámetros inválidos
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-  schemas:
-    Error:
-      type: object
-      required: [codigo, mensaje, correlacion_id]
-      properties:
-        codigo:
-          type: string
-          description: |
-            no_autenticado, sin_permiso, validacion, falta_idempotencia, idempotencia_inconsistente,
-            beneficio_no_soportado, cantidad_invalida, vigencia_invalida, vigencia_vencida,
-            beneficiario_no_encontrado, beneficiario_no_elegible, beneficiario_con_locker,
-            sin_periodo, sin_disponibilidad, solicitud_ya_asignada, conflicto_idempotencia,
-            en_proceso, rechazado, no_encontrada, no_cancelable, ya_cancelada,
-            conflicto_concurrente, demasiadas_solicitudes, error_interno.
-            Reintentables: en_proceso, conflicto_concurrente, demasiadas_solicitudes, error_interno
-            (consultar por clave antes de repetir) y sin_disponibilidad / sin_periodo más adelante.
-        mensaje: { type: string }
-        correlacion_id: { type: string }
-        detalles: { type: object }
-    SolicitudAsignacion:
-      type: object
-      required: [beneficiario_id, organizacion_id, convocatoria_id, solicitud_id, cantidad]
-      properties:
-        beneficio_id: { type: string, enum: [locker, impresiones], description: 'Alias: tipo' }
-        tipo: { type: string, enum: [locker, impresiones] }
-        beneficiario_id: { type: string, description: User._id }
-        organizacion_id: { type: string }
-        convocatoria_id: { type: string }
-        solicitud_id: { type: string }
-        folio: { type: string }
-        cantidad: { type: integer, minimum: 1 }
-        periodo:
-          type: object
-          properties:
-            inicio: { type: string, format: date-time }
-            fin: { type: string, format: date-time, description: Exclusivo }
-        vigencia_inicio: { type: string, format: date-time }
-        vigencia_fin_exclusiva: { type: string, format: date-time }
-        edificio: { type: string, description: Solo locker, opcional }
-        clave_idempotencia: { type: string }
-    Asignacion:
-      type: object
-      properties:
-        asignacion_id: { type: string }
-        folio: { type: string }
-        beneficio_id: { type: string, enum: [locker, impresiones] }
-        estado:
-          type: string
-          enum: [asignado, entregado, en_uso, consumido, vencido, finalizado, cancelado]
-          description: |
-            locker: asignado → entregado (primer acceso registrado en la validación 5.11) → finalizado (fin del periodo o liberación) | cancelado.
-            impresiones: asignado → en_uso → consumido | vencido | cancelado.
-        clave_idempotencia: { type: string }
-        beneficiario_id: { type: string }
-        organizacion_id: { type: string }
-        convocatoria_id: { type: string }
-        solicitud_id: { type: string }
-        folio_origen: { type: [string, 'null'] }
-        cantidad:
-          type: object
-          properties:
-            unidad: { type: string, enum: [periodo, paginas] }
-            asignada: { type: integer }
-            consumida: { type: integer }
-            disponible: { type: integer }
-        vigencia:
-          type: object
-          properties:
-            inicio: { type: string, format: date-time }
-            fin_exclusiva: { type: string, format: date-time }
-        recurso: { type: [object, 'null'] }
-        evidencia: { type: object }
-        cancelacion: { type: [object, 'null'] }
-        creado_en: { type: string, format: date-time }
-        actualizado_en: { type: string, format: date-time }
-    RespuestaAsignacion:
-      type: object
-      properties:
-        data: { $ref: '#/components/schemas/Asignacion' }
-        meta:
-          type: object
-          properties:
-            api_version: { type: string }
-            correlacion_id: { type: string }
-            repetida: { type: boolean }
+    securitySchemes:
+        servicio:
+            type: http
+            scheme: bearer
+            description: Token de servicio (OAuth client_credentials del Equipo 1 en la app integrada).
+    parameters:
+        IdempotencyKey:
+            in: header
+            name: Idempotency-Key
+            required: false
+            description: Obligatoria salvo que se envíe `clave_idempotencia` en el cuerpo. Sugerido `beca:{solicitud_id}`; para cancelar, una clave distinta (por ejemplo `cancelacion:{solicitud_id}`).
+            schema: { type: string, maxLength: 150 }
+    responses:
+        NoAutenticado:
+            description: Sin token o token inválido
+            content:
+                application/json:
+                    schema: { $ref: '#/components/schemas/Error' }
+                    example:
+                        {
+                            codigo: no_autenticado,
+                            mensaje: Se requiere un token de servicio (Bearer).,
+                            correlacion_id: 3f1c...,
+                        }
+        SinPermiso:
+            description: Token sin el scope requerido
+            content:
+                application/json:
+                    schema: { $ref: '#/components/schemas/Error' }
+                    example:
+                        {
+                            codigo: sin_permiso,
+                            mensaje: 'El token no tiene el scope requerido: services:benefits:write.',
+                            correlacion_id: 3f1c...,
+                        }
+        NoEncontrada:
+            description: No existe para este cliente
+            content:
+                application/json:
+                    schema: { $ref: '#/components/schemas/Error' }
+                    example:
+                        {
+                            codigo: no_encontrada,
+                            mensaje: La asignación no existe para este cliente.,
+                            correlacion_id: 3f1c...,
+                        }
+        Validacion:
+            description: Parámetros inválidos
+            content:
+                application/json:
+                    schema: { $ref: '#/components/schemas/Error' }
+    schemas:
+        Error:
+            type: object
+            required: [codigo, mensaje, correlacion_id]
+            properties:
+                codigo:
+                    type: string
+                    description: |
+                        no_autenticado, sin_permiso, validacion, falta_idempotencia, idempotencia_inconsistente,
+                        beneficio_no_soportado, cantidad_invalida, vigencia_invalida, vigencia_vencida,
+                        beneficiario_no_encontrado, beneficiario_no_elegible, beneficiario_con_locker,
+                        sin_periodo, sin_disponibilidad, solicitud_ya_asignada, conflicto_idempotencia,
+                        en_proceso, rechazado, no_encontrada, no_cancelable, ya_cancelada,
+                        conflicto_concurrente, demasiadas_solicitudes, error_interno.
+                        Reintentables: en_proceso, conflicto_concurrente, demasiadas_solicitudes, error_interno
+                        (consultar por clave antes de repetir) y sin_disponibilidad / sin_periodo más adelante.
+                mensaje: { type: string }
+                correlacion_id: { type: string }
+                detalles: { type: object }
+        SolicitudAsignacion:
+            type: object
+            required:
+                [
+                    beneficiario_id,
+                    organizacion_id,
+                    convocatoria_id,
+                    solicitud_id,
+                    cantidad,
+                ]
+            properties:
+                beneficio_id:
+                    {
+                        type: string,
+                        enum: [locker, impresiones],
+                        description: 'Alias: tipo',
+                    }
+                tipo: { type: string, enum: [locker, impresiones] }
+                beneficiario_id: { type: string, description: User._id }
+                organizacion_id: { type: string }
+                convocatoria_id: { type: string }
+                solicitud_id: { type: string }
+                folio: { type: string }
+                cantidad: { type: integer, minimum: 1 }
+                periodo:
+                    type: object
+                    properties:
+                        inicio: { type: string, format: date-time }
+                        fin:
+                            {
+                                type: string,
+                                format: date-time,
+                                description: Exclusivo,
+                            }
+                vigencia_inicio: { type: string, format: date-time }
+                vigencia_fin_exclusiva: { type: string, format: date-time }
+                edificio: { type: string, description: Solo locker, opcional }
+                clave_idempotencia: { type: string }
+        Asignacion:
+            type: object
+            properties:
+                asignacion_id: { type: string }
+                folio: { type: string }
+                beneficio_id: { type: string, enum: [locker, impresiones] }
+                estado:
+                    type: string
+                    enum:
+                        [
+                            asignado,
+                            entregado,
+                            en_uso,
+                            consumido,
+                            vencido,
+                            finalizado,
+                            cancelado,
+                        ]
+                    description: |
+                        locker: asignado → entregado (primer acceso registrado en la validación 5.11) → finalizado (fin del periodo o liberación) | cancelado.
+                        impresiones: asignado → en_uso → consumido | vencido | cancelado.
+                clave_idempotencia: { type: string }
+                beneficiario_id: { type: string }
+                organizacion_id: { type: string }
+                convocatoria_id: { type: string }
+                solicitud_id: { type: string }
+                folio_origen: { type: [string, 'null'] }
+                cantidad:
+                    type: object
+                    properties:
+                        unidad: { type: string, enum: [periodo, paginas] }
+                        asignada: { type: integer }
+                        consumida: { type: integer }
+                        disponible: { type: integer }
+                vigencia:
+                    type: object
+                    properties:
+                        inicio: { type: string, format: date-time }
+                        fin_exclusiva: { type: string, format: date-time }
+                recurso: { type: [object, 'null'] }
+                evidencia: { type: object }
+                cancelacion: { type: [object, 'null'] }
+                creado_en: { type: string, format: date-time }
+                actualizado_en: { type: string, format: date-time }
+        RespuestaAsignacion:
+            type: object
+            properties:
+                data: { $ref: '#/components/schemas/Asignacion' }
+                meta:
+                    type: object
+                    properties:
+                        api_version: { type: string }
+                        correlacion_id: { type: string }
+                        repetida: { type: boolean }

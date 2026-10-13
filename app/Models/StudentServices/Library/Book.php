@@ -2,13 +2,29 @@
 
 namespace App\Models\StudentServices\Library;
 
+use Carbon\CarbonInterface;
 use MongoDB\Laravel\Eloquent\Model;
 
+/**
+ * @property-read string $id
+ * @property string $isbn
+ * @property string $title
+ * @property array<int, string>|null $authors
+ * @property string|null $publisher
+ * @property string|null $edition
+ * @property int|null $publication_year
+ * @property string|null $category
+ * @property string|null $description
+ * @property string|null $cover
+ * @property string $status
+ * @property CarbonInterface|null $created_at
+ * @property CarbonInterface|null $updated_at
+ */
 class Book extends Model
 {
     protected $connection = 'mongodb';
 
-    protected $collection = 'books';
+    protected $table = 'books';
 
     protected $fillable = [
         'isbn',

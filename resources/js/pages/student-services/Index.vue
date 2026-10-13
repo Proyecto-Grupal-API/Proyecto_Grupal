@@ -113,54 +113,36 @@ const openService = (service: ServiceItem) => {
     >
         <section class="welcome">
             <div class="welcome-information">
-                <span class="section-label">
-                    CAMPUS DIGITAL
-                </span>
+                <span class="section-label"> CAMPUS DIGITAL </span>
 
-                <h2>
-                    Servicios al Estudiante
-                </h2>
+                <h2>Servicios al Estudiante</h2>
 
                 <p>
-                    Accede a los servicios universitarios administrados
-                    por el Equipo 5 dentro de Campus Digital.
+                    Accede a los servicios universitarios administrados por el
+                    Equipo 5 dentro de Campus Digital.
                 </p>
             </div>
 
             <div class="module-summary">
-                <span>
-                    MÓDULOS
-                </span>
+                <span> MÓDULOS </span>
 
-                <strong>
-                    11
-                </strong>
+                <strong> 11 </strong>
 
-                <small>
-                    Equipo 5
-                </small>
+                <small> Equipo 5 </small>
             </div>
         </section>
 
         <section class="services-section">
             <div class="section-header">
                 <div>
-                    <span class="section-label">
-                        EQUIPO 5
-                    </span>
+                    <span class="section-label"> EQUIPO 5 </span>
 
-                    <h3>
-                        Servicios disponibles
-                    </h3>
+                    <h3>Servicios disponibles</h3>
 
-                    <p>
-                        Selecciona el módulo que deseas consultar.
-                    </p>
+                    <p>Selecciona el módulo que deseas consultar.</p>
                 </div>
 
-                <span class="available-badge">
-                    11 módulos
-                </span>
+                <span class="available-badge"> 11 módulos </span>
             </div>
 
             <div class="services-grid">
@@ -191,9 +173,7 @@ const openService = (service: ServiceItem) => {
 
                         <span class="open-link">
                             Abrir servicio
-                            <span class="arrow">
-                                →
-                            </span>
+                            <span class="arrow"> → </span>
                         </span>
                     </div>
                 </article>
@@ -312,10 +292,7 @@ const openService = (service: ServiceItem) => {
 
 .services-grid {
     display: grid;
-    grid-template-columns: repeat(
-        auto-fit,
-        minmax(270px, 1fr)
-    );
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
     gap: 15px;
 }
 
@@ -337,9 +314,7 @@ const openService = (service: ServiceItem) => {
 .service-card:hover {
     transform: translateY(-2px);
     border-color: #b6c9e6;
-    box-shadow:
-        0 8px 22px
-        rgba(31, 61, 108, 0.08);
+    box-shadow: 0 8px 22px rgba(31, 61, 108, 0.08);
 }
 
 .service-card-top {
@@ -405,8 +380,7 @@ const openService = (service: ServiceItem) => {
 }
 
 .arrow {
-    transition:
-        transform 0.15s ease;
+    transition: transform 0.15s ease;
 }
 
 .service-card:hover .arrow {
@@ -415,11 +389,7 @@ const openService = (service: ServiceItem) => {
 
 @media (max-width: 850px) {
     .services-grid {
-        grid-template-columns:
-            repeat(
-                auto-fit,
-                minmax(230px, 1fr)
-            );
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
     }
 }
 

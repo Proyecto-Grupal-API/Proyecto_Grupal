@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\StudentServices\Lockers;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SaveLockerPeriodRequest extends FormRequest
@@ -11,6 +12,9 @@ class SaveLockerPeriodRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [
@@ -49,6 +53,9 @@ class SaveLockerPeriodRequest extends FormRequest
         ];
     }
 
+    /**
+     * @return list<string>
+     */
     private function priceRules(): array
     {
         return [

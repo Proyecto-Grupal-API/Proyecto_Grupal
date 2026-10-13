@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\StudentServices\Support;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -12,6 +13,9 @@ class ChangeTicketStatusRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [
@@ -38,11 +42,9 @@ class ChangeTicketStatusRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'status.required' =>
-                'Selecciona el nuevo estado.',
+            'status.required' => 'Selecciona el nuevo estado.',
 
-            'status.in' =>
-                'El estado seleccionado no es válido.',
+            'status.in' => 'El estado seleccionado no es válido.',
         ];
     }
 }

@@ -3,11 +3,7 @@ import StudentServicesLayout from '@/layouts/StudentServicesLayout.vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
-type TicketPriority =
-    | 'low'
-    | 'medium'
-    | 'high'
-    | 'critical';
+type TicketPriority = 'low' | 'medium' | 'high' | 'critical';
 
 type TicketStatus =
     | 'open'
@@ -72,90 +68,58 @@ const categoryFilter = ref('');
 const showForm = ref(false);
 const showDetails = ref(false);
 
-const selectedTicketId =
-    ref<string | null>(null);
+const selectedTicketId = ref<string | null>(null);
 
 const newComment = ref('');
 const commentProcessing = ref(false);
 
-const processingTicketId =
-    ref<string | null>(null);
+const processingTicketId = ref<string | null>(null);
 
 const evidenceName = ref('');
 
-const ticketForm =
-    useForm<TicketForm>({
-        category: '',
-        subject: '',
-        description: '',
-        priority: 'medium',
-        location: '',
-        evidence: null,
-    });
+const ticketForm = useForm<TicketForm>({
+    category: '',
+    subject: '',
+    description: '',
+    priority: 'medium',
+    location: '',
+    evidence: null,
+});
 
-const selectedTicket = computed(
-    () => {
-        if (
-            selectedTicketId.value ===
-            null
-        ) {
-            return null;
-        }
+const selectedTicket = computed(() => {
+    if (selectedTicketId.value === null) {
+        return null;
+    }
 
-        return (
-            props.tickets.find(
-                (ticket) =>
-                    ticket.id ===
-                    selectedTicketId.value,
-            ) ?? null
-        );
-    },
-);
+    return (
+        props.tickets.find((ticket) => ticket.id === selectedTicketId.value) ??
+        null
+    );
+});
 
 const openCount = computed(
     () =>
-        props.tickets.filter(
-            (ticket) =>
-                [
-                    'open',
-                    'assigned',
-                ].includes(
-                    ticket.status,
-                ),
+        props.tickets.filter((ticket) =>
+            ['open', 'assigned'].includes(ticket.status),
         ).length,
 );
 
 const progressCount = computed(
     () =>
-        props.tickets.filter(
-            (ticket) =>
-                ticket.status ===
-                'in_progress',
-        ).length,
+        props.tickets.filter((ticket) => ticket.status === 'in_progress')
+            .length,
 );
 
 const resolvedCount = computed(
-    () =>
-        props.tickets.filter(
-            (ticket) =>
-                ticket.status ===
-                'resolved',
-        ).length,
+    () => props.tickets.filter((ticket) => ticket.status === 'resolved').length,
 );
 
 const criticalCount = computed(
     () =>
         props.tickets.filter(
             (ticket) =>
-                ticket.priority ===
-                'critical' &&
-                ![
-                    'resolved',
-                    'closed',
-                    'cancelled',
-                ].includes(
-                    ticket.status,
-                ),
+                ticket.priority === 'critical' &&
+                !['resolved', 'closed', 'cancelled'].includes(ticket.status),
         ).length,
 );
 
@@ -189,81 +153,45 @@ const categories: {
     },
 ];
 
-const filteredTickets =
-    computed(() => {
-        const term =
-            search.value
-                .trim()
-                .toLowerCase();
+const filteredTickets = computed(() => {
+    const term = search.value.trim().toLowerCase();
 
-        return props.tickets.filter(
-            (ticket) => {
-                if (
-                    statusFilter.value &&
-                    ticket.status !==
-                    statusFilter.value
-                ) {
-                    return false;
-                }
+    return props.tickets.filter((ticket) => {
+        if (statusFilter.value && ticket.status !== statusFilter.value) {
+            return false;
+        }
 
-                if (
-                    priorityFilter.value &&
-                    ticket.priority !==
-                    priorityFilter.value
-                ) {
-                    return false;
-                }
+        if (priorityFilter.value && ticket.priority !== priorityFilter.value) {
+            return false;
+        }
 
-                if (
-                    categoryFilter.value &&
-                    ticket.category !==
-                    categoryFilter.value
-                ) {
-                    return false;
-                }
+        if (categoryFilter.value && ticket.category !== categoryFilter.value) {
+            return false;
+        }
 
-                if (!term) {
-                    return true;
-                }
+        if (!term) {
+            return true;
+        }
 
-                return [
-                    ticket.folio,
-                    ticket.subject,
-                    ticket.description,
-                    ticket.location,
-                    categoryLabel(
-                        ticket.category,
-                    ),
-                    ticket.assignedTo ??
-                    '',
-                ].some((value) =>
-                    value
-                        .toLowerCase()
-                        .includes(term),
-                );
-            },
-        );
+        return [
+            ticket.folio,
+            ticket.subject,
+            ticket.description,
+            ticket.location,
+            categoryLabel(ticket.category),
+            ticket.assignedTo ?? '',
+        ].some((value) => value.toLowerCase().includes(term));
     });
+});
 
-function categoryLabel(
-    value: TicketCategory,
-): string {
-    const category =
-        categories.find(
-            (item) =>
-                item.value === value,
-        );
+function categoryLabel(value: TicketCategory): string {
+    const category = categories.find((item) => item.value === value);
 
     return category?.label ?? value;
 }
 
-function priorityLabel(
-    value: TicketPriority,
-): string {
-    const labels: Record<
-        TicketPriority,
-        string
-    > = {
+function priorityLabel(value: TicketPriority): string {
+    const labels: Record<TicketPriority, string> = {
         low: 'Baja',
         medium: 'Media',
         high: 'Alta',
@@ -273,13 +201,8 @@ function priorityLabel(
     return labels[value];
 }
 
-function statusLabel(
-    value: TicketStatus,
-): string {
-    const labels: Record<
-        TicketStatus,
-        string
-    > = {
+function statusLabel(value: TicketStatus): string {
+    const labels: Record<TicketStatus, string> = {
         open: 'Abierto',
         assigned: 'Asignado',
         in_progress: 'En proceso',
@@ -291,33 +214,24 @@ function statusLabel(
     return labels[value];
 }
 
-function formatDate(
-    value: string | null,
-): string {
+function formatDate(value: string | null): string {
     if (!value) {
         return '—';
     }
 
     const date = new Date(value);
 
-    if (
-        Number.isNaN(
-            date.getTime(),
-        )
-    ) {
+    if (Number.isNaN(date.getTime())) {
         return value;
     }
 
-    return date.toLocaleString(
-        'es-MX',
-        {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-        },
-    );
+    return date.toLocaleString('es-MX', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 }
 
 function openForm() {
@@ -326,8 +240,7 @@ function openForm() {
     ticketForm.clearErrors();
 
     ticketForm.category = '';
-    ticketForm.priority =
-        'medium';
+    ticketForm.priority = 'medium';
 
     evidenceName.value = '';
 
@@ -344,105 +257,69 @@ function closeForm() {
     ticketForm.clearErrors();
 }
 
-function handleEvidence(
-    event: Event,
-) {
-    const input =
-        event.target as HTMLInputElement;
+function handleEvidence(event: Event) {
+    const input = event.target as HTMLInputElement;
 
-    const file =
-        input.files?.[0] ??
-        null;
+    const file = input.files?.[0] ?? null;
 
-    ticketForm.evidence =
-        file;
+    ticketForm.evidence = file;
 
-    evidenceName.value =
-        file?.name ?? '';
+    evidenceName.value = file?.name ?? '';
 }
 
 function createTicket() {
-    if (
-        ticketForm.category ===
-        ''
-    ) {
-        window.alert(
-            'Selecciona una categoría.',
-        );
+    if (ticketForm.category === '') {
+        window.alert('Selecciona una categoría.');
 
         return;
     }
 
-    if (
-        !ticketForm.subject.trim()
-    ) {
-        window.alert(
-            'Escribe el asunto del ticket.',
-        );
+    if (!ticketForm.subject.trim()) {
+        window.alert('Escribe el asunto del ticket.');
 
         return;
     }
 
-    if (
-        !ticketForm.location.trim()
-    ) {
-        window.alert(
-            'Escribe la ubicación de la incidencia.',
-        );
+    if (!ticketForm.location.trim()) {
+        window.alert('Escribe la ubicación de la incidencia.');
 
         return;
     }
 
-    if (
-        !ticketForm.description.trim()
-    ) {
-        window.alert(
-            'Escribe una descripción del problema.',
-        );
+    if (!ticketForm.description.trim()) {
+        window.alert('Escribe una descripción del problema.');
 
         return;
     }
 
-    ticketForm.post(
-        '/servicios-estudiante/soporte',
-        {
-            preserveScroll: true,
-            forceFormData: true,
+    ticketForm.post('/servicios-estudiante/soporte', {
+        preserveScroll: true,
+        forceFormData: true,
 
-            onSuccess: () => {
-                closeForm();
+        onSuccess: () => {
+            closeForm();
 
-                window.alert(
-                    'Ticket registrado correctamente.',
-                );
-            },
-
-            onError: (
-                errors,
-            ) => {
-                const message =
-                    errors.ticket ??
-                    errors.category ??
-                    errors.subject ??
-                    errors.location ??
-                    errors.description ??
-                    errors.priority ??
-                    errors.evidence ??
-                    'No fue posible registrar el ticket.';
-
-                window.alert(
-                    String(message),
-                );
-            },
+            window.alert('Ticket registrado correctamente.');
         },
-    );
+
+        onError: (errors) => {
+            const message =
+                errors.ticket ??
+                errors.category ??
+                errors.subject ??
+                errors.location ??
+                errors.description ??
+                errors.priority ??
+                errors.evidence ??
+                'No fue posible registrar el ticket.';
+
+            window.alert(String(message));
+        },
+    });
 }
 
-function openDetails(
-    ticket: SupportTicket,
-) {
-    selectedTicketId.value =
-        ticket.id;
+function openDetails(ticket: SupportTicket) {
+    selectedTicketId.value = ticket.id;
 
     newComment.value = '';
 
@@ -450,8 +327,7 @@ function openDetails(
 }
 
 function closeDetails() {
-    selectedTicketId.value =
-        null;
+    selectedTicketId.value = null;
 
     newComment.value = '';
 
@@ -459,24 +335,18 @@ function closeDetails() {
 }
 
 function addComment() {
-    const ticket =
-        selectedTicket.value;
+    const ticket = selectedTicket.value;
 
-    if (
-        ticket === null ||
-        !newComment.value.trim()
-    ) {
+    if (ticket === null || !newComment.value.trim()) {
         return;
     }
 
-    commentProcessing.value =
-        true;
+    commentProcessing.value = true;
 
     router.post(
         `/servicios-estudiante/soporte/${ticket.id}/comentarios`,
         {
-            message:
-                newComment.value.trim(),
+            message: newComment.value.trim(),
         },
         {
             preserveScroll: true,
@@ -485,55 +355,37 @@ function addComment() {
                 newComment.value = '';
             },
 
-            onError: (
-                errors,
-            ) => {
+            onError: (errors) => {
                 window.alert(
                     String(
                         errors.ticket ??
-                        errors.message ??
-                        'No fue posible agregar el comentario.',
+                            errors.message ??
+                            'No fue posible agregar el comentario.',
                     ),
                 );
             },
 
             onFinish: () => {
-                commentProcessing.value =
-                    false;
+                commentProcessing.value = false;
             },
         },
     );
 }
 
-function cancelTicket(
-    ticket: SupportTicket,
-) {
-    if (
-        ![
-            'open',
-            'assigned',
-        ].includes(
-            ticket.status,
-        )
-    ) {
-        window.alert(
-            'Este ticket ya no puede cancelarse.',
-        );
+function cancelTicket(ticket: SupportTicket) {
+    if (!['open', 'assigned'].includes(ticket.status)) {
+        window.alert('Este ticket ya no puede cancelarse.');
 
         return;
     }
 
-    const confirmed =
-        window.confirm(
-            `¿Cancelar el ticket ${ticket.folio}?`,
-        );
+    const confirmed = window.confirm(`¿Cancelar el ticket ${ticket.folio}?`);
 
     if (!confirmed) {
         return;
     }
 
-    processingTicketId.value =
-        ticket.id;
+    processingTicketId.value = ticket.id;
 
     router.patch(
         `/servicios-estudiante/soporte/${ticket.id}/cancelar`,
@@ -542,32 +394,23 @@ function cancelTicket(
             preserveScroll: true,
 
             onSuccess: () => {
-                if (
-                    selectedTicketId.value ===
-                    ticket.id
-                ) {
+                if (selectedTicketId.value === ticket.id) {
                     closeDetails();
                 }
 
-                window.alert(
-                    'Ticket cancelado correctamente.',
-                );
+                window.alert('Ticket cancelado correctamente.');
             },
 
-            onError: (
-                errors,
-            ) => {
+            onError: (errors) => {
                 window.alert(
                     String(
-                        errors.ticket ??
-                        'No fue posible cancelar el ticket.',
+                        errors.ticket ?? 'No fue posible cancelar el ticket.',
                     ),
                 );
             },
 
             onFinish: () => {
-                processingTicketId.value =
-                    null;
+                processingTicketId.value = null;
             },
         },
     );
@@ -581,476 +424,253 @@ function cancelTicket(
     >
         <section class="hero">
             <div>
-                <span
-                    class="hero-label"
-                >
-                    SERVICIOS · MÓDULO
-                    5.9
-                </span>
+                <span class="hero-label"> SERVICIOS · MÓDULO 5.9 </span>
 
-                <h2>
-                    Tickets de soporte
-                </h2>
+                <h2>Tickets de soporte</h2>
 
                 <p>
-                    Reporta incidencias
-                    del campus y consulta
-                    su prioridad,
-                    responsable, SLA y
-                    seguimiento.
+                    Reporta incidencias del campus y consulta su prioridad,
+                    responsable, SLA y seguimiento.
                 </p>
             </div>
 
-            <div
-                class="hero-total"
-            >
-                <span>
-                    Tickets registrados
-                </span>
+            <div class="hero-total">
+                <span> Tickets registrados </span>
 
                 <strong>
-                    {{
-                        props.tickets
-                            .length
-                    }}
+                    {{ props.tickets.length }}
                 </strong>
 
-                <small>
-                    incidencias
-                </small>
+                <small> incidencias </small>
             </div>
         </section>
 
-        <section
-            class="stats-grid"
-        >
-            <article
-                class="stat-card"
-            >
-                <span>
-                    Abiertos
-                </span>
+        <section class="stats-grid">
+            <article class="stat-card">
+                <span> Abiertos </span>
 
                 <strong>
                     {{ openCount }}
                 </strong>
 
-                <small>
-                    Esperan atención
-                </small>
+                <small> Esperan atención </small>
             </article>
 
-            <article
-                class="stat-card"
-            >
-                <span>
-                    En proceso
-                </span>
+            <article class="stat-card">
+                <span> En proceso </span>
 
                 <strong>
                     {{ progressCount }}
                 </strong>
 
-                <small>
-                    Siendo atendidos
-                </small>
+                <small> Siendo atendidos </small>
             </article>
 
-            <article
-                class="stat-card"
-            >
-                <span>
-                    Resueltos
-                </span>
+            <article class="stat-card">
+                <span> Resueltos </span>
 
                 <strong>
                     {{ resolvedCount }}
                 </strong>
 
-                <small>
-                    Pendientes de cierre
-                </small>
+                <small> Pendientes de cierre </small>
             </article>
 
-            <article
-                class="stat-card"
-            >
-                <span>
-                    Críticos
-                </span>
+            <article class="stat-card">
+                <span> Críticos </span>
 
                 <strong>
                     {{ criticalCount }}
                 </strong>
 
-                <small>
-                    Atención prioritaria
-                </small>
+                <small> Atención prioritaria </small>
             </article>
         </section>
 
-        <section
-            class="content-panel"
-        >
-            <div
-                class="panel-header"
-            >
+        <section class="content-panel">
+            <div class="panel-header">
                 <div>
-                    <span
-                        class="panel-label"
-                    >
-                        INCIDENCIAS
-                    </span>
+                    <span class="panel-label"> INCIDENCIAS </span>
 
-                    <h3>
-                        Tickets
-                        registrados
-                    </h3>
+                    <h3>Tickets registrados</h3>
 
-                    <p>
-                        Consulta y da
-                        seguimiento a tus
-                        reportes.
-                    </p>
+                    <p>Consulta y da seguimiento a tus reportes.</p>
                 </div>
 
-                <button
-                    type="button"
-                    class="primary-button"
-                    @click="openForm"
-                >
+                <button type="button" class="primary-button" @click="openForm">
                     + Nuevo ticket
                 </button>
             </div>
 
-            <section
-                v-if="showForm"
-                class="form-panel"
-            >
-                <div
-                    class="form-header"
-                >
+            <section v-if="showForm" class="form-panel">
+                <div class="form-header">
                     <div>
-                        <span
-                            class="panel-label"
-                        >
-                            NUEVA INCIDENCIA
-                        </span>
+                        <span class="panel-label"> NUEVA INCIDENCIA </span>
 
-                        <h3>
-                            Crear ticket
-                        </h3>
+                        <h3>Crear ticket</h3>
 
-                        <p>
-                            Describe el
-                            problema y
-                            proporciona su
-                            ubicación.
-                        </p>
+                        <p>Describe el problema y proporciona su ubicación.</p>
                     </div>
 
                     <button
                         type="button"
                         class="close-button"
-                        @click="
-                            closeForm
-                        "
+                        @click="closeForm"
                     >
                         ×
                     </button>
                 </div>
 
-                <div
-                    class="ticket-form"
-                >
-                    <div
-                        class="form-grid"
-                    >
-                        <div
-                            class="form-field"
-                        >
+                <div class="ticket-form">
+                    <div class="form-grid">
+                        <div class="form-field">
                             <label>
                                 Categoría
-                                <span>
-                                    *
-                                </span>
+                                <span> * </span>
                             </label>
 
-                            <select
-                                v-model="
-                                    ticketForm.category
-                                "
-                            >
-                                <option
-                                    value=""
-                                >
-                                    Selecciona
-                                </option>
+                            <select v-model="ticketForm.category">
+                                <option value="">Selecciona</option>
 
                                 <option
-                                    v-for="
-                                        item in
-                                        categories
-                                    "
-                                    :key="
-                                        item.value
-                                    "
-                                    :value="
-                                        item.value
-                                    "
+                                    v-for="item in categories"
+                                    :key="item.value"
+                                    :value="item.value"
                                 >
-                                    {{
-                                        item.label
-                                    }}
+                                    {{ item.label }}
                                 </option>
                             </select>
 
                             <small
-                                v-if="
-                                    ticketForm
-                                        .errors
-                                        .category
-                                "
+                                v-if="ticketForm.errors.category"
                                 class="error-text"
                             >
-                                {{
-                                    ticketForm
-                                        .errors
-                                        .category
-                                }}
+                                {{ ticketForm.errors.category }}
                             </small>
                         </div>
 
-                        <div
-                            class="form-field"
-                        >
+                        <div class="form-field">
                             <label>
                                 Prioridad
-                                <span>
-                                    *
-                                </span>
+                                <span> * </span>
                             </label>
 
-                            <select
-                                v-model="
-                                    ticketForm.priority
-                                "
-                            >
-                                <option
-                                    value="low"
-                                >
-                                    Baja
-                                </option>
+                            <select v-model="ticketForm.priority">
+                                <option value="low">Baja</option>
 
-                                <option
-                                    value="medium"
-                                >
-                                    Media
-                                </option>
+                                <option value="medium">Media</option>
 
-                                <option
-                                    value="high"
-                                >
-                                    Alta
-                                </option>
+                                <option value="high">Alta</option>
 
-                                <option
-                                    value="critical"
-                                >
-                                    Crítica
-                                </option>
+                                <option value="critical">Crítica</option>
                             </select>
 
                             <small
-                                v-if="
-                                    ticketForm
-                                        .errors
-                                        .priority
-                                "
+                                v-if="ticketForm.errors.priority"
                                 class="error-text"
                             >
-                                {{
-                                    ticketForm
-                                        .errors
-                                        .priority
-                                }}
+                                {{ ticketForm.errors.priority }}
                             </small>
                         </div>
 
-                        <div
-                            class="form-field full"
-                        >
+                        <div class="form-field full">
                             <label>
                                 Asunto
-                                <span>
-                                    *
-                                </span>
+                                <span> * </span>
                             </label>
 
                             <input
-                                v-model="
-                                    ticketForm.subject
-                                "
+                                v-model="ticketForm.subject"
                                 type="text"
                                 maxlength="150"
                                 placeholder="Describe brevemente el problema"
                             />
 
                             <small
-                                v-if="
-                                    ticketForm
-                                        .errors
-                                        .subject
-                                "
+                                v-if="ticketForm.errors.subject"
                                 class="error-text"
                             >
-                                {{
-                                    ticketForm
-                                        .errors
-                                        .subject
-                                }}
+                                {{ ticketForm.errors.subject }}
                             </small>
                         </div>
 
-                        <div
-                            class="form-field full"
-                        >
+                        <div class="form-field full">
                             <label>
                                 Ubicación
-                                <span>
-                                    *
-                                </span>
+                                <span> * </span>
                             </label>
 
                             <input
-                                v-model="
-                                    ticketForm.location
-                                "
+                                v-model="ticketForm.location"
                                 type="text"
                                 maxlength="200"
                                 placeholder="Ej. Edificio A · Aula 203"
                             />
 
                             <small
-                                v-if="
-                                    ticketForm
-                                        .errors
-                                        .location
-                                "
+                                v-if="ticketForm.errors.location"
                                 class="error-text"
                             >
-                                {{
-                                    ticketForm
-                                        .errors
-                                        .location
-                                }}
+                                {{ ticketForm.errors.location }}
                             </small>
                         </div>
 
-                        <div
-                            class="form-field full"
-                        >
+                        <div class="form-field full">
                             <label>
                                 Descripción
-                                <span>
-                                    *
-                                </span>
+                                <span> * </span>
                             </label>
 
                             <textarea
-                                v-model="
-                                    ticketForm.description
-                                "
+                                v-model="ticketForm.description"
                                 rows="4"
                                 maxlength="2000"
                                 placeholder="Explica qué ocurrió..."
                             />
 
                             <small
-                                v-if="
-                                    ticketForm
-                                        .errors
-                                        .description
-                                "
+                                v-if="ticketForm.errors.description"
                                 class="error-text"
                             >
-                                {{
-                                    ticketForm
-                                        .errors
-                                        .description
-                                }}
+                                {{ ticketForm.errors.description }}
                             </small>
                         </div>
 
-                        <div
-                            class="form-field full"
-                        >
-                            <label>
-                                Evidencia
-                            </label>
+                        <div class="form-field full">
+                            <label> Evidencia </label>
 
                             <input
                                 type="file"
                                 accept=".png,.jpg,.jpeg,.pdf"
-                                @change="
-                                    handleEvidence
-                                "
+                                @change="handleEvidence"
                             />
 
-                            <small
-                                v-if="
-                                    evidenceName
-                                "
-                                class="file-name"
-                            >
+                            <small v-if="evidenceName" class="file-name">
                                 Archivo:
-                                {{
-                                    evidenceName
-                                }}
+                                {{ evidenceName }}
                             </small>
 
                             <small
-                                v-if="
-                                    ticketForm
-                                        .errors
-                                        .evidence
-                                "
+                                v-if="ticketForm.errors.evidence"
                                 class="error-text"
                             >
-                                {{
-                                    ticketForm
-                                        .errors
-                                        .evidence
-                                }}
+                                {{ ticketForm.errors.evidence }}
                             </small>
                         </div>
                     </div>
 
-                    <div
-                        class="information-box"
-                    >
-                        El SLA se calcula
-                        automáticamente en
-                        el servidor según
-                        la prioridad:
-                        crítica 2 horas,
-                        alta 6 horas,
-                        media 24 horas y
-                        baja 48 horas.
+                    <div class="information-box">
+                        El SLA se calcula automáticamente en el servidor según
+                        la prioridad: crítica 2 horas, alta 6 horas, media 24
+                        horas y baja 48 horas.
                     </div>
 
-                    <div
-                        class="form-actions"
-                    >
+                    <div class="form-actions">
                         <button
                             type="button"
                             class="secondary-button"
-                            :disabled="
-                                ticketForm.processing
-                            "
-                            @click="
-                                closeForm
-                            "
+                            :disabled="ticketForm.processing"
+                            @click="closeForm"
                         >
                             Cancelar
                         </button>
@@ -1058,12 +678,8 @@ function cancelTicket(
                         <button
                             type="button"
                             class="primary-button"
-                            :disabled="
-                                ticketForm.processing
-                            "
-                            @click="
-                                createTicket
-                            "
+                            :disabled="ticketForm.processing"
+                            @click="createTicket"
                         >
                             {{
                                 ticketForm.processing
@@ -1076,9 +692,7 @@ function cancelTicket(
             </section>
 
             <div class="filters">
-                <div
-                    class="search-field"
-                >
+                <div class="search-field">
                     <input
                         v-model="search"
                         type="text"
@@ -1086,617 +700,327 @@ function cancelTicket(
                     />
                 </div>
 
-                <select
-                    v-model="
-                        categoryFilter
-                    "
-                >
-                    <option value="">
-                        Todas las
-                        categorías
-                    </option>
+                <select v-model="categoryFilter">
+                    <option value="">Todas las categorías</option>
 
                     <option
-                        v-for="
-                            item in
-                            categories
-                        "
-                        :key="
-                            item.value
-                        "
-                        :value="
-                            item.value
-                        "
+                        v-for="item in categories"
+                        :key="item.value"
+                        :value="item.value"
                     >
-                        {{
-                            item.label
-                        }}
+                        {{ item.label }}
                     </option>
                 </select>
 
-                <select
-                    v-model="
-                        priorityFilter
-                    "
-                >
-                    <option value="">
-                        Todas las
-                        prioridades
-                    </option>
+                <select v-model="priorityFilter">
+                    <option value="">Todas las prioridades</option>
 
-                    <option
-                        value="low"
-                    >
-                        Baja
-                    </option>
+                    <option value="low">Baja</option>
 
-                    <option
-                        value="medium"
-                    >
-                        Media
-                    </option>
+                    <option value="medium">Media</option>
 
-                    <option
-                        value="high"
-                    >
-                        Alta
-                    </option>
+                    <option value="high">Alta</option>
 
-                    <option
-                        value="critical"
-                    >
-                        Crítica
-                    </option>
+                    <option value="critical">Crítica</option>
                 </select>
 
-                <select
-                    v-model="
-                        statusFilter
-                    "
-                >
-                    <option value="">
-                        Todos los estados
-                    </option>
+                <select v-model="statusFilter">
+                    <option value="">Todos los estados</option>
 
-                    <option
-                        value="open"
-                    >
-                        Abierto
-                    </option>
+                    <option value="open">Abierto</option>
 
-                    <option
-                        value="assigned"
-                    >
-                        Asignado
-                    </option>
+                    <option value="assigned">Asignado</option>
 
-                    <option
-                        value="in_progress"
-                    >
-                        En proceso
-                    </option>
+                    <option value="in_progress">En proceso</option>
 
-                    <option
-                        value="resolved"
-                    >
-                        Resuelto
-                    </option>
+                    <option value="resolved">Resuelto</option>
 
-                    <option
-                        value="closed"
-                    >
-                        Cerrado
-                    </option>
+                    <option value="closed">Cerrado</option>
 
-                    <option
-                        value="cancelled"
-                    >
-                        Cancelado
-                    </option>
+                    <option value="cancelled">Cancelado</option>
                 </select>
             </div>
 
-            <div
-                v-if="
-                    filteredTickets.length >
-                    0
-                "
-                class="table-container"
-            >
+            <div v-if="filteredTickets.length > 0" class="table-container">
                 <table>
                     <thead>
-                    <tr>
-                        <th>
-                            Folio
-                        </th>
+                        <tr>
+                            <th>Folio</th>
 
-                        <th>
-                            Asunto
-                        </th>
+                            <th>Asunto</th>
 
-                        <th>
-                            Categoría
-                        </th>
+                            <th>Categoría</th>
 
-                        <th>
-                            Prioridad
-                        </th>
+                            <th>Prioridad</th>
 
-                        <th>
-                            Ubicación
-                        </th>
+                            <th>Ubicación</th>
 
-                        <th>
-                            Responsable
-                        </th>
+                            <th>Responsable</th>
 
-                        <th>
-                            SLA
-                        </th>
+                            <th>SLA</th>
 
-                        <th>
-                            Estado
-                        </th>
+                            <th>Estado</th>
 
-                        <th>
-                            Acciones
-                        </th>
-                    </tr>
+                            <th>Acciones</th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    <tr
-                        v-for="
-                                ticket in
-                                filteredTickets
-                            "
-                        :key="
-                                ticket.id
-                            "
-                    >
-                        <td>
-                            <strong
-                                class="folio"
-                            >
-                                {{
-                                    ticket.folio
-                                }}
-                            </strong>
+                        <tr v-for="ticket in filteredTickets" :key="ticket.id">
+                            <td>
+                                <strong class="folio">
+                                    {{ ticket.folio }}
+                                </strong>
 
-                            <small
-                                class="date"
-                            >
-                                {{
-                                    formatDate(
-                                        ticket.openedAt,
-                                    )
-                                }}
-                            </small>
-                        </td>
+                                <small class="date">
+                                    {{ formatDate(ticket.openedAt) }}
+                                </small>
+                            </td>
 
-                        <td>
-                            {{
-                                ticket.subject
-                            }}
-                        </td>
+                            <td>
+                                {{ ticket.subject }}
+                            </td>
 
-                        <td>
-                            {{
-                                categoryLabel(
-                                    ticket.category,
-                                )
-                            }}
-                        </td>
+                            <td>
+                                {{ categoryLabel(ticket.category) }}
+                            </td>
 
-                        <td>
+                            <td>
                                 <span
                                     class="priority"
-                                    :class="
-                                        `priority-${ticket.priority}`
-                                    "
+                                    :class="`priority-${ticket.priority}`"
                                 >
-                                    {{
-                                        priorityLabel(
-                                            ticket.priority,
-                                        )
-                                    }}
+                                    {{ priorityLabel(ticket.priority) }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            {{
-                                ticket.location
-                            }}
-                        </td>
+                            <td>
+                                {{ ticket.location }}
+                            </td>
 
-                        <td>
-                            {{
-                                ticket.assignedTo ??
-                                'Sin asignar'
-                            }}
-                        </td>
+                            <td>
+                                {{ ticket.assignedTo ?? 'Sin asignar' }}
+                            </td>
 
-                        <td>
-                            {{
-                                formatDate(
-                                    ticket.slaDueAt,
-                                )
-                            }}
-                        </td>
+                            <td>
+                                {{ formatDate(ticket.slaDueAt) }}
+                            </td>
 
-                        <td>
+                            <td>
                                 <span
                                     class="status"
-                                    :class="
-                                        `status-${ticket.status}`
-                                    "
+                                    :class="`status-${ticket.status}`"
                                 >
-                                    {{
-                                        statusLabel(
-                                            ticket.status,
-                                        )
-                                    }}
+                                    {{ statusLabel(ticket.status) }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            <div
-                                class="actions"
-                            >
-                                <button
-                                    type="button"
-                                    class="action-button view"
-                                    @click="
-                                            openDetails(
-                                                ticket,
-                                            )
-                                        "
-                                >
-                                    Ver
-                                </button>
+                            <td>
+                                <div class="actions">
+                                    <button
+                                        type="button"
+                                        class="action-button view"
+                                        @click="openDetails(ticket)"
+                                    >
+                                        Ver
+                                    </button>
 
-                                <button
-                                    v-if="
-                                            [
-                                                'open',
-                                                'assigned',
-                                            ].includes(
+                                    <button
+                                        v-if="
+                                            ['open', 'assigned'].includes(
                                                 ticket.status,
                                             )
                                         "
-                                    type="button"
-                                    class="action-button cancel"
-                                    :disabled="
-                                            processingTicketId ===
-                                            ticket.id
+                                        type="button"
+                                        class="action-button cancel"
+                                        :disabled="
+                                            processingTicketId === ticket.id
                                         "
-                                    @click="
-                                            cancelTicket(
-                                                ticket,
-                                            )
-                                        "
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                                        @click="cancelTicket(ticket)"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div
-                v-else
-                class="empty-state"
-            >
-                <h3>
-                    No hay tickets
-                </h3>
+            <div v-else class="empty-state">
+                <h3>No hay tickets</h3>
 
-                <p>
-                    Registra una
-                    incidencia o modifica
-                    los filtros.
-                </p>
+                <p>Registra una incidencia o modifica los filtros.</p>
             </div>
         </section>
 
         <div
-            v-if="
-                showDetails &&
-                selectedTicket
-            "
+            v-if="showDetails && selectedTicket"
             class="modal-backdrop"
-            @click.self="
-                closeDetails
-            "
+            @click.self="closeDetails"
         >
-            <section
-                class="modal"
-            >
-                <div
-                    class="modal-header"
-                >
+            <section class="modal">
+                <div class="modal-header">
                     <div>
-                        <span
-                            class="panel-label"
-                        >
-                            SEGUIMIENTO
-                        </span>
+                        <span class="panel-label"> SEGUIMIENTO </span>
 
                         <h3>
-                            {{
-                                selectedTicket.folio
-                            }}
+                            {{ selectedTicket.folio }}
                         </h3>
 
                         <p>
-                            {{
-                                selectedTicket.subject
-                            }}
+                            {{ selectedTicket.subject }}
                         </p>
                     </div>
 
                     <button
                         type="button"
                         class="close-button"
-                        @click="
-                            closeDetails
-                        "
+                        @click="closeDetails"
                     >
                         ×
                     </button>
                 </div>
 
-                <div
-                    class="modal-body"
-                >
-                    <div
-                        class="detail-grid"
-                    >
+                <div class="modal-body">
+                    <div class="detail-grid">
                         <div>
-                            <span>
-                                Categoría
-                            </span>
+                            <span> Categoría </span>
 
                             <strong>
-                                {{
-                                    categoryLabel(
-                                        selectedTicket.category,
-                                    )
-                                }}
+                                {{ categoryLabel(selectedTicket.category) }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Prioridad
-                            </span>
+                            <span> Prioridad </span>
 
                             <strong>
-                                {{
-                                    priorityLabel(
-                                        selectedTicket.priority,
-                                    )
-                                }}
+                                {{ priorityLabel(selectedTicket.priority) }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Ubicación
-                            </span>
+                            <span> Ubicación </span>
 
                             <strong>
-                                {{
-                                    selectedTicket.location
-                                }}
+                                {{ selectedTicket.location }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Responsable
-                            </span>
+                            <span> Responsable </span>
 
                             <strong>
-                                {{
-                                    selectedTicket.assignedTo ??
-                                    'Sin asignar'
-                                }}
+                                {{ selectedTicket.assignedTo ?? 'Sin asignar' }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                SLA
-                            </span>
+                            <span> SLA </span>
 
                             <strong>
-                                {{
-                                    formatDate(
-                                        selectedTicket.slaDueAt,
-                                    )
-                                }}
+                                {{ formatDate(selectedTicket.slaDueAt) }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Estado
-                            </span>
+                            <span> Estado </span>
 
                             <strong>
-                                {{
-                                    statusLabel(
-                                        selectedTicket.status,
-                                    )
-                                }}
+                                {{ statusLabel(selectedTicket.status) }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Evidencia
-                            </span>
+                            <span> Evidencia </span>
 
                             <strong>
-                                {{
-                                    selectedTicket.evidence ??
-                                    'Sin evidencia'
-                                }}
+                                {{ selectedTicket.evidence ?? 'Sin evidencia' }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Apertura
-                            </span>
+                            <span> Apertura </span>
 
                             <strong>
-                                {{
-                                    formatDate(
-                                        selectedTicket.openedAt,
-                                    )
-                                }}
+                                {{ formatDate(selectedTicket.openedAt) }}
                             </strong>
                         </div>
 
-                        <div
-                            v-if="
-                                selectedTicket.resolvedAt
-                            "
-                        >
-                            <span>
-                                Resuelto
-                            </span>
+                        <div v-if="selectedTicket.resolvedAt">
+                            <span> Resuelto </span>
 
                             <strong>
-                                {{
-                                    formatDate(
-                                        selectedTicket.resolvedAt,
-                                    )
-                                }}
+                                {{ formatDate(selectedTicket.resolvedAt) }}
                             </strong>
                         </div>
 
-                        <div
-                            v-if="
-                                selectedTicket.closedAt
-                            "
-                        >
-                            <span>
-                                Cerrado
-                            </span>
+                        <div v-if="selectedTicket.closedAt">
+                            <span> Cerrado </span>
 
                             <strong>
                                 {{
-                                    formatDate(
-                                        selectedTicket.closedAt ??
-                                        null,
-                                    )
+                                    formatDate(selectedTicket.closedAt ?? null)
                                 }}
                             </strong>
                         </div>
                     </div>
 
-                    <div
-                        class="description-box"
-                    >
-                        <span>
-                            Descripción
-                        </span>
+                    <div class="description-box">
+                        <span> Descripción </span>
 
                         <p>
-                            {{
-                                selectedTicket.description
-                            }}
+                            {{ selectedTicket.description }}
                         </p>
                     </div>
 
-                    <div
-                        class="timeline"
-                    >
-                        <span
-                            class="timeline-title"
-                        >
-                            HISTORIAL
-                        </span>
+                    <div class="timeline">
+                        <span class="timeline-title"> HISTORIAL </span>
 
                         <article
-                            v-for="
-                                event in
-                                selectedTicket.events
-                            "
-                            :key="
-                                event.id
-                            "
+                            v-for="event in selectedTicket.events"
+                            :key="event.id"
                         >
-                            <div
-                                class="timeline-dot"
-                            />
+                            <div class="timeline-dot" />
 
                             <div>
                                 <strong>
-                                    {{
-                                        event.type
-                                    }}
+                                    {{ event.type }}
                                 </strong>
 
                                 <p>
-                                    {{
-                                        event.comment
-                                    }}
+                                    {{ event.comment }}
                                 </p>
 
                                 <small>
-                                    {{
-                                        event.user
-                                    }}
+                                    {{ event.user }}
                                     ·
-                                    {{
-                                        formatDate(
-                                            event.createdAt,
-                                        )
-                                    }}
+                                    {{ formatDate(event.createdAt) }}
                                 </small>
                             </div>
                         </article>
 
                         <p
-                            v-if="
-                                selectedTicket
-                                    .events
-                                    .length ===
-                                0
-                            "
+                            v-if="selectedTicket.events.length === 0"
                             class="no-events"
                         >
-                            Todavía no
-                            existen eventos.
+                            Todavía no existen eventos.
                         </p>
                     </div>
 
                     <div
                         v-if="
-                            ![
-                                'closed',
-                                'cancelled',
-                            ].includes(
+                            !['closed', 'cancelled'].includes(
                                 selectedTicket.status,
                             )
                         "
                         class="comment-box"
                     >
-                        <label>
-                            Agregar
-                            comentario
-                        </label>
+                        <label> Agregar comentario </label>
 
                         <textarea
-                            v-model="
-                                newComment
-                            "
+                            v-model="newComment"
                             rows="3"
                             maxlength="2000"
                             placeholder="Escribe un comentario..."
@@ -1705,13 +1029,8 @@ function cancelTicket(
                         <button
                             type="button"
                             class="primary-button"
-                            :disabled="
-                                commentProcessing ||
-                                !newComment.trim()
-                            "
-                            @click="
-                                addComment
-                            "
+                            :disabled="commentProcessing || !newComment.trim()"
+                            @click="addComment"
                         >
                             {{
                                 commentProcessing

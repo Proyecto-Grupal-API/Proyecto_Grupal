@@ -3,17 +3,9 @@ import StudentServicesLayout from '@/layouts/StudentServicesLayout.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
-type RequestStatus =
-    | 'pending'
-    | 'paid'
-    | 'assigned'
-    | 'rejected'
-    | 'cancelled';
+type RequestStatus = 'pending' | 'paid' | 'assigned' | 'rejected' | 'cancelled';
 
-type RequestType =
-    | 'paid'
-    | 'council'
-    | 'scholarship';
+type RequestType = 'paid' | 'council' | 'scholarship';
 
 interface LockerRequest {
     id: string;
@@ -73,8 +65,7 @@ const props = defineProps<{
     current_student_id: string;
 }>();
 
-const BASE_URL =
-    '/servicios-estudiante/lockers';
+const BASE_URL = '/servicios-estudiante/lockers';
 
 const search = ref('');
 
@@ -83,12 +74,9 @@ const typeFilter = ref('');
 
 const showForm = ref(false);
 
-const actionMode = ref<
-    'pay' | 'assign' | null
->(null);
+const actionMode = ref<'pay' | 'assign' | null>(null);
 
-const selectedRequest =
-    ref<LockerRequest | null>(null);
+const selectedRequest = ref<LockerRequest | null>(null);
 
 const paymentReference = ref('');
 const selectedLockerId = ref('');
@@ -100,136 +88,81 @@ const form = useForm({
 });
 
 const pendingCount = computed(() => {
-    return props.requests.filter(
-        (request) =>
-            request.status ===
-            'pending',
-    ).length;
+    return props.requests.filter((request) => request.status === 'pending')
+        .length;
 });
 
 const paidCount = computed(() => {
-    return props.requests.filter(
-        (request) =>
-            request.status ===
-            'paid',
-    ).length;
+    return props.requests.filter((request) => request.status === 'paid').length;
 });
 
 const assignedCount = computed(() => {
-    return props.requests.filter(
-        (request) =>
-            request.status ===
-            'assigned',
-    ).length;
+    return props.requests.filter((request) => request.status === 'assigned')
+        .length;
 });
 
 const cancelledCount = computed(() => {
-    return props.requests.filter(
-        (request) =>
-            request.status ===
-            'cancelled',
-    ).length;
+    return props.requests.filter((request) => request.status === 'cancelled')
+        .length;
 });
 
 const buildings = computed(() => {
     return [
-        ...new Set(
-            props.available_lockers.map(
-                (locker) =>
-                    locker.building,
-            ),
-        ),
+        ...new Set(props.available_lockers.map((locker) => locker.building)),
     ].sort();
 });
 
 const filteredRequests = computed(() => {
-    const term =
-        search.value
-            .trim()
-            .toLowerCase();
+    const term = search.value.trim().toLowerCase();
 
-    return props.requests.filter(
-        (request) => {
-            if (
-                statusFilter.value &&
-                request.status !==
-                statusFilter.value
-            ) {
-                return false;
-            }
-
-            if (
-                typeFilter.value &&
-                request.request_type !==
-                typeFilter.value
-            ) {
-                return false;
-            }
-
-            if (!term) {
-                return true;
-            }
-
-            return [
-                request.folio,
-                request.student_id,
-                request.period_name,
-                request.locker_code ?? '',
-                request.preferred_building ?? '',
-            ].some((value) =>
-                value
-                    .toLowerCase()
-                    .includes(term),
-            );
-        },
-    );
-});
-
-const assignableLockers =
-    computed(() => {
-        if (
-            selectedRequest.value ===
-            null
-        ) {
-            return [];
+    return props.requests.filter((request) => {
+        if (statusFilter.value && request.status !== statusFilter.value) {
+            return false;
         }
 
-        return props.available_lockers.filter(
-            (locker) => {
-                if (
-                    selectedRequest.value
-                        ?.preferred_size &&
-                    locker.size !==
-                    selectedRequest.value
-                        .preferred_size
-                ) {
-                    return false;
-                }
+        if (typeFilter.value && request.request_type !== typeFilter.value) {
+            return false;
+        }
 
-                const preferredBuilding =
-                    selectedRequest.value
-                        ?.preferred_building;
+        if (!term) {
+            return true;
+        }
 
-                if (
-                    preferredBuilding &&
-                    locker.building !==
-                    preferredBuilding
-                ) {
-                    return false;
-                }
-
-                return true;
-            },
-        );
+        return [
+            request.folio,
+            request.student_id,
+            request.period_name,
+            request.locker_code ?? '',
+            request.preferred_building ?? '',
+        ].some((value) => value.toLowerCase().includes(term));
     });
+});
 
-function sizeLabel(
-    size: string,
-): string {
-    const labels: Record<
-        string,
-        string
-    > = {
+const assignableLockers = computed(() => {
+    if (selectedRequest.value === null) {
+        return [];
+    }
+
+    return props.available_lockers.filter((locker) => {
+        if (
+            selectedRequest.value?.preferred_size &&
+            locker.size !== selectedRequest.value.preferred_size
+        ) {
+            return false;
+        }
+
+        const preferredBuilding = selectedRequest.value?.preferred_building;
+
+        if (preferredBuilding && locker.building !== preferredBuilding) {
+            return false;
+        }
+
+        return true;
+    });
+});
+
+function sizeLabel(size: string): string {
+    const labels: Record<string, string> = {
         small: 'Chico',
         medium: 'Mediano',
         large: 'Grande',
@@ -238,13 +171,8 @@ function sizeLabel(
     return labels[size] ?? size;
 }
 
-function requestTypeLabel(
-    type: RequestType,
-): string {
-    const labels: Record<
-        RequestType,
-        string
-    > = {
+function requestTypeLabel(type: RequestType): string {
+    const labels: Record<RequestType, string> = {
         paid: 'Renta pagada',
         council: 'Consejo',
         scholarship: 'Beca',
@@ -253,13 +181,8 @@ function requestTypeLabel(
     return labels[type];
 }
 
-function statusLabel(
-    status: RequestStatus,
-): string {
-    const labels: Record<
-        RequestStatus,
-        string
-    > = {
+function statusLabel(status: RequestStatus): string {
+    const labels: Record<RequestStatus, string> = {
         pending: 'Pendiente',
         paid: 'Pagada',
         assigned: 'Asignada',
@@ -270,54 +193,34 @@ function statusLabel(
     return labels[status];
 }
 
-function money(
-    value: string | null,
-): string {
+function money(value: string | null): string {
     if (value === null) {
         return '—';
     }
 
-    const numberValue =
-        Number(value);
+    const numberValue = Number(value);
 
-    return new Intl.NumberFormat(
-        'es-MX',
-        {
-            style: 'currency',
-            currency: 'MXN',
-        },
-    ).format(
-        Number.isNaN(numberValue)
-            ? 0
-            : numberValue,
-    );
+    return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+    }).format(Number.isNaN(numberValue) ? 0 : numberValue);
 }
 
-function formatDateTime(
-    value: string | null,
-): string {
+function formatDateTime(value: string | null): string {
     if (!value) {
         return '—';
     }
 
-    const parsed =
-        new Date(value);
+    const parsed = new Date(value);
 
-    if (
-        Number.isNaN(
-            parsed.getTime(),
-        )
-    ) {
+    if (Number.isNaN(parsed.getTime())) {
         return value;
     }
 
-    return parsed.toLocaleString(
-        'es-MX',
-        {
-            dateStyle: 'short',
-            timeStyle: 'short',
-        },
-    );
+    return parsed.toLocaleString('es-MX', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+    });
 }
 
 function openRequestForm() {
@@ -340,23 +243,17 @@ function closeRequestForm() {
 }
 
 function submitRequest() {
-    form.post(
-        `${BASE_URL}/solicitudes`,
-        {
-            preserveScroll: true,
+    form.post(`${BASE_URL}/solicitudes`, {
+        preserveScroll: true,
 
-            onSuccess: () => {
-                closeRequestForm();
-            },
+        onSuccess: () => {
+            closeRequestForm();
         },
-    );
+    });
 }
 
-function openPayment(
-    request: LockerRequest,
-) {
-    selectedRequest.value =
-        request;
+function openPayment(request: LockerRequest) {
+    selectedRequest.value = request;
 
     paymentReference.value = '';
 
@@ -364,20 +261,12 @@ function openPayment(
 }
 
 function submitPayment() {
-    if (
-        selectedRequest.value ===
-        null
-    ) {
+    if (selectedRequest.value === null) {
         return;
     }
 
-    if (
-        !paymentReference.value
-            .trim()
-    ) {
-        window.alert(
-            'Escribe una referencia de pago.',
-        );
+    if (!paymentReference.value.trim()) {
+        window.alert('Escribe una referencia de pago.');
 
         return;
     }
@@ -385,9 +274,7 @@ function submitPayment() {
     router.patch(
         `${BASE_URL}/solicitudes/${selectedRequest.value.id}/pagar`,
         {
-            payment_reference:
-                paymentReference.value
-                    .trim(),
+            payment_reference: paymentReference.value.trim(),
         },
         {
             preserveScroll: true,
@@ -396,24 +283,19 @@ function submitPayment() {
                 closeAction();
             },
 
-            onError: (
-                errors,
-            ) => {
+            onError: (errors) => {
                 window.alert(
                     errors.status ??
-                    errors.payment_reference ??
-                    'No se pudo registrar el pago.',
+                        errors.payment_reference ??
+                        'No se pudo registrar el pago.',
                 );
             },
         },
     );
 }
 
-function openAssignment(
-    request: LockerRequest,
-) {
-    selectedRequest.value =
-        request;
+function openAssignment(request: LockerRequest) {
+    selectedRequest.value = request;
 
     selectedLockerId.value = '';
 
@@ -421,19 +303,12 @@ function openAssignment(
 }
 
 function submitAssignment() {
-    if (
-        selectedRequest.value ===
-        null
-    ) {
+    if (selectedRequest.value === null) {
         return;
     }
 
-    if (
-        !selectedLockerId.value
-    ) {
-        window.alert(
-            'Selecciona un locker.',
-        );
+    if (!selectedLockerId.value) {
+        window.alert('Selecciona un locker.');
 
         return;
     }
@@ -441,8 +316,7 @@ function submitAssignment() {
     router.patch(
         `${BASE_URL}/solicitudes/${selectedRequest.value.id}/asignar`,
         {
-            locker_id:
-            selectedLockerId.value,
+            locker_id: selectedLockerId.value,
         },
         {
             preserveScroll: true,
@@ -451,26 +325,21 @@ function submitAssignment() {
                 closeAction();
             },
 
-            onError: (
-                errors,
-            ) => {
+            onError: (errors) => {
                 window.alert(
                     errors.status ??
-                    errors.locker_id ??
-                    'No se pudo realizar la asignación.',
+                        errors.locker_id ??
+                        'No se pudo realizar la asignación.',
                 );
             },
         },
     );
 }
 
-function cancelRequest(
-    request: LockerRequest,
-) {
-    const confirmed =
-        window.confirm(
-            `¿Cancelar la solicitud ${request.folio}?`,
-        );
+function cancelRequest(request: LockerRequest) {
+    const confirmed = window.confirm(
+        `¿Cancelar la solicitud ${request.folio}?`,
+    );
 
     if (!confirmed) {
         return;
@@ -482,12 +351,9 @@ function cancelRequest(
         {
             preserveScroll: true,
 
-            onError: (
-                errors,
-            ) => {
+            onError: (errors) => {
                 window.alert(
-                    errors.status ??
-                    'No se pudo cancelar la solicitud.',
+                    errors.status ?? 'No se pudo cancelar la solicitud.',
                 );
             },
         },
@@ -501,19 +367,20 @@ function closeAction() {
     selectedLockerId.value = '';
 }
 
-function availabilityCount(
-    building: string,
-    size: string,
-): number {
+function availabilityCount(building: string, size: string): number {
     return (
         props.availability.find(
-            (item) =>
-                item.building ===
-                building &&
-                item.size === size,
+            (item) => item.building === building && item.size === size,
         )?.count ?? 0
     );
 }
+
+/**
+ * Errores del servidor que no corresponden a un campo del formulario
+ * (por ejemplo, reglas de negocio devueltas con withErrors).
+ */
+const serverError = (form: { errors: object }, key: string) =>
+    (form.errors as Record<string, string | undefined>)[key];
 </script>
 
 <template>
@@ -523,132 +390,85 @@ function availabilityCount(
     >
         <section class="hero">
             <div>
-                <span class="hero-label">
-                    LOCKERS · MÓDULO 5.4
-                </span>
+                <span class="hero-label"> LOCKERS · MÓDULO 5.4 </span>
 
-                <h2>
-                    Solicitud y asignación
-                </h2>
+                <h2>Solicitud y asignación</h2>
 
                 <p>
-                    Solicita un locker para
-                    un periodo activo,
-                    registra el pago y
-                    consulta el proceso de
-                    asignación.
+                    Solicita un locker para un periodo activo, registra el pago
+                    y consulta el proceso de asignación.
                 </p>
             </div>
 
             <div class="hero-user">
-                <span>
-                    Usuario actual
-                </span>
+                <span> Usuario actual </span>
 
                 <strong>
-                    {{
-                        current_student_id
-                    }}
+                    {{ current_student_id }}
                 </strong>
 
-                <small>
-                    Identificado por
-                    Fortify
-                </small>
+                <small> Identificado por Fortify </small>
             </div>
         </section>
 
         <section class="stats-grid">
             <article class="stat-card">
-                <span>
-                    Pendientes
-                </span>
+                <span> Pendientes </span>
 
                 <strong>
                     {{ pendingCount }}
                 </strong>
 
-                <small>
-                    Esperan pago
-                </small>
+                <small> Esperan pago </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Pagadas
-                </span>
+                <span> Pagadas </span>
 
                 <strong>
                     {{ paidCount }}
                 </strong>
 
-                <small>
-                    Esperan asignación
-                </small>
+                <small> Esperan asignación </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Asignadas
-                </span>
+                <span> Asignadas </span>
 
                 <strong>
                     {{ assignedCount }}
                 </strong>
 
-                <small>
-                    Con locker
-                </small>
+                <small> Con locker </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Canceladas
-                </span>
+                <span> Canceladas </span>
 
                 <strong>
                     {{ cancelledCount }}
                 </strong>
 
-                <small>
-                    Solicitudes cerradas
-                </small>
+                <small> Solicitudes cerradas </small>
             </article>
         </section>
 
         <section class="module-navigation">
-            <Link
-                :href="BASE_URL"
-                class="module-link"
-            >
-                Catálogo
-            </Link>
+            <Link :href="BASE_URL" class="module-link"> Catálogo </Link>
 
-            <Link
-                :href="`${BASE_URL}/periodos`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/periodos`" class="module-link">
                 Periodos y costos
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/solicitudes`"
-                class="module-link active"
-            >
+            <Link :href="`${BASE_URL}/solicitudes`" class="module-link active">
                 Solicitudes
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/asignaciones`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/asignaciones`" class="module-link">
                 Asignaciones
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/acceso`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/acceso`" class="module-link">
                 Validar acceso
             </Link>
         </section>
@@ -656,40 +476,22 @@ function availabilityCount(
         <section class="content-panel">
             <div class="panel-header">
                 <div>
-                    <span class="panel-label">
-                        DISPONIBILIDAD
-                    </span>
+                    <span class="panel-label"> DISPONIBILIDAD </span>
 
-                    <h3>
-                        Lockers disponibles
-                    </h3>
+                    <h3>Lockers disponibles</h3>
 
-                    <p>
-                        Existencias actuales
-                        agrupadas por edificio
-                        y tamaño.
-                    </p>
+                    <p>Existencias actuales agrupadas por edificio y tamaño.</p>
                 </div>
 
                 <span class="availability-total">
-                    {{
-                        available_lockers.length
-                    }}
+                    {{ available_lockers.length }}
                     disponibles
                 </span>
             </div>
 
-            <div
-                v-if="
-                    buildings.length > 0
-                "
-                class="availability-grid"
-            >
+            <div v-if="buildings.length > 0" class="availability-grid">
                 <article
-                    v-for="
-                        building in
-                        buildings
-                    "
+                    v-for="building in buildings"
                     :key="building"
                     class="availability-card"
                 >
@@ -699,128 +501,76 @@ function availabilityCount(
 
                     <div class="availability-values">
                         <div>
-                            <span>
-                                Chico
-                            </span>
+                            <span> Chico </span>
 
                             <strong>
-                                {{
-                                    availabilityCount(
-                                        building,
-                                        'small',
-                                    )
-                                }}
+                                {{ availabilityCount(building, 'small') }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Mediano
-                            </span>
+                            <span> Mediano </span>
 
                             <strong>
-                                {{
-                                    availabilityCount(
-                                        building,
-                                        'medium',
-                                    )
-                                }}
+                                {{ availabilityCount(building, 'medium') }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Grande
-                            </span>
+                            <span> Grande </span>
 
                             <strong>
-                                {{
-                                    availabilityCount(
-                                        building,
-                                        'large',
-                                    )
-                                }}
+                                {{ availabilityCount(building, 'large') }}
                             </strong>
                         </div>
                     </div>
                 </article>
             </div>
 
-            <div
-                v-else
-                class="small-empty"
-            >
-                No hay lockers disponibles
-                actualmente.
+            <div v-else class="small-empty">
+                No hay lockers disponibles actualmente.
             </div>
         </section>
 
         <section class="content-panel">
             <div class="panel-header">
                 <div>
-                    <span class="panel-label">
-                        SOLICITUDES
-                    </span>
+                    <span class="panel-label"> SOLICITUDES </span>
 
-                    <h3>
-                        Solicitudes registradas
-                    </h3>
+                    <h3>Solicitudes registradas</h3>
 
-                    <p>
-                        Consulta el estado,
-                        pago y locker asignado.
-                    </p>
+                    <p>Consulta el estado, pago y locker asignado.</p>
                 </div>
 
                 <button
                     type="button"
                     class="primary-button"
-                    @click="
-                        openRequestForm
-                    "
+                    @click="openRequestForm"
                 >
                     + Solicitar locker
                 </button>
             </div>
 
-            <section
-                v-if="showForm"
-                class="form-panel"
-            >
+            <section v-if="showForm" class="form-panel">
                 <div class="form-header">
                     <div>
-                        <span class="panel-label">
-                            NUEVA SOLICITUD
-                        </span>
+                        <span class="panel-label"> NUEVA SOLICITUD </span>
 
-                        <h3>
-                            Solicitar locker
-                        </h3>
+                        <h3>Solicitar locker</h3>
 
-                        <p>
-                            Selecciona periodo,
-                            tamaño y ubicación
-                            preferida.
-                        </p>
+                        <p>Selecciona periodo, tamaño y ubicación preferida.</p>
                     </div>
 
                     <button
                         type="button"
                         class="close-button"
-                        @click="
-                            closeRequestForm
-                        "
+                        @click="closeRequestForm"
                     >
                         ×
                     </button>
                 </div>
 
-                <form
-                    class="request-form"
-                    @submit.prevent="
-                        submitRequest
-                    "
-                >
+                <form class="request-form" @submit.prevent="submitRequest">
                     <div class="form-grid">
                         <div class="form-field">
                             <label>
@@ -828,45 +578,23 @@ function availabilityCount(
                                 <span>*</span>
                             </label>
 
-                            <select
-                                v-model="
-                                    form.period_id
-                                "
-                            >
-                                <option value="">
-                                    Selecciona un
-                                    periodo
-                                </option>
+                            <select v-model="form.period_id">
+                                <option value="">Selecciona un periodo</option>
 
                                 <option
-                                    v-for="
-                                        period in
-                                        periods
-                                    "
-                                    :key="
-                                        period.id
-                                    "
-                                    :value="
-                                        period.id
-                                    "
+                                    v-for="period in periods"
+                                    :key="period.id"
+                                    :value="period.id"
                                 >
-                                    {{
-                                        period.name
-                                    }}
+                                    {{ period.name }}
                                 </option>
                             </select>
 
                             <small
-                                v-if="
-                                    form.errors
-                                        .period_id
-                                "
+                                v-if="form.errors.period_id"
                                 class="field-error"
                             >
-                                {{
-                                    form.errors
-                                        .period_id
-                                }}
+                                {{ form.errors.period_id }}
                             </small>
                         </div>
 
@@ -876,125 +604,63 @@ function availabilityCount(
                                 <span>*</span>
                             </label>
 
-                            <select
-                                v-model="
-                                    form.size
-                                "
-                            >
-                                <option value="">
-                                    Selecciona
-                                </option>
+                            <select v-model="form.size">
+                                <option value="">Selecciona</option>
 
-                                <option value="small">
-                                    Chico
-                                </option>
+                                <option value="small">Chico</option>
 
-                                <option value="medium">
-                                    Mediano
-                                </option>
+                                <option value="medium">Mediano</option>
 
-                                <option value="large">
-                                    Grande
-                                </option>
+                                <option value="large">Grande</option>
                             </select>
 
-                            <small
-                                v-if="
-                                    form.errors
-                                        .size
-                                "
-                                class="field-error"
-                            >
-                                {{
-                                    form.errors
-                                        .size
-                                }}
+                            <small v-if="form.errors.size" class="field-error">
+                                {{ form.errors.size }}
                             </small>
                         </div>
 
-                        <div
-                            class="form-field full"
-                        >
-                            <label>
-                                Edificio preferido
-                            </label>
+                        <div class="form-field full">
+                            <label> Edificio preferido </label>
 
-                            <select
-                                v-model="
-                                    form.building
-                                "
-                            >
-                                <option value="">
-                                    Cualquier edificio
-                                </option>
+                            <select v-model="form.building">
+                                <option value="">Cualquier edificio</option>
 
                                 <option
-                                    v-for="
-                                        building in
-                                        buildings
-                                    "
-                                    :key="
-                                        building
-                                    "
-                                    :value="
-                                        building
-                                    "
+                                    v-for="building in buildings"
+                                    :key="building"
+                                    :value="building"
                                 >
                                     {{ building }}
                                 </option>
                             </select>
 
                             <small
-                                v-if="
-                                    form.errors
-                                        .building
-                                "
+                                v-if="form.errors.building"
                                 class="field-error"
                             >
-                                {{
-                                    form.errors
-                                        .building
-                                }}
+                                {{ form.errors.building }}
                             </small>
                         </div>
                     </div>
 
-                    <div
-                        v-if="
-                            form.errors.status
-                        "
-                        class="error-box"
-                    >
-                        {{
-                            form.errors
-                                .status
-                        }}
+                    <div v-if="serverError(form, 'status')" class="error-box">
+                        {{ serverError(form, 'status') }}
                     </div>
 
                     <div class="information-box">
-                        <strong>
-                            Flujo:
-                        </strong>
+                        <strong> Flujo: </strong>
 
-                        la solicitud se crea
-                        como pendiente. Una
-                        vez registrado el
-                        pago, el sistema
-                        intentará asignar un
-                        locker disponible de
-                        manera automática.
+                        la solicitud se crea como pendiente. Una vez registrado
+                        el pago, el sistema intentará asignar un locker
+                        disponible de manera automática.
                     </div>
 
                     <div class="form-actions">
                         <button
                             type="button"
                             class="secondary-button"
-                            :disabled="
-                                form.processing
-                            "
-                            @click="
-                                closeRequestForm
-                            "
+                            :disabled="form.processing"
+                            @click="closeRequestForm"
                         >
                             Cancelar
                         </button>
@@ -1002,9 +668,7 @@ function availabilityCount(
                         <button
                             type="submit"
                             class="primary-button"
-                            :disabled="
-                                form.processing
-                            "
+                            :disabled="form.processing"
                         >
                             {{
                                 form.processing
@@ -1025,327 +689,200 @@ function availabilityCount(
                     />
                 </div>
 
-                <select
-                    v-model="
-                        typeFilter
-                    "
-                >
-                    <option value="">
-                        Todos los tipos
-                    </option>
+                <select v-model="typeFilter">
+                    <option value="">Todos los tipos</option>
 
-                    <option value="paid">
-                        Renta pagada
-                    </option>
+                    <option value="paid">Renta pagada</option>
 
-                    <option value="council">
-                        Consejo
-                    </option>
+                    <option value="council">Consejo</option>
 
-                    <option value="scholarship">
-                        Beca
-                    </option>
+                    <option value="scholarship">Beca</option>
                 </select>
 
-                <select
-                    v-model="
-                        statusFilter
-                    "
-                >
-                    <option value="">
-                        Todos los estados
-                    </option>
+                <select v-model="statusFilter">
+                    <option value="">Todos los estados</option>
 
-                    <option value="pending">
-                        Pendiente
-                    </option>
+                    <option value="pending">Pendiente</option>
 
-                    <option value="paid">
-                        Pagada
-                    </option>
+                    <option value="paid">Pagada</option>
 
-                    <option value="assigned">
-                        Asignada
-                    </option>
+                    <option value="assigned">Asignada</option>
 
-                    <option value="cancelled">
-                        Cancelada
-                    </option>
+                    <option value="cancelled">Cancelada</option>
 
-                    <option value="rejected">
-                        Rechazada
-                    </option>
+                    <option value="rejected">Rechazada</option>
                 </select>
             </div>
 
-            <div
-                v-if="
-                    filteredRequests.length >
-                    0
-                "
-                class="table-container"
-            >
+            <div v-if="filteredRequests.length > 0" class="table-container">
                 <table>
                     <thead>
-                    <tr>
-                        <th>Folio</th>
-                        <th>Estudiante</th>
-                        <th>Periodo</th>
-                        <th>Preferencia</th>
-                        <th>Monto</th>
-                        <th>Tipo</th>
-                        <th>Estado</th>
-                        <th>Locker</th>
-                        <th>Acciones</th>
-                    </tr>
+                        <tr>
+                            <th>Folio</th>
+                            <th>Estudiante</th>
+                            <th>Periodo</th>
+                            <th>Preferencia</th>
+                            <th>Monto</th>
+                            <th>Tipo</th>
+                            <th>Estado</th>
+                            <th>Locker</th>
+                            <th>Acciones</th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    <tr
-                        v-for="
-                                request in
-                                filteredRequests
-                            "
-                        :key="
-                                request.id
-                            "
-                    >
-                        <td>
-                            <strong class="folio">
-                                {{
-                                    request.folio
-                                }}
-                            </strong>
-
-                            <small class="date">
-                                {{
-                                    formatDateTime(
-                                        request.created_at,
-                                    )
-                                }}
-                            </small>
-                        </td>
-
-                        <td>
-                                <span class="student">
-                                    {{
-                                        request.student_id
-                                    }}
-                                </span>
-                        </td>
-
-                        <td>
-                            {{
-                                request.period_name
-                            }}
-                        </td>
-
-                        <td>
-                            <div class="preference">
-                                <strong>
-                                    {{
-                                        sizeLabel(
-                                            request.preferred_size,
-                                        )
-                                    }}
+                        <tr
+                            v-for="request in filteredRequests"
+                            :key="request.id"
+                        >
+                            <td>
+                                <strong class="folio">
+                                    {{ request.folio }}
                                 </strong>
 
-                                <small>
-                                    {{
-                                        request.preferred_building
-                                        ??
-                                        'Cualquier edificio'
-                                    }}
+                                <small class="date">
+                                    {{ formatDateTime(request.created_at) }}
                                 </small>
-                            </div>
-                        </td>
+                            </td>
 
-                        <td>
-                            <strong>
-                                {{
-                                    money(
-                                        request.amount,
-                                    )
-                                }}
-                            </strong>
-                        </td>
+                            <td>
+                                <span class="student">
+                                    {{ request.student_id }}
+                                </span>
+                            </td>
 
-                        <td>
-                            {{
-                                requestTypeLabel(
-                                    request.request_type,
-                                )
-                            }}
-                        </td>
+                            <td>
+                                {{ request.period_name }}
+                            </td>
 
-                        <td>
+                            <td>
+                                <div class="preference">
+                                    <strong>
+                                        {{ sizeLabel(request.preferred_size) }}
+                                    </strong>
+
+                                    <small>
+                                        {{
+                                            request.preferred_building ??
+                                            'Cualquier edificio'
+                                        }}
+                                    </small>
+                                </div>
+                            </td>
+
+                            <td>
+                                <strong>
+                                    {{ money(request.amount) }}
+                                </strong>
+                            </td>
+
+                            <td>
+                                {{ requestTypeLabel(request.request_type) }}
+                            </td>
+
+                            <td>
                                 <span
                                     class="status"
                                     :class="`status-${request.status}`"
                                 >
-                                    {{
-                                        statusLabel(
-                                            request.status,
-                                        )
-                                    }}
+                                    {{ statusLabel(request.status) }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            <strong
-                                v-if="
-                                        request.locker_code
-                                    "
-                                class="locker-code"
-                            >
-                                {{
-                                    request.locker_code
-                                }}
-                            </strong>
-
-                            <span v-else>
-                                    —
-                                </span>
-                        </td>
-
-                        <td>
-                            <div class="actions">
-                                <button
-                                    v-if="
-                                            request.request_type ===
-                                                'paid' &&
-                                            request.status ===
-                                                'pending'
-                                        "
-                                    type="button"
-                                    class="action-button pay"
-                                    @click="
-                                            openPayment(
-                                                request,
-                                            )
-                                        "
+                            <td>
+                                <strong
+                                    v-if="request.locker_code"
+                                    class="locker-code"
                                 >
-                                    Registrar pago
-                                </button>
+                                    {{ request.locker_code }}
+                                </strong>
 
-                                <button
-                                    v-if="
-                                            request.status ===
-                                            'paid'
-                                        "
-                                    type="button"
-                                    class="action-button assign"
-                                    @click="
-                                            openAssignment(
-                                                request,
-                                            )
-                                        "
-                                >
-                                    Asignar
-                                </button>
+                                <span v-else> — </span>
+                            </td>
 
-                                <button
-                                    v-if="
-                                            request.status ===
-                                            'pending'
+                            <td>
+                                <div class="actions">
+                                    <button
+                                        v-if="
+                                            request.request_type === 'paid' &&
+                                            request.status === 'pending'
                                         "
-                                    type="button"
-                                    class="action-button cancel"
-                                    @click="
-                                            cancelRequest(
-                                                request,
-                                            )
-                                        "
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                                        type="button"
+                                        class="action-button pay"
+                                        @click="openPayment(request)"
+                                    >
+                                        Registrar pago
+                                    </button>
+
+                                    <button
+                                        v-if="request.status === 'paid'"
+                                        type="button"
+                                        class="action-button assign"
+                                        @click="openAssignment(request)"
+                                    >
+                                        Asignar
+                                    </button>
+
+                                    <button
+                                        v-if="request.status === 'pending'"
+                                        type="button"
+                                        class="action-button cancel"
+                                        @click="cancelRequest(request)"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div
-                v-else
-                class="empty-state"
-            >
-                <h3>
-                    No hay solicitudes
-                </h3>
+            <div v-else class="empty-state">
+                <h3>No hay solicitudes</h3>
 
-                <p>
-                    Registra una nueva
-                    solicitud o cambia los
-                    filtros.
-                </p>
+                <p>Registra una nueva solicitud o cambia los filtros.</p>
             </div>
         </section>
 
-        <div
-            v-if="actionMode"
-            class="modal-backdrop"
-            @click.self="closeAction"
-        >
+        <div v-if="actionMode" class="modal-backdrop" @click.self="closeAction">
             <section class="modal">
                 <div class="modal-header">
                     <div>
                         <span class="panel-label">
                             {{
-                                actionMode ===
-                                'pay'
+                                actionMode === 'pay'
                                     ? 'REGISTRAR PAGO'
                                     : 'ASIGNAR LOCKER'
                             }}
                         </span>
 
                         <h3>
-                            {{
-                                selectedRequest
-                                    ?.folio
-                            }}
+                            {{ selectedRequest?.folio }}
                         </h3>
                     </div>
 
                     <button
                         type="button"
                         class="close-button"
-                        @click="
-                            closeAction
-                        "
+                        @click="closeAction"
                     >
                         ×
                     </button>
                 </div>
 
-                <div
-                    v-if="
-                        actionMode ===
-                        'pay'
-                    "
-                    class="modal-body"
-                >
+                <div v-if="actionMode === 'pay'" class="modal-body">
                     <p>
                         Monto:
                         <strong>
-                            {{
-                                money(
-                                    selectedRequest
-                                        ?.amount ??
-                                    null,
-                                )
-                            }}
+                            {{ money(selectedRequest?.amount ?? null) }}
                         </strong>
                     </p>
 
-                    <label>
-                        Referencia de pago
-                    </label>
+                    <label> Referencia de pago </label>
 
                     <input
-                        v-model="
-                            paymentReference
-                        "
+                        v-model="paymentReference"
                         type="text"
                         placeholder="Ej. PAY-LOCKER-0001"
                     />
@@ -1354,9 +891,7 @@ function availabilityCount(
                         <button
                             type="button"
                             class="secondary-button"
-                            @click="
-                                closeAction
-                            "
+                            @click="closeAction"
                         >
                             Cancelar
                         </button>
@@ -1364,43 +899,23 @@ function availabilityCount(
                         <button
                             type="button"
                             class="primary-button"
-                            @click="
-                                submitPayment
-                            "
+                            @click="submitPayment"
                         >
                             Confirmar pago
                         </button>
                     </div>
                 </div>
 
-                <div
-                    v-else
-                    class="modal-body"
-                >
-                    <label>
-                        Locker disponible
-                    </label>
+                <div v-else class="modal-body">
+                    <label> Locker disponible </label>
 
-                    <select
-                        v-model="
-                            selectedLockerId
-                        "
-                    >
-                        <option value="">
-                            Selecciona un locker
-                        </option>
+                    <select v-model="selectedLockerId">
+                        <option value="">Selecciona un locker</option>
 
                         <option
-                            v-for="
-                                locker in
-                                assignableLockers
-                            "
-                            :key="
-                                locker.id
-                            "
-                            :value="
-                                locker.id
-                            "
+                            v-for="locker in assignableLockers"
+                            :key="locker.id"
+                            :value="locker.id"
                         >
                             {{ locker.code }}
                             ·
@@ -1411,15 +926,10 @@ function availabilityCount(
                     </select>
 
                     <p
-                        v-if="
-                            assignableLockers.length ===
-                            0
-                        "
+                        v-if="assignableLockers.length === 0"
                         class="modal-warning"
                     >
-                        No existen lockers
-                        disponibles que
-                        coincidan con esta
+                        No existen lockers disponibles que coincidan con esta
                         solicitud.
                     </p>
 
@@ -1427,9 +937,7 @@ function availabilityCount(
                         <button
                             type="button"
                             class="secondary-button"
-                            @click="
-                                closeAction
-                            "
+                            @click="closeAction"
                         >
                             Cancelar
                         </button>
@@ -1437,13 +945,8 @@ function availabilityCount(
                         <button
                             type="button"
                             class="primary-button"
-                            :disabled="
-                                assignableLockers.length ===
-                                0
-                            "
-                            @click="
-                                submitAssignment
-                            "
+                            :disabled="assignableLockers.length === 0"
+                            @click="submitAssignment"
                         >
                             Asignar locker
                         </button>
@@ -1496,8 +999,7 @@ function availabilityCount(
     min-width: 185px;
     padding: 16px 19px;
     border-radius: 10px;
-    background:
-        rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .hero-user span {
@@ -1521,8 +1023,7 @@ function availabilityCount(
 .stats-grid {
     margin-top: 18px;
     display: grid;
-    grid-template-columns:
-        repeat(4, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 13px;
 }
 
@@ -1601,8 +1102,7 @@ function availabilityCount(
     align-items: center;
     justify-content: space-between;
     gap: 20px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
 }
 
 .panel-label {
@@ -1636,11 +1136,7 @@ function availabilityCount(
 .availability-grid {
     padding: 17px 21px 21px;
     display: grid;
-    grid-template-columns:
-        repeat(
-            auto-fit,
-            minmax(230px, 1fr)
-        );
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
     gap: 12px;
 }
 
@@ -1659,8 +1155,7 @@ function availabilityCount(
 .availability-values {
     margin-top: 12px;
     display: grid;
-    grid-template-columns:
-        repeat(3, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 7px;
 }
 
@@ -1725,8 +1220,7 @@ function availabilityCount(
 }
 
 .form-panel {
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
@@ -1747,8 +1241,7 @@ function availabilityCount(
 
 .form-grid {
     display: grid;
-    grid-template-columns:
-        repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 17px 19px;
 }
 
@@ -1823,8 +1316,7 @@ function availabilityCount(
     display: flex;
     justify-content: flex-end;
     gap: 9px;
-    border-top:
-        1px solid #e5e9ef;
+    border-top: 1px solid #e5e9ef;
 }
 
 .filters {
@@ -1835,8 +1327,7 @@ function availabilityCount(
         180px
         180px;
     gap: 10px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
@@ -1875,8 +1366,7 @@ th {
 
 td {
     padding: 14px;
-    border-top:
-        1px solid #e9edf3;
+    border-top: 1px solid #e9edf3;
     color: #5c6980;
     font-size: 10px;
     vertical-align: middle;
@@ -2010,8 +1500,7 @@ tbody tr:hover {
     display: grid;
     place-items: center;
     padding: 20px;
-    background:
-        rgba(18, 29, 47, 0.5);
+    background: rgba(18, 29, 47, 0.5);
 }
 
 .modal {
@@ -2019,9 +1508,7 @@ tbody tr:hover {
     overflow: hidden;
     border-radius: 11px;
     background: white;
-    box-shadow:
-        0 18px 50px
-        rgba(0, 0, 0, 0.18);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
 }
 
 .modal-body {
@@ -2048,8 +1535,7 @@ tbody tr:hover {
 
 @media (max-width: 1000px) {
     .stats-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .filters {
@@ -2088,8 +1574,7 @@ tbody tr:hover {
 
     .form-actions,
     .modal-actions {
-        flex-direction:
-            column-reverse;
+        flex-direction: column-reverse;
     }
 }
 

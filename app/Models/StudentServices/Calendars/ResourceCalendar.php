@@ -2,6 +2,7 @@
 
 namespace App\Models\StudentServices\Calendars;
 
+use Carbon\CarbonInterface;
 use MongoDB\BSON\ObjectId;
 use MongoDB\Laravel\Eloquent\Model;
 
@@ -11,12 +12,31 @@ use MongoDB\Laravel\Eloquent\Model;
  * Un documento por recurso (instalación, zona de descanso...). La
  * capacidad vive en el propio recurso; aquí están horario, franjas,
  * duración, cancelación, no-show y límites por estudiante.
+ *
+ * @property-read string $id
+ * @property string $resource_type
+ * @property ObjectId|string $resource_id
+ * @property string $open_time
+ * @property string $close_time
+ * @property int $slot_minutes
+ * @property int $min_booking_minutes
+ * @property int $max_booking_minutes
+ * @property int $cancel_before_minutes
+ * @property int $no_show_tolerance_minutes
+ * @property int $max_active_per_student
+ * @property int $max_advance_days
+ * @property int $max_no_shows
+ * @property int $no_show_window_days
+ * @property array<int, int|string>|null $operating_days
+ * @property string|null $updated_by
+ * @property CarbonInterface|null $created_at
+ * @property CarbonInterface|null $updated_at
  */
 class ResourceCalendar extends Model
 {
     protected $connection = 'mongodb';
 
-    protected $collection = 'calendars';
+    protected $table = 'resource_calendars';
 
     protected $fillable = [
         'resource_type',

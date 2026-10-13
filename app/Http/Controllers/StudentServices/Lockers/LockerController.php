@@ -69,7 +69,7 @@ class LockerController extends Controller
             trim($data['code'])
         );
 
-        $qrCode = 'QR-' . $code;
+        $qrCode = 'QR-'.$code;
 
         $exists = Locker::query()
             ->where('code', $code)
@@ -78,8 +78,7 @@ class LockerController extends Controller
 
         if ($exists) {
             return back()->withErrors([
-                'code' =>
-                    'Ya existe un locker con ese código.',
+                'code' => 'Ya existe un locker con ese código.',
             ]);
         }
 
@@ -88,22 +87,17 @@ class LockerController extends Controller
 
             'qr_code' => $qrCode,
 
-            'building' =>
-                trim($data['building']),
+            'building' => trim($data['building']),
 
-            'zone' =>
-                trim($data['zone']),
+            'zone' => trim($data['zone']),
 
-            'size' =>
-                $data['size'],
+            'size' => $data['size'],
 
-            'status' =>
-                'available',
+            'status' => 'available',
 
-            'notes' =>
-                $this->cleanText(
-                    $data['notes'] ?? null
-                ),
+            'notes' => $this->cleanText(
+                $data['notes'] ?? null
+            ),
         ]);
 
         return back()->with(
@@ -152,8 +146,7 @@ class LockerController extends Controller
 
         if ($codeExists) {
             return back()->withErrors([
-                'code' =>
-                    'Ya existe otro locker con ese código.',
+                'code' => 'Ya existe otro locker con ese código.',
             ]);
         }
 
@@ -184,8 +177,7 @@ class LockerController extends Controller
             if ($changed) {
                 return back()
                     ->withErrors([
-                        'status' =>
-                            'No puedes cambiar el código, tamaño ni ubicación de un locker ocupado o reservado.',
+                        'status' => 'No puedes cambiar el código, tamaño ni ubicación de un locker ocupado o reservado.',
                     ]);
             }
         }
@@ -197,19 +189,15 @@ class LockerController extends Controller
         $locker->update([
             'code' => $code,
 
-            'building' =>
-                $building,
+            'building' => $building,
 
-            'zone' =>
-                $zone,
+            'zone' => $zone,
 
-            'size' =>
-                $data['size'],
+            'size' => $data['size'],
 
-            'notes' =>
-                $this->cleanText(
-                    $data['notes'] ?? null
-                ),
+            'notes' => $this->cleanText(
+                $data['notes'] ?? null
+            ),
         ]);
 
         return back()->with(
@@ -232,14 +220,12 @@ class LockerController extends Controller
         ) {
             return back()
                 ->withErrors([
-                    'status' =>
-                        'Solo un locker disponible puede enviarse a mantenimiento. Si está ocupado o reservado, primero debe liberarse.',
+                    'status' => 'Solo un locker disponible puede enviarse a mantenimiento. Si está ocupado o reservado, primero debe liberarse.',
                 ]);
         }
 
         $locker->update([
-            'status' =>
-                'maintenance',
+            'status' => 'maintenance',
         ]);
 
         return back()->with(
@@ -262,14 +248,12 @@ class LockerController extends Controller
         ) {
             return back()
                 ->withErrors([
-                    'status' =>
-                        'Solo un locker en mantenimiento puede regresar a disponible.',
+                    'status' => 'Solo un locker en mantenimiento puede regresar a disponible.',
                 ]);
         }
 
         $locker->update([
-            'status' =>
-                'available',
+            'status' => 'available',
         ]);
 
         return back()->with(

@@ -21,16 +21,14 @@ const props = defineProps<{
     periods: LockerPeriod[];
 }>();
 
-const BASE_URL =
-    '/servicios-estudiante/lockers';
+const BASE_URL = '/servicios-estudiante/lockers';
 
 const search = ref('');
 const statusFilter = ref('');
 
 const showForm = ref(false);
 
-const editingPeriod =
-    ref<LockerPeriod | null>(null);
+const editingPeriod = ref<LockerPeriod | null>(null);
 
 const form = useForm({
     code: '',
@@ -46,49 +44,29 @@ const form = useForm({
 });
 
 const activeCount = computed(() => {
-    return props.periods.filter(
-        (period) =>
-            period.status === 'active',
-    ).length;
+    return props.periods.filter((period) => period.status === 'active').length;
 });
 
 const closedCount = computed(() => {
-    return props.periods.filter(
-        (period) =>
-            period.status === 'closed',
-    ).length;
+    return props.periods.filter((period) => period.status === 'closed').length;
 });
 
 const filteredPeriods = computed(() => {
-    const term =
-        search.value
-            .trim()
-            .toLowerCase();
+    const term = search.value.trim().toLowerCase();
 
-    return props.periods.filter(
-        (period) => {
-            if (
-                statusFilter.value &&
-                period.status !==
-                statusFilter.value
-            ) {
-                return false;
-            }
+    return props.periods.filter((period) => {
+        if (statusFilter.value && period.status !== statusFilter.value) {
+            return false;
+        }
 
-            if (!term) {
-                return true;
-            }
+        if (!term) {
+            return true;
+        }
 
-            return [
-                period.code,
-                period.name,
-            ].some((value) =>
-                value
-                    .toLowerCase()
-                    .includes(term),
-            );
-        },
-    );
+        return [period.code, period.name].some((value) =>
+            value.toLowerCase().includes(term),
+        );
+    });
 });
 
 const averageSmall = computed(() => {
@@ -103,86 +81,41 @@ const averageLarge = computed(() => {
     return calculateAverage('large');
 });
 
-function calculateAverage(
-    size:
-        | 'small'
-        | 'medium'
-        | 'large',
-): number {
-    const active =
-        props.periods.filter(
-            (period) =>
-                period.status ===
-                'active',
-        );
+function calculateAverage(size: 'small' | 'medium' | 'large'): number {
+    const active = props.periods.filter((period) => period.status === 'active');
 
     if (active.length === 0) {
         return 0;
     }
 
-    const values =
-        active
-            .map((period) =>
-                Number(
-                    period.prices[
-                        size
-                        ] ?? 0,
-                ),
-            )
-            .filter(
-                (value) =>
-                    !Number.isNaN(
-                        value,
-                    ),
-            );
+    const values = active
+        .map((period) => Number(period.prices[size] ?? 0))
+        .filter((value) => !Number.isNaN(value));
 
     if (values.length === 0) {
         return 0;
     }
 
-    return (
-        values.reduce(
-            (total, value) =>
-                total + value,
-            0,
-        ) / values.length
-    );
+    return values.reduce((total, value) => total + value, 0) / values.length;
 }
 
-function money(
-    value:
-        | string
-        | number
-        | null,
-): string {
-    const numberValue =
-        Number(value ?? 0);
+function money(value: string | number | null): string {
+    const numberValue = Number(value ?? 0);
 
-    return new Intl.NumberFormat(
-        'es-MX',
-        {
-            style: 'currency',
-            currency: 'MXN',
-        },
-    ).format(
-        Number.isNaN(numberValue)
-            ? 0
-            : numberValue,
-    );
+    return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+    }).format(Number.isNaN(numberValue) ? 0 : numberValue);
 }
 
-function formatDate(
-    value: string | null,
-): string {
+function formatDate(value: string | null): string {
     if (!value) {
         return '—';
     }
 
-    const clean =
-        value.slice(0, 10);
+    const clean = value.slice(0, 10);
 
-    const parts =
-        clean.split('-');
+    const parts = clean.split('-');
 
     if (parts.length !== 3) {
         return value;
@@ -205,43 +138,29 @@ function openCreateForm() {
     });
 }
 
-function openEditForm(
-    period: LockerPeriod,
-) {
-    if (
-        period.status !== 'active'
-    ) {
-        window.alert(
-            'Los periodos cerrados ya no pueden editarse.',
-        );
+function openEditForm(period: LockerPeriod) {
+    if (period.status !== 'active') {
+        window.alert('Los periodos cerrados ya no pueden editarse.');
 
         return;
     }
 
-    editingPeriod.value =
-        period;
+    editingPeriod.value = period;
 
     form.clearErrors();
 
     form.code = period.code;
     form.name = period.name;
 
-    form.starts_at =
-        period.starts_at
-            ?.slice(0, 10) ?? '';
+    form.starts_at = period.starts_at?.slice(0, 10) ?? '';
 
-    form.ends_at =
-        period.ends_at
-            ?.slice(0, 10) ?? '';
+    form.ends_at = period.ends_at?.slice(0, 10) ?? '';
 
-    form.prices.small =
-        period.prices.small ?? '';
+    form.prices.small = period.prices.small ?? '';
 
-    form.prices.medium =
-        period.prices.medium ?? '';
+    form.prices.medium = period.prices.medium ?? '';
 
-    form.prices.large =
-        period.prices.large ?? '';
+    form.prices.large = period.prices.large ?? '';
 
     showForm.value = true;
 
@@ -261,49 +180,35 @@ function closeForm() {
 }
 
 function submitPeriod() {
-    if (
-        editingPeriod.value ===
-        null
-    ) {
-        form.post(
-            `${BASE_URL}/periodos`,
-            {
-                preserveScroll: true,
-
-                onSuccess: () => {
-                    closeForm();
-                },
-            },
-        );
-
-        return;
-    }
-
-    form.patch(
-        `${BASE_URL}/periodos/${editingPeriod.value.id}`,
-        {
+    if (editingPeriod.value === null) {
+        form.post(`${BASE_URL}/periodos`, {
             preserveScroll: true,
 
             onSuccess: () => {
                 closeForm();
             },
-        },
-    );
-}
+        });
 
-function closePeriod(
-    period: LockerPeriod,
-) {
-    if (
-        period.status !== 'active'
-    ) {
         return;
     }
 
-    const confirmed =
-        window.confirm(
-            `¿Cerrar el periodo "${period.name}"?\n\nDespués de cerrarlo ya no podrá editarse.`,
-        );
+    form.patch(`${BASE_URL}/periodos/${editingPeriod.value.id}`, {
+        preserveScroll: true,
+
+        onSuccess: () => {
+            closeForm();
+        },
+    });
+}
+
+function closePeriod(period: LockerPeriod) {
+    if (period.status !== 'active') {
+        return;
+    }
+
+    const confirmed = window.confirm(
+        `¿Cerrar el periodo "${period.name}"?\n\nDespués de cerrarlo ya no podrá editarse.`,
+    );
 
     if (!confirmed) {
         return;
@@ -315,27 +220,17 @@ function closePeriod(
         {
             preserveScroll: true,
 
-            onError: (
-                errors,
-            ) => {
-                if (
-                    errors.status
-                ) {
-                    window.alert(
-                        errors.status,
-                    );
+            onError: (errors) => {
+                if (errors.status) {
+                    window.alert(errors.status);
                 }
             },
         },
     );
 }
 
-function statusLabel(
-    status: LockerPeriod['status'],
-): string {
-    return status === 'active'
-        ? 'Activo'
-        : 'Cerrado';
+function statusLabel(status: LockerPeriod['status']): string {
+    return status === 'active' ? 'Activo' : 'Cerrado';
 }
 </script>
 
@@ -346,155 +241,95 @@ function statusLabel(
     >
         <section class="hero">
             <div>
-                <span class="hero-label">
-                    LOCKERS · MÓDULO 5.3
-                </span>
+                <span class="hero-label"> LOCKERS · MÓDULO 5.3 </span>
 
-                <h2>
-                    Periodos y costos
-                </h2>
+                <h2>Periodos y costos</h2>
 
                 <p>
-                    Configura las fechas de
-                    servicio y los costos
-                    aplicables para lockers
-                    chicos, medianos y
-                    grandes.
+                    Configura las fechas de servicio y los costos aplicables
+                    para lockers chicos, medianos y grandes.
                 </p>
             </div>
 
             <div class="hero-total">
-                <span>
-                    Periodos registrados
-                </span>
+                <span> Periodos registrados </span>
 
                 <strong>
                     {{ periods.length }}
                 </strong>
 
-                <small>
-                    almacenados en MongoDB
-                </small>
+                <small> almacenados en MongoDB </small>
             </div>
         </section>
 
         <section class="stats-grid">
             <article class="stat-card">
-                <span>
-                    Activos
-                </span>
+                <span> Activos </span>
 
                 <strong>
                     {{ activeCount }}
                 </strong>
 
-                <small>
-                    Aceptan solicitudes
-                </small>
+                <small> Aceptan solicitudes </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Cerrados
-                </span>
+                <span> Cerrados </span>
 
                 <strong>
                     {{ closedCount }}
                 </strong>
 
-                <small>
-                    Periodos finalizados
-                </small>
+                <small> Periodos finalizados </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Precio chico
-                </span>
+                <span> Precio chico </span>
 
                 <strong class="money">
-                    {{
-                        money(
-                            averageSmall,
-                        )
-                    }}
+                    {{ money(averageSmall) }}
                 </strong>
 
-                <small>
-                    Promedio activo
-                </small>
+                <small> Promedio activo </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Precio mediano
-                </span>
+                <span> Precio mediano </span>
 
                 <strong class="money">
-                    {{
-                        money(
-                            averageMedium,
-                        )
-                    }}
+                    {{ money(averageMedium) }}
                 </strong>
 
-                <small>
-                    Promedio activo
-                </small>
+                <small> Promedio activo </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Precio grande
-                </span>
+                <span> Precio grande </span>
 
                 <strong class="money">
-                    {{
-                        money(
-                            averageLarge,
-                        )
-                    }}
+                    {{ money(averageLarge) }}
                 </strong>
 
-                <small>
-                    Promedio activo
-                </small>
+                <small> Promedio activo </small>
             </article>
         </section>
 
         <section class="module-navigation">
-            <Link
-                :href="BASE_URL"
-                class="module-link"
-            >
-                Catálogo
-            </Link>
+            <Link :href="BASE_URL" class="module-link"> Catálogo </Link>
 
-            <Link
-                :href="`${BASE_URL}/periodos`"
-                class="module-link active"
-            >
+            <Link :href="`${BASE_URL}/periodos`" class="module-link active">
                 Periodos y costos
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/solicitudes`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/solicitudes`" class="module-link">
                 Solicitudes
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/asignaciones`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/asignaciones`" class="module-link">
                 Asignaciones
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/acceso`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/acceso`" class="module-link">
                 Validar acceso
             </Link>
         </section>
@@ -502,18 +337,12 @@ function statusLabel(
         <section class="content-panel">
             <div class="panel-header">
                 <div>
-                    <span class="panel-label">
-                        CONFIGURACIÓN
-                    </span>
+                    <span class="panel-label"> CONFIGURACIÓN </span>
 
-                    <h3>
-                        Periodos registrados
-                    </h3>
+                    <h3>Periodos registrados</h3>
 
                     <p>
-                        Administra vigencias y
-                        precios del servicio de
-                        lockers.
+                        Administra vigencias y precios del servicio de lockers.
                     </p>
                 </div>
 
@@ -526,16 +355,12 @@ function statusLabel(
                 </button>
             </div>
 
-            <section
-                v-if="showForm"
-                class="form-panel"
-            >
+            <section v-if="showForm" class="form-panel">
                 <div class="form-header">
                     <div>
                         <span class="panel-label">
                             {{
-                                editingPeriod ===
-                                null
+                                editingPeriod === null
                                     ? 'NUEVO PERIODO'
                                     : 'EDITAR PERIODO'
                             }}
@@ -543,17 +368,14 @@ function statusLabel(
 
                         <h3>
                             {{
-                                editingPeriod ===
-                                null
+                                editingPeriod === null
                                     ? 'Registrar periodo'
                                     : `Editar ${editingPeriod.code}`
                             }}
                         </h3>
 
                         <p>
-                            Define vigencia y
-                            costos para cada
-                            tamaño de locker.
+                            Define vigencia y costos para cada tamaño de locker.
                         </p>
                     </div>
 
@@ -566,12 +388,7 @@ function statusLabel(
                     </button>
                 </div>
 
-                <form
-                    class="period-form"
-                    @submit.prevent="
-                        submitPeriod
-                    "
-                >
+                <form class="period-form" @submit.prevent="submitPeriod">
                     <div class="form-grid">
                         <div class="form-field">
                             <label for="period-code">
@@ -581,24 +398,13 @@ function statusLabel(
 
                             <input
                                 id="period-code"
-                                v-model="
-                                    form.code
-                                "
+                                v-model="form.code"
                                 type="text"
                                 placeholder="Ej. 2027-B"
                             />
 
-                            <small
-                                v-if="
-                                    form.errors
-                                        .code
-                                "
-                                class="field-error"
-                            >
-                                {{
-                                    form.errors
-                                        .code
-                                }}
+                            <small v-if="form.errors.code" class="field-error">
+                                {{ form.errors.code }}
                             </small>
                         </div>
 
@@ -610,24 +416,13 @@ function statusLabel(
 
                             <input
                                 id="period-name"
-                                v-model="
-                                    form.name
-                                "
+                                v-model="form.name"
                                 type="text"
                                 placeholder="Ej. Agosto - Diciembre 2027"
                             />
 
-                            <small
-                                v-if="
-                                    form.errors
-                                        .name
-                                "
-                                class="field-error"
-                            >
-                                {{
-                                    form.errors
-                                        .name
-                                }}
+                            <small v-if="form.errors.name" class="field-error">
+                                {{ form.errors.name }}
                             </small>
                         </div>
 
@@ -639,23 +434,15 @@ function statusLabel(
 
                             <input
                                 id="starts-at"
-                                v-model="
-                                    form.starts_at
-                                "
+                                v-model="form.starts_at"
                                 type="date"
                             />
 
                             <small
-                                v-if="
-                                    form.errors
-                                        .starts_at
-                                "
+                                v-if="form.errors.starts_at"
                                 class="field-error"
                             >
-                                {{
-                                    form.errors
-                                        .starts_at
-                                }}
+                                {{ form.errors.starts_at }}
                             </small>
                         </div>
 
@@ -667,68 +454,45 @@ function statusLabel(
 
                             <input
                                 id="ends-at"
-                                v-model="
-                                    form.ends_at
-                                "
+                                v-model="form.ends_at"
                                 type="date"
                             />
 
                             <small
-                                v-if="
-                                    form.errors
-                                        .ends_at
-                                "
+                                v-if="form.errors.ends_at"
                                 class="field-error"
                             >
-                                {{
-                                    form.errors
-                                        .ends_at
-                                }}
+                                {{ form.errors.ends_at }}
                             </small>
                         </div>
                     </div>
 
                     <div class="prices-title">
                         <div>
-                            <span class="panel-label">
-                                COSTOS
-                            </span>
+                            <span class="panel-label"> COSTOS </span>
 
-                            <h4>
-                                Precio por tamaño
-                            </h4>
+                            <h4>Precio por tamaño</h4>
 
                             <p>
-                                Los importes se
-                                almacenan como
-                                valores monetarios
-                                en MongoDB.
+                                Los importes se almacenan como valores
+                                monetarios en MongoDB.
                             </p>
                         </div>
                     </div>
 
                     <div class="price-grid">
                         <div class="price-field">
-                            <div class="price-icon">
-                                S
-                            </div>
+                            <div class="price-icon">S</div>
 
                             <div class="price-content">
-                                <label for="price-small">
-                                    Locker chico
-                                </label>
+                                <label for="price-small"> Locker chico </label>
 
                                 <div class="money-input">
-                                    <span>
-                                        $
-                                    </span>
+                                    <span> $ </span>
 
                                     <input
                                         id="price-small"
-                                        v-model="
-                                            form.prices
-                                                .small
-                                        "
+                                        v-model="form.prices.small"
                                         type="number"
                                         min="0"
                                         step="0.01"
@@ -737,26 +501,16 @@ function statusLabel(
                                 </div>
 
                                 <small
-                                    v-if="
-                                        form.errors[
-                                            'prices.small'
-                                        ]
-                                    "
+                                    v-if="form.errors['prices.small']"
                                     class="field-error"
                                 >
-                                    {{
-                                        form.errors[
-                                            'prices.small'
-                                            ]
-                                    }}
+                                    {{ form.errors['prices.small'] }}
                                 </small>
                             </div>
                         </div>
 
                         <div class="price-field">
-                            <div class="price-icon">
-                                M
-                            </div>
+                            <div class="price-icon">M</div>
 
                             <div class="price-content">
                                 <label for="price-medium">
@@ -764,16 +518,11 @@ function statusLabel(
                                 </label>
 
                                 <div class="money-input">
-                                    <span>
-                                        $
-                                    </span>
+                                    <span> $ </span>
 
                                     <input
                                         id="price-medium"
-                                        v-model="
-                                            form.prices
-                                                .medium
-                                        "
+                                        v-model="form.prices.medium"
                                         type="number"
                                         min="0"
                                         step="0.01"
@@ -782,43 +531,26 @@ function statusLabel(
                                 </div>
 
                                 <small
-                                    v-if="
-                                        form.errors[
-                                            'prices.medium'
-                                        ]
-                                    "
+                                    v-if="form.errors['prices.medium']"
                                     class="field-error"
                                 >
-                                    {{
-                                        form.errors[
-                                            'prices.medium'
-                                            ]
-                                    }}
+                                    {{ form.errors['prices.medium'] }}
                                 </small>
                             </div>
                         </div>
 
                         <div class="price-field">
-                            <div class="price-icon">
-                                L
-                            </div>
+                            <div class="price-icon">L</div>
 
                             <div class="price-content">
-                                <label for="price-large">
-                                    Locker grande
-                                </label>
+                                <label for="price-large"> Locker grande </label>
 
                                 <div class="money-input">
-                                    <span>
-                                        $
-                                    </span>
+                                    <span> $ </span>
 
                                     <input
                                         id="price-large"
-                                        v-model="
-                                            form.prices
-                                                .large
-                                        "
+                                        v-model="form.prices.large"
                                         type="number"
                                         min="0"
                                         step="0.01"
@@ -827,46 +559,28 @@ function statusLabel(
                                 </div>
 
                                 <small
-                                    v-if="
-                                        form.errors[
-                                            'prices.large'
-                                        ]
-                                    "
+                                    v-if="form.errors['prices.large']"
                                     class="field-error"
                                 >
-                                    {{
-                                        form.errors[
-                                            'prices.large'
-                                            ]
-                                    }}
+                                    {{ form.errors['prices.large'] }}
                                 </small>
                             </div>
                         </div>
                     </div>
 
                     <div class="information-box">
-                        <strong>
-                            Importante:
-                        </strong>
+                        <strong> Importante: </strong>
 
-                        un periodo cerrado
-                        permanece en el
-                        historial, pero ya no
-                        puede editarse ni
-                        utilizarse para nuevas
-                        solicitudes.
+                        un periodo cerrado permanece en el historial, pero ya no
+                        puede editarse ni utilizarse para nuevas solicitudes.
                     </div>
 
                     <div class="form-actions">
                         <button
                             type="button"
                             class="secondary-button"
-                            :disabled="
-                                form.processing
-                            "
-                            @click="
-                                closeForm
-                            "
+                            :disabled="form.processing"
+                            @click="closeForm"
                         >
                             Cancelar
                         </button>
@@ -874,17 +588,14 @@ function statusLabel(
                         <button
                             type="submit"
                             class="primary-button"
-                            :disabled="
-                                form.processing
-                            "
+                            :disabled="form.processing"
                         >
                             {{
                                 form.processing
                                     ? 'Guardando...'
-                                    : editingPeriod ===
-                                    null
-                                        ? 'Guardar periodo'
-                                        : 'Guardar cambios'
+                                    : editingPeriod === null
+                                      ? 'Guardar periodo'
+                                      : 'Guardar cambios'
                             }}
                         </button>
                     </div>
@@ -900,64 +611,37 @@ function statusLabel(
                     />
                 </div>
 
-                <select
-                    v-model="
-                        statusFilter
-                    "
-                >
-                    <option value="">
-                        Todos los estados
-                    </option>
+                <select v-model="statusFilter">
+                    <option value="">Todos los estados</option>
 
-                    <option value="active">
-                        Activos
-                    </option>
+                    <option value="active">Activos</option>
 
-                    <option value="closed">
-                        Cerrados
-                    </option>
+                    <option value="closed">Cerrados</option>
                 </select>
             </div>
 
-            <div
-                v-if="
-                    filteredPeriods.length >
-                    0
-                "
-                class="period-list"
-            >
+            <div v-if="filteredPeriods.length > 0" class="period-list">
                 <article
-                    v-for="
-                        period in
-                        filteredPeriods
-                    "
+                    v-for="period in filteredPeriods"
                     :key="period.id"
                     class="period-item"
                 >
                     <div class="period-main">
                         <div class="period-code">
-                            {{
-                                period.code
-                            }}
+                            {{ period.code }}
                         </div>
 
                         <div class="period-information">
                             <div class="period-title">
                                 <h4>
-                                    {{
-                                        period.name
-                                    }}
+                                    {{ period.name }}
                                 </h4>
 
                                 <span
                                     class="status"
                                     :class="`status-${period.status}`"
                                 >
-                                    {{
-                                        statusLabel(
-                                            period.status,
-                                        )
-                                    }}
+                                    {{ statusLabel(period.status) }}
                                 </span>
                             </div>
 
@@ -965,22 +649,14 @@ function statusLabel(
                                 <span>
                                     Inicio:
                                     <strong>
-                                        {{
-                                            formatDate(
-                                                period.starts_at,
-                                            )
-                                        }}
+                                        {{ formatDate(period.starts_at) }}
                                     </strong>
                                 </span>
 
                                 <span>
                                     Fin:
                                     <strong>
-                                        {{
-                                            formatDate(
-                                                period.ends_at,
-                                            )
-                                        }}
+                                        {{ formatDate(period.ends_at) }}
                                     </strong>
                                 </span>
                             </div>
@@ -989,110 +665,60 @@ function statusLabel(
 
                     <div class="period-prices">
                         <div>
-                            <span>
-                                Chico
-                            </span>
+                            <span> Chico </span>
 
                             <strong>
-                                {{
-                                    money(
-                                        period
-                                            .prices
-                                            .small,
-                                    )
-                                }}
+                                {{ money(period.prices.small) }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Mediano
-                            </span>
+                            <span> Mediano </span>
 
                             <strong>
-                                {{
-                                    money(
-                                        period
-                                            .prices
-                                            .medium,
-                                    )
-                                }}
+                                {{ money(period.prices.medium) }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Grande
-                            </span>
+                            <span> Grande </span>
 
                             <strong>
-                                {{
-                                    money(
-                                        period
-                                            .prices
-                                            .large,
-                                    )
-                                }}
+                                {{ money(period.prices.large) }}
                             </strong>
                         </div>
                     </div>
 
                     <div class="period-actions">
                         <button
-                            v-if="
-                                period.status ===
-                                'active'
-                            "
+                            v-if="period.status === 'active'"
                             type="button"
                             class="action-button edit"
-                            @click="
-                                openEditForm(
-                                    period,
-                                )
-                            "
+                            @click="openEditForm(period)"
                         >
                             Editar
                         </button>
 
                         <button
-                            v-if="
-                                period.status ===
-                                'active'
-                            "
+                            v-if="period.status === 'active'"
                             type="button"
                             class="action-button close"
-                            @click="
-                                closePeriod(
-                                    period,
-                                )
-                            "
+                            @click="closePeriod(period)"
                         >
                             Cerrar periodo
                         </button>
 
-                        <span
-                            v-else
-                            class="closed-message"
-                        >
+                        <span v-else class="closed-message">
                             Periodo finalizado
                         </span>
                     </div>
                 </article>
             </div>
 
-            <div
-                v-else
-                class="empty-state"
-            >
-                <h3>
-                    No se encontraron
-                    periodos
-                </h3>
+            <div v-else class="empty-state">
+                <h3>No se encontraron periodos</h3>
 
-                <p>
-                    Ajusta los filtros o
-                    registra uno nuevo.
-                </p>
+                <p>Ajusta los filtros o registra uno nuevo.</p>
             </div>
         </section>
     </StudentServicesLayout>
@@ -1140,13 +766,7 @@ function statusLabel(
     min-width: 175px;
     padding: 16px 19px;
     border-radius: 10px;
-    background:
-        rgba(
-            255,
-            255,
-            255,
-            0.1
-        );
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .hero-total span {
@@ -1169,8 +789,7 @@ function statusLabel(
 .stats-grid {
     margin-top: 18px;
     display: grid;
-    grid-template-columns:
-        repeat(5, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 13px;
 }
 
@@ -1252,8 +871,7 @@ function statusLabel(
     align-items: center;
     justify-content: space-between;
     gap: 20px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
 }
 
 .panel-label {
@@ -1308,8 +926,7 @@ function statusLabel(
 }
 
 .form-panel {
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
@@ -1330,8 +947,7 @@ function statusLabel(
 
 .form-grid {
     display: grid;
-    grid-template-columns:
-        repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 17px 19px;
 }
 
@@ -1365,14 +981,7 @@ function statusLabel(
 .form-field input:focus,
 .money-input input:focus {
     border-color: #3970c1;
-    box-shadow:
-        0 0 0 3px
-        rgba(
-            57,
-            112,
-            193,
-            0.08
-        );
+    box-shadow: 0 0 0 3px rgba(57, 112, 193, 0.08);
 }
 
 .field-error {
@@ -1386,8 +995,7 @@ function statusLabel(
 .prices-title {
     margin-top: 24px;
     padding-top: 19px;
-    border-top:
-        1px solid #e4e9f0;
+    border-top: 1px solid #e4e9f0;
 }
 
 .prices-title h4 {
@@ -1405,8 +1013,7 @@ function statusLabel(
 .price-grid {
     margin-top: 14px;
     display: grid;
-    grid-template-columns:
-        repeat(3, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 12px;
 }
 
@@ -1475,8 +1082,7 @@ function statusLabel(
     display: flex;
     justify-content: flex-end;
     gap: 9px;
-    border-top:
-        1px solid #e5e9ef;
+    border-top: 1px solid #e5e9ef;
 }
 
 .filters {
@@ -1486,8 +1092,7 @@ function statusLabel(
         minmax(230px, 1fr)
         190px;
     gap: 10px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
@@ -1594,8 +1199,7 @@ function statusLabel(
 
 .period-prices {
     display: grid;
-    grid-template-columns:
-        repeat(3, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 7px;
 }
 
@@ -1674,8 +1278,7 @@ function statusLabel(
 
 @media (max-width: 1150px) {
     .stats-grid {
-        grid-template-columns:
-            repeat(3, 1fr);
+        grid-template-columns: repeat(3, 1fr);
     }
 
     .period-item {
@@ -1683,15 +1286,13 @@ function statusLabel(
     }
 
     .period-actions {
-        justify-content:
-            flex-start;
+        justify-content: flex-start;
     }
 }
 
 @media (max-width: 800px) {
     .stats-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .price-grid {
@@ -1726,8 +1327,7 @@ function statusLabel(
     }
 
     .form-actions {
-        flex-direction:
-            column-reverse;
+        flex-direction: column-reverse;
     }
 }
 

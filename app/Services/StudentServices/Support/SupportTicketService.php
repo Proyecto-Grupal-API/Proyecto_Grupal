@@ -4,6 +4,7 @@ namespace App\Services\StudentServices\Support;
 
 use App\Models\StudentServices\Support\SupportTicket;
 use App\Models\StudentServices\Support\TicketEvent;
+use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
@@ -58,7 +59,7 @@ class SupportTicketService
         }
 
         if (
-            !in_array(
+            ! in_array(
                 $category,
                 self::CATEGORIES,
                 true
@@ -88,7 +89,7 @@ class SupportTicketService
         }
 
         if (
-            !in_array(
+            ! in_array(
                 $priority,
                 self::PRIORITIES,
                 true
@@ -125,50 +126,35 @@ class SupportTicketService
 
             $ticket =
                 SupportTicket::create([
-                    'folio' =>
-                        $this->generateFolio(),
+                    'folio' => $this->generateFolio(),
 
-                    'student_id' =>
-                        $studentId,
+                    'student_id' => $studentId,
 
-                    'category' =>
-                        $category,
+                    'category' => $category,
 
-                    'subject' =>
-                        $subject,
+                    'subject' => $subject,
 
-                    'description' =>
-                        $description,
+                    'description' => $description,
 
-                    'priority' =>
-                        $priority,
+                    'priority' => $priority,
 
-                    'location' =>
-                        $location,
+                    'location' => $location,
 
-                    'status' =>
-                        'open',
+                    'status' => 'open',
 
-                    'assigned_to' =>
-                        null,
+                    'assigned_to' => null,
 
-                    'evidence_name' =>
-                        $evidenceName,
+                    'evidence_name' => $evidenceName,
 
-                    'evidence_path' =>
-                        $evidencePath,
+                    'evidence_path' => $evidencePath,
 
-                    'opened_at' =>
-                        $openedAt,
+                    'opened_at' => $openedAt,
 
-                    'sla_due_at' =>
-                        $slaDueAt,
+                    'sla_due_at' => $slaDueAt,
 
-                    'resolved_at' =>
-                        null,
+                    'resolved_at' => null,
 
-                    'closed_at' =>
-                        null,
+                    'closed_at' => null,
                 ]);
 
             $this->registerEvent(
@@ -187,7 +173,7 @@ class SupportTicketService
             }
 
             if (
-                $evidencePath !== null &&
+                is_string($evidencePath) &&
                 Storage::disk('local')
                     ->exists($evidencePath)
             ) {
@@ -220,11 +206,9 @@ class SupportTicketService
         }
 
         $ticket->update([
-            'assigned_to' =>
-                $assignedTo,
+            'assigned_to' => $assignedTo,
 
-            'status' =>
-                'assigned',
+            'status' => 'assigned',
         ]);
 
         $this->registerEvent(
@@ -246,7 +230,7 @@ class SupportTicketService
         ?string $message = null
     ): SupportTicket {
         if (
-            !in_array(
+            ! in_array(
                 $newStatus,
                 self::STATUSES,
                 true
@@ -282,7 +266,7 @@ class SupportTicketService
         }
 
         if (
-            !$this->isValidTransition(
+            ! $this->isValidTransition(
                 $ticket->status,
                 $newStatus
             )
@@ -296,8 +280,7 @@ class SupportTicketService
             $ticket->status;
 
         $updates = [
-            'status' =>
-                $newStatus,
+            'status' => $newStatus,
         ];
 
         if (
@@ -380,7 +363,7 @@ class SupportTicketService
         ?string $message = null
     ): SupportTicket {
         if (
-            !in_array(
+            ! in_array(
                 $ticket->status,
                 [
                     'open',
@@ -398,8 +381,7 @@ class SupportTicketService
             $ticket->status;
 
         $ticket->update([
-            'status' =>
-                'cancelled',
+            'status' => 'cancelled',
         ]);
 
         $this->registerEvent(
@@ -417,8 +399,8 @@ class SupportTicketService
 
     private function calculateSlaDueAt(
         string $priority,
-               $openedAt
-    ) {
+        CarbonInterface $openedAt
+    ): CarbonInterface {
         $hours =
             match ($priority) {
                 'critical' => 2,
@@ -426,8 +408,7 @@ class SupportTicketService
                 'medium' => 24,
                 'low' => 48,
 
-                default =>
-                throw new InvalidArgumentException(
+                default => throw new InvalidArgumentException(
                     'La prioridad no es válida.'
                 ),
             };
@@ -476,20 +457,15 @@ class SupportTicketService
         string $status
     ): string {
         return match ($status) {
-            'assigned' =>
-            'El ticket fue asignado al área de soporte.',
+            'assigned' => 'El ticket fue asignado al área de soporte.',
 
-            'in_progress' =>
-            'La atención del ticket ha comenzado.',
+            'in_progress' => 'La atención del ticket ha comenzado.',
 
-            'resolved' =>
-            'La incidencia fue marcada como resuelta.',
+            'resolved' => 'La incidencia fue marcada como resuelta.',
 
-            'closed' =>
-            'El ticket fue cerrado.',
+            'closed' => 'El ticket fue cerrado.',
 
-            default =>
-            'El estado del ticket fue actualizado.',
+            default => 'El estado del ticket fue actualizado.',
         };
     }
 
@@ -502,26 +478,19 @@ class SupportTicketService
         ?string $message = null
     ): TicketEvent {
         return TicketEvent::create([
-            'ticket_id' =>
-                $ticket->id,
+            'ticket_id' => $ticket->id,
 
-            'event_type' =>
-                $eventType,
+            'event_type' => $eventType,
 
-            'from_status' =>
-                $fromStatus,
+            'from_status' => $fromStatus,
 
-            'to_status' =>
-                $toStatus,
+            'to_status' => $toStatus,
 
-            'actor_id' =>
-                $actorId,
+            'actor_id' => $actorId,
 
-            'message' =>
-                $message,
+            'message' => $message,
 
-            'created_at' =>
-                now(),
+            'created_at' => now(),
         ]);
     }
 
@@ -529,9 +498,9 @@ class SupportTicketService
     {
         do {
             $folio =
-                'SUP-' .
-                now()->format('Y') .
-                '-' .
+                'SUP-'.
+                now()->format('Y').
+                '-'.
                 strtoupper(
                     substr(
                         bin2hex(

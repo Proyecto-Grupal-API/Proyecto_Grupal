@@ -2,14 +2,26 @@
 
 namespace App\Models\StudentServices\Support;
 
+use Carbon\CarbonInterface;
 use MongoDB\BSON\ObjectId;
 use MongoDB\Laravel\Eloquent\Model;
 
+/**
+ * @property-read string $id
+ * @property ObjectId|string $ticket_id
+ * @property string $event_type
+ * @property string|null $from_status
+ * @property string|null $to_status
+ * @property string|null $actor_id
+ * @property string|null $message
+ * @property CarbonInterface|null $created_at
+ * @property CarbonInterface|null $updated_at
+ */
 class TicketEvent extends Model
 {
     protected $connection = 'mongodb';
 
-    protected $collection = 'ticket_events';
+    protected $table = 'ticket_events';
 
     protected $fillable = [
         'ticket_id',
@@ -22,14 +34,14 @@ class TicketEvent extends Model
     ];
 
     public function setTicketIdAttribute(
-        $value
+        mixed $value
     ): void {
         $this->attributes['ticket_id'] =
             $value instanceof ObjectId
                 ? $value
                 : new ObjectId(
-                (string) $value
-            );
+                    (string) $value
+                );
     }
 
     protected function casts(): array

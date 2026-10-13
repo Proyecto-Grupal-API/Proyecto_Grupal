@@ -7,6 +7,7 @@ use App\Http\Requests\StudentServices\Rentals\ReturnRentalRequest;
 use App\Http\Requests\StudentServices\Rentals\StoreRentalRequest;
 use App\Models\StudentServices\Rentals\Asset;
 use App\Models\StudentServices\Rentals\Rental;
+use App\Services\StudentServices\Payments\Money;
 use App\Services\StudentServices\Rentals\RentalService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,8 +20,7 @@ class RentalController extends Controller
 {
     public function __construct(
         private readonly RentalService $rentalService
-    ) {
-    }
+    ) {}
 
     public function index(
         Request $request
@@ -48,8 +48,7 @@ class RentalController extends Controller
             ->orderBy('name')
             ->get()
             ->map(
-                fn (Asset $asset) =>
-                $this->assetPayload(
+                fn (Asset $asset) => $this->assetPayload(
                     $asset
                 )
             )
@@ -78,8 +77,7 @@ class RentalController extends Controller
             )
             ->get()
             ->map(
-                fn (Rental $rental) =>
-                $this->rentalPayload(
+                fn (Rental $rental) => $this->rentalPayload(
                     $rental
                 )
             )
@@ -88,11 +86,9 @@ class RentalController extends Controller
         return Inertia::render(
             'student-services/rentals/Index',
             [
-                'equipment' =>
-                    $equipment,
+                'equipment' => $equipment,
 
-                'rentals' =>
-                    $rentals,
+                'rentals' => $rentals,
             ]
         );
     }
@@ -106,7 +102,7 @@ class RentalController extends Controller
         try {
             $asset =
                 Asset::findOrFail(
-                    $data['asset_id']
+                    $request->string('asset_id')->value()
                 );
 
             $studentId =
@@ -127,13 +123,12 @@ class RentalController extends Controller
                 'Renta registrada correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'rental' =>
-                        $exception
-                            ->getMessage(),
+                    'rental' => $exception
+                        ->getMessage(),
                 ])
                 ->withInput();
         } catch (Throwable $exception) {
@@ -141,8 +136,7 @@ class RentalController extends Controller
 
             return back()
                 ->withErrors([
-                    'rental' =>
-                        'No fue posible registrar la renta.',
+                    'rental' => 'No fue posible registrar la renta.',
                 ])
                 ->withInput();
         }
@@ -173,21 +167,19 @@ class RentalController extends Controller
                 'Renta cancelada correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'rental' =>
-                        $exception
-                            ->getMessage(),
+                    'rental' => $exception
+                        ->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'rental' =>
-                        'No fue posible cancelar la renta.',
+                    'rental' => 'No fue posible cancelar la renta.',
                 ]);
         }
     }
@@ -210,6 +202,17 @@ class RentalController extends Controller
                 $rental
             );
 
+            /*
+             * Con depósito retenido, la condición del equipo la revisa el
+             * personal en el mostrador (validación de servicios, 5.11);
+             * el alumno no puede declararla para liberar su propio depósito.
+             */
+            if ($rental->deposit_status === 'held') {
+                throw new RuntimeException(
+                    'Este equipo tiene depósito: entrégalo en el mostrador para revisarlo y liberar tu depósito.'
+                );
+            }
+
             $this->rentalService
                 ->returnRental(
                     $rental,
@@ -222,21 +225,19 @@ class RentalController extends Controller
                 'Devolución registrada correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'rental' =>
-                        $exception
-                            ->getMessage(),
+                    'rental' => $exception
+                        ->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'rental' =>
-                        'No fue posible registrar la devolución.',
+                    'rental' => 'No fue posible registrar la devolución.',
                 ]);
         }
     }
@@ -277,33 +278,59 @@ class RentalController extends Controller
         }
     }
 
+    /**
+     * @return array{
+     *     id: string,
+     *     inventory_item_id: string|null,
+     *     name: string,
+     *     category: string|null,
+     *     location: string|null,
+     *     status: string,
+     *     description: string|null,
+     *     deposit: string|null
+     * }
+     */
     private function assetPayload(
         Asset $asset
     ): array {
         return [
-            'id' =>
-                (string) $asset->id,
+            'id' => (string) $asset->id,
 
-            'inventory_item_id' =>
-                $asset->inventory_item_id,
+            'inventory_item_id' => $asset->inventory_item_id,
 
-            'name' =>
-                $asset->name,
+            'name' => $asset->name,
 
-            'category' =>
-                $asset->category,
+            'category' => $asset->category,
 
-            'location' =>
-                $asset->location,
+            'location' => $asset->location,
 
-            'status' =>
-                $asset->status,
+            'status' => $asset->status,
 
-            'description' =>
-                $asset->description,
+            'description' => $asset->description,
+
+            'deposit' => Money::toPesos(
+                $asset->depositCents()
+            ),
         ];
     }
 
+    /**
+     * @return array{
+     *     id: string,
+     *     asset_id: string,
+     *     inventory_item_id: string|null,
+     *     student_id: string,
+     *     equipment_name: string,
+     *     requested_at: string|null,
+     *     due_at: string|null,
+     *     returned_at: string|null,
+     *     status: string,
+     *     notes: string|null,
+     *     deposit: string|null,
+     *     deposit_status: string,
+     *     picked_up: bool
+     * }
+     */
     private function rentalPayload(
         Rental $rental
     ): array {
@@ -314,41 +341,39 @@ class RentalController extends Controller
             );
 
         return [
-            'id' =>
-                (string) $rental->id,
+            'id' => (string) $rental->id,
 
-            'asset_id' =>
-                (string)
+            'asset_id' => (string)
                 $rental->asset_id,
 
-            'inventory_item_id' =>
-                $rental
-                    ->inventory_item_id,
+            'inventory_item_id' => $rental
+                ->inventory_item_id,
 
-            'student_id' =>
-                $rental->student_id,
+            'student_id' => $rental->student_id,
 
-            'equipment_name' =>
-                $asset?->name ??
+            'equipment_name' => $asset->name ??
                 'Equipo no disponible',
 
-            'requested_at' =>
-                $rental->requested_at
-                    ?->toISOString(),
+            'requested_at' => $rental->requested_at
+                ?->toISOString(),
 
-            'due_at' =>
-                $rental->due_at
-                    ?->toISOString(),
+            'due_at' => $rental->due_at
+                ?->toISOString(),
 
-            'returned_at' =>
-                $rental->returned_at
-                    ?->toISOString(),
+            'returned_at' => $rental->returned_at
+                ?->toISOString(),
 
-            'status' =>
-                $rental->status,
+            'status' => $rental->status,
 
-            'notes' =>
-                $rental->notes,
+            'notes' => $rental->notes,
+
+            'deposit' => Money::toPesos(
+                (int) ($rental->deposit_cents ?? 0)
+            ),
+
+            'deposit_status' => $rental->deposit_status ?? 'none',
+
+            'picked_up' => $rental->picked_up_at !== null,
         ];
     }
 }

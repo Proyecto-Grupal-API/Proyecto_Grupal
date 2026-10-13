@@ -19,8 +19,7 @@ class LockerAssignmentController extends Controller
 {
     public function __construct(
         private readonly LockerAssignmentService $assignments
-    ) {
-    }
+    ) {}
 
     public function index(): Response
     {
@@ -30,8 +29,7 @@ class LockerAssignmentController extends Controller
                 ->keyBy(
                     fn (
                         LockerPeriod $period
-                    ) =>
-                    (string)
+                    ) => (string)
                     $period->id
                 );
 
@@ -41,8 +39,7 @@ class LockerAssignmentController extends Controller
                 ->keyBy(
                     fn (
                         Locker $locker
-                    ) =>
-                    (string)
+                    ) => (string)
                     $locker->id
                 );
 
@@ -75,30 +72,24 @@ class LockerAssignmentController extends Controller
                             );
 
                         return [
-                            'id' =>
-                                (string)
+                            'id' => (string)
                                 $assignment->id,
 
-                            'folio' =>
-                                $assignment
-                                    ->folio,
+                            'folio' => $assignment
+                                ->folio,
 
-                            'student_id' =>
-                                $assignment
-                                    ->student_id,
+                            'student_id' => $assignment
+                                ->student_id,
 
-                            'locker_id' =>
-                                (string)
+                            'locker_id' => (string)
                                 $assignment
                                     ->locker_id,
 
-                            'locker_code' =>
-                                $locker?->code
+                            'locker_code' => $locker->code
                                 ??
                                 'Locker no encontrado',
 
-                            'locker_location' =>
-                                $locker !== null
+                            'locker_location' => $locker !== null
                                     ? $locker
                                         ->building
                                     .' - '
@@ -106,56 +97,46 @@ class LockerAssignmentController extends Controller
                                         ->zone
                                     : null,
 
-                            'locker_size' =>
-                                $locker?->size,
+                            'locker_size' => $locker?->size,
 
-                            'period_id' =>
-                                (string)
+                            'period_id' => (string)
                                 $assignment
                                     ->period_id,
 
-                            'period_name' =>
-                                $period?->name
+                            'period_name' => $period->name
                                 ??
                                 'Periodo no encontrado',
 
-                            'source' =>
-                                $assignment
-                                    ->source,
+                            'source' => $assignment
+                                ->source,
 
-                            'status' =>
-                                $assignment
-                                    ->status,
+                            'status' => $assignment
+                                ->status,
 
-                            'starts_at' =>
-                                $assignment
-                                    ->starts_at
-                                    ?->format(
-                                        'Y-m-d'
-                                    ),
+                            'starts_at' => $assignment
+                                ->starts_at
+                                ?->format(
+                                    'Y-m-d'
+                                ),
 
-                            'ends_at' =>
-                                $assignment
-                                    ->ends_at
-                                    ?->format(
-                                        'Y-m-d'
-                                    ),
+                            'ends_at' => $assignment
+                                ->ends_at
+                                ?->format(
+                                    'Y-m-d'
+                                ),
 
-                            'released_at' =>
-                                $assignment
-                                    ->released_at
-                                    ?->format(
-                                        'Y-m-d H:i'
-                                    ),
+                            'released_at' => $assignment
+                                ->released_at
+                                ?->format(
+                                    'Y-m-d H:i'
+                                ),
 
-                            'renewal_count' =>
-                                (int)
+                            'renewal_count' => (int)
                                 $assignment
                                     ->renewal_count,
 
-                            'notes' =>
-                                $assignment
-                                    ->notes,
+                            'notes' => $assignment
+                                ->notes,
                         ];
                     }
                 )
@@ -164,88 +145,76 @@ class LockerAssignmentController extends Controller
         return Inertia::render(
             'student-services/lockers/Assignments',
             [
-                'assignments' =>
-                    $assignments,
+                'assignments' => $assignments,
 
-                'periods' =>
-                    $periods
-                        ->filter(
-                            fn (
-                                LockerPeriod $period
-                            ) =>
-                                $period
-                                    ->status
-                                ===
-                                'active'
-                        )
-                        ->map(
-                            fn (
-                                LockerPeriod $period
-                            ) =>
-                            $period
-                                ->toPayload()
-                        )
-                        ->values(),
+                'periods' => $periods
+                    ->filter(
+                        fn (
+                            LockerPeriod $period
+                        ) => $period
+                            ->status
+                            ===
+                            'active'
+                    )
+                    ->map(
+                        fn (
+                            LockerPeriod $period
+                        ) => $period
+                            ->toPayload()
+                    )
+                    ->values(),
 
-                'available_lockers' =>
-                    $lockers
-                        ->filter(
-                            fn (
-                                Locker $locker
-                            ) =>
-                                $locker
-                                    ->status
-                                ===
-                                'available'
-                        )
-                        ->sortBy(
-                            fn (
-                                Locker $locker
-                            ) =>
-                                $locker
-                                    ->building
-                                .$locker
-                                    ->zone
-                                .$locker
-                                    ->code
-                        )
-                        ->map(
-                            fn (
-                                Locker $locker
-                            ) =>
-                            $locker
-                                ->toPayload()
-                        )
-                        ->values(),
+                'available_lockers' => $lockers
+                    ->filter(
+                        fn (
+                            Locker $locker
+                        ) => $locker
+                            ->status
+                            ===
+                            'available'
+                    )
+                    ->sortBy(
+                        fn (
+                            Locker $locker
+                        ) => $locker
+                            ->building
+                        .$locker
+                            ->zone
+                        .$locker
+                            ->code
+                    )
+                    ->map(
+                        fn (
+                            Locker $locker
+                        ) => $locker
+                            ->toPayload()
+                    )
+                    ->values(),
 
                 'summary' => [
-                    'total' =>
-                        $assignments
-                            ->count(),
+                    'total' => $assignments
+                        ->count(),
 
-                    'active' =>
-                        $assignments
-                            ->where(
-                                'status',
-                                'active'
-                            )
-                            ->count(),
+                    'active' => $assignments
+                        ->where(
+                            'status',
+                            'active'
+                        )
+                        ->count(),
 
-                    'released' =>
-                        $assignments
-                            ->where(
-                                'status',
-                                'released'
-                            )
-                            ->count(),
+                    'released' => $assignments
+                        ->where(
+                            'status',
+                            'released'
+                        )
+                        ->count(),
 
-                    'expired' =>
-                        $assignments
-                            ->where(
-                                'status',
-                                'expired'
-                            )
-                            ->count(),
+                    'expired' => $assignments
+                        ->where(
+                            'status',
+                            'expired'
+                        )
+                        ->count(),
                 ],
             ]
         );
@@ -259,34 +228,36 @@ class LockerAssignmentController extends Controller
 
         $period =
             LockerPeriod::find(
-                $data['period_id']
+                $request
+                    ->string('period_id')
+                    ->value()
             );
 
         if ($period === null) {
             return back()
                 ->withErrors([
-                    'period_id' =>
-                        'El periodo seleccionado no existe.',
+                    'period_id' => 'El periodo seleccionado no existe.',
                 ]);
         }
 
         $locker = null;
 
         if (
-            !empty(
-            $data['locker_id']
+            ! empty(
+                $data['locker_id']
             )
         ) {
             $locker =
                 Locker::find(
-                    $data['locker_id']
+                    $request
+                        ->string('locker_id')
+                        ->value()
                 );
 
             if ($locker === null) {
                 return back()
                     ->withErrors([
-                        'locker_id' =>
-                            'El locker seleccionado no existe.',
+                        'locker_id' => 'El locker seleccionado no existe.',
                     ]);
             }
         }
@@ -322,13 +293,12 @@ class LockerAssignmentController extends Controller
                         ->id
                 );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'status' =>
-                        $exception
-                            ->getMessage(),
+                    'status' => $exception
+                        ->getMessage(),
                 ]);
         }
 
@@ -352,14 +322,15 @@ class LockerAssignmentController extends Controller
 
         $newPeriod =
             LockerPeriod::find(
-                $data['period_id']
+                $request
+                    ->string('period_id')
+                    ->value()
             );
 
         if ($newPeriod === null) {
             return back()
                 ->withErrors([
-                    'period_id' =>
-                        'El periodo seleccionado no existe.',
+                    'period_id' => 'El periodo seleccionado no existe.',
                 ]);
         }
 
@@ -380,13 +351,12 @@ class LockerAssignmentController extends Controller
                         ->id
                 );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'status' =>
-                        $exception
-                            ->getMessage(),
+                    'status' => $exception
+                        ->getMessage(),
                 ]);
         }
 
@@ -423,13 +393,12 @@ class LockerAssignmentController extends Controller
                         ->id
                 );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'status' =>
-                        $exception
-                            ->getMessage(),
+                    'status' => $exception
+                        ->getMessage(),
                 ]);
         }
 

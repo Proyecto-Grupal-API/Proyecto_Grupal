@@ -11,11 +11,17 @@ use RuntimeException;
 
 class ReservationService
 {
+    public function __construct(
+        private FineService $fines
+    ) {}
+
     public function createReservation(
         Book $book,
         string $studentId,
         ?string $notes = null
     ): BookReservation {
+        $this->fines->ensureNoPendingFines($studentId);
+
         $existingReservation = BookReservation::query()
             ->where('book_id', new ObjectId((string) $book->id))
             ->where('student_id', $studentId)
@@ -140,7 +146,7 @@ class ReservationService
         BookReservation $reservation,
         ?string $notes = null
     ): BookReservation {
-        if (!in_array($reservation->status, ['pending', 'ready'], true)) {
+        if (! in_array($reservation->status, ['pending', 'ready'], true)) {
             throw new RuntimeException(
                 'Esta reserva ya no puede ser cancelada.'
             );

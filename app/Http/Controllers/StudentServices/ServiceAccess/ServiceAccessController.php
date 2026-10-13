@@ -51,7 +51,7 @@ class ServiceAccessController extends Controller
     public function validateAccess(ValidateServiceAccessRequest $request): RedirectResponse
     {
         $checkin = $this->access->validate(
-            $request->validated(),
+            $request->accessData(),
             (string) $request->user()->getAuthIdentifier()
         );
 

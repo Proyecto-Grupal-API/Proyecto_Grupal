@@ -11,7 +11,6 @@ use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 use MongoDB\BSON\ObjectId;
-use RuntimeException;
 
 class BookCopyController extends Controller
 {
@@ -28,7 +27,7 @@ class BookCopyController extends Controller
                 return [
                     'id' => (string) $copy->id,
                     'book_id' => (string) $copy->book_id,
-                    'book_title' => $book?->title ?? 'Libro no encontrado',
+                    'book_title' => $book->title ?? 'Libro no encontrado',
                     'book_isbn' => $book?->isbn,
                     'code' => $copy->code,
                     'barcode' => $copy->barcode,
@@ -66,12 +65,11 @@ class BookCopyController extends Controller
     ): RedirectResponse {
         $data = $request->validated();
 
-        $book = Book::find($data['book_id']);
+        $book = Book::find($request->string('book_id')->value());
 
         if ($book === null || $book->status !== 'active') {
             return back()->withErrors([
-                'book_id' =>
-                    'El libro seleccionado no existe o está inactivo.',
+                'book_id' => 'El libro seleccionado no existe o está inactivo.',
             ]);
         }
 
@@ -81,12 +79,11 @@ class BookCopyController extends Controller
 
         if ($codeExists) {
             return back()->withErrors([
-                'code' =>
-                    'Ya existe un ejemplar con ese código.',
+                'code' => 'Ya existe un ejemplar con ese código.',
             ]);
         }
 
-        if (!empty($data['barcode'])) {
+        if (! empty($data['barcode'])) {
             $barcodeExists = BookCopy::query()
                 ->where(
                     'barcode',
@@ -96,8 +93,7 @@ class BookCopyController extends Controller
 
             if ($barcodeExists) {
                 return back()->withErrors([
-                    'barcode' =>
-                        'Ya existe un ejemplar con ese código de barras.',
+                    'barcode' => 'Ya existe un ejemplar con ese código de barras.',
                 ]);
             }
         }
@@ -105,12 +101,12 @@ class BookCopyController extends Controller
         BookCopy::create([
             'book_id' => $book->id,
             'code' => trim($data['code']),
-            'barcode' => !empty($data['barcode'])
+            'barcode' => ! empty($data['barcode'])
                 ? trim($data['barcode'])
                 : null,
             'location' => trim($data['location']),
             'status' => 'available',
-            'notes' => !empty($data['notes'])
+            'notes' => ! empty($data['notes'])
                 ? trim($data['notes'])
                 : null,
         ]);
@@ -129,12 +125,11 @@ class BookCopyController extends Controller
 
         $data = $request->validated();
 
-        $book = Book::find($data['book_id']);
+        $book = Book::find($request->string('book_id')->value());
 
         if ($book === null || $book->status !== 'active') {
             return back()->withErrors([
-                'book_id' =>
-                    'El libro seleccionado no existe o está inactivo.',
+                'book_id' => 'El libro seleccionado no existe o está inactivo.',
             ]);
         }
 
@@ -151,8 +146,7 @@ class BookCopyController extends Controller
             (string) $copy->book_id !== (string) $book->id
         ) {
             return back()->withErrors([
-                'book_id' =>
-                    'No puedes cambiar el libro de un ejemplar prestado o reservado.',
+                'book_id' => 'No puedes cambiar el libro de un ejemplar prestado o reservado.',
             ]);
         }
 
@@ -167,12 +161,11 @@ class BookCopyController extends Controller
 
         if ($codeExists) {
             return back()->withErrors([
-                'code' =>
-                    'Ya existe otro ejemplar con ese código.',
+                'code' => 'Ya existe otro ejemplar con ese código.',
             ]);
         }
 
-        if (!empty($data['barcode'])) {
+        if (! empty($data['barcode'])) {
             $barcodeExists = BookCopy::query()
                 ->where(
                     'barcode',
@@ -187,8 +180,7 @@ class BookCopyController extends Controller
 
             if ($barcodeExists) {
                 return back()->withErrors([
-                    'barcode' =>
-                        'Ya existe otro ejemplar con ese código de barras.',
+                    'barcode' => 'Ya existe otro ejemplar con ese código de barras.',
                 ]);
             }
         }
@@ -196,11 +188,11 @@ class BookCopyController extends Controller
         $copy->update([
             'book_id' => $book->id,
             'code' => trim($data['code']),
-            'barcode' => !empty($data['barcode'])
+            'barcode' => ! empty($data['barcode'])
                 ? trim($data['barcode'])
                 : null,
             'location' => trim($data['location']),
-            'notes' => !empty($data['notes'])
+            'notes' => ! empty($data['notes'])
                 ? trim($data['notes'])
                 : null,
         ]);
@@ -218,8 +210,7 @@ class BookCopyController extends Controller
 
         if ($copy->status !== 'available') {
             return back()->withErrors([
-                'status' =>
-                    'Solo un ejemplar disponible puede enviarse a mantenimiento.',
+                'status' => 'Solo un ejemplar disponible puede enviarse a mantenimiento.',
             ]);
         }
 
@@ -239,15 +230,14 @@ class BookCopyController extends Controller
         $copy = BookCopy::findOrFail($copyId);
 
         if (
-            !in_array(
+            ! in_array(
                 $copy->status,
                 ['available', 'maintenance'],
                 true
             )
         ) {
             return back()->withErrors([
-                'status' =>
-                    'No se puede marcar como extraviado un ejemplar prestado o reservado desde esta sección.',
+                'status' => 'No se puede marcar como extraviado un ejemplar prestado o reservado desde esta sección.',
             ]);
         }
 
@@ -268,8 +258,7 @@ class BookCopyController extends Controller
 
         if ($copy->status !== 'maintenance') {
             return back()->withErrors([
-                'status' =>
-                    'Solo un ejemplar en mantenimiento puede regresar manualmente a disponible.',
+                'status' => 'Solo un ejemplar en mantenimiento puede regresar manualmente a disponible.',
             ]);
         }
 

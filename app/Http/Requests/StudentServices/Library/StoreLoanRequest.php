@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\StudentServices\Library;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreLoanRequest extends FormRequest
@@ -11,6 +12,9 @@ class StoreLoanRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [
@@ -44,20 +48,15 @@ class StoreLoanRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'copy_id.required' =>
-                'Selecciona un ejemplar.',
+            'copy_id.required' => 'Selecciona un ejemplar.',
 
-            'copy_id.size' =>
-                'El identificador del ejemplar no es válido.',
+            'copy_id.size' => 'El identificador del ejemplar no es válido.',
 
-            'student_id.required' =>
-                'El estudiante es obligatorio.',
+            'student_id.required' => 'El estudiante es obligatorio.',
 
-            'loan_days.min' =>
-                'El préstamo debe durar al menos un día.',
+            'loan_days.min' => 'El préstamo debe durar al menos un día.',
 
-            'loan_days.max' =>
-                'El préstamo no puede superar 30 días.',
+            'loan_days.max' => 'El préstamo no puede superar 30 días.',
         ];
     }
 }

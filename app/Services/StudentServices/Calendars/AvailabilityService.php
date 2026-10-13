@@ -4,11 +4,14 @@ namespace App\Services\StudentServices\Calendars;
 
 use App\Models\StudentServices\Calendars\CalendarBlock;
 use App\Models\StudentServices\Calendars\ResourceCalendar;
+use App\Models\StudentServices\Reservations\Facility;
+use App\Models\StudentServices\Reservations\Reservation;
+use App\Models\StudentServices\RestSpaces\RestBooking;
+use App\Models\StudentServices\RestSpaces\RestSpace;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use MongoDB\BSON\ObjectId;
-use MongoDB\Laravel\Eloquent\Model;
 use RuntimeException;
 
 /**
@@ -32,7 +35,7 @@ class AvailabilityService
      * Calendario guardado del recurso, o uno nuevo (sin guardar) con los
      * valores por defecto de su tipo.
      */
-    public function calendarFor(string $type, Model $resource): ResourceCalendar
+    public function calendarFor(string $type, Facility|RestSpace $resource): ResourceCalendar
     {
         $calendar = ResourceCalendar::query()
             ->where('resource_type', $type)
@@ -53,7 +56,7 @@ class AvailabilityService
     /**
      * @return array<string, mixed>
      */
-    public function rulesFor(string $type, Model $resource): array
+    public function rulesFor(string $type, Facility|RestSpace $resource): array
     {
         return $this->calendarFor($type, $resource)->rules();
     }
@@ -61,7 +64,7 @@ class AvailabilityService
     /**
      * Reglas de todos los recursos de un tipo, indexadas por id.
      *
-     * @param  Collection<int, Model>  $resources
+     * @param  Collection<int, Facility>|Collection<int, RestSpace>  $resources
      * @return array<string, array<string, mixed>>
      */
     public function rulesForMany(string $type, Collection $resources): array
@@ -90,6 +93,9 @@ class AvailabilityService
         return $rules;
     }
 
+    /**
+     * @return Builder<Reservation>|Builder<RestBooking>
+     */
     public function bookingsQuery(string $type, string $resourceId): Builder
     {
         $model = BookableResources::bookingModel($type);
@@ -108,25 +114,26 @@ class AvailabilityService
      */
     public function occupyingRanges(
         string $type,
-        Model $resource,
+        Facility|RestSpace $resource,
         CarbonInterface $start,
         CarbonInterface $end,
         ?string $excludeBookingId = null
     ): array {
-        return $this->bookingsQuery($type, (string) $resource->getKey())
+        $ranges = $this->bookingsQuery($type, (string) $resource->getKey())
             ->whereIn('status', BookingStatus::OCCUPYING)
             ->where('start_at', '<', $end)
             ->where('end_at', '>', $start)
             ->get()
-            ->reject(fn (Model $booking): bool => $excludeBookingId !== null && (string) $booking->getKey() === $excludeBookingId)
-            ->map(fn (Model $booking): array => [$booking->start_at, $booking->end_at])
-            ->values()
+            ->reject(fn (Reservation|RestBooking $booking): bool => $excludeBookingId !== null && (string) $booking->getKey() === $excludeBookingId)
+            ->map(fn (Reservation|RestBooking $booking): array => [$booking->start_at, $booking->end_at])
             ->all();
+
+        return array_values($ranges);
     }
 
     public function peakOccupancy(
         string $type,
-        Model $resource,
+        Facility|RestSpace $resource,
         CarbonInterface $start,
         CarbonInterface $end,
         ?string $excludeBookingId = null
@@ -140,7 +147,7 @@ class AvailabilityService
 
     public function isAvailable(
         string $type,
-        Model $resource,
+        Facility|RestSpace $resource,
         CarbonInterface $start,
         CarbonInterface $end,
         ?string $excludeBookingId = null
@@ -159,7 +166,7 @@ class AvailabilityService
      */
     public function earliestFreeAt(
         string $type,
-        Model $resource,
+        Facility|RestSpace $resource,
         CarbonInterface $start,
         CarbonInterface $end
     ): ?CarbonInterface {
@@ -175,7 +182,7 @@ class AvailabilityService
 
     public function blockFor(
         string $type,
-        Model $resource,
+        Facility|RestSpace $resource,
         CarbonInterface $start,
         CarbonInterface $end
     ): ?CalendarBlock {
@@ -195,7 +202,7 @@ class AvailabilityService
      */
     public function assertCanBook(
         string $type,
-        Model $resource,
+        Facility|RestSpace $resource,
         string $studentId,
         CarbonInterface $start,
         CarbonInterface $end
@@ -257,7 +264,7 @@ class AvailabilityService
         CarbonInterface $start,
         CarbonInterface $end,
         ?string $excludeBookingId = null
-    ): ?Model {
+    ): Reservation|RestBooking|null {
         foreach (BookableResources::types() as $type) {
             $model = BookableResources::bookingModel($type);
 
@@ -267,7 +274,7 @@ class AvailabilityService
                 ->where('start_at', '<', $end)
                 ->where('end_at', '>', $start)
                 ->get()
-                ->first(fn (Model $booking): bool => $excludeBookingId === null || (string) $booking->getKey() !== $excludeBookingId);
+                ->first(fn (Reservation|RestBooking $booking): bool => $excludeBookingId === null || (string) $booking->getKey() !== $excludeBookingId);
 
             if ($booking !== null) {
                 return $booking;
@@ -280,7 +287,7 @@ class AvailabilityService
     /**
      * Posición (1, 2, 3...) de una reserva dentro de su lista de espera.
      */
-    public function waitlistPosition(string $type, Model $booking): int
+    public function waitlistPosition(string $type, Reservation|RestBooking $booking): int
     {
         if ($booking->status !== BookingStatus::WAITLISTED) {
             return 0;
@@ -294,7 +301,7 @@ class AvailabilityService
             ->where('start_at', '<', $booking->end_at)
             ->where('end_at', '>', $booking->start_at)
             ->get()
-            ->filter(function (Model $other) use ($booking, $joinedAt): bool {
+            ->filter(function (Reservation|RestBooking $other) use ($booking, $joinedAt): bool {
                 if ((string) $other->getKey() === (string) $booking->getKey()) {
                     return false;
                 }
@@ -332,7 +339,7 @@ class AvailabilityService
             ->where('end_at', '>', $from)
             ->where('start_at', '<', $to)
             ->get()
-            ->each(function (Model $booking) use (&$ranges, $foreignKey): void {
+            ->each(function (Reservation|RestBooking $booking) use (&$ranges, $foreignKey): void {
                 $ranges[(string) $booking->{$foreignKey}][] = [
                     'start_at' => $booking->start_at->toIso8601String(),
                     'end_at' => $booking->end_at->toIso8601String(),

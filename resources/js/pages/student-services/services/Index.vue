@@ -3,11 +3,7 @@ import StudentServicesLayout from '@/layouts/StudentServicesLayout.vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
-type ServiceType =
-    | 'printing'
-    | 'scanning'
-    | 'copy'
-    | 'binding';
+type ServiceType = 'printing' | 'scanning' | 'copy' | 'binding';
 
 type OrderStatus =
     | 'pending'
@@ -19,10 +15,7 @@ type OrderStatus =
     | 'delivered'
     | 'cancelled';
 
-type PaymentStatus =
-    | 'pending'
-    | 'paid'
-    | 'not_required';
+type PaymentStatus = 'pending' | 'paid' | 'not_required';
 
 interface ServiceOrder {
     id: string;
@@ -108,24 +101,15 @@ function payWithScholarship(order: ServiceOrder) {
     );
 }
 
-const orders = computed<ServiceOrder[]>(
-    () => {
-        return props.orders.map(
-            (order) => ({
-                ...order,
+const orders = computed<ServiceOrder[]>(() => {
+    return props.orders.map((order) => ({
+        ...order,
 
-                requestedAt:
-                    order.requestedAt
-                        ? new Date(
-                            order.requestedAt,
-                        ).toLocaleString(
-                            'es-MX',
-                        )
-                        : '—',
-            }),
-        );
-    },
-);
+        requestedAt: order.requestedAt
+            ? new Date(order.requestedAt).toLocaleString('es-MX')
+            : '—',
+    }));
+});
 
 const search = ref('');
 const typeFilter = ref('');
@@ -133,187 +117,107 @@ const statusFilter = ref('');
 
 const showForm = ref(false);
 
-const selectedOrder =
-    ref<ServiceOrder | null>(null);
+const selectedOrder = ref<ServiceOrder | null>(null);
 
 const showDetails = ref(false);
 
-const serviceType =
-    ref<ServiceType>('printing');
+const serviceType = ref<ServiceType>('printing');
 
 const quantity = ref(1);
 
-const colorMode =
-    ref<'bw' | 'color'>('bw');
+const colorMode = ref<'bw' | 'color'>('bw');
 
 const paperSize = ref('Carta');
 
-const sides =
-    ref<'single' | 'double'>(
-        'single',
-    );
+const sides = ref<'single' | 'double'>('single');
 
 const observations = ref('');
 
 const selectedFileName = ref('');
 
-const selectedFile =
-    ref<File | null>(null);
+const selectedFile = ref<File | null>(null);
 
-const processingOrderId =
-    ref<string | null>(null);
+const processingOrderId = ref<string | null>(null);
 
-const pendingCount = computed(() =>
-    orders.value.filter(
-        (order) =>
-            [
-                'pending',
-                'quoted',
-                'awaiting_payment',
-            ].includes(
-                order.status,
-            ),
-    ).length,
+const pendingCount = computed(
+    () =>
+        orders.value.filter((order) =>
+            ['pending', 'quoted', 'awaiting_payment'].includes(order.status),
+        ).length,
 );
 
-const processingCount = computed(() =>
-    orders.value.filter(
-        (order) =>
-            order.status ===
-            'processing',
-    ).length,
+const processingCount = computed(
+    () => orders.value.filter((order) => order.status === 'processing').length,
 );
 
-const readyCount = computed(() =>
-    orders.value.filter(
-        (order) =>
-            order.status ===
-            'ready',
-    ).length,
+const readyCount = computed(
+    () => orders.value.filter((order) => order.status === 'ready').length,
 );
 
-const deliveredCount = computed(() =>
-    orders.value.filter(
-        (order) =>
-            order.status ===
-            'delivered',
-    ).length,
+const deliveredCount = computed(
+    () => orders.value.filter((order) => order.status === 'delivered').length,
 );
 
-const estimatedAmount =
-    computed(() => {
-        let total = 0;
+const estimatedAmount = computed(() => {
+    let total = 0;
 
-        switch (
-            serviceType.value
-            ) {
-            case 'printing':
-                total =
-                    quantity.value *
-                    (
-                        colorMode.value ===
-                        'color'
-                            ? 5
-                            : 2
-                    );
-                break;
+    switch (serviceType.value) {
+        case 'printing':
+            total = quantity.value * (colorMode.value === 'color' ? 5 : 2);
+            break;
 
-            case 'copy':
-                total =
-                    quantity.value *
-                    (
-                        colorMode.value ===
-                        'color'
-                            ? 4
-                            : 1.5
-                    );
-                break;
+        case 'copy':
+            total = quantity.value * (colorMode.value === 'color' ? 4 : 1.5);
+            break;
 
-            case 'scanning':
-                total =
-                    quantity.value * 3;
-                break;
+        case 'scanning':
+            total = quantity.value * 3;
+            break;
 
-            case 'binding':
-                total =
-                    quantity.value * 45;
-                break;
+        case 'binding':
+            total = quantity.value * 45;
+            break;
+    }
+
+    if (
+        sides.value === 'double' &&
+        ['printing', 'copy'].includes(serviceType.value)
+    ) {
+        total *= 0.9;
+    }
+
+    return Number(total.toFixed(2));
+});
+
+const filteredOrders = computed(() => {
+    const term = search.value.trim().toLowerCase();
+
+    return orders.value.filter((order) => {
+        if (typeFilter.value && order.serviceType !== typeFilter.value) {
+            return false;
         }
 
-        if (
-            sides.value ===
-            'double' &&
-            [
-                'printing',
-                'copy',
-            ].includes(
-                serviceType.value,
-            )
-        ) {
-            total *= 0.9;
+        if (statusFilter.value && order.status !== statusFilter.value) {
+            return false;
         }
 
-        return Number(
-            total.toFixed(2),
-        );
+        if (!term) {
+            return true;
+        }
+
+        return [
+            order.folio,
+            order.fileName ?? '',
+            order.observations,
+            serviceLabel(order.serviceType),
+        ].some((value) => value.toLowerCase().includes(term));
     });
+});
 
-const filteredOrders =
-    computed(() => {
-        const term =
-            search.value
-                .trim()
-                .toLowerCase();
-
-        return orders.value.filter(
-            (order) => {
-                if (
-                    typeFilter.value &&
-                    order.serviceType !==
-                    typeFilter.value
-                ) {
-                    return false;
-                }
-
-                if (
-                    statusFilter.value &&
-                    order.status !==
-                    statusFilter.value
-                ) {
-                    return false;
-                }
-
-                if (!term) {
-                    return true;
-                }
-
-                return [
-                    order.folio,
-                    order.fileName ??
-                    '',
-                    order.observations,
-                    serviceLabel(
-                        order.serviceType,
-                    ),
-                ].some((value) =>
-                    value
-                        .toLowerCase()
-                        .includes(term),
-                );
-            },
-        );
-    });
-
-function serviceLabel(
-    type: ServiceType,
-): string {
-    const labels: Record<
-        ServiceType,
-        string
-    > = {
+function serviceLabel(type: ServiceType): string {
+    const labels: Record<ServiceType, string> = {
         printing: 'Impresión',
-        scanning:
-            'Digitalización',
+        scanning: 'Digitalización',
         copy: 'Copias',
         binding: 'Engargolado',
     };
@@ -321,17 +225,11 @@ function serviceLabel(
     return labels[type];
 }
 
-function statusLabel(
-    status: OrderStatus,
-): string {
-    const labels: Record<
-        OrderStatus,
-        string
-    > = {
+function statusLabel(status: OrderStatus): string {
+    const labels: Record<OrderStatus, string> = {
         pending: 'Pendiente',
         quoted: 'Cotizada',
-        awaiting_payment:
-            'Esperando pago',
+        awaiting_payment: 'Esperando pago',
         paid: 'Pagada',
         processing: 'En proceso',
         ready: 'Lista',
@@ -342,28 +240,17 @@ function statusLabel(
     return labels[status];
 }
 
-function paymentLabel(
-    status: PaymentStatus,
-): string {
-    const labels: Record<
-        PaymentStatus,
-        string
-    > = {
+function paymentLabel(status: PaymentStatus): string {
+    const labels: Record<PaymentStatus, string> = {
         pending: 'Pendiente',
         paid: 'Pagado',
-        not_required:
-            'No requerido',
+        not_required: 'No requerido',
     };
 
     return labels[status];
 }
 
-function colorLabel(
-    value:
-        | 'bw'
-        | 'color'
-        | null,
-): string {
+function colorLabel(value: 'bw' | 'color' | null): string {
     if (value === 'bw') {
         return 'Blanco y negro';
     }
@@ -375,12 +262,7 @@ function colorLabel(
     return '—';
 }
 
-function sidesLabel(
-    value:
-        | 'single'
-        | 'double'
-        | null,
-): string {
+function sidesLabel(value: 'single' | 'double' | null): string {
     if (value === 'single') {
         return 'Una cara';
     }
@@ -392,43 +274,33 @@ function sidesLabel(
     return '—';
 }
 
-function money(
-    value: number | null,
-): string {
+function money(value: number | null): string {
     if (value === null) {
         return 'Pendiente';
     }
 
-    return new Intl.NumberFormat(
-        'es-MX',
-        {
-            style: 'currency',
-            currency: 'MXN',
-        },
-    ).format(value);
+    return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+    }).format(value);
 }
 
 function openForm() {
-    serviceType.value =
-        'printing';
+    serviceType.value = 'printing';
 
     quantity.value = 1;
 
     colorMode.value = 'bw';
 
-    paperSize.value =
-        'Carta';
+    paperSize.value = 'Carta';
 
-    sides.value =
-        'single';
+    sides.value = 'single';
 
     observations.value = '';
 
-    selectedFileName.value =
-        '';
+    selectedFileName.value = '';
 
-    selectedFile.value =
-        null;
+    selectedFile.value = null;
 
     showForm.value = true;
 }
@@ -436,335 +308,221 @@ function openForm() {
 function closeForm() {
     showForm.value = false;
 
-    selectedFileName.value =
-        '';
+    selectedFileName.value = '';
 
-    selectedFile.value =
-        null;
+    selectedFile.value = null;
 }
 
-function handleFile(
-    event: Event,
-) {
-    const input =
-        event.target as HTMLInputElement;
+function handleFile(event: Event) {
+    const input = event.target as HTMLInputElement;
 
-    const file =
-        input.files?.[0] ??
-        null;
+    const file = input.files?.[0] ?? null;
 
-    selectedFile.value =
-        file;
+    selectedFile.value = file;
 
-    selectedFileName.value =
-        file?.name ?? '';
+    selectedFileName.value = file?.name ?? '';
 }
 
 function createOrder() {
-    if (
-        quantity.value < 1
-    ) {
-        window.alert(
-            'La cantidad debe ser mayor a cero.',
-        );
+    if (quantity.value < 1) {
+        window.alert('La cantidad debe ser mayor a cero.');
 
         return;
     }
 
-    if (
-        serviceType.value ===
-        'printing' &&
-        selectedFile.value ===
-        null
-    ) {
-        window.alert(
-            'Selecciona el archivo que deseas imprimir.',
-        );
+    if (serviceType.value === 'printing' && selectedFile.value === null) {
+        window.alert('Selecciona el archivo que deseas imprimir.');
 
         return;
     }
 
-    const appliesConfiguration =
-        [
-            'printing',
-            'copy',
-            'scanning',
-        ].includes(
-            serviceType.value,
-        );
+    const appliesConfiguration = ['printing', 'copy', 'scanning'].includes(
+        serviceType.value,
+    );
 
-    const appliesSides =
-        [
-            'printing',
-            'copy',
-        ].includes(
-            serviceType.value,
-        );
+    const appliesSides = ['printing', 'copy'].includes(serviceType.value);
 
     const form = useForm({
-        service_type:
-        serviceType.value,
+        service_type: serviceType.value,
 
-        quantity:
-        quantity.value,
+        quantity: quantity.value,
 
-        color_mode:
-            appliesConfiguration
-                ? colorMode.value
-                : null,
+        color_mode: appliesConfiguration ? colorMode.value : null,
 
-        paper_size:
-            appliesConfiguration
-                ? paperSize.value
-                : null,
+        paper_size: appliesConfiguration ? paperSize.value : null,
 
-        sides:
-            appliesSides
-                ? sides.value
-                : null,
+        sides: appliesSides ? sides.value : null,
 
-        observations:
-            observations.value.trim(),
+        observations: observations.value.trim(),
 
-        file:
-        selectedFile.value,
+        file: selectedFile.value,
     });
 
-    form.post(
-        '/servicios-estudiante/servicios-impresiones',
-        {
-            preserveScroll:
-                true,
+    form.post('/servicios-estudiante/servicios-impresiones', {
+        preserveScroll: true,
 
-            forceFormData:
-                true,
+        forceFormData: true,
 
-            onSuccess: () => {
-                closeForm();
+        onSuccess: () => {
+            closeForm();
 
-                window.alert(
-                    'Solicitud registrada correctamente.',
-                );
-            },
-
-            onError: (
-                errors,
-            ) => {
-                const message =
-                    errors.order ??
-                    errors.file ??
-                    errors.service_type ??
-                    errors.quantity ??
-                    errors.color_mode ??
-                    errors.paper_size ??
-                    errors.sides ??
-                    'No fue posible registrar la solicitud.';
-
-                window.alert(
-                    String(
-                        message,
-                    ),
-                );
-            },
+            window.alert('Solicitud registrada correctamente.');
         },
-    );
+
+        onError: (errors) => {
+            const message =
+                errors.order ??
+                errors.file ??
+                errors.service_type ??
+                errors.quantity ??
+                errors.color_mode ??
+                errors.paper_size ??
+                errors.sides ??
+                'No fue posible registrar la solicitud.';
+
+            window.alert(String(message));
+        },
+    });
 }
 
-function openDetails(
-    order: ServiceOrder,
-) {
-    selectedOrder.value =
-        order;
+function openDetails(order: ServiceOrder) {
+    selectedOrder.value = order;
 
-    showDetails.value =
-        true;
+    showDetails.value = true;
 }
 
 function closeDetails() {
-    selectedOrder.value =
-        null;
+    selectedOrder.value = null;
 
-    showDetails.value =
-        false;
+    showDetails.value = false;
 }
 
-function simulatePayment(
-    order: ServiceOrder,
-) {
+function simulatePayment(order: ServiceOrder) {
     if (
-        order.status !==
-        'awaiting_payment' ||
-        order.paymentStatus !==
-        'pending'
+        order.status !== 'awaiting_payment' ||
+        order.paymentStatus !== 'pending'
     ) {
         return;
     }
 
-    const confirmed =
-        window.confirm(
-            `¿Registrar el pago de ${money(
-                order.quotedAmount,
-            )} para ${order.folio}?`,
-        );
+    const confirmed = window.confirm(
+        `¿Registrar el pago de ${money(
+            order.quotedAmount,
+        )} para ${order.folio}?`,
+    );
 
     if (!confirmed) {
         return;
     }
 
-    const paymentReference =
-        `SIM-${Date.now()}`;
+    const paymentReference = `SIM-${Date.now()}`;
 
-    processingOrderId.value =
-        order.id;
+    processingOrderId.value = order.id;
 
     router.patch(
         `/servicios-estudiante/servicios-impresiones/${order.id}/pagar`,
         {
-            payment_reference_id:
-            paymentReference,
+            payment_reference_id: paymentReference,
         },
         {
-            preserveScroll:
-                true,
+            preserveScroll: true,
 
             onSuccess: () => {
-                window.alert(
-                    'Pago registrado correctamente.',
-                );
+                window.alert('Pago registrado correctamente.');
             },
 
-            onError: (
-                errors,
-            ) => {
+            onError: (errors) => {
                 window.alert(
                     String(
                         errors.order ??
-                        errors.payment_reference_id ??
-                        'No fue posible registrar el pago.',
+                            errors.payment_reference_id ??
+                            'No fue posible registrar el pago.',
                     ),
                 );
             },
 
             onFinish: () => {
-                processingOrderId.value =
-                    null;
+                processingOrderId.value = null;
             },
         },
     );
 }
 
-function cancelOrder(
-    order: ServiceOrder,
-) {
-    if (
-        [
-            'processing',
-            'ready',
-            'delivered',
-        ].includes(
-            order.status,
-        )
-    ) {
-        window.alert(
-            'Esta solicitud ya no puede cancelarse.',
-        );
+function cancelOrder(order: ServiceOrder) {
+    if (['processing', 'ready', 'delivered'].includes(order.status)) {
+        window.alert('Esta solicitud ya no puede cancelarse.');
 
         return;
     }
 
-    const confirmed =
-        window.confirm(
-            `¿Cancelar la solicitud ${order.folio}?`,
-        );
+    const confirmed = window.confirm(`¿Cancelar la solicitud ${order.folio}?`);
 
     if (!confirmed) {
         return;
     }
 
-    processingOrderId.value =
-        order.id;
+    processingOrderId.value = order.id;
 
     router.patch(
         `/servicios-estudiante/servicios-impresiones/${order.id}/cancelar`,
         {},
         {
-            preserveScroll:
-                true,
+            preserveScroll: true,
 
             onSuccess: () => {
-                window.alert(
-                    'Solicitud cancelada correctamente.',
-                );
+                window.alert('Solicitud cancelada correctamente.');
             },
 
-            onError: (
-                errors,
-            ) => {
+            onError: (errors) => {
                 window.alert(
                     String(
-                        errors.order ??
-                        'No fue posible cancelar la solicitud.',
+                        errors.order ?? 'No fue posible cancelar la solicitud.',
                     ),
                 );
             },
 
             onFinish: () => {
-                processingOrderId.value =
-                    null;
+                processingOrderId.value = null;
             },
         },
     );
 }
 
-function markDelivered(
-    order: ServiceOrder,
-) {
-    if (
-        order.status !==
-        'ready'
-    ) {
+function markDelivered(order: ServiceOrder) {
+    if (order.status !== 'ready') {
         return;
     }
 
-    const confirmed =
-        window.confirm(
-            `¿Confirmar que recogiste la solicitud ${order.folio}?`,
-        );
+    const confirmed = window.confirm(
+        `¿Confirmar que recogiste la solicitud ${order.folio}?`,
+    );
 
     if (!confirmed) {
         return;
     }
 
-    processingOrderId.value =
-        order.id;
+    processingOrderId.value = order.id;
 
     router.patch(
         `/servicios-estudiante/servicios-impresiones/${order.id}/entregar`,
         {},
         {
-            preserveScroll:
-                true,
+            preserveScroll: true,
 
             onSuccess: () => {
-                window.alert(
-                    'Servicio entregado correctamente.',
-                );
+                window.alert('Servicio entregado correctamente.');
             },
 
-            onError: (
-                errors,
-            ) => {
+            onError: (errors) => {
                 window.alert(
                     String(
-                        errors.order ??
-                        'No fue posible registrar la entrega.',
+                        errors.order ?? 'No fue posible registrar la entrega.',
                     ),
                 );
             },
 
             onFinish: () => {
-                processingOrderId.value =
-                    null;
+                processingOrderId.value = null;
             },
         },
     );
@@ -778,115 +536,66 @@ function markDelivered(
     >
         <section class="hero">
             <div>
-                <span
-                    class="hero-label"
-                >
-                    SERVICIOS · MÓDULO
-                    5.8
-                </span>
+                <span class="hero-label"> SERVICIOS · MÓDULO 5.8 </span>
 
-                <h2>
-                    Servicios e
-                    impresiones
-                </h2>
+                <h2>Servicios e impresiones</h2>
 
                 <p>
-                    Solicita impresiones,
-                    digitalizaciones, copias
-                    y otros servicios.
-                    Consulta la cotización,
-                    pago y estado de
-                    entrega.
+                    Solicita impresiones, digitalizaciones, copias y otros
+                    servicios. Consulta la cotización, pago y estado de entrega.
                 </p>
             </div>
 
-            <div
-                class="hero-total"
-            >
-                <span>
-                    Solicitudes
-                </span>
+            <div class="hero-total">
+                <span> Solicitudes </span>
 
                 <strong>
                     {{ orders.length }}
                 </strong>
 
-                <small>
-                    registradas
-                </small>
+                <small> registradas </small>
             </div>
         </section>
 
-        <section
-            class="stats-grid"
-        >
-            <article
-                class="stat-card"
-            >
-                <span>
-                    Pendientes
-                </span>
+        <section class="stats-grid">
+            <article class="stat-card">
+                <span> Pendientes </span>
 
                 <strong>
                     {{ pendingCount }}
                 </strong>
 
-                <small>
-                    Cotización o pago
-                </small>
+                <small> Cotización o pago </small>
             </article>
 
-            <article
-                class="stat-card"
-            >
-                <span>
-                    En proceso
-                </span>
+            <article class="stat-card">
+                <span> En proceso </span>
 
                 <strong>
-                    {{
-                        processingCount
-                    }}
+                    {{ processingCount }}
                 </strong>
 
-                <small>
-                    Preparándose
-                </small>
+                <small> Preparándose </small>
             </article>
 
-            <article
-                class="stat-card"
-            >
-                <span>
-                    Listas
-                </span>
+            <article class="stat-card">
+                <span> Listas </span>
 
                 <strong>
                     {{ readyCount }}
                 </strong>
 
-                <small>
-                    Disponibles para
-                    recoger
-                </small>
+                <small> Disponibles para recoger </small>
             </article>
 
-            <article
-                class="stat-card"
-            >
-                <span>
-                    Entregadas
-                </span>
+            <article class="stat-card">
+                <span> Entregadas </span>
 
                 <strong>
-                    {{
-                        deliveredCount
-                    }}
+                    {{ deliveredCount }}
                 </strong>
 
-                <small>
-                    Servicios finalizados
-                </small>
+                <small> Servicios finalizados </small>
             </article>
         </section>
 
@@ -899,158 +608,85 @@ function markDelivered(
                     <template v-if="printAllowance.vence_en">
                         (vence el
                         {{
-                            new Date(printAllowance.vence_en).toLocaleDateString(
-                                'es-MX',
-                            )
-                        }})
-                    </template>.
-                    Úsala con el botón «Usar beca» en tus órdenes de
+                            new Date(
+                                printAllowance.vence_en,
+                            ).toLocaleDateString('es-MX')
+                        }}) </template
+                    >. Úsala con el botón «Usar beca» en tus órdenes de
                     impresión pendientes de pago.
                 </p>
             </div>
             <span>Comunidad</span>
         </section>
 
-        <section
-            class="service-options"
-        >
+        <section class="service-options">
             <article>
-                <div
-                    class="service-icon"
-                >
-                    IM
-                </div>
+                <div class="service-icon">IM</div>
 
                 <div>
-                    <strong>
-                        Impresiones
-                    </strong>
+                    <strong> Impresiones </strong>
 
-                    <p>
-                        Blanco y negro o
-                        color, carta u
-                        oficio.
-                    </p>
+                    <p>Blanco y negro o color, carta u oficio.</p>
                 </div>
             </article>
 
             <article>
-                <div
-                    class="service-icon"
-                >
-                    CP
-                </div>
+                <div class="service-icon">CP</div>
 
                 <div>
-                    <strong>
-                        Copias
-                    </strong>
+                    <strong> Copias </strong>
 
-                    <p>
-                        Copiado rápido de
-                        documentos.
-                    </p>
+                    <p>Copiado rápido de documentos.</p>
                 </div>
             </article>
 
             <article>
-                <div
-                    class="service-icon"
-                >
-                    DG
-                </div>
+                <div class="service-icon">DG</div>
 
                 <div>
-                    <strong>
-                        Digitalización
-                    </strong>
+                    <strong> Digitalización </strong>
 
-                    <p>
-                        Conversión de
-                        documentos físicos
-                        a PDF.
-                    </p>
+                    <p>Conversión de documentos físicos a PDF.</p>
                 </div>
             </article>
 
             <article>
-                <div
-                    class="service-icon"
-                >
-                    EN
-                </div>
+                <div class="service-icon">EN</div>
 
                 <div>
-                    <strong>
-                        Engargolado
-                    </strong>
+                    <strong> Engargolado </strong>
 
-                    <p>
-                        Acabado para
-                        reportes y
-                        proyectos.
-                    </p>
+                    <p>Acabado para reportes y proyectos.</p>
                 </div>
             </article>
         </section>
 
-        <section
-            class="content-panel"
-        >
-            <div
-                class="panel-header"
-            >
+        <section class="content-panel">
+            <div class="panel-header">
                 <div>
-                    <span
-                        class="panel-label"
-                    >
-                        SOLICITUDES
-                    </span>
+                    <span class="panel-label"> SOLICITUDES </span>
 
-                    <h3>
-                        Mis servicios
-                    </h3>
+                    <h3>Mis servicios</h3>
 
                     <p>
-                        Consulta el estado
-                        de tus solicitudes
-                        y servicios
+                        Consulta el estado de tus solicitudes y servicios
                         pendientes.
                     </p>
                 </div>
 
-                <button
-                    type="button"
-                    class="primary-button"
-                    @click="openForm"
-                >
+                <button type="button" class="primary-button" @click="openForm">
                     + Nueva solicitud
                 </button>
             </div>
 
-            <section
-                v-if="showForm"
-                class="form-panel"
-            >
-                <div
-                    class="form-header"
-                >
+            <section v-if="showForm" class="form-panel">
+                <div class="form-header">
                     <div>
-                        <span
-                            class="panel-label"
-                        >
-                            NUEVO SERVICIO
-                        </span>
+                        <span class="panel-label"> NUEVO SERVICIO </span>
 
-                        <h3>
-                            Crear solicitud
-                        </h3>
+                        <h3>Crear solicitud</h3>
 
-                        <p>
-                            Configura las
-                            opciones del
-                            servicio.
-                        </p>
+                        <p>Configura las opciones del servicio.</p>
                     </div>
 
                     <button
@@ -1062,279 +698,139 @@ function markDelivered(
                     </button>
                 </div>
 
-                <div
-                    class="order-form"
-                >
-                    <div
-                        class="form-grid"
-                    >
-                        <div
-                            class="form-field"
-                        >
+                <div class="order-form">
+                    <div class="form-grid">
+                        <div class="form-field">
                             <label>
-                                Tipo de
-                                servicio
-                                <span>
-                                    *
-                                </span>
+                                Tipo de servicio
+                                <span> * </span>
                             </label>
 
-                            <select
-                                v-model="
-                                    serviceType
-                                "
-                            >
-                                <option
-                                    value="printing"
-                                >
-                                    Impresión
-                                </option>
+                            <select v-model="serviceType">
+                                <option value="printing">Impresión</option>
 
-                                <option
-                                    value="copy"
-                                >
-                                    Copias
-                                </option>
+                                <option value="copy">Copias</option>
 
-                                <option
-                                    value="scanning"
-                                >
-                                    Digitalización
-                                </option>
+                                <option value="scanning">Digitalización</option>
 
-                                <option
-                                    value="binding"
-                                >
-                                    Engargolado
-                                </option>
+                                <option value="binding">Engargolado</option>
                             </select>
                         </div>
 
-                        <div
-                            class="form-field"
-                        >
+                        <div class="form-field">
                             <label>
                                 Cantidad
-                                <span>
-                                    *
-                                </span>
+                                <span> * </span>
                             </label>
 
                             <input
-                                v-model.number="
-                                    quantity
-                                "
+                                v-model.number="quantity"
                                 type="number"
                                 min="1"
                             />
                         </div>
 
                         <div
-                            v-if="
-                                serviceType ===
-                                'printing'
-                            "
+                            v-if="serviceType === 'printing'"
                             class="form-field full"
                         >
                             <label>
                                 Archivo
-                                <span>
-                                    *
-                                </span>
+                                <span> * </span>
                             </label>
 
                             <input
                                 type="file"
                                 accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                                @change="
-                                    handleFile
-                                "
+                                @change="handleFile"
                             />
 
-                            <small
-                                v-if="
-                                    selectedFileName
-                                "
-                                class="file-name"
-                            >
+                            <small v-if="selectedFileName" class="file-name">
                                 Archivo:
-                                {{
-                                    selectedFileName
-                                }}
+                                {{ selectedFileName }}
                             </small>
                         </div>
 
                         <template
                             v-if="
-                                [
-                                    'printing',
-                                    'copy',
-                                    'scanning',
-                                ].includes(
+                                ['printing', 'copy', 'scanning'].includes(
                                     serviceType,
                                 )
                             "
                         >
-                            <div
-                                class="form-field"
-                            >
-                                <label>
-                                    Tipo de
-                                    impresión
-                                </label>
+                            <div class="form-field">
+                                <label> Tipo de impresión </label>
 
-                                <select
-                                    v-model="
-                                        colorMode
-                                    "
-                                >
-                                    <option
-                                        value="bw"
-                                    >
-                                        Blanco y
-                                        negro
-                                    </option>
+                                <select v-model="colorMode">
+                                    <option value="bw">Blanco y negro</option>
 
-                                    <option
-                                        value="color"
-                                    >
-                                        Color
-                                    </option>
+                                    <option value="color">Color</option>
                                 </select>
                             </div>
 
-                            <div
-                                class="form-field"
-                            >
-                                <label>
-                                    Tamaño de
-                                    papel
-                                </label>
+                            <div class="form-field">
+                                <label> Tamaño de papel </label>
 
-                                <select
-                                    v-model="
-                                        paperSize
-                                    "
-                                >
-                                    <option>
-                                        Carta
-                                    </option>
+                                <select v-model="paperSize">
+                                    <option>Carta</option>
 
-                                    <option>
-                                        Oficio
-                                    </option>
+                                    <option>Oficio</option>
 
-                                    <option>
-                                        A4
-                                    </option>
+                                    <option>A4</option>
                                 </select>
                             </div>
                         </template>
 
                         <div
-                            v-if="
-                                [
-                                    'printing',
-                                    'copy',
-                                ].includes(
-                                    serviceType,
-                                )
-                            "
+                            v-if="['printing', 'copy'].includes(serviceType)"
                             class="form-field"
                         >
-                            <label>
-                                Caras
-                            </label>
+                            <label> Caras </label>
 
-                            <select
-                                v-model="
-                                    sides
-                                "
-                            >
-                                <option
-                                    value="single"
-                                >
-                                    Una cara
-                                </option>
+                            <select v-model="sides">
+                                <option value="single">Una cara</option>
 
-                                <option
-                                    value="double"
-                                >
-                                    Doble cara
-                                </option>
+                                <option value="double">Doble cara</option>
                             </select>
                         </div>
 
-                        <div
-                            class="form-field full"
-                        >
-                            <label>
-                                Observaciones
-                            </label>
+                        <div class="form-field full">
+                            <label> Observaciones </label>
 
                             <textarea
-                                v-model="
-                                    observations
-                                "
+                                v-model="observations"
                                 rows="3"
                                 placeholder="Indicaciones adicionales..."
                             />
                         </div>
                     </div>
 
-                    <div
-                        class="quote-box"
-                    >
+                    <div class="quote-box">
                         <div>
-                            <span>
-                                Cotización
-                                estimada
-                            </span>
+                            <span> Cotización estimada </span>
 
                             <small>
-                                El monto
-                                definitivo
-                                será
-                                calculado
-                                nuevamente
-                                por el
-                                servidor.
+                                El monto definitivo será calculado nuevamente
+                                por el servidor.
                             </small>
                         </div>
 
                         <strong>
-                            {{
-                                money(
-                                    estimatedAmount,
-                                )
-                            }}
+                            {{ money(estimatedAmount) }}
                         </strong>
                     </div>
 
-                    <div
-                        class="information-box"
-                    >
-                        El registro de pago
-                        actual es
-                        provisional para
-                        probar el flujo del
-                        módulo. La
-                        integración
-                        monetaria
-                        definitiva se hará
-                        posteriormente con
-                        el Equipo 2.
+                    <div class="information-box">
+                        El registro de pago actual es provisional para probar el
+                        flujo del módulo. La integración monetaria definitiva se
+                        hará posteriormente con el Equipo 2.
                     </div>
 
-                    <div
-                        class="form-actions"
-                    >
+                    <div class="form-actions">
                         <button
                             type="button"
                             class="secondary-button"
-                            @click="
-                                closeForm
-                            "
+                            @click="closeForm"
                         >
                             Cancelar
                         </button>
@@ -1342,9 +838,7 @@ function markDelivered(
                         <button
                             type="button"
                             class="primary-button"
-                            @click="
-                                createOrder
-                            "
+                            @click="createOrder"
                         >
                             Crear solicitud
                         </button>
@@ -1353,9 +847,7 @@ function markDelivered(
             </section>
 
             <div class="filters">
-                <div
-                    class="search-field"
-                >
+                <div class="search-field">
                     <input
                         v-model="search"
                         type="text"
@@ -1363,479 +855,267 @@ function markDelivered(
                     />
                 </div>
 
-                <select
-                    v-model="
-                        typeFilter
-                    "
-                >
-                    <option value="">
-                        Todos los
-                        servicios
-                    </option>
+                <select v-model="typeFilter">
+                    <option value="">Todos los servicios</option>
 
-                    <option
-                        value="printing"
-                    >
-                        Impresión
-                    </option>
+                    <option value="printing">Impresión</option>
 
-                    <option
-                        value="copy"
-                    >
-                        Copias
-                    </option>
+                    <option value="copy">Copias</option>
 
-                    <option
-                        value="scanning"
-                    >
-                        Digitalización
-                    </option>
+                    <option value="scanning">Digitalización</option>
 
-                    <option
-                        value="binding"
-                    >
-                        Engargolado
-                    </option>
+                    <option value="binding">Engargolado</option>
                 </select>
 
-                <select
-                    v-model="
-                        statusFilter
-                    "
-                >
-                    <option value="">
-                        Todos los estados
-                    </option>
+                <select v-model="statusFilter">
+                    <option value="">Todos los estados</option>
 
-                    <option
-                        value="pending"
-                    >
-                        Pendiente
-                    </option>
+                    <option value="pending">Pendiente</option>
 
-                    <option
-                        value="awaiting_payment"
-                    >
-                        Esperando pago
-                    </option>
+                    <option value="awaiting_payment">Esperando pago</option>
 
-                    <option
-                        value="processing"
-                    >
-                        En proceso
-                    </option>
+                    <option value="processing">En proceso</option>
 
-                    <option
-                        value="ready"
-                    >
-                        Lista
-                    </option>
+                    <option value="ready">Lista</option>
 
-                    <option
-                        value="delivered"
-                    >
-                        Entregada
-                    </option>
+                    <option value="delivered">Entregada</option>
 
-                    <option
-                        value="cancelled"
-                    >
-                        Cancelada
-                    </option>
+                    <option value="cancelled">Cancelada</option>
                 </select>
             </div>
 
-            <div
-                v-if="
-                    filteredOrders.length >
-                    0
-                "
-                class="table-container"
-            >
+            <div v-if="filteredOrders.length > 0" class="table-container">
                 <table>
                     <thead>
-                    <tr>
-                        <th>
-                            Folio
-                        </th>
+                        <tr>
+                            <th>Folio</th>
 
-                        <th>
-                            Servicio
-                        </th>
+                            <th>Servicio</th>
 
-                        <th>
-                            Archivo
-                        </th>
+                            <th>Archivo</th>
 
-                        <th>
-                            Cantidad
-                        </th>
+                            <th>Cantidad</th>
 
-                        <th>
-                            Cotización
-                        </th>
+                            <th>Cotización</th>
 
-                        <th>
-                            Pago
-                        </th>
+                            <th>Pago</th>
 
-                        <th>
-                            Estado
-                        </th>
+                            <th>Estado</th>
 
-                        <th>
-                            Acciones
-                        </th>
-                    </tr>
+                            <th>Acciones</th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    <tr
-                        v-for="
-                                order in
-                                filteredOrders
-                            "
-                        :key="
-                                order.id
-                            "
-                    >
-                        <td>
-                            <strong
-                                class="folio"
-                            >
-                                {{
-                                    order.folio
-                                }}
-                            </strong>
+                        <tr v-for="order in filteredOrders" :key="order.id">
+                            <td>
+                                <strong class="folio">
+                                    {{ order.folio }}
+                                </strong>
 
-                            <small
-                                class="date"
-                            >
-                                {{
-                                    order.requestedAt
-                                }}
-                            </small>
-                        </td>
+                                <small class="date">
+                                    {{ order.requestedAt }}
+                                </small>
+                            </td>
 
-                        <td>
-                            {{
-                                serviceLabel(
-                                    order.serviceType,
-                                )
-                            }}
-                        </td>
+                            <td>
+                                {{ serviceLabel(order.serviceType) }}
+                            </td>
 
-                        <td>
-                            {{
-                                order.fileName ??
-                                '—'
-                            }}
-                        </td>
+                            <td>
+                                {{ order.fileName ?? '—' }}
+                            </td>
 
-                        <td>
-                            {{
-                                order.quantity
-                            }}
-                        </td>
+                            <td>
+                                {{ order.quantity }}
+                            </td>
 
-                        <td>
-                            <strong>
-                                {{
-                                    money(
-                                        order.quotedAmount,
-                                    )
-                                }}
-                            </strong>
-                        </td>
+                            <td>
+                                <strong>
+                                    {{ money(order.quotedAmount) }}
+                                </strong>
+                            </td>
 
-                        <td>
+                            <td>
                                 <span
                                     class="payment"
-                                    :class="
-                                        `payment-${order.paymentStatus}`
-                                    "
+                                    :class="`payment-${order.paymentStatus}`"
                                 >
-                                    {{
-                                        paymentLabel(
-                                            order.paymentStatus,
-                                        )
-                                    }}
+                                    {{ paymentLabel(order.paymentStatus) }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
+                            <td>
                                 <span
                                     class="status"
-                                    :class="
-                                        `status-${order.status}`
-                                    "
+                                    :class="`status-${order.status}`"
                                 >
-                                    {{
-                                        statusLabel(
-                                            order.status,
-                                        )
-                                    }}
+                                    {{ statusLabel(order.status) }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            <div
-                                class="actions"
-                            >
-                                <button
-                                    type="button"
-                                    class="action-button details"
-                                    @click="
-                                            openDetails(
-                                                order,
-                                            )
-                                        "
-                                >
-                                    Ver
-                                </button>
+                            <td>
+                                <div class="actions">
+                                    <button
+                                        type="button"
+                                        class="action-button details"
+                                        @click="openDetails(order)"
+                                    >
+                                        Ver
+                                    </button>
 
-                                <button
-                                    v-if="
+                                    <button
+                                        v-if="
                                             order.status ===
                                                 'awaiting_payment' &&
-                                            order.paymentStatus ===
-                                                'pending'
+                                            order.paymentStatus === 'pending'
                                         "
-                                    type="button"
-                                    class="action-button pay"
-                                    :disabled="
-                                            processingOrderId ===
-                                            order.id
+                                        type="button"
+                                        class="action-button pay"
+                                        :disabled="
+                                            processingOrderId === order.id
                                         "
-                                    @click="
-                                            simulatePayment(
-                                                order,
-                                            )
-                                        "
-                                >
-                                    Pagar
-                                </button>
+                                        @click="simulatePayment(order)"
+                                    >
+                                        Pagar
+                                    </button>
 
-                                <button
-                                    v-if="canPayWithScholarship(order)"
-                                    type="button"
-                                    class="action-button scholarship"
-                                    :disabled="processingOrderId === order.id"
-                                    @click="payWithScholarship(order)"
-                                >
-                                    Usar beca
-                                </button>
+                                    <button
+                                        v-if="canPayWithScholarship(order)"
+                                        type="button"
+                                        class="action-button scholarship"
+                                        :disabled="
+                                            processingOrderId === order.id
+                                        "
+                                        @click="payWithScholarship(order)"
+                                    >
+                                        Usar beca
+                                    </button>
 
-                                <button
-                                    v-if="
-                                            order.status ===
-                                            'ready'
+                                    <button
+                                        v-if="order.status === 'ready'"
+                                        type="button"
+                                        class="action-button deliver"
+                                        :disabled="
+                                            processingOrderId === order.id
                                         "
-                                    type="button"
-                                    class="action-button deliver"
-                                    :disabled="
-                                            processingOrderId ===
-                                            order.id
-                                        "
-                                    @click="
-                                            markDelivered(
-                                                order,
-                                            )
-                                        "
-                                >
-                                    Recoger
-                                </button>
+                                        @click="markDelivered(order)"
+                                    >
+                                        Recoger
+                                    </button>
 
-                                <button
-                                    v-if="
+                                    <button
+                                        v-if="
                                             [
                                                 'pending',
                                                 'quoted',
                                                 'awaiting_payment',
-                                            ].includes(
-                                                order.status,
-                                            )
+                                            ].includes(order.status)
                                         "
-                                    type="button"
-                                    class="action-button cancel"
-                                    :disabled="
-                                            processingOrderId ===
-                                            order.id
+                                        type="button"
+                                        class="action-button cancel"
+                                        :disabled="
+                                            processingOrderId === order.id
                                         "
-                                    @click="
-                                            cancelOrder(
-                                                order,
-                                            )
-                                        "
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                                        @click="cancelOrder(order)"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div
-                v-else
-                class="empty-state"
-            >
-                <h3>
-                    No hay solicitudes
-                </h3>
+            <div v-else class="empty-state">
+                <h3>No hay solicitudes</h3>
 
-                <p>
-                    Registra un nuevo
-                    servicio o modifica
-                    los filtros.
-                </p>
+                <p>Registra un nuevo servicio o modifica los filtros.</p>
             </div>
         </section>
 
         <div
-            v-if="
-                showDetails &&
-                selectedOrder
-            "
+            v-if="showDetails && selectedOrder"
             class="modal-backdrop"
-            @click.self="
-                closeDetails
-            "
+            @click.self="closeDetails"
         >
-            <section
-                class="modal"
-            >
-                <div
-                    class="modal-header"
-                >
+            <section class="modal">
+                <div class="modal-header">
                     <div>
-                        <span
-                            class="panel-label"
-                        >
-                            DETALLE DEL
-                            SERVICIO
-                        </span>
+                        <span class="panel-label"> DETALLE DEL SERVICIO </span>
 
                         <h3>
-                            {{
-                                selectedOrder.folio
-                            }}
+                            {{ selectedOrder.folio }}
                         </h3>
 
                         <p>
-                            {{
-                                serviceLabel(
-                                    selectedOrder.serviceType,
-                                )
-                            }}
+                            {{ serviceLabel(selectedOrder.serviceType) }}
                         </p>
                     </div>
 
                     <button
                         type="button"
                         class="close-button"
-                        @click="
-                            closeDetails
-                        "
+                        @click="closeDetails"
                     >
                         ×
                     </button>
                 </div>
 
-                <div
-                    class="modal-body"
-                >
-                    <div
-                        class="detail-grid"
-                    >
+                <div class="modal-body">
+                    <div class="detail-grid">
                         <div>
-                            <span>
-                                Archivo
-                            </span>
+                            <span> Archivo </span>
 
                             <strong>
-                                {{
-                                    selectedOrder.fileName ??
-                                    'No aplica'
-                                }}
+                                {{ selectedOrder.fileName ?? 'No aplica' }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Cantidad
-                            </span>
+                            <span> Cantidad </span>
 
                             <strong>
-                                {{
-                                    selectedOrder.quantity
-                                }}
+                                {{ selectedOrder.quantity }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Color
-                            </span>
+                            <span> Color </span>
 
                             <strong>
-                                {{
-                                    colorLabel(
-                                        selectedOrder.colorMode,
-                                    )
-                                }}
+                                {{ colorLabel(selectedOrder.colorMode) }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Papel
-                            </span>
+                            <span> Papel </span>
 
                             <strong>
-                                {{
-                                    selectedOrder.paperSize ??
-                                    '—'
-                                }}
+                                {{ selectedOrder.paperSize ?? '—' }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Caras
-                            </span>
+                            <span> Caras </span>
 
                             <strong>
-                                {{
-                                    sidesLabel(
-                                        selectedOrder.sides,
-                                    )
-                                }}
+                                {{ sidesLabel(selectedOrder.sides) }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Cotización
-                            </span>
+                            <span> Cotización </span>
 
                             <strong>
-                                {{
-                                    money(
-                                        selectedOrder.quotedAmount,
-                                    )
-                                }}
+                                {{ money(selectedOrder.quotedAmount) }}
                             </strong>
                         </div>
                     </div>
 
-                    <div
-                        class="observations"
-                    >
-                        <span>
-                            Observaciones
-                        </span>
+                    <div class="observations">
+                        <span> Observaciones </span>
 
                         <p>
                             {{
@@ -1845,15 +1125,11 @@ function markDelivered(
                         </p>
                     </div>
 
-                    <div
-                        class="modal-actions"
-                    >
+                    <div class="modal-actions">
                         <button
                             type="button"
                             class="primary-button"
-                            @click="
-                                closeDetails
-                            "
+                            @click="closeDetails"
                         >
                             Cerrar
                         </button>
@@ -1906,8 +1182,7 @@ function markDelivered(
     min-width: 170px;
     padding: 16px 19px;
     border-radius: 10px;
-    background:
-        rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .hero-total span {
@@ -1930,8 +1205,7 @@ function markDelivered(
 .stats-grid {
     margin-top: 18px;
     display: grid;
-    grid-template-columns:
-        repeat(4, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 13px;
 }
 
@@ -1965,8 +1239,7 @@ function markDelivered(
 .service-options {
     margin-top: 18px;
     display: grid;
-    grid-template-columns:
-        repeat(4, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
 }
 
@@ -2020,8 +1293,7 @@ function markDelivered(
     align-items: center;
     justify-content: space-between;
     gap: 20px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
 }
 
 .panel-label {
@@ -2068,8 +1340,7 @@ function markDelivered(
 }
 
 .form-panel {
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
@@ -2091,8 +1362,7 @@ function markDelivered(
 
 .form-grid {
     display: grid;
-    grid-template-columns:
-        repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 17px 19px;
 }
 
@@ -2185,8 +1455,7 @@ function markDelivered(
     display: flex;
     justify-content: flex-end;
     gap: 9px;
-    border-top:
-        1px solid #e5e9ef;
+    border-top: 1px solid #e5e9ef;
 }
 
 .filters {
@@ -2197,8 +1466,7 @@ function markDelivered(
         190px
         190px;
     gap: 10px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
@@ -2235,8 +1503,7 @@ th {
 
 td {
     padding: 14px;
-    border-top:
-        1px solid #e9edf3;
+    border-top: 1px solid #e9edf3;
     color: #5c6980;
     font-size: 10px;
 }
@@ -2367,13 +1634,11 @@ td {
     display: grid;
     place-items: center;
     padding: 20px;
-    background:
-        rgba(18, 29, 47, 0.5);
+    background: rgba(18, 29, 47, 0.5);
 }
 
 .modal {
-    width:
-        min(560px, 100%);
+    width: min(560px, 100%);
     overflow: hidden;
     border-radius: 11px;
     background: white;
@@ -2381,8 +1646,7 @@ td {
 
 .detail-grid {
     display: grid;
-    grid-template-columns:
-        repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
 }
 
@@ -2422,13 +1686,11 @@ td {
 @media (max-width: 950px) {
     .stats-grid,
     .service-options {
-        grid-template-columns:
-            repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .filters {
-        grid-template-columns:
-            1fr;
+        grid-template-columns: 1fr;
     }
 }
 
@@ -2437,16 +1699,13 @@ td {
     .panel-header,
     .form-header,
     .modal-header {
-        align-items:
-            flex-start;
-        flex-direction:
-            column;
+        align-items: flex-start;
+        flex-direction: column;
     }
 
     .form-grid,
     .detail-grid {
-        grid-template-columns:
-            1fr;
+        grid-template-columns: 1fr;
     }
 
     .form-field.full {
@@ -2455,16 +1714,14 @@ td {
 
     .hero-total {
         width: 100%;
-        box-sizing:
-            border-box;
+        box-sizing: border-box;
     }
 }
 
 @media (max-width: 520px) {
     .stats-grid,
     .service-options {
-        grid-template-columns:
-            1fr;
+        grid-template-columns: 1fr;
     }
 }
 </style>

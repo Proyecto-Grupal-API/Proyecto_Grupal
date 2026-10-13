@@ -14,6 +14,10 @@ class LoanService
 
     public const DEFAULT_LOAN_DAYS = 7;
 
+    public function __construct(
+        private FineService $fines
+    ) {}
+
     public function createLoan(
         BookCopy $copy,
         string $studentId,
@@ -74,6 +78,8 @@ class LoanService
             );
         }
 
+        $this->fines->ensureNoPendingFines($studentId);
+
         $existingLoan = Loan::query()
             ->where(
                 'copy_id',
@@ -128,7 +134,7 @@ class LoanService
         $this->refreshLoanStatus($loan);
 
         if (
-            !in_array(
+            ! in_array(
                 $loan->status,
                 ['active', 'overdue'],
                 true
@@ -162,8 +168,7 @@ class LoanService
             $loan->update([
                 'returned_at' => now(),
                 'status' => 'returned',
-                'notes' =>
-                    $notes ??
+                'notes' => $notes ??
                     $loan->notes,
             ]);
 
@@ -174,12 +179,9 @@ class LoanService
             return $loan->fresh();
         } catch (Throwable $exception) {
             $loan->update([
-                'returned_at' =>
-                    $previousReturnedAt,
-                'status' =>
-                    $previousStatus,
-                'notes' =>
-                    $previousNotes,
+                'returned_at' => $previousReturnedAt,
+                'status' => $previousStatus,
+                'notes' => $previousNotes,
             ]);
 
             throw $exception;
@@ -207,6 +209,10 @@ class LoanService
             );
         }
 
+        $this->fines->ensureNoPendingFines(
+            (string) $loan->student_id
+        );
+
         if (
             $additionalDays < 1 ||
             $additionalDays > 30
@@ -225,8 +231,7 @@ class LoanService
 
         $loan->update([
             'due_at' => $newDueDate,
-            'renewal_count' =>
-                $loan->renewal_count + 1,
+            'renewal_count' => $loan->renewal_count + 1,
         ]);
 
         return $loan->fresh();

@@ -2,14 +2,36 @@
 
 namespace App\Models\StudentServices\Reservations;
 
+use Carbon\CarbonInterface;
 use MongoDB\BSON\ObjectId;
 use MongoDB\Laravel\Eloquent\Model;
 
+/**
+ * @property-read string $id
+ * @property string $folio
+ * @property ObjectId|string $facility_id
+ * @property string $student_id
+ * @property CarbonInterface $start_at
+ * @property CarbonInterface $end_at
+ * @property string $status
+ * @property string|null $idempotency_key
+ * @property CarbonInterface|null $waitlisted_at
+ * @property CarbonInterface|null $promoted_at
+ * @property CarbonInterface|null $checked_in_at
+ * @property CarbonInterface|null $checked_out_at
+ * @property CarbonInterface|null $no_show_at
+ * @property CarbonInterface|null $expired_at
+ * @property CarbonInterface|null $cancelled_at
+ * @property string|null $cancelled_by
+ * @property string|null $cancellation_reason
+ * @property CarbonInterface|null $created_at
+ * @property CarbonInterface|null $updated_at
+ */
 class Reservation extends Model
 {
     protected $connection = 'mongodb';
 
-    protected $collection = 'reservations';
+    protected $table = 'reservations';
 
     protected $fillable = [
         'folio',
@@ -45,7 +67,7 @@ class Reservation extends Model
         ];
     }
 
-    public function setFacilityIdAttribute($value): void
+    public function setFacilityIdAttribute(mixed $value): void
     {
         $this->attributes['facility_id'] = $value instanceof ObjectId
             ? $value

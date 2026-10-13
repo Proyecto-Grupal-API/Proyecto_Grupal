@@ -7,7 +7,6 @@ use App\Models\StudentServices\Reservations\Reservation;
 use App\Models\StudentServices\RestSpaces\RestBooking;
 use App\Models\StudentServices\RestSpaces\RestSpace;
 use InvalidArgumentException;
-use MongoDB\Laravel\Eloquent\Model;
 
 /**
  * Modulo 5.10 - Registro de recursos que usan el motor de calendarios.
@@ -26,8 +25,8 @@ final class BookableResources
 
     /**
      * @return array<string, array{
-     *     resource: class-string<Model>,
-     *     booking: class-string<Model>,
+     *     resource: class-string<Facility|RestSpace>,
+     *     booking: class-string<Reservation|RestBooking>,
      *     foreign_key: string,
      *     label: string,
      *     folio_prefix: string,
@@ -92,8 +91,8 @@ final class BookableResources
 
     /**
      * @return array{
-     *     resource: class-string<Model>,
-     *     booking: class-string<Model>,
+     *     resource: class-string<Facility|RestSpace>,
+     *     booking: class-string<Reservation|RestBooking>,
      *     foreign_key: string,
      *     label: string,
      *     folio_prefix: string,
@@ -114,7 +113,7 @@ final class BookableResources
     }
 
     /**
-     * @return class-string<Model>
+     * @return class-string<Reservation|RestBooking>
      */
     public static function bookingModel(string $type): string
     {
@@ -122,7 +121,7 @@ final class BookableResources
     }
 
     /**
-     * @return class-string<Model>
+     * @return class-string<Facility|RestSpace>
      */
     public static function resourceModel(string $type): string
     {
@@ -134,7 +133,7 @@ final class BookableResources
         return self::definition($type)['foreign_key'];
     }
 
-    public static function findResource(string $type, string $resourceId): ?Model
+    public static function findResource(string $type, string $resourceId): Facility|RestSpace|null
     {
         $model = self::resourceModel($type);
 

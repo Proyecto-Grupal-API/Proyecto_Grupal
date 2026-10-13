@@ -22,8 +22,7 @@ class SupportTicketController extends Controller
 {
     public function __construct(
         private readonly SupportTicketService $supportTicketService
-    ) {
-    }
+    ) {}
 
     public function index(
         Request $request
@@ -45,8 +44,7 @@ class SupportTicketController extends Controller
                 )
                 ->get()
                 ->map(
-                    fn (SupportTicket $ticket) =>
-                    $this->ticketPayload(
+                    fn (SupportTicket $ticket) => $this->ticketPayload(
                         $ticket
                     )
                 )
@@ -55,8 +53,7 @@ class SupportTicketController extends Controller
         return Inertia::render(
             'student-services/support/Index',
             [
-                'tickets' =>
-                    $tickets,
+                'tickets' => $tickets,
             ]
         );
     }
@@ -91,12 +88,11 @@ class SupportTicketController extends Controller
                 'Ticket registrado correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'ticket' =>
-                        $exception->getMessage(),
+                    'ticket' => $exception->getMessage(),
                 ])
                 ->withInput();
         } catch (Throwable $exception) {
@@ -104,8 +100,7 @@ class SupportTicketController extends Controller
 
             return back()
                 ->withErrors([
-                    'ticket' =>
-                        'No fue posible registrar el ticket.',
+                    'ticket' => 'No fue posible registrar el ticket.',
                 ])
                 ->withInput();
         }
@@ -146,20 +141,18 @@ class SupportTicketController extends Controller
                 'Comentario agregado correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'ticket' =>
-                        $exception->getMessage(),
+                    'ticket' => $exception->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'ticket' =>
-                        'No fue posible agregar el comentario.',
+                    'ticket' => 'No fue posible agregar el comentario.',
                 ]);
         }
     }
@@ -196,20 +189,18 @@ class SupportTicketController extends Controller
                 'Ticket cancelado correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'ticket' =>
-                        $exception->getMessage(),
+                    'ticket' => $exception->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'ticket' =>
-                        'No fue posible cancelar el ticket.',
+                    'ticket' => 'No fue posible cancelar el ticket.',
                 ]);
         }
     }
@@ -255,20 +246,18 @@ class SupportTicketController extends Controller
                 'Estado actualizado correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'ticket' =>
-                        $exception->getMessage(),
+                    'ticket' => $exception->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'ticket' =>
-                        'No fue posible cambiar el estado del ticket.',
+                    'ticket' => 'No fue posible cambiar el estado del ticket.',
                 ]);
         }
     }
@@ -310,20 +299,18 @@ class SupportTicketController extends Controller
                 'Ticket asignado correctamente.'
             );
         } catch (
-        RuntimeException $exception
+            RuntimeException $exception
         ) {
             return back()
                 ->withErrors([
-                    'ticket' =>
-                        $exception->getMessage(),
+                    'ticket' => $exception->getMessage(),
                 ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withErrors([
-                    'ticket' =>
-                        'No fue posible asignar el ticket.',
+                    'ticket' => 'No fue posible asignar el ticket.',
                 ]);
         }
     }
@@ -359,6 +346,9 @@ class SupportTicketController extends Controller
         }
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function ticketPayload(
         SupportTicket $ticket
     ): array {
@@ -377,8 +367,7 @@ class SupportTicketController extends Controller
                 )
                 ->get()
                 ->map(
-                    fn (TicketEvent $event) =>
-                    $this->eventPayload(
+                    fn (TicketEvent $event) => $this->eventPayload(
                         $event,
                         $ticket
                     )
@@ -386,85 +375,68 @@ class SupportTicketController extends Controller
                 ->values();
 
         return [
-            'id' =>
-                (string)
+            'id' => (string)
                 $ticket->id,
 
-            'folio' =>
-                $ticket->folio,
+            'folio' => $ticket->folio,
 
-            'category' =>
-                $ticket->category,
+            'category' => $ticket->category,
 
-            'subject' =>
-                $ticket->subject,
+            'subject' => $ticket->subject,
 
-            'description' =>
-                $ticket->description,
+            'description' => $ticket->description,
 
-            'priority' =>
-                $ticket->priority,
+            'priority' => $ticket->priority,
 
-            'location' =>
-                $ticket->location,
+            'location' => $ticket->location,
 
-            'status' =>
-                $ticket->status,
+            'status' => $ticket->status,
 
-            'assignedTo' =>
-                $ticket->assigned_to,
+            'assignedTo' => $ticket->assigned_to,
 
-            'evidence' =>
-                $ticket->evidence_name,
+            'evidence' => $ticket->evidence_name,
 
-            'openedAt' =>
-                $ticket->opened_at
-                    ?->toISOString(),
+            'openedAt' => $ticket->opened_at
+                ?->toISOString(),
 
-            'slaDueAt' =>
-                $ticket->sla_due_at
-                    ?->toISOString(),
+            'slaDueAt' => $ticket->sla_due_at
+                ?->toISOString(),
 
-            'resolvedAt' =>
-                $ticket->resolved_at
-                    ?->toISOString(),
+            'resolvedAt' => $ticket->resolved_at
+                ?->toISOString(),
 
-            'closedAt' =>
-                $ticket->closed_at
-                    ?->toISOString(),
+            'closedAt' => $ticket->closed_at
+                ?->toISOString(),
 
-            'events' =>
-                $events,
+            'events' => $events,
         ];
     }
 
+    /**
+     * @return array{id: string, type: string, comment: string, user: string, createdAt: string|null}
+     */
     private function eventPayload(
         TicketEvent $event,
         SupportTicket $ticket
     ): array {
         return [
-            'id' =>
-                (string)
+            'id' => (string)
                 $event->id,
 
-            'type' =>
-                $this->eventTypeLabel(
-                    $event
-                ),
+            'type' => $this->eventTypeLabel(
+                $event
+            ),
 
-            'comment' =>
-                $event->message
+            'comment' => $event->message
                 ?? '',
 
-            'user' =>
-                $this->eventUserLabel(
-                    $event,
-                    $ticket
-                ),
+            'user' => $this->eventUserLabel(
+                $event,
+                $ticket
+            ),
 
-            'createdAt' =>
-                $event->created_at
-                    ?->toISOString(),
+            'createdAt' => $event->created_at
+                ?->toISOString(),
         ];
     }
 
@@ -497,19 +469,15 @@ class SupportTicketController extends Controller
             'status_changed'
         ) {
             return match (
-            $event->to_status
+                $event->to_status
             ) {
-                'resolved' =>
-                'Resolución',
+                'resolved' => 'Resolución',
 
-                'closed' =>
-                'Cierre',
+                'closed' => 'Cierre',
 
-                'cancelled' =>
-                'Cancelación',
+                'cancelled' => 'Cancelación',
 
-                default =>
-                'Cambio de estado',
+                default => 'Cambio de estado',
             };
         }
 

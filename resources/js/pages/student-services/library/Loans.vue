@@ -3,10 +3,7 @@ import StudentServicesLayout from '@/layouts/StudentServicesLayout.vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
-type LoanStatus =
-    | 'active'
-    | 'overdue'
-    | 'returned';
+type LoanStatus = 'active' | 'overdue' | 'returned';
 
 interface Loan {
     id: string;
@@ -37,13 +34,11 @@ const props = defineProps<{
 
 const search = ref('');
 
-const statusFilter =
-    ref<'all' | LoanStatus>('all');
+const statusFilter = ref<'all' | LoanStatus>('all');
 
 const showForm = ref(false);
 
-const processingActionId =
-    ref<string | null>(null);
+const processingActionId = ref<string | null>(null);
 
 const form = useForm({
     copy_id: '',
@@ -52,105 +47,56 @@ const form = useForm({
     notes: '',
 });
 
-const formErrors = computed(
-    () =>
-        form.errors as Record<
-            string,
-            string
-        >,
-);
+const formErrors = computed(() => form.errors as Record<string, string>);
 
 const selectedCopy = computed(() => {
     return (
-        props.availableCopies.find(
-            (copy) =>
-                copy.id ===
-                form.copy_id,
-        ) ?? null
+        props.availableCopies.find((copy) => copy.id === form.copy_id) ?? null
     );
 });
 
 const activeCount = computed(() => {
-    return props.loans.filter(
-        (loan) =>
-            loan.status === 'active',
-    ).length;
+    return props.loans.filter((loan) => loan.status === 'active').length;
 });
 
 const overdueCount = computed(() => {
-    return props.loans.filter(
-        (loan) =>
-            loan.status === 'overdue',
-    ).length;
+    return props.loans.filter((loan) => loan.status === 'overdue').length;
 });
 
 const returnedCount = computed(() => {
-    return props.loans.filter(
-        (loan) =>
-            loan.status === 'returned',
-    ).length;
+    return props.loans.filter((loan) => loan.status === 'returned').length;
 });
 
 const renewedCount = computed(() => {
-    return props.loans.filter(
-        (loan) =>
-            loan.renewal_count > 0,
-    ).length;
+    return props.loans.filter((loan) => loan.renewal_count > 0).length;
 });
 
-const loanFolio = (
-    loan: Loan,
-): string => {
-    const suffix = loan.id
-        .slice(-6)
-        .toUpperCase();
+const loanFolio = (loan: Loan): string => {
+    const suffix = loan.id.slice(-6).toUpperCase();
 
     return `PRE-${suffix}`;
 };
 
 const filteredLoans = computed(() => {
-    const value = search.value
-        .trim()
-        .toLowerCase();
+    const value = search.value.trim().toLowerCase();
 
-    return props.loans.filter(
-        (loan) => {
-            const matchesSearch =
-                value === '' ||
-                loanFolio(loan)
-                    .toLowerCase()
-                    .includes(value) ||
-                loan.copy_code
-                    .toLowerCase()
-                    .includes(value) ||
-                loan.book_title
-                    .toLowerCase()
-                    .includes(value) ||
-                loan.student_id
-                    .toLowerCase()
-                    .includes(value);
+    return props.loans.filter((loan) => {
+        const matchesSearch =
+            value === '' ||
+            loanFolio(loan).toLowerCase().includes(value) ||
+            loan.copy_code.toLowerCase().includes(value) ||
+            loan.book_title.toLowerCase().includes(value) ||
+            loan.student_id.toLowerCase().includes(value);
 
-            const matchesStatus =
-                statusFilter.value ===
-                'all' ||
-                loan.status ===
-                statusFilter.value;
+        const matchesStatus =
+            statusFilter.value === 'all' || loan.status === statusFilter.value;
 
-            return (
-                matchesSearch &&
-                matchesStatus
-            );
-        },
-    );
+        return matchesSearch && matchesStatus;
+    });
 });
 
-const statusLabel = (
-    status: LoanStatus,
-): string => {
-    const labels: Record<
-        LoanStatus,
-        string
-    > = {
+const statusLabel = (status: LoanStatus): string => {
+    const labels: Record<LoanStatus, string> = {
         active: 'Activo',
         overdue: 'Vencido',
         returned: 'Devuelto',
@@ -159,9 +105,7 @@ const statusLabel = (
     return labels[status];
 };
 
-const statusClass = (
-    status: LoanStatus,
-): string => {
+const statusClass = (status: LoanStatus): string => {
     return {
         active: 'status-active',
         overdue: 'status-overdue',
@@ -169,17 +113,14 @@ const statusClass = (
     }[status];
 };
 
-const formatDate = (
-    value: string | null,
-): string => {
+const formatDate = (value: string | null): string => {
     if (!value) {
         return '—';
     }
 
     const date = value.slice(0, 10);
 
-    const [year, month, day] =
-        date.split('-');
+    const [year, month, day] = date.split('-');
 
     return `${day}/${month}/${year}`;
 };
@@ -205,81 +146,54 @@ const closeForm = () => {
 
 const createLoan = () => {
     if (!form.copy_id) {
-        window.alert(
-            'Selecciona un ejemplar.',
-        );
+        window.alert('Selecciona un ejemplar.');
 
         return;
     }
 
     if (!form.student_id.trim()) {
-        window.alert(
-            'Ingresa el ID del estudiante.',
-        );
+        window.alert('Ingresa el ID del estudiante.');
 
         return;
     }
 
-    form.student_id =
-        form.student_id
-            .trim()
-            .toUpperCase();
+    form.student_id = form.student_id.trim().toUpperCase();
 
-    form.notes =
-        form.notes.trim();
+    form.notes = form.notes.trim();
 
-    form.post(
-        '/servicios-estudiante/biblioteca/prestamos',
-        {
-            preserveScroll: true,
+    form.post('/servicios-estudiante/biblioteca/prestamos', {
+        preserveScroll: true,
 
-            onSuccess: () => {
-                closeForm();
+        onSuccess: () => {
+            closeForm();
 
-                window.alert(
-                    'Préstamo registrado correctamente.',
-                );
-            },
+            window.alert('Préstamo registrado correctamente.');
         },
-    );
+    });
 };
 
-const renewLoan = (
-    loan: Loan,
-) => {
-    if (
-        loan.status !== 'active'
-    ) {
-        window.alert(
-            'Solo se pueden renovar préstamos activos.',
-        );
+const renewLoan = (loan: Loan) => {
+    if (loan.status !== 'active') {
+        window.alert('Solo se pueden renovar préstamos activos.');
 
         return;
     }
 
-    if (
-        loan.renewal_count >= 2
-    ) {
-        window.alert(
-            'Este préstamo alcanzó el máximo de 2 renovaciones.',
-        );
+    if (loan.renewal_count >= 2) {
+        window.alert('Este préstamo alcanzó el máximo de 2 renovaciones.');
 
         return;
     }
 
-    const confirmed =
-        window.confirm(
-            `¿Renovar el préstamo ${loanFolio(
-                loan,
-            )} por 7 días adicionales?`,
-        );
+    const confirmed = window.confirm(
+        `¿Renovar el préstamo ${loanFolio(loan)} por 7 días adicionales?`,
+    );
 
     if (!confirmed) {
         return;
     }
 
-    processingActionId.value =
-        loan.id;
+    processingActionId.value = loan.id;
 
     router.patch(
         `/servicios-estudiante/biblioteca/prestamos/${loan.id}/renovar`,
@@ -290,47 +204,36 @@ const renewLoan = (
             preserveScroll: true,
 
             onSuccess: () => {
-                window.alert(
-                    'Préstamo renovado correctamente.',
-                );
+                window.alert('Préstamo renovado correctamente.');
             },
 
             onError: (errors) => {
                 window.alert(
-                    errors.loan ??
-                    'No fue posible renovar el préstamo.',
+                    errors.loan ?? 'No fue posible renovar el préstamo.',
                 );
             },
 
             onFinish: () => {
-                processingActionId.value =
-                    null;
+                processingActionId.value = null;
             },
         },
     );
 };
 
-const returnLoan = (
-    loan: Loan,
-) => {
-    if (
-        loan.status !== 'active' &&
-        loan.status !== 'overdue'
-    ) {
+const returnLoan = (loan: Loan) => {
+    if (loan.status !== 'active' && loan.status !== 'overdue') {
         return;
     }
 
-    const confirmed =
-        window.confirm(
-            `¿Registrar la devolución del ejemplar ${loan.copy_code}?`,
-        );
+    const confirmed = window.confirm(
+        `¿Registrar la devolución del ejemplar ${loan.copy_code}?`,
+    );
 
     if (!confirmed) {
         return;
     }
 
-    processingActionId.value =
-        loan.id;
+    processingActionId.value = loan.id;
 
     router.patch(
         `/servicios-estudiante/biblioteca/prestamos/${loan.id}/devolver`,
@@ -341,51 +244,34 @@ const returnLoan = (
             preserveScroll: true,
 
             onSuccess: () => {
-                window.alert(
-                    'Devolución registrada correctamente.',
-                );
+                window.alert('Devolución registrada correctamente.');
             },
 
             onError: (errors) => {
                 window.alert(
-                    errors.loan ??
-                    'No fue posible registrar la devolución.',
+                    errors.loan ?? 'No fue posible registrar la devolución.',
                 );
             },
 
             onFinish: () => {
-                processingActionId.value =
-                    null;
+                processingActionId.value = null;
             },
         },
     );
 };
 
-const viewDetails = (
-    loan: Loan,
-) => {
+const viewDetails = (loan: Loan) => {
     const text = [
         `Folio: ${loanFolio(loan)}`,
         `Libro: ${loan.book_title}`,
         `Ejemplar: ${loan.copy_code}`,
         `Estudiante: ${loan.student_id}`,
-        `Préstamo: ${formatDate(
-            loan.borrowed_at,
-        )}`,
-        `Vencimiento: ${formatDate(
-            loan.due_at,
-        )}`,
-        `Devolución: ${formatDate(
-            loan.returned_at,
-        )}`,
-        `Estado: ${statusLabel(
-            loan.status,
-        )}`,
+        `Préstamo: ${formatDate(loan.borrowed_at)}`,
+        `Vencimiento: ${formatDate(loan.due_at)}`,
+        `Devolución: ${formatDate(loan.returned_at)}`,
+        `Estado: ${statusLabel(loan.status)}`,
         `Renovaciones: ${loan.renewal_count}/2`,
-        `Notas: ${
-            loan.notes ??
-            'Sin notas'
-        }`,
+        `Notas: ${loan.notes ?? 'Sin notas'}`,
     ].join('\n');
 
     window.alert(text);
@@ -399,104 +285,75 @@ const viewDetails = (
     >
         <section class="summary">
             <div>
-                <span class="section-label">
-                    BIBLIOTECA · MÓDULO 5.1
-                </span>
+                <span class="section-label"> BIBLIOTECA · MÓDULO 5.1 </span>
 
-                <h2>
-                    Gestión de préstamos
-                </h2>
+                <h2>Gestión de préstamos</h2>
 
                 <p>
-                    Consulta los préstamos de
-                    ejemplares, registra devoluciones
+                    Consulta los préstamos de ejemplares, registra devoluciones
                     y controla renovaciones.
                 </p>
             </div>
 
             <div class="total-box">
-                <span>
-                    Total registrados
-                </span>
+                <span> Total registrados </span>
 
                 <strong>
                     {{ loans.length }}
                 </strong>
 
-                <small>
-                    préstamos
-                </small>
+                <small> préstamos </small>
             </div>
         </section>
 
         <section class="stats-grid">
             <article class="stat-card">
-                <span>
-                    Activos
-                </span>
+                <span> Activos </span>
 
                 <strong>
                     {{ activeCount }}
                 </strong>
 
-                <small>
-                    Préstamos vigentes
-                </small>
+                <small> Préstamos vigentes </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Vencidos
-                </span>
+                <span> Vencidos </span>
 
                 <strong>
                     {{ overdueCount }}
                 </strong>
 
-                <small>
-                    Requieren atención
-                </small>
+                <small> Requieren atención </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Devueltos
-                </span>
+                <span> Devueltos </span>
 
                 <strong>
                     {{ returnedCount }}
                 </strong>
 
-                <small>
-                    Historial completado
-                </small>
+                <small> Historial completado </small>
             </article>
 
             <article class="stat-card">
-                <span>
-                    Renovados
-                </span>
+                <span> Renovados </span>
 
                 <strong>
                     {{ renewedCount }}
                 </strong>
 
-                <small>
-                    Con al menos una renovación
-                </small>
+                <small> Con al menos una renovación </small>
             </article>
         </section>
 
         <section class="content-panel">
             <div class="panel-header">
                 <div>
-                    <h3>
-                        Préstamos registrados
-                    </h3>
+                    <h3>Préstamos registrados</h3>
 
-                    <p>
-                        Datos almacenados en MongoDB.
-                    </p>
+                    <p>Datos almacenados en MongoDB.</p>
                 </div>
 
                 <button
@@ -508,23 +365,15 @@ const viewDetails = (
                 </button>
             </div>
 
-            <section
-                v-if="showForm"
-                class="form-panel"
-            >
+            <section v-if="showForm" class="form-panel">
                 <div class="form-header">
                     <div>
-                        <span class="form-label">
-                            NUEVO PRÉSTAMO
-                        </span>
+                        <span class="form-label"> NUEVO PRÉSTAMO </span>
 
-                        <h3>
-                            Registrar préstamo
-                        </h3>
+                        <h3>Registrar préstamo</h3>
 
                         <p>
-                            Selecciona un ejemplar
-                            disponible e indica el
+                            Selecciona un ejemplar disponible e indica el
                             estudiante.
                         </p>
                     </div>
@@ -538,26 +387,16 @@ const viewDetails = (
                     </button>
                 </div>
 
-                <form
-                    class="loan-form"
-                    @submit.prevent="createLoan"
-                >
+                <form class="loan-form" @submit.prevent="createLoan">
                     <div class="form-grid">
-                        <div
-                            class="form-field form-field-full"
-                        >
+                        <div class="form-field form-field-full">
                             <label for="copy_id">
                                 Ejemplar disponible
                                 <span>*</span>
                             </label>
 
-                            <select
-                                id="copy_id"
-                                v-model="form.copy_id"
-                            >
-                                <option value="">
-                                    Selecciona un ejemplar
-                                </option>
+                            <select id="copy_id" v-model="form.copy_id">
+                                <option value="">Selecciona un ejemplar</option>
 
                                 <option
                                     v-for="copy in availableCopies"
@@ -574,9 +413,7 @@ const viewDetails = (
                                 v-if="form.errors.copy_id"
                                 class="form-error"
                             >
-                                {{
-                                    form.errors.copy_id
-                                }}
+                                {{ form.errors.copy_id }}
                             </small>
                         </div>
 
@@ -594,94 +431,54 @@ const viewDetails = (
                             />
 
                             <small
-                                v-if="
-                                    form.errors.student_id
-                                "
+                                v-if="form.errors.student_id"
                                 class="form-error"
                             >
-                                {{
-                                    form.errors
-                                        .student_id
-                                }}
+                                {{ form.errors.student_id }}
                             </small>
                         </div>
 
                         <div class="form-field">
-                            <label for="loan_days">
-                                Duración
-                            </label>
+                            <label for="loan_days"> Duración </label>
 
-                            <select
-                                id="loan_days"
-                                v-model="form.loan_days"
-                            >
-                                <option :value="3">
-                                    3 días
-                                </option>
+                            <select id="loan_days" v-model="form.loan_days">
+                                <option :value="3">3 días</option>
 
-                                <option :value="7">
-                                    7 días
-                                </option>
+                                <option :value="7">7 días</option>
 
-                                <option :value="14">
-                                    14 días
-                                </option>
+                                <option :value="14">14 días</option>
                             </select>
                         </div>
 
-                        <div
-                            class="form-field form-field-full"
-                        >
-                            <label>
-                                Libro seleccionado
-                            </label>
+                        <div class="form-field form-field-full">
+                            <label> Libro seleccionado </label>
 
                             <input
                                 type="text"
-                                :value="
-                                    selectedCopy
-                                        ?.book_title ??
-                                    ''
-                                "
+                                :value="selectedCopy?.book_title ?? ''"
                                 placeholder="Selecciona un ejemplar"
                                 disabled
                             />
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Código del ejemplar
-                            </label>
+                            <label> Código del ejemplar </label>
 
                             <input
                                 type="text"
-                                :value="
-                                    selectedCopy
-                                        ?.code ??
-                                    ''
-                                "
+                                :value="selectedCopy?.code ?? ''"
                                 disabled
                             />
                         </div>
 
                         <div class="form-field">
-                            <label>
-                                Renovaciones
-                            </label>
+                            <label> Renovaciones </label>
 
-                            <input
-                                type="text"
-                                value="Máximo 2"
-                                disabled
-                            />
+                            <input type="text" value="Máximo 2" disabled />
                         </div>
 
-                        <div
-                            class="form-field form-field-full"
-                        >
-                            <label for="notes">
-                                Notas
-                            </label>
+                        <div class="form-field form-field-full">
+                            <label for="notes"> Notas </label>
 
                             <textarea
                                 id="notes"
@@ -696,29 +493,20 @@ const viewDetails = (
                         v-if="availableCopies.length === 0"
                         class="warning-box"
                     >
-                        Actualmente no hay
-                        ejemplares disponibles para
-                        realizar un nuevo préstamo.
+                        Actualmente no hay ejemplares disponibles para realizar
+                        un nuevo préstamo.
                     </div>
 
-                    <div
-                        v-if="formErrors.loan"
-                        class="error-box"
-                    >
+                    <div v-if="formErrors.loan" class="error-box">
                         {{ formErrors.loan }}
                     </div>
 
                     <div class="information-box">
-                        <strong>
-                            MongoDB:
-                        </strong>
+                        <strong> MongoDB: </strong>
 
-                        al registrar el préstamo se
-                        crea el documento en
-                        <code>loans</code> y el
-                        ejemplar cambia de
-                        <code>available</code> a
-                        <code>loaned</code>.
+                        al registrar el préstamo se crea el documento en
+                        <code>loans</code> y el ejemplar cambia de
+                        <code>available</code> a <code>loaned</code>.
                     </div>
 
                     <div class="form-actions">
@@ -734,9 +522,7 @@ const viewDetails = (
                             type="submit"
                             class="primary-button"
                             :disabled="
-                                form.processing ||
-                                availableCopies.length ===
-                                    0
+                                form.processing || availableCopies.length === 0
                             "
                         >
                             {{
@@ -758,217 +544,128 @@ const viewDetails = (
                     />
                 </div>
 
-                <select
-                    v-model="statusFilter"
-                >
-                    <option value="all">
-                        Todos los estados
-                    </option>
+                <select v-model="statusFilter">
+                    <option value="all">Todos los estados</option>
 
-                    <option value="active">
-                        Activos
-                    </option>
+                    <option value="active">Activos</option>
 
-                    <option value="overdue">
-                        Vencidos
-                    </option>
+                    <option value="overdue">Vencidos</option>
 
-                    <option value="returned">
-                        Devueltos
-                    </option>
+                    <option value="returned">Devueltos</option>
                 </select>
             </div>
 
-            <div
-                v-if="
-                    filteredLoans.length >
-                    0
-                "
-                class="table-container"
-            >
+            <div v-if="filteredLoans.length > 0" class="table-container">
                 <table>
                     <thead>
-                    <tr>
-                        <th>Folio</th>
-                        <th>
-                            Libro / ejemplar
-                        </th>
-                        <th>Estudiante</th>
-                        <th>Préstamo</th>
-                        <th>Vencimiento</th>
-                        <th>Renovaciones</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
+                        <tr>
+                            <th>Folio</th>
+                            <th>Libro / ejemplar</th>
+                            <th>Estudiante</th>
+                            <th>Préstamo</th>
+                            <th>Vencimiento</th>
+                            <th>Renovaciones</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    <tr
-                        v-for="
-                                loan in
-                                filteredLoans
-                            "
-                        :key="loan.id"
-                    >
-                        <td>
-                            <strong
-                                class="folio"
-                            >
-                                {{
-                                    loanFolio(
-                                        loan,
-                                    )
-                                }}
-                            </strong>
-                        </td>
-
-                        <td>
-                            <div
-                                class="book-info"
-                            >
-                                <strong>
-                                    {{
-                                        loan.book_title
-                                    }}
+                        <tr v-for="loan in filteredLoans" :key="loan.id">
+                            <td>
+                                <strong class="folio">
+                                    {{ loanFolio(loan) }}
                                 </strong>
+                            </td>
 
-                                <small>
-                                    {{
-                                        loan.copy_code
-                                    }}
-                                </small>
-                            </div>
-                        </td>
+                            <td>
+                                <div class="book-info">
+                                    <strong>
+                                        {{ loan.book_title }}
+                                    </strong>
 
-                        <td>
-                                <span
-                                    class="student-id"
-                                >
-                                    {{
-                                        loan.student_id
-                                    }}
+                                    <small>
+                                        {{ loan.copy_code }}
+                                    </small>
+                                </div>
+                            </td>
+
+                            <td>
+                                <span class="student-id">
+                                    {{ loan.student_id }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            {{
-                                formatDate(
-                                    loan.borrowed_at,
-                                )
-                            }}
-                        </td>
+                            <td>
+                                {{ formatDate(loan.borrowed_at) }}
+                            </td>
 
-                        <td>
-                            {{
-                                formatDate(
-                                    loan.due_at,
-                                )
-                            }}
-                        </td>
+                            <td>
+                                {{ formatDate(loan.due_at) }}
+                            </td>
 
-                        <td>
-                                <span
-                                    class="renewal-count"
-                                >
-                                    {{
-                                        loan.renewal_count
-                                    }}/2
+                            <td>
+                                <span class="renewal-count">
+                                    {{ loan.renewal_count }}/2
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
+                            <td>
                                 <span
                                     class="status"
-                                    :class="
-                                        statusClass(
-                                            loan.status,
-                                        )
-                                    "
+                                    :class="statusClass(loan.status)"
                                 >
-                                    {{
-                                        statusLabel(
-                                            loan.status,
-                                        )
-                                    }}
+                                    {{ statusLabel(loan.status) }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            <div
-                                class="actions"
-                            >
-                                <button
-                                    type="button"
-                                    class="action-button details"
-                                    @click="
-                                            viewDetails(
-                                                loan,
-                                            )
-                                        "
-                                >
-                                    Ver
-                                </button>
+                            <td>
+                                <div class="actions">
+                                    <button
+                                        type="button"
+                                        class="action-button details"
+                                        @click="viewDetails(loan)"
+                                    >
+                                        Ver
+                                    </button>
 
-                                <button
-                                    v-if="
-                                            loan.status ===
-                                            'active'
+                                    <button
+                                        v-if="loan.status === 'active'"
+                                        type="button"
+                                        class="action-button renew"
+                                        :disabled="
+                                            processingActionId === loan.id
                                         "
-                                    type="button"
-                                    class="action-button renew"
-                                    :disabled="
-                                            processingActionId ===
-                                            loan.id
-                                        "
-                                    @click="
-                                            renewLoan(
-                                                loan,
-                                            )
-                                        "
-                                >
-                                    Renovar
-                                </button>
+                                        @click="renewLoan(loan)"
+                                    >
+                                        Renovar
+                                    </button>
 
-                                <button
-                                    v-if="
-                                            loan.status ===
-                                                'active' ||
-                                            loan.status ===
-                                                'overdue'
+                                    <button
+                                        v-if="
+                                            loan.status === 'active' ||
+                                            loan.status === 'overdue'
                                         "
-                                    type="button"
-                                    class="action-button return"
-                                    :disabled="
-                                            processingActionId ===
-                                            loan.id
+                                        type="button"
+                                        class="action-button return"
+                                        :disabled="
+                                            processingActionId === loan.id
                                         "
-                                    @click="
-                                            returnLoan(
-                                                loan,
-                                            )
-                                        "
-                                >
-                                    Devolver
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                                        @click="returnLoan(loan)"
+                                    >
+                                        Devolver
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div
-                v-else
-                class="empty-state"
-            >
-                <h3>
-                    No se encontraron préstamos
-                </h3>
+            <div v-else class="empty-state">
+                <h3>No se encontraron préstamos</h3>
 
-                <p>
-                    Cambia los filtros o
-                    registra un nuevo préstamo.
-                </p>
+                <p>Cambia los filtros o registra un nuevo préstamo.</p>
             </div>
         </section>
     </StudentServicesLayout>
@@ -1013,13 +710,7 @@ const viewDetails = (
     min-width: 150px;
     padding: 16px 19px;
     border-radius: 10px;
-    background:
-        rgba(
-            255,
-            255,
-            255,
-            0.1
-        );
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .total-box span {
@@ -1042,8 +733,7 @@ const viewDetails = (
 .stats-grid {
     margin-top: 18px;
     display: grid;
-    grid-template-columns:
-        repeat(4, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 13px;
 }
 
@@ -1092,8 +782,7 @@ const viewDetails = (
 }
 
 .panel-header {
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
 }
 
 .panel-header h3,
@@ -1122,8 +811,7 @@ const viewDetails = (
 }
 
 .primary-button {
-    border:
-        1px solid #2c63b7;
+    border: 1px solid #2c63b7;
     background: #2c63b7;
     color: white;
 }
@@ -1134,21 +822,18 @@ const viewDetails = (
 }
 
 .secondary-button {
-    border:
-        1px solid #d6dee9;
+    border: 1px solid #d6dee9;
     background: white;
     color: #55667d;
 }
 
 .form-panel {
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
 .form-header {
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
 }
 
 .form-header .form-label {
@@ -1158,8 +843,7 @@ const viewDetails = (
 .close-button {
     width: 34px;
     height: 34px;
-    border:
-        1px solid #d8e0ea;
+    border: 1px solid #d8e0ea;
     border-radius: 7px;
     background: white;
     color: #657389;
@@ -1173,8 +857,7 @@ const viewDetails = (
 
 .form-grid {
     display: grid;
-    grid-template-columns:
-        repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 17px 19px;
 }
 
@@ -1200,8 +883,7 @@ const viewDetails = (
     width: 100%;
     box-sizing: border-box;
     padding: 10px 11px;
-    border:
-        1px solid #d4dde8;
+    border: 1px solid #d4dde8;
     border-radius: 7px;
     outline: none;
     background: white;
@@ -1214,14 +896,7 @@ const viewDetails = (
 .form-field select:focus,
 .form-field textarea:focus {
     border-color: #3970c1;
-    box-shadow:
-        0 0 0 3px
-        rgba(
-            57,
-            112,
-            193,
-            0.08
-        );
+    box-shadow: 0 0 0 3px rgba(57, 112, 193, 0.08);
 }
 
 .form-field input:disabled {
@@ -1251,8 +926,7 @@ const viewDetails = (
 }
 
 .information-box {
-    border:
-        1px solid #d5e1f1;
+    border: 1px solid #d5e1f1;
     background: #eef4fc;
     color: #657690;
 }
@@ -1266,15 +940,13 @@ const viewDetails = (
 }
 
 .warning-box {
-    border:
-        1px solid #ead7aa;
+    border: 1px solid #ead7aa;
     background: #fff8e6;
     color: #86631b;
 }
 
 .error-box {
-    border:
-        1px solid #e8c9cc;
+    border: 1px solid #e8c9cc;
     background: #fcedee;
     color: #9d434c;
 }
@@ -1285,8 +957,7 @@ const viewDetails = (
     display: flex;
     justify-content: flex-end;
     gap: 9px;
-    border-top:
-        1px solid #e5e9ef;
+    border-top: 1px solid #e5e9ef;
 }
 
 .filters {
@@ -1295,8 +966,7 @@ const viewDetails = (
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
@@ -1308,8 +978,7 @@ const viewDetails = (
 .filters select {
     height: 38px;
     box-sizing: border-box;
-    border:
-        1px solid #d7dfe9;
+    border: 1px solid #d7dfe9;
     border-radius: 7px;
     outline: none;
     background: white;
@@ -1349,8 +1018,7 @@ th {
 
 td {
     padding: 14px;
-    border-top:
-        1px solid #e9edf3;
+    border-top: 1px solid #e9edf3;
     color: #5c6980;
     font-size: 11px;
     vertical-align: middle;
@@ -1441,22 +1109,19 @@ tbody tr:hover {
 }
 
 .action-button.details {
-    border:
-        1px solid #c8d8ee;
+    border: 1px solid #c8d8ee;
     background: #edf3fc;
     color: #2c5c9f;
 }
 
 .action-button.renew {
-    border:
-        1px solid #ead7aa;
+    border: 1px solid #ead7aa;
     background: #fff8e6;
     color: #936814;
 }
 
 .action-button.return {
-    border:
-        1px solid #c3e2d1;
+    border: 1px solid #c3e2d1;
     background: #eaf7f0;
     color: #26734c;
 }
@@ -1480,8 +1145,7 @@ tbody tr:hover {
 
 @media (max-width: 1000px) {
     .stats-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
@@ -1520,8 +1184,7 @@ tbody tr:hover {
     }
 
     .form-actions {
-        flex-direction:
-            column-reverse;
+        flex-direction: column-reverse;
     }
 }
 </style>

@@ -10,11 +10,7 @@ interface Locker {
     building: string;
     zone: string;
     size: 'small' | 'medium' | 'large';
-    status:
-        | 'available'
-        | 'reserved'
-        | 'occupied'
-        | 'maintenance';
+    status: 'available' | 'reserved' | 'occupied' | 'maintenance';
     notes: string | null;
 }
 
@@ -46,8 +42,7 @@ const props = defineProps<{
     summary: Summary;
 }>();
 
-const BASE_URL =
-    '/servicios-estudiante/lockers';
+const BASE_URL = '/servicios-estudiante/lockers';
 
 const search = ref('');
 const buildingFilter = ref('');
@@ -56,8 +51,7 @@ const statusFilter = ref('');
 
 const showForm = ref(false);
 
-const editingLocker =
-    ref<Locker | null>(null);
+const editingLocker = ref<Locker | null>(null);
 
 const form = useForm({
     code: '',
@@ -68,120 +62,66 @@ const form = useForm({
 });
 
 const buildings = computed(() => {
-    return [
-        ...new Set(
-            props.lockers.map(
-                (locker) =>
-                    locker.building,
-            ),
-        ),
-    ].sort();
+    return [...new Set(props.lockers.map((locker) => locker.building))].sort();
 });
 
 const zones = computed(() => {
-    return [
-        ...new Set(
-            props.lockers.map(
-                (locker) =>
-                    locker.zone,
-            ),
-        ),
-    ].sort();
+    return [...new Set(props.lockers.map((locker) => locker.zone))].sort();
 });
 
 const isLocked = computed(() => {
     return (
-        editingLocker.value !==
-        null &&
-        [
-            'occupied',
-            'reserved',
-        ].includes(
-            editingLocker.value.status,
-        )
+        editingLocker.value !== null &&
+        ['occupied', 'reserved'].includes(editingLocker.value.status)
     );
 });
 
 const statusError = computed(
-    () =>
-        (
-            form.errors as Record<
-                string,
-                string | undefined
-            >
-        ).status,
+    () => (form.errors as Record<string, string | undefined>).status,
 );
 
-const filteredLockers = computed(
-    () => {
-        const term =
-            search.value
-                .trim()
-                .toLowerCase();
+const filteredLockers = computed(() => {
+    const term = search.value.trim().toLowerCase();
 
-        return props.lockers.filter(
-            (locker) => {
-                if (
-                    buildingFilter.value &&
-                    locker.building !==
-                    buildingFilter.value
-                ) {
-                    return false;
-                }
+    return props.lockers.filter((locker) => {
+        if (buildingFilter.value && locker.building !== buildingFilter.value) {
+            return false;
+        }
 
-                if (
-                    sizeFilter.value &&
-                    locker.size !==
-                    sizeFilter.value
-                ) {
-                    return false;
-                }
+        if (sizeFilter.value && locker.size !== sizeFilter.value) {
+            return false;
+        }
 
-                if (
-                    statusFilter.value &&
-                    locker.status !==
-                    statusFilter.value
-                ) {
-                    return false;
-                }
+        if (statusFilter.value && locker.status !== statusFilter.value) {
+            return false;
+        }
 
-                if (!term) {
-                    return true;
-                }
+        if (!term) {
+            return true;
+        }
 
-                return [
-                    locker.code,
-                    locker.building,
-                    locker.zone,
-                    locker.qr_code,
-                    locker.notes ?? '',
-                ].some((value) =>
-                    value
-                        .toLowerCase()
-                        .includes(term),
-                );
-            },
-        );
-    },
-);
+        return [
+            locker.code,
+            locker.building,
+            locker.zone,
+            locker.qr_code,
+            locker.notes ?? '',
+        ].some((value) => value.toLowerCase().includes(term));
+    });
+});
 
-function statusLabel(
-    status: Locker['status'],
-): string {
+function statusLabel(status: Locker['status']): string {
     const labels = {
         available: 'Disponible',
         reserved: 'Reservado',
         occupied: 'Ocupado',
-        maintenance:
-            'Mantenimiento',
+        maintenance: 'Mantenimiento',
     };
 
     return labels[status];
 }
 
-function sizeLabel(
-    size: Locker['size'],
-): string {
+function sizeLabel(size: Locker['size']): string {
     const labels = {
         small: 'Chico',
         medium: 'Mediano',
@@ -191,42 +131,29 @@ function sizeLabel(
     return labels[size];
 }
 
-function money(
-    value: string | null,
-): string {
+function money(value: string | null): string {
     if (value === null) {
         return '—';
     }
 
-    const numberValue =
-        Number(value);
+    const numberValue = Number(value);
 
-    if (
-        Number.isNaN(numberValue)
-    ) {
+    if (Number.isNaN(numberValue)) {
         return `$${value}`;
     }
 
-    return new Intl.NumberFormat(
-        'es-MX',
-        {
-            style: 'currency',
-            currency: 'MXN',
-        },
-    ).format(numberValue);
+    return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+    }).format(numberValue);
 }
 
-function formatDate(
-    value: string | null,
-): string {
+function formatDate(value: string | null): string {
     if (!value) {
         return '—';
     }
 
-    const parts =
-        value
-            .slice(0, 10)
-            .split('-');
+    const parts = value.slice(0, 10).split('-');
 
     if (parts.length !== 3) {
         return value;
@@ -249,20 +176,16 @@ function openCreateForm() {
     });
 }
 
-function openEditForm(
-    locker: Locker,
-) {
+function openEditForm(locker: Locker) {
     editingLocker.value = locker;
 
     form.clearErrors();
 
     form.code = locker.code;
-    form.building =
-        locker.building;
+    form.building = locker.building;
     form.zone = locker.zone;
     form.size = locker.size;
-    form.notes =
-        locker.notes ?? '';
+    form.notes = locker.notes ?? '';
 
     showForm.value = true;
 
@@ -282,10 +205,7 @@ function closeForm() {
 }
 
 function submitLocker() {
-    if (
-        editingLocker.value ===
-        null
-    ) {
+    if (editingLocker.value === null) {
         form.post(BASE_URL, {
             preserveScroll: true,
 
@@ -297,26 +217,17 @@ function submitLocker() {
         return;
     }
 
-    form.patch(
-        `${BASE_URL}/${editingLocker.value.id}`,
-        {
-            preserveScroll: true,
+    form.patch(`${BASE_URL}/${editingLocker.value.id}`, {
+        preserveScroll: true,
 
-            onSuccess: () => {
-                closeForm();
-            },
+        onSuccess: () => {
+            closeForm();
         },
-    );
+    });
 }
 
-function runAction(
-    locker: Locker,
-    action: string,
-    message: string,
-) {
-    if (
-        !window.confirm(message)
-    ) {
+function runAction(locker: Locker, action: string, message: string) {
+    if (!window.confirm(message)) {
         return;
     }
 
@@ -326,24 +237,16 @@ function runAction(
         {
             preserveScroll: true,
 
-            onError: (
-                errors,
-            ) => {
-                if (
-                    errors.status
-                ) {
-                    window.alert(
-                        errors.status,
-                    );
+            onError: (errors) => {
+                if (errors.status) {
+                    window.alert(errors.status);
                 }
             },
         },
     );
 }
 
-function sendToMaintenance(
-    locker: Locker,
-) {
+function sendToMaintenance(locker: Locker) {
     runAction(
         locker,
         'mantenimiento',
@@ -351,9 +254,7 @@ function sendToMaintenance(
     );
 }
 
-function restoreAvailable(
-    locker: Locker,
-) {
+function restoreAvailable(locker: Locker) {
     runAction(
         locker,
         'disponible',
@@ -369,318 +270,168 @@ function restoreAvailable(
     >
         <section class="hero">
             <div>
-                <span class="hero-label">
-                    SERVICIOS · MÓDULO 5.3
-                </span>
+                <span class="hero-label"> SERVICIOS · MÓDULO 5.3 </span>
 
-                <h2>
-                    Lockers estudiantiles
-                </h2>
+                <h2>Lockers estudiantiles</h2>
 
                 <p>
-                    Consulta y administra los
-                    lockers disponibles en el
-                    campus, su ubicación,
-                    tamaño, estado y periodo
-                    de servicio.
+                    Consulta y administra los lockers disponibles en el campus,
+                    su ubicación, tamaño, estado y periodo de servicio.
                 </p>
             </div>
 
             <div class="hero-total">
-                <span>
-                    Total de lockers
-                </span>
+                <span> Total de lockers </span>
 
                 <strong>
                     {{ summary.total }}
                 </strong>
 
-                <small>
-                    registrados en MongoDB
-                </small>
+                <small> registrados en MongoDB </small>
             </div>
         </section>
 
         <section class="stats-grid">
-            <article
-                class="stat-card"
-            >
-                <div
-                    class="stat-top"
-                >
-                    <span>
-                        Disponibles
-                    </span>
+            <article class="stat-card">
+                <div class="stat-top">
+                    <span> Disponibles </span>
 
-                    <span
-                        class="stat-dot available"
-                    />
+                    <span class="stat-dot available" />
                 </div>
 
                 <strong>
-                    {{
-                        summary.available
-                    }}
+                    {{ summary.available }}
                 </strong>
 
-                <small>
-                    Listos para asignar
-                </small>
+                <small> Listos para asignar </small>
             </article>
 
-            <article
-                class="stat-card"
-            >
-                <div
-                    class="stat-top"
-                >
-                    <span>
-                        Reservados
-                    </span>
+            <article class="stat-card">
+                <div class="stat-top">
+                    <span> Reservados </span>
 
-                    <span
-                        class="stat-dot reserved"
-                    />
+                    <span class="stat-dot reserved" />
                 </div>
 
                 <strong>
-                    {{
-                        summary.reserved
-                    }}
+                    {{ summary.reserved }}
                 </strong>
 
-                <small>
-                    Apartados temporalmente
-                </small>
+                <small> Apartados temporalmente </small>
             </article>
 
-            <article
-                class="stat-card"
-            >
-                <div
-                    class="stat-top"
-                >
-                    <span>
-                        Ocupados
-                    </span>
+            <article class="stat-card">
+                <div class="stat-top">
+                    <span> Ocupados </span>
 
-                    <span
-                        class="stat-dot occupied"
-                    />
+                    <span class="stat-dot occupied" />
                 </div>
 
                 <strong>
-                    {{
-                        summary.occupied
-                    }}
+                    {{ summary.occupied }}
                 </strong>
 
-                <small>
-                    Con asignación activa
-                </small>
+                <small> Con asignación activa </small>
             </article>
 
-            <article
-                class="stat-card"
-            >
-                <div
-                    class="stat-top"
-                >
-                    <span>
-                        Mantenimiento
-                    </span>
+            <article class="stat-card">
+                <div class="stat-top">
+                    <span> Mantenimiento </span>
 
-                    <span
-                        class="stat-dot maintenance"
-                    />
+                    <span class="stat-dot maintenance" />
                 </div>
 
                 <strong>
-                    {{
-                        summary.maintenance
-                    }}
+                    {{ summary.maintenance }}
                 </strong>
 
-                <small>
-                    Fuera de servicio
-                </small>
+                <small> Fuera de servicio </small>
             </article>
         </section>
 
-        <section
-            class="module-navigation"
-        >
-            <Link
-                :href="BASE_URL"
-                class="module-link active"
-            >
-                Catálogo
-            </Link>
+        <section class="module-navigation">
+            <Link :href="BASE_URL" class="module-link active"> Catálogo </Link>
 
-            <Link
-                :href="`${BASE_URL}/periodos`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/periodos`" class="module-link">
                 Periodos y costos
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/solicitudes`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/solicitudes`" class="module-link">
                 Solicitudes
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/asignaciones`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/asignaciones`" class="module-link">
                 Asignaciones
             </Link>
 
-            <Link
-                :href="`${BASE_URL}/acceso`"
-                class="module-link"
-            >
+            <Link :href="`${BASE_URL}/acceso`" class="module-link">
                 Validar acceso
             </Link>
         </section>
 
-        <section
-            v-if="
-                periods.length > 0
-            "
-            class="content-panel"
-        >
-            <div
-                class="panel-header"
-            >
+        <section v-if="periods.length > 0" class="content-panel">
+            <div class="panel-header">
                 <div>
-                    <span
-                        class="panel-label"
-                    >
-                        PERIODOS ACTIVOS
-                    </span>
+                    <span class="panel-label"> PERIODOS ACTIVOS </span>
 
-                    <h3>
-                        Costos de renta
-                    </h3>
+                    <h3>Costos de renta</h3>
 
-                    <p>
-                        Precios vigentes
-                        según el tamaño del
-                        locker.
-                    </p>
+                    <p>Precios vigentes según el tamaño del locker.</p>
                 </div>
 
-                <Link
-                    :href="`${BASE_URL}/periodos`"
-                    class="secondary-button"
-                >
+                <Link :href="`${BASE_URL}/periodos`" class="secondary-button">
                     Administrar periodos
                 </Link>
             </div>
 
-            <div
-                class="period-grid"
-            >
+            <div class="period-grid">
                 <article
-                    v-for="
-                        period in periods
-                    "
-                    :key="
-                        period.id
-                    "
+                    v-for="period in periods"
+                    :key="period.id"
                     class="period-card"
                 >
-                    <div
-                        class="period-heading"
-                    >
+                    <div class="period-heading">
                         <div>
                             <strong>
-                                {{
-                                    period.name
-                                }}
+                                {{ period.name }}
                             </strong>
 
                             <span>
-                                {{
-                                    period.code
-                                }}
+                                {{ period.code }}
                             </span>
                         </div>
 
-                        <span
-                            class="active-badge"
-                        >
-                            Activo
-                        </span>
+                        <span class="active-badge"> Activo </span>
                     </div>
 
-                    <p
-                        class="period-dates"
-                    >
-                        {{
-                            formatDate(
-                                period.starts_at,
-                            )
-                        }}
+                    <p class="period-dates">
+                        {{ formatDate(period.starts_at) }}
                         —
-                        {{
-                            formatDate(
-                                period.ends_at,
-                            )
-                        }}
+                        {{ formatDate(period.ends_at) }}
                     </p>
 
-                    <div
-                        class="prices"
-                    >
+                    <div class="prices">
                         <div>
-                            <span>
-                                Chico
-                            </span>
+                            <span> Chico </span>
 
                             <strong>
-                                {{
-                                    money(
-                                        period
-                                            .prices
-                                            .small,
-                                    )
-                                }}
+                                {{ money(period.prices.small) }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Mediano
-                            </span>
+                            <span> Mediano </span>
 
                             <strong>
-                                {{
-                                    money(
-                                        period
-                                            .prices
-                                            .medium,
-                                    )
-                                }}
+                                {{ money(period.prices.medium) }}
                             </strong>
                         </div>
 
                         <div>
-                            <span>
-                                Grande
-                            </span>
+                            <span> Grande </span>
 
                             <strong>
-                                {{
-                                    money(
-                                        period
-                                            .prices
-                                            .large,
-                                    )
-                                }}
+                                {{ money(period.prices.large) }}
                             </strong>
                         </div>
                     </div>
@@ -688,56 +439,31 @@ function restoreAvailable(
             </div>
         </section>
 
-        <section
-            class="content-panel"
-        >
-            <div
-                class="panel-header"
-            >
+        <section class="content-panel">
+            <div class="panel-header">
                 <div>
-                    <span
-                        class="panel-label"
-                    >
-                        CATÁLOGO
-                    </span>
+                    <span class="panel-label"> CATÁLOGO </span>
 
-                    <h3>
-                        Lockers registrados
-                    </h3>
+                    <h3>Lockers registrados</h3>
 
-                    <p>
-                        Datos obtenidos
-                        directamente desde
-                        MongoDB.
-                    </p>
+                    <p>Datos obtenidos directamente desde MongoDB.</p>
                 </div>
 
                 <button
                     type="button"
                     class="primary-button"
-                    @click="
-                        openCreateForm
-                    "
+                    @click="openCreateForm"
                 >
                     + Agregar locker
                 </button>
             </div>
 
-            <section
-                v-if="showForm"
-                class="form-panel"
-            >
-                <div
-                    class="form-header"
-                >
+            <section v-if="showForm" class="form-panel">
+                <div class="form-header">
                     <div>
-                        <span
-                            class="panel-label"
-                        >
+                        <span class="panel-label">
                             {{
-                                editingLocker
-                                ===
-                                null
+                                editingLocker === null
                                     ? 'NUEVO LOCKER'
                                     : 'EDITAR LOCKER'
                             }}
@@ -745,9 +471,7 @@ function restoreAvailable(
 
                         <h3>
                             {{
-                                editingLocker
-                                ===
-                                null
+                                editingLocker === null
                                     ? 'Registrar locker'
                                     : `Editar ${editingLocker.code}`
                             }}
@@ -755,9 +479,7 @@ function restoreAvailable(
 
                         <p>
                             {{
-                                editingLocker
-                                ===
-                                null
+                                editingLocker === null
                                     ? 'Agrega un locker físico al catálogo.'
                                     : 'Actualiza los datos del locker seleccionado.'
                             }}
@@ -767,324 +489,160 @@ function restoreAvailable(
                     <button
                         type="button"
                         class="close-button"
-                        @click="
-                            closeForm
-                        "
+                        @click="closeForm"
                     >
                         ×
                     </button>
                 </div>
 
-                <form
-                    class="locker-form"
-                    @submit.prevent="
-                        submitLocker
-                    "
-                >
-                    <div
-                        class="form-grid"
-                    >
-                        <div
-                            class="form-field"
-                        >
-                            <label
-                                for="locker-code"
-                            >
+                <form class="locker-form" @submit.prevent="submitLocker">
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label for="locker-code">
                                 Código
                                 <span>*</span>
                             </label>
 
                             <input
                                 id="locker-code"
-                                v-model="
-                                    form.code
-                                "
+                                v-model="form.code"
                                 type="text"
                                 placeholder="LKR-A-PB-001"
-                                :disabled="
-                                    isLocked
-                                "
+                                :disabled="isLocked"
                             />
 
-                            <small
-                                v-if="
-                                    form.errors
-                                        .code
-                                "
-                                class="field-error"
-                            >
-                                {{
-                                    form
-                                        .errors
-                                        .code
-                                }}
+                            <small v-if="form.errors.code" class="field-error">
+                                {{ form.errors.code }}
                             </small>
                         </div>
 
-                        <div
-                            class="form-field"
-                        >
-                            <label
-                                for="locker-size"
-                            >
+                        <div class="form-field">
+                            <label for="locker-size">
                                 Tamaño
                                 <span>*</span>
                             </label>
 
                             <select
                                 id="locker-size"
-                                v-model="
-                                    form.size
-                                "
-                                :disabled="
-                                    isLocked
-                                "
+                                v-model="form.size"
+                                :disabled="isLocked"
                             >
-                                <option
-                                    value=""
-                                >
-                                    Selecciona
-                                </option>
+                                <option value="">Selecciona</option>
 
-                                <option
-                                    value="small"
-                                >
-                                    Chico
-                                </option>
+                                <option value="small">Chico</option>
 
-                                <option
-                                    value="medium"
-                                >
-                                    Mediano
-                                </option>
+                                <option value="medium">Mediano</option>
 
-                                <option
-                                    value="large"
-                                >
-                                    Grande
-                                </option>
+                                <option value="large">Grande</option>
                             </select>
 
-                            <small
-                                v-if="
-                                    form.errors
-                                        .size
-                                "
-                                class="field-error"
-                            >
-                                {{
-                                    form
-                                        .errors
-                                        .size
-                                }}
+                            <small v-if="form.errors.size" class="field-error">
+                                {{ form.errors.size }}
                             </small>
                         </div>
 
-                        <div
-                            class="form-field"
-                        >
-                            <label
-                                for="locker-building"
-                            >
+                        <div class="form-field">
+                            <label for="locker-building">
                                 Edificio
                                 <span>*</span>
                             </label>
 
                             <input
                                 id="locker-building"
-                                v-model="
-                                    form.building
-                                "
+                                v-model="form.building"
                                 type="text"
                                 list="building-options"
                                 placeholder="Edificio A"
-                                :disabled="
-                                    isLocked
-                                "
+                                :disabled="isLocked"
                             />
 
-                            <datalist
-                                id="building-options"
-                            >
+                            <datalist id="building-options">
                                 <option
-                                    v-for="
-                                        building in buildings
-                                    "
-                                    :key="
-                                        building
-                                    "
-                                    :value="
-                                        building
-                                    "
+                                    v-for="building in buildings"
+                                    :key="building"
+                                    :value="building"
                                 />
                             </datalist>
 
                             <small
-                                v-if="
-                                    form.errors
-                                        .building
-                                "
+                                v-if="form.errors.building"
                                 class="field-error"
                             >
-                                {{
-                                    form
-                                        .errors
-                                        .building
-                                }}
+                                {{ form.errors.building }}
                             </small>
                         </div>
 
-                        <div
-                            class="form-field"
-                        >
-                            <label
-                                for="locker-zone"
-                            >
+                        <div class="form-field">
+                            <label for="locker-zone">
                                 Zona
                                 <span>*</span>
                             </label>
 
                             <input
                                 id="locker-zone"
-                                v-model="
-                                    form.zone
-                                "
+                                v-model="form.zone"
                                 type="text"
                                 list="zone-options"
                                 placeholder="Planta baja"
-                                :disabled="
-                                    isLocked
-                                "
+                                :disabled="isLocked"
                             />
 
-                            <datalist
-                                id="zone-options"
-                            >
+                            <datalist id="zone-options">
                                 <option
-                                    v-for="
-                                        zone in zones
-                                    "
-                                    :key="
-                                        zone
-                                    "
-                                    :value="
-                                        zone
-                                    "
+                                    v-for="zone in zones"
+                                    :key="zone"
+                                    :value="zone"
                                 />
                             </datalist>
 
-                            <small
-                                v-if="
-                                    form.errors
-                                        .zone
-                                "
-                                class="field-error"
-                            >
-                                {{
-                                    form
-                                        .errors
-                                        .zone
-                                }}
+                            <small v-if="form.errors.zone" class="field-error">
+                                {{ form.errors.zone }}
                             </small>
                         </div>
 
-                        <div
-                            class="form-field full"
-                        >
-                            <label
-                                for="locker-notes"
-                            >
-                                Notas
-                            </label>
+                        <div class="form-field full">
+                            <label for="locker-notes"> Notas </label>
 
                             <textarea
                                 id="locker-notes"
-                                v-model="
-                                    form.notes
-                                "
+                                v-model="form.notes"
                                 rows="3"
                                 placeholder="Observaciones opcionales..."
                             />
 
-                            <small
-                                v-if="
-                                    form.errors
-                                        .notes
-                                "
-                                class="field-error"
-                            >
-                                {{
-                                    form
-                                        .errors
-                                        .notes
-                                }}
+                            <small v-if="form.errors.notes" class="field-error">
+                                {{ form.errors.notes }}
                             </small>
                         </div>
                     </div>
 
-                    <div
-                        v-if="
-                            statusError
-                        "
-                        class="error-box"
-                    >
-                        {{
-                            statusError
-                        }}
+                    <div v-if="statusError" class="error-box">
+                        {{ statusError }}
                     </div>
 
-                    <div
-                        v-if="
-                            isLocked
-                        "
-                        class="information-box"
-                    >
+                    <div v-if="isLocked" class="information-box">
                         Este locker está
                         <strong>
-                            {{
-                                statusLabel(
-                                    editingLocker!
-                                        .status,
-                                )
-                            }}
-                        </strong>.
-                        Su código,
-                        ubicación y tamaño
-                        no pueden cambiar
-                        mientras tenga una
-                        reserva o
-                        asignación activa.
+                            {{ statusLabel(editingLocker!.status) }} </strong
+                        >. Su código, ubicación y tamaño no pueden cambiar
+                        mientras tenga una reserva o asignación activa.
                     </div>
 
                     <div
-                        v-else-if="
-                            editingLocker
-                                === null
-                        "
+                        v-else-if="editingLocker === null"
                         class="information-box"
                     >
-                        Los lockers nuevos
-                        se registran como
-                        <strong>
-                            Disponibles
-                        </strong>
-                        y reciben
-                        automáticamente un
-                        código QR.
+                        Los lockers nuevos se registran como
+                        <strong> Disponibles </strong>
+                        y reciben automáticamente un código QR.
                     </div>
 
-                    <div
-                        class="form-actions"
-                    >
+                    <div class="form-actions">
                         <button
                             type="button"
                             class="secondary-button"
-                            :disabled="
-                                form.processing
-                            "
-                            @click="
-                                closeForm
-                            "
+                            :disabled="form.processing"
+                            @click="closeForm"
                         >
                             Cancelar
                         </button>
@@ -1092,17 +650,14 @@ function restoreAvailable(
                         <button
                             type="submit"
                             class="primary-button"
-                            :disabled="
-                                form.processing
-                            "
+                            :disabled="form.processing"
                         >
                             {{
                                 form.processing
                                     ? 'Guardando...'
-                                    : editingLocker ===
-                                    null
-                                        ? 'Guardar locker'
-                                        : 'Guardar cambios'
+                                    : editingLocker === null
+                                      ? 'Guardar locker'
+                                      : 'Guardar cambios'
                             }}
                         </button>
                     </div>
@@ -1110,9 +665,7 @@ function restoreAvailable(
             </section>
 
             <div class="filters">
-                <div
-                    class="search-field"
-                >
+                <div class="search-field">
                     <input
                         v-model="search"
                         type="text"
@@ -1120,19 +673,11 @@ function restoreAvailable(
                     />
                 </div>
 
-                <select
-                    v-model="
-                        buildingFilter
-                    "
-                >
-                    <option value="">
-                        Todos los edificios
-                    </option>
+                <select v-model="buildingFilter">
+                    <option value="">Todos los edificios</option>
 
                     <option
-                        v-for="
-                            building in buildings
-                        "
+                        v-for="building in buildings"
                         :key="building"
                         :value="building"
                     >
@@ -1140,250 +685,128 @@ function restoreAvailable(
                     </option>
                 </select>
 
-                <select
-                    v-model="sizeFilter"
-                >
-                    <option value="">
-                        Todos los tamaños
-                    </option>
+                <select v-model="sizeFilter">
+                    <option value="">Todos los tamaños</option>
 
-                    <option
-                        value="small"
-                    >
-                        Chico
-                    </option>
+                    <option value="small">Chico</option>
 
-                    <option
-                        value="medium"
-                    >
-                        Mediano
-                    </option>
+                    <option value="medium">Mediano</option>
 
-                    <option
-                        value="large"
-                    >
-                        Grande
-                    </option>
+                    <option value="large">Grande</option>
                 </select>
 
-                <select
-                    v-model="
-                        statusFilter
-                    "
-                >
-                    <option value="">
-                        Todos los estados
-                    </option>
+                <select v-model="statusFilter">
+                    <option value="">Todos los estados</option>
 
-                    <option
-                        value="available"
-                    >
-                        Disponible
-                    </option>
+                    <option value="available">Disponible</option>
 
-                    <option
-                        value="reserved"
-                    >
-                        Reservado
-                    </option>
+                    <option value="reserved">Reservado</option>
 
-                    <option
-                        value="occupied"
-                    >
-                        Ocupado
-                    </option>
+                    <option value="occupied">Ocupado</option>
 
-                    <option
-                        value="maintenance"
-                    >
-                        Mantenimiento
-                    </option>
+                    <option value="maintenance">Mantenimiento</option>
                 </select>
             </div>
 
-            <div
-                v-if="
-                    filteredLockers
-                        .length > 0
-                "
-                class="table-container"
-            >
+            <div v-if="filteredLockers.length > 0" class="table-container">
                 <table>
                     <thead>
-                    <tr>
-                        <th>
-                            Código
-                        </th>
+                        <tr>
+                            <th>Código</th>
 
-                        <th>
-                            Ubicación
-                        </th>
+                            <th>Ubicación</th>
 
-                        <th>
-                            Tamaño
-                        </th>
+                            <th>Tamaño</th>
 
-                        <th>
-                            Estado
-                        </th>
+                            <th>Estado</th>
 
-                        <th>
-                            QR
-                        </th>
+                            <th>QR</th>
 
-                        <th>
-                            Acciones
-                        </th>
-                    </tr>
+                            <th>Acciones</th>
+                        </tr>
                     </thead>
 
                     <tbody>
-                    <tr
-                        v-for="
-                                locker in filteredLockers
-                            "
-                        :key="
-                                locker.id
-                            "
-                    >
-                        <td>
-                            <strong
-                                class="locker-code"
-                            >
-                                {{
-                                    locker.code
-                                }}
-                            </strong>
-
-                            <small
-                                v-if="
-                                        locker.notes
-                                    "
-                                class="muted"
-                            >
-                                {{
-                                    locker.notes
-                                }}
-                            </small>
-                        </td>
-
-                        <td>
-                            <div
-                                class="location"
-                            >
-                                <strong>
-                                    {{
-                                        locker.building
-                                    }}
+                        <tr v-for="locker in filteredLockers" :key="locker.id">
+                            <td>
+                                <strong class="locker-code">
+                                    {{ locker.code }}
                                 </strong>
 
-                                <small>
-                                    {{
-                                        locker.zone
-                                    }}
+                                <small v-if="locker.notes" class="muted">
+                                    {{ locker.notes }}
                                 </small>
-                            </div>
-                        </td>
+                            </td>
 
-                        <td>
-                            {{
-                                sizeLabel(
-                                    locker.size,
-                                )
-                            }}
-                        </td>
+                            <td>
+                                <div class="location">
+                                    <strong>
+                                        {{ locker.building }}
+                                    </strong>
 
-                        <td>
+                                    <small>
+                                        {{ locker.zone }}
+                                    </small>
+                                </div>
+                            </td>
+
+                            <td>
+                                {{ sizeLabel(locker.size) }}
+                            </td>
+
+                            <td>
                                 <span
                                     class="status"
                                     :class="`status-${locker.status}`"
                                 >
-                                    {{
-                                        statusLabel(
-                                            locker.status,
-                                        )
-                                    }}
+                                    {{ statusLabel(locker.status) }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                                <span
-                                    class="qr-code"
-                                >
-                                    {{
-                                        locker.qr_code
-                                    }}
+                            <td>
+                                <span class="qr-code">
+                                    {{ locker.qr_code }}
                                 </span>
-                        </td>
+                            </td>
 
-                        <td>
-                            <div
-                                class="actions"
-                            >
-                                <button
-                                    type="button"
-                                    class="action-button edit"
-                                    @click="
-                                            openEditForm(
-                                                locker,
-                                            )
-                                        "
-                                >
-                                    Editar
-                                </button>
+                            <td>
+                                <div class="actions">
+                                    <button
+                                        type="button"
+                                        class="action-button edit"
+                                        @click="openEditForm(locker)"
+                                    >
+                                        Editar
+                                    </button>
 
-                                <button
-                                    v-if="
-                                            locker.status ===
-                                            'available'
-                                        "
-                                    type="button"
-                                    class="action-button maintenance"
-                                    @click="
-                                            sendToMaintenance(
-                                                locker,
-                                            )
-                                        "
-                                >
-                                    Mantenimiento
-                                </button>
+                                    <button
+                                        v-if="locker.status === 'available'"
+                                        type="button"
+                                        class="action-button maintenance"
+                                        @click="sendToMaintenance(locker)"
+                                    >
+                                        Mantenimiento
+                                    </button>
 
-                                <button
-                                    v-if="
-                                            locker.status ===
-                                            'maintenance'
-                                        "
-                                    type="button"
-                                    class="action-button available"
-                                    @click="
-                                            restoreAvailable(
-                                                locker,
-                                            )
-                                        "
-                                >
-                                    Disponible
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+                                    <button
+                                        v-if="locker.status === 'maintenance'"
+                                        type="button"
+                                        class="action-button available"
+                                        @click="restoreAvailable(locker)"
+                                    >
+                                        Disponible
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div
-                v-else
-                class="empty-state"
-            >
-                <h3>
-                    No se encontraron
-                    lockers
-                </h3>
+            <div v-else class="empty-state">
+                <h3>No se encontraron lockers</h3>
 
-                <p>
-                    Ajusta los filtros o
-                    registra un nuevo
-                    locker.
-                </p>
+                <p>Ajusta los filtros o registra un nuevo locker.</p>
             </div>
         </section>
     </StudentServicesLayout>
@@ -1431,13 +854,7 @@ function restoreAvailable(
     min-width: 170px;
     padding: 16px 19px;
     border-radius: 10px;
-    background:
-        rgba(
-            255,
-            255,
-            255,
-            0.1
-        );
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .hero-total span {
@@ -1460,8 +877,7 @@ function restoreAvailable(
 .stats-grid {
     margin-top: 18px;
     display: grid;
-    grid-template-columns:
-        repeat(4, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 13px;
 }
 
@@ -1475,8 +891,7 @@ function restoreAvailable(
 .stat-top {
     display: flex;
     align-items: center;
-    justify-content:
-        space-between;
+    justify-content: space-between;
 }
 
 .stat-card span {
@@ -1566,11 +981,9 @@ function restoreAvailable(
     padding: 18px 21px;
     display: flex;
     align-items: center;
-    justify-content:
-        space-between;
+    justify-content: space-between;
     gap: 20px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
 }
 
 .panel-label {
@@ -1628,14 +1041,7 @@ function restoreAvailable(
 .period-grid {
     padding: 18px 21px 21px;
     display: grid;
-    grid-template-columns:
-        repeat(
-            auto-fit,
-            minmax(
-                260px,
-                1fr
-            )
-        );
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 13px;
 }
 
@@ -1649,8 +1055,7 @@ function restoreAvailable(
 .period-heading {
     display: flex;
     align-items: flex-start;
-    justify-content:
-        space-between;
+    justify-content: space-between;
     gap: 10px;
 }
 
@@ -1684,8 +1089,7 @@ function restoreAvailable(
 
 .prices {
     display: grid;
-    grid-template-columns:
-        repeat(3, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 7px;
 }
 
@@ -1710,8 +1114,7 @@ function restoreAvailable(
 }
 
 .form-panel {
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
@@ -1732,8 +1135,7 @@ function restoreAvailable(
 
 .form-grid {
     display: grid;
-    grid-template-columns:
-        repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 17px 19px;
 }
 
@@ -1772,14 +1174,7 @@ function restoreAvailable(
 .form-field select:focus,
 .form-field textarea:focus {
     border-color: #3970c1;
-    box-shadow:
-        0 0 0 3px
-        rgba(
-            57,
-            112,
-            193,
-            0.08
-        );
+    box-shadow: 0 0 0 3px rgba(57, 112, 193, 0.08);
 }
 
 .form-field input:disabled,
@@ -1828,11 +1223,9 @@ function restoreAvailable(
     margin-top: 19px;
     padding-top: 17px;
     display: flex;
-    justify-content:
-        flex-end;
+    justify-content: flex-end;
     gap: 9px;
-    border-top:
-        1px solid #e5e9ef;
+    border-top: 1px solid #e5e9ef;
 }
 
 .filters {
@@ -1842,8 +1235,7 @@ function restoreAvailable(
         minmax(220px, 2fr)
         repeat(3, 1fr);
     gap: 10px;
-    border-bottom:
-        1px solid #e5e9ef;
+    border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
 }
 
@@ -1882,8 +1274,7 @@ th {
 
 td {
     padding: 14px;
-    border-top:
-        1px solid #e9edf3;
+    border-top: 1px solid #e9edf3;
     color: #5c6980;
     font-size: 11px;
     vertical-align: middle;
@@ -2014,13 +1405,11 @@ tbody tr:hover {
 
 @media (max-width: 1050px) {
     .stats-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .filters {
-        grid-template-columns:
-            repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .search-field {
@@ -2030,8 +1419,7 @@ tbody tr:hover {
 
 @media (max-width: 720px) {
     .hero {
-        align-items:
-            flex-start;
+        align-items: flex-start;
         flex-direction: column;
     }
 
@@ -2057,20 +1445,17 @@ tbody tr:hover {
     }
 
     .form-actions {
-        flex-direction:
-            column-reverse;
+        flex-direction: column-reverse;
     }
 }
 
 @media (max-width: 520px) {
     .stats-grid {
-        grid-template-columns:
-            1fr;
+        grid-template-columns: 1fr;
     }
 
     .prices {
-        grid-template-columns:
-            1fr;
+        grid-template-columns: 1fr;
     }
 }
 </style>

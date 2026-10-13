@@ -7,7 +7,6 @@ use App\Models\StudentServices\Lockers\LockerAssignment;
 use App\Models\StudentServices\Lockers\LockerPeriod;
 use App\Models\StudentServices\Lockers\LockerRequest;
 use Illuminate\Support\Str;
-use MongoDB\BSON\Decimal128;
 use MongoDB\BSON\ObjectId;
 use MongoDB\BSON\UTCDateTime;
 use RuntimeException;
@@ -16,8 +15,7 @@ class LockerRequestService
 {
     public function __construct(
         private readonly LockerAssignmentService $assignments
-    ) {
-    }
+    ) {}
 
     public function createPaidRequest(
         string $studentId,
@@ -42,7 +40,7 @@ class LockerRequestService
             );
 
         if (
-            !in_array(
+            ! in_array(
                 $size,
                 Locker::SIZES,
                 true
@@ -78,7 +76,7 @@ class LockerRequestService
         }
 
         $price =
-            $period->priceFor(
+            $period->priceCentsFor(
                 $size
             );
 
@@ -89,38 +87,27 @@ class LockerRequestService
         }
 
         return LockerRequest::create([
-            'folio' =>
-                $this->newFolio(),
+            'folio' => $this->newFolio(),
 
-            'student_id' =>
-                $studentId,
+            'student_id' => $studentId,
 
-            'period_id' =>
-                $period->id,
+            'period_id' => $period->id,
 
             'locker_id' => null,
 
-            'preferred_size' =>
-                $size,
+            'preferred_size' => $size,
 
-            'preferred_building' =>
-                $building !== ''
+            'preferred_building' => $building !== ''
                     ? $building
                     : null,
 
-            'request_type' =>
-                'paid',
+            'request_type' => 'paid',
 
-            'status' =>
-                'pending',
+            'status' => 'pending',
 
-            'amount' =>
-                new Decimal128(
-                    $price
-                ),
+            'amount_cents' => $price,
 
-            'payment_reference' =>
-                null,
+            'payment_reference' => null,
 
             'paid_at' => null,
 
@@ -174,16 +161,13 @@ class LockerRequestService
                     'pending'
                 )
                 ->update([
-                    'status' =>
-                        'paid',
+                    'status' => 'paid',
 
-                    'payment_reference' =>
-                        $paymentReference,
+                    'payment_reference' => $paymentReference,
 
-                    'paid_at' =>
-                        new UTCDateTime(
-                            now()
-                        ),
+                    'paid_at' => new UTCDateTime(
+                        now()
+                    ),
                 ]);
 
         if ($moved === 0) {
@@ -256,8 +240,7 @@ class LockerRequestService
                     'pending'
                 )
                 ->update([
-                    'status' =>
-                        'cancelled',
+                    'status' => 'cancelled',
                 ]);
 
         if ($moved === 0) {

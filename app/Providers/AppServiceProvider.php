@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Services\StudentServices\Benefits\LocalStudentDirectory;
 use App\Services\StudentServices\Benefits\StudentDirectory;
+use App\Services\StudentServices\Payments\LocalStudentPaymentGateway;
+use App\Services\StudentServices\Payments\StudentPaymentGateway;
 use App\Services\StudentServices\ServiceAccess\LocalStudentCredentialResolver;
 use App\Services\StudentServices\ServiceAccess\StudentCredentialResolver;
 use Carbon\CarbonImmutable;
@@ -37,6 +39,16 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             StudentDirectory::class,
             LocalStudentDirectory::class
+        );
+
+        /*
+         * Depósitos y cobros del Equipo 5 (REQ-M5-E2-001). Cuando el
+         * Equipo 2 publique sus rutas de retenciones, cambiar aquí por un
+         * cliente de su API.
+         */
+        $this->app->bind(
+            StudentPaymentGateway::class,
+            LocalStudentPaymentGateway::class
         );
     }
 
