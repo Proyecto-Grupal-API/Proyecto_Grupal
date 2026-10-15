@@ -12,7 +12,7 @@ class BandejaController extends Controller
 {
     private function propios(Request $r)
     {
-        return Mensaje::where('usuario_id', (string) $r->user()->id)->whereNull('eliminado_en');
+        return Mensaje::where('usuario_id', (string) $r->user()->id)->visibles();
     }
 
     public function index(Request $r)
@@ -67,6 +67,20 @@ class BandejaController extends Controller
         }
 
         return response()->json(['message' => 'Mensaje actualizado.']);
+    }
+
+    public function categorias(Request $r)
+    {
+        $silenciada = \App\Models\PreferenciaBandeja::where('usuario_id', (string) $r->user()->id)
+            ->where('categoria', 'servicios_estudiante')->value('silenciada');
+        return response()->json([['id' => 'servicios_estudiante', 'nombre' => 'Servicios al estudiante', 'silenciada' => (bool) $silenciada]]);
+    }
+
+    public function categoria(Request $r)
+    {
+        $d = $r->validate(['silenciada' => ['required', 'boolean']]);
+        \App\Models\PreferenciaBandeja::updateOrCreate(['usuario_id' => (string) $r->user()->id, 'categoria' => 'servicios_estudiante'], $d);
+        return response()->json(['message' => $d['silenciada'] ? 'Recordatorios opcionales silenciados. Las multas y avisos obligatorios seguirán llegando.' : 'Volverás a recibir recordatorios de Servicios al estudiante.']);
     }
 
     public function preferencias(Request $r)

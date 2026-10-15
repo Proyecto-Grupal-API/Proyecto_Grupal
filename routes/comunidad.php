@@ -66,6 +66,8 @@ Route::prefix('comunicacion/{id}')->where(['id' => '[a-fA-F0-9]{24}'])->group(fu
     Route::post('/cancelar', [ComunicacionController::class, 'cancelar']);
 });
 Route::get('/bandeja', [BandejaController::class, 'index']);
+Route::get('/bandeja/categorias', [BandejaController::class, 'categorias']);
+Route::put('/bandeja/categorias/servicios_estudiante', [BandejaController::class, 'categoria']);
 Route::get('/bandeja/preferencias', [BandejaController::class, 'preferencias']);
 Route::put('/bandeja/preferencias/{id}', [BandejaController::class, 'preferencia'])->where('id', '[a-fA-F0-9]{24}');
 Route::get('/bandeja/{id}', [BandejaController::class, 'show'])->where('id', '[a-fA-F0-9]{24}');

@@ -139,7 +139,7 @@ class BecaController extends Controller
             'convocatoria' => $this->convocatoria($c), 'propia' => $propia, 'puede_editar' => $propia && $s->estado === 'borrador' && $this->recepcionAbierta($c),
             'puede_retirar' => $propia && in_array($s->estado, ['borrador', 'pendiente']) && $this->recepcionAbierta($c),
             'puede_dictaminar' => ! $propia && $this->revisionAbierta($c) && in_array($s->estado, ['pendiente', 'en_revision']),
-            'beneficio' => AsignacionBeneficio::where('solicitud_id', $id)->first()?->only(['id', 'estado'])])->header('Cache-Control', 'private, no-store');
+            'beneficio' => AsignacionBeneficio::where('solicitud_id', $id)->first()?->only(['id', 'estado', 'recibo_servicios', 'error_integracion'])])->header('Cache-Control', 'private, no-store');
     }
 
     public function guardarSolicitud(Request $r, string $id)
@@ -274,7 +274,7 @@ class BecaController extends Controller
         abort_unless($s->estado === 'aprobada', 404);
         $a = AsignacionBeneficio::where('solicitud_id', $id)->firstOrFail();
 
-        return response()->json($a->only(['id', 'estado', 'contrato']))->header('Cache-Control', 'private, no-store');
+        return response()->json($a->only(['id', 'estado', 'contrato', 'recibo_servicios', 'entregado_en', 'error_integracion']))->header('Cache-Control', 'private, no-store');
     }
 
     private function convocatoria(ConvocatoriaBeca $c): array

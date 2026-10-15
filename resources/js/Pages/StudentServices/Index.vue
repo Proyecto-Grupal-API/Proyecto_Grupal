@@ -159,7 +159,7 @@ function refreshData() {
                         <div>
                             <p class="text-xs font-bold uppercase tracking-[0.18em] text-[#64748B]">Módulo 1.9</p>
                             <h3 class="mt-2 text-xl font-bold text-[#00338D]">Consentimientos</h3>
-                            <p class="mt-2 text-sm leading-6 text-slate-500">Controla qué usos de información has aceptado.</p>
+                            <p class="mt-2 text-sm leading-6 text-slate-500">Controla qué usos de información has aceptado. Los términos del perfil y de las credenciales se aceptan y revocan por separado; una nueva versión requiere una nueva aceptación.</p>
                         </div>
                         <div class="mt-6 space-y-3">
                             <article v-for="consent in consents" :key="consent.id" class="flex items-start justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-4">

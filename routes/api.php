@@ -43,3 +43,26 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'initial.password'])->group(fun
     Route::patch('/students/{studentId}/preferences', [StudentServicesController::class, 'updatePreferences']);
     Route::patch('/students/{studentId}/status', [StudentServicesController::class, 'changeStatus']);
 });
+
+
+Route::prefix('v1/comunidad')->middleware([\App\Http\Middleware\CorrelacionAviso::class])->group(function () {
+    foreach (['get' => 'read', 'post' => 'send'] as $method => $capacidad) {
+        Route::$method('/notificaciones', [\App\Http\Controllers\Api\Community\AvisoController::class, $method === 'get' ? 'index' : 'store'])
+            ->middleware(['oauth.service:notifications:'.$capacidad, AuthorizeCommunityService::class.':notifications:'.$capacidad, 'throttle:avisos-servicio']);
+    }
+    Route::post('/notificaciones/{id}/retiro', [\App\Http\Controllers\Api\Community\AvisoController::class, 'retiro'])
+        ->where('id', '[a-fA-F0-9]{24}')
+        ->middleware(['oauth.service:notifications:send', AuthorizeCommunityService::class.':notifications:send', 'throttle:avisos-servicio']);
+});
+
+require __DIR__.'/student-services-api.php';
+
+require __DIR__.'/inventory-api.php';
+
+Route::get('/v1/comunidad/organizaciones/comercio',\App\Http\Controllers\Api\Community\OrganizationCommerceController::class)
+    ->middleware(['oauth.service:community:organizations:read',\App\Http\Middleware\AuthorizeCommunityService::class.':community:organizations:read','throttle:120,1']);
+
+Route::prefix('v1/marketplace')->middleware(['oauth.service:marketplace:read',\App\Http\Middleware\AuthorizeCommunityService::class.':marketplace:read','throttle:120,1'])->group(function () {
+    Route::get('catalog',[\App\Http\Controllers\Marketplace\MarketplaceController::class,'catalog']);
+    Route::get('businesses',[\App\Http\Controllers\Marketplace\MarketplaceController::class,'businessesApi']);
+});

@@ -27,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Facades\RateLimiter::for('avisos-servicio', fn (\Illuminate\Http\Request $r) =>
+            \Illuminate\Cache\RateLimiting\Limit::perMinute(120)->by('avisos:'.$r->attributes->get('oauth_client_id')));
         Vite::prefetch(concurrency: 3);
         Event::listen([
             StudentProfileChanged::class,

@@ -26,6 +26,19 @@ services:
     depends_on:
       - mongodb
     restart: unless-stopped
+  scheduler:
+    image: campus-integracion-php:local
+    environment:
+      WWWUSER: '1000'
+      LARAVEL_SAIL: 1
+    working_dir: /var/www/html
+    command: ["php", "artisan", "schedule:work"]
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
   mongodb:
     image: mongo@sha256:5d7043a4ffe02b9ed1b6e0bab057546981af5ca0a79107e9c461e49bc44c0a7b
     command: ['mongod', '--replSet', 'rs0', '--bind_ip_all']

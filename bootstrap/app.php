@@ -35,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Registrar los alias de los middlewares
         $middleware->alias([
+            'team4.permission' => \App\Http\Middleware\InventoryModule\EnsureTeam4Permission::class,
             'session.active' => EnsureSessionIsActive::class,
             'device.track' => TrackDeviceSession::class,
             'role.context' => EnsureHasContextualRole::class,
@@ -44,6 +45,69 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        $exceptions->render(function (Throwable $error,Request $request) {
+            if (!$request->is('tienda*','api/tienda/*','api/v1/marketplace/*','api/v1/comunidad/organizaciones/comercio')) {return null;}
+            if ($error instanceof \Illuminate\Auth\AuthenticationException) {return null;}
+            $status=$error instanceof ValidationException ? 422 : ($error instanceof HttpExceptionInterface ? $error->getStatusCode() : 500);
+            $message=$error instanceof HttpExceptionInterface && in_array($status,[403,409,422,503],true) ? $error->getMessage() : 'No fue posible completar la operación de Marketplace.';
+            if ($request->is('api/*') || $request->expectsJson()) {
+                $body=['message'=>$message];if ($error instanceof ValidationException) {$body['errors']=$error->errors();}
+                return response()->json($body,$status)->header('Cache-Control','private, no-store');
+            }
+            if ($error instanceof ValidationException) {return null;}
+            if (!$request->isMethod('GET') && in_array($status,[409,422,503],true)) {return redirect()->back(303)->withErrors(['marketplace'=>$message]);}
+            return \Inertia\Inertia::render('Marketplace/Unavailable',['message'=>$message])->toResponse($request)->setStatusCode($status);
+        });
+        $exceptions->render(function (Throwable $error, Request $request) {
+            if (!($request->is('equipo4*') || $request->is('api/equipo4*') || $request->is('api/v1/inventory*'))) { return null; }
+            $status=$error instanceof \App\Exceptions\InventoryModule\IdentityUnavailable ? 503
+                : ($error instanceof ValidationException ? 422 : ($error instanceof HttpExceptionInterface ? $error->getStatusCode() : 500));
+            if (in_array($status, [403, 503], true) && !$request->is('api/*') && !$request->expectsJson()) {
+                $request->attributes->remove('inventory_user');
+                return \Inertia\Inertia::render('Equipo4/NotAuthorized', ['reason' => $status === 503 ? 'identity_unavailable' : 'permission_denied',
+                    'businesses' => app(\App\Services\InventoryModule\BusinessContext::class)->options()])->toResponse($request)->setStatusCode($status);
+            }
+            if ($request->is('api/*') || $request->expectsJson()) {
+                $message=match ($status) { 401 => 'Se requiere una firma válida.', 403 => 'Sin permiso en el negocio seleccionado.',
+                    404 => 'Recurso no encontrado.', 422 => 'Revisa los datos enviados.', 503 => 'Identidad o integración no disponible.', default => 'No fue posible completar la operación.' };
+                $body=['message' => $message];
+                if ($error instanceof ValidationException) { $body['errors']=$error->errors(); }
+                return response()->json($body, $status);
+            }
+            return null;
+        });
+        $exceptions->render(function (Throwable $error, Request $request) {
+            if (! $request->is('api/v1/servicios/*')) { return null; }
+            $status = $error instanceof ValidationException ? 422 : ($error instanceof HttpExceptionInterface ? $error->getStatusCode() : 500);
+            [$codigo, $mensaje] = match ($status) {
+                401 => ['no_autenticado', 'Se requiere un token de servicio válido.'],
+                403 => ['sin_permiso', 'El cliente no tiene el scope requerido.'],
+                404 => ['no_encontrado', 'Recurso no encontrado.'],
+                422 => ['datos_invalidos', 'Revisa los datos enviados.'],
+                429 => ['demasiadas_solicitudes', 'Intenta nuevamente más tarde.'],
+                default => ['error_interno', 'No fue posible completar la operación.'],
+            };
+            return \App\Http\Controllers\StudentServices\Benefits\ApiResponse::error($request, $codigo, $mensaje, $status);
+        });
+        $exceptions->render(function (Throwable $error, Request $request) {
+            if (! $request->is('api/v1/comunidad/notificaciones*')) { return null; }
+            $http = $error instanceof HttpExceptionInterface;
+            $status = $error instanceof ValidationException ? 422 : ($http ? $error->getStatusCode() : 500);
+            $codigo = $error instanceof \App\Exceptions\AvisoApiException ? $error->codigo : match ($status) {
+                401 => 'no_autenticado', 403 => 'sin_permiso', 404 => 'no_encontrada', 409 => 'conflicto',
+                422 => 'datos_invalidos', 429 => 'limite_excedido', default => 'error_servicio',
+            };
+            $mensaje = $error instanceof \App\Exceptions\AvisoApiException ? $error->getMessage() : match ($status) {
+                401 => 'Se requiere un token de servicio válido.', 403 => 'El cliente no tiene permiso para esta operación.',
+                404 => 'No se encontró el recurso.', 422 => 'Revisa los datos enviados.', 429 => 'Se alcanzó el límite de 120 solicitudes por minuto.',
+                default => 'No fue posible completar la operación.',
+            };
+            $correlacion = $request->attributes->get('aviso_correlacion', (string) \Illuminate\Support\Str::uuid());
+            $body = ['codigo' => $codigo, 'mensaje' => $mensaje, 'correlacion_id' => $correlacion];
+            if ($error instanceof ValidationException) { $body['errores'] = $error->errors(); }
+            return response()->json($body, $status, $http ? $error->getHeaders() : [])
+                ->header('X-Correlation-Id', $correlacion)->header('Cache-Control', 'private, no-store');
+        });
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request, Throwable $exception) => $request->is('api/v1/organizations/*/summary') || $request->expectsJson()
         );

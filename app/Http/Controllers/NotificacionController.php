@@ -10,7 +10,7 @@ class NotificacionController extends Controller
 {
     private function mensajes(Request $request)
     {
-        return Mensaje::query()->where('usuario_id', (string) $request->user()->id)->whereNull('eliminado_en');
+        return Mensaje::query()->where('usuario_id', (string) $request->user()->id)->visibles();
     }
 
     public function index(Request $request)

@@ -252,6 +252,7 @@ async function cambiarOrganizacion() {
                                 </option>
                             </select>
                         </div>
+                        <Link v-if="datos.puede_editar" :href="`/tienda/solicitudes?organization_id=${datos.organizacion.id}`" class="text-sm font-semibold text-blue-700">Solicitar tienda para esta organización →</Link>
                         <p class="text-sm text-gray-600">
                             {{
                                 datos.puede_editar

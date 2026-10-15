@@ -5,6 +5,7 @@ use App\Enums\StudentStatus;
 use App\Models\AcademicStatusHistory;
 use App\Models\CommunicationPreference;
 use App\Models\Consent;
+use App\Models\EventOutbox;
 use App\Models\StudentProfile;
 use App\Models\User;
 use App\Services\StudentStatusService;
@@ -130,4 +131,77 @@ it('requires authentication and validates preference values', function () {
     $this->actingAs($user)->patchJson('/student-services/preferences', ['email' => 'not-a-boolean'])->assertUnprocessable();
     $this->actingAs($user)->patchJson('/student-services/preferences', ['push' => 123])->assertUnprocessable();
     $this->actingAs($user)->patchJson('/student-services/preferences', ['sms' => null])->assertUnprocessable();
+});
+
+it('keeps feature terms independent from general consent and from each other with unchanged events', function () {
+    [$user, $profile] = studentWithStatus();
+    $this->actingAs($user)->postJson('/student-services/consents', ['consent_id' => 'terms', 'consent_version' => 'v1'])->assertCreated();
+    $items = $this->getJson("/student-services/students/{$profile->getKey()}/consents")->assertOk()->json('data.items');
+    expect(collect($items)->keyBy('id')['profile_terms']['status'])->toBe('pending')
+        ->and(collect($items)->keyBy('id')['credential_terms']['status'])->toBe('pending');
+
+    $profileTerm = $this->postJson('/student-services/consents', ['consent_id' => 'profile_terms', 'consent_version' => '2026.1'])->assertCreated()->assertJsonPath('data.id', 'profile_terms')->json('data');
+    $items = $this->getJson("/student-services/students/{$profile->getKey()}/consents")->assertOk()->json('data.items');
+    expect(collect($items)->keyBy('id')['credential_terms']['status'])->toBe('pending');
+    $credentialTerm = $this->postJson('/student-services/consents', ['consent_id' => 'credential_terms', 'consent_version' => '2026.1'])->assertCreated()->json('data');
+    $this->deleteJson('/student-services/consents/profile_terms', ['consent_record_id' => $profileTerm['acceptance_id']])->assertOk()->assertJsonPath('data.status', 'revoked');
+    $items = collect($this->getJson("/student-services/students/{$profile->getKey()}/consents")->assertOk()->json('data.items'))->keyBy('id');
+    expect($items['credential_terms']['status'])->toBe('accepted')
+        ->and($items['credential_terms']['acceptance_id'])->toBe($credentialTerm['acceptance_id'])
+        ->and($items['terms']['status'])->toBe('accepted')
+        ->and(Consent::where('user_id', (string) $user->getKey())->count())->toBe(4);
+    $events = EventOutbox::where('event_name', 'student.consent.changed.v1')->get();
+    expect($events)->toHaveCount(4);
+    $payload = $events->first(fn ($event) => $event->payload['consent_id'] === 'profile_terms' && $event->payload['status'] === 'revoked')->payload;
+    expect(array_keys((array) $payload))->toBe(['student_id', 'consent_id', 'status', 'version', 'actor_id'])
+        ->and($payload['student_id'])->toBe((string) $user->getKey())
+        ->and($payload['actor_id'])->toBe((string) $user->getKey())
+        ->and($payload['version'])->toBe('2026.1');
+});
+
+it('requires the current feature version without losing old acceptances or changing another feature', function () {
+    [$user, $profile] = studentWithStatus();
+    $this->actingAs($user)->postJson('/student-services/consents', ['consent_id' => 'profile_terms', 'consent_version' => '2026.1'])->assertCreated();
+    $this->postJson('/student-services/consents', ['consent_id' => 'credential_terms', 'consent_version' => '2026.1'])->assertCreated();
+    config()->set('student_services.consents.profile_terms.version', '2026.2');
+    $items = collect($this->getJson("/student-services/students/{$profile->getKey()}/consents")->assertOk()->json('data.items'))->keyBy('id');
+    expect($items['profile_terms']['version'])->toBe('2026.2')
+        ->and($items['profile_terms']['status'])->toBe('pending')
+        ->and($items['profile_terms']['acceptance_id'])->toBeNull()
+        ->and($items['credential_terms']['status'])->toBe('accepted');
+    $this->postJson('/student-services/consents', ['consent_id' => 'profile_terms', 'consent_version' => '2026.1'])->assertUnprocessable();
+    $this->postJson('/student-services/consents', ['consent_id' => 'profile_terms'])->assertUnprocessable();
+    $this->postJson('/student-services/consents', ['consent_id' => 'unknown_feature', 'consent_version' => '2026.2'])->assertUnprocessable();
+    $new = $this->postJson('/student-services/consents', ['consent_id' => 'profile_terms', 'consent_version' => '2026.2'])->assertCreated()->json('data');
+    $this->deleteJson('/student-services/consents/profile_terms', ['consent_record_id' => $new['acceptance_id']])->assertOk()->assertJsonPath('data.status', 'revoked');
+    expect(Consent::where('user_id', (string) $user->getKey())->where('type', 'profile_terms')->where('version', '2026.1')->where('status', 'accepted')->count())->toBe(1)
+        ->and(Consent::where('user_id', (string) $user->getKey())->count())->toBe(4);
+    $this->getJson("/student-services/students/{$profile->getKey()}/consents")->assertOk()->assertJsonPath('data.items.3.status', 'revoked');
+});
+
+it('denies all cross-user consent operations even to a student manager and rejects cross-key revocation', function () {
+    [$owner, $profile] = studentWithStatus();
+    [$manager] = studentWithStatus();
+    $manager->assignRole('student_manager');
+    withConfirmedTestTwoFactor($manager);
+    $accepted = $this->actingAs($owner)->postJson('/student-services/consents', ['consent_id' => 'profile_terms', 'consent_version' => '2026.1'])->assertCreated()->json('data');
+    $this->deleteJson('/student-services/consents/credential_terms', ['consent_record_id' => $accepted['acceptance_id']])->assertUnprocessable();
+    $this->actingAs($manager)->getJson("/api/v1/students/{$profile->getKey()}/consents")->assertForbidden();
+    $this->postJson("/api/v1/students/{$owner->getKey()}/consents", ['consent_id' => 'credential_terms', 'consent_version' => '2026.1'])->assertForbidden();
+    $this->deleteJson("/api/v1/students/{$profile->getKey()}/consents/profile_terms", ['consent_record_id' => $accepted['acceptance_id']])->assertForbidden();
+    $this->deleteJson('/student-services/consents/profile_terms', ['consent_record_id' => $accepted['acceptance_id']])->assertUnprocessable();
+    expect(Consent::where('user_id', (string) $owner->getKey())->count())->toBe(1)
+        ->and(Consent::where('revokes_consent_id', $accepted['acceptance_id'])->exists())->toBeFalse();
+});
+
+it('shows separately named feature terms with their current versions in the existing consent UI', function () {
+    [$user] = studentWithStatus();
+    $this->actingAs($user)->get('/student-services')->assertOk()->assertInertia(fn ($page) => $page
+        ->component('StudentServices/Index')
+        ->where('consents.3.id', 'profile_terms')
+        ->where('consents.3.name', 'Términos del perfil estudiantil')
+        ->where('consents.3.version', '2026.1')
+        ->where('consents.4.id', 'credential_terms')
+        ->where('consents.4.name', 'Términos de credenciales QR y NFC')
+        ->where('consents.4.status', 'pending'));
 });

@@ -230,3 +230,9 @@ Route::middleware(['auth', 'session.active', 'device.track', SeleccionarOrganiza
 Route::middleware(['auth', 'session.active', 'device.track', SeleccionarOrganizacion::class])->prefix('api')->group(__DIR__.'/comunidad.php');
 
 require __DIR__.'/auth.php';
+
+require __DIR__.'/student-services.php';
+
+require __DIR__.'/inventory.php';
+
+require __DIR__.'/marketplace.php';

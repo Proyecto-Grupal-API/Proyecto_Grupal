@@ -84,3 +84,36 @@ function withConfirmedTestTwoFactor(User $user): User
 
     return $user;
 }
+
+
+/** Domain regression fixtures use local adapters only; integration tests exercise real E1 OAuth and HTTP. */
+function useStudentServicesTestDatabase(): void
+{
+    test()->assertSame('campus_virtual_testing', \Illuminate\Support\Facades\DB::connection('mongodb')->getDatabaseName());
+    config(['integracion_servicios.timezone' => 'UTC']); // Domain fixtures express their times in UTC.
+    test()->artisan('migrate', ['--force' => true])->assertExitCode(0);
+    test()->withoutMiddleware(\App\Http\Middleware\AutorizarServicios::class);
+    test()->mock(\App\Services\StudentServices\ServiceAuthority::class, function ($mock) {
+        $mock->shouldReceive('staff')->andReturnFalse();
+        $mock->shouldReceive('propias')->andReturnUsing(fn ($q) => $q);
+    });
+    app()->bind(\App\Services\StudentServices\Benefits\StudentDirectory::class, \Tests\Fakes\StudentServices\LocalStudentDirectory::class);
+    app()->bind(\App\Services\StudentServices\ServiceAccess\StudentCredentialResolver::class, \Tests\Fakes\StudentServices\LocalStudentCredentialResolver::class);
+    app()->bind(\App\Services\StudentServices\Payments\StudentPaymentGateway::class, \Tests\Fakes\StudentServices\LocalStudentPaymentGateway::class);
+}
+
+function studentServiceTestToken(string $token): string
+{
+    $scopes = match ($token) {
+        'token-equipo6', 'token-otro' => ['services:benefits:read', 'services:benefits:write'],
+        'token-lectura' => ['services:benefits:read'],
+        default => null,
+    };
+    if ($scopes === null) { return $token; }
+    \Firebase\JWT\JWT::$timestamp = now()->timestamp;
+    $clientId = match ($token) { 'token-equipo6' => 'equipo6-comunidad', 'token-otro' => 'otro-cliente', default => 'solo-lectura' };
+    \App\Models\ServiceClient::firstOrCreate(['client_id' => $clientId], [
+        'name' => 'Test '.$token, 'secret_hash' => \Illuminate\Support\Facades\Hash::make('test'), 'scopes' => $scopes, 'active' => true,
+    ]);
+    return app(\App\Services\OAuthTokenService::class)->issue($clientId, 'test', $scopes)['access_token'];
+}

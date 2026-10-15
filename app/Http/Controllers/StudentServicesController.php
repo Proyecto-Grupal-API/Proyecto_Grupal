@@ -47,7 +47,7 @@ class StudentServicesController extends Controller
     public function consents(Request $request, string $studentId): JsonResponse
     {
         $profile = $this->profile($studentId);
-        $this->authorizeServiceView($request, $profile);
+        $this->authorizeConsentOwner($request, $profile);
 
         return $this->success(['student_id' => (string) $profile->getKey(), 'items' => $this->consentItems($profile)]);
     }
@@ -104,13 +104,15 @@ class StudentServicesController extends Controller
 
     private function accept(Request $request, StudentProfile $profile): JsonResponse
     {
-        abort_unless($request->user(), 403);
-        $this->authorize('viewServices', $profile);
+        $this->authorizeConsentOwner($request, $profile);
         $data = $request->validate(['consent_id' => ['required', 'string'], 'consent_version' => ['nullable', 'string', 'max:100']]);
         $type = ConsentType::tryFrom($data['consent_id']);
         abort_unless($type && array_key_exists($type->value, config('student_services.consents')), 422, 'Tipo de consentimiento inválido.');
         if ($type->requiresVersion() && empty($data['consent_version'])) {
             abort(422, 'La versión del consentimiento es obligatoria.');
+        }
+        if ($type->isFeatureSpecific()) {
+            abort_unless($data['consent_version'] === config('student_services.consents.'.$type->value.'.version'), 422, 'Debe aceptar la versión vigente de los términos de esta funcionalidad.');
         }
         $this->mongoTransaction(function () use ($profile, $type, $data, $request): void {
             $consent = Consent::create(['user_id' => (string) $profile->user_id, 'student_profile_id' => (string) $profile->getKey(), 'type' => $type->value, 'version' => $data['consent_version'] ?? null, 'status' => 'accepted', 'accepted_at' => now(), 'actor_id' => (string) $request->user()->getKey()]);
@@ -122,8 +124,7 @@ class StudentServicesController extends Controller
 
     private function revoke(Request $request, StudentProfile $profile, string $consentId): JsonResponse
     {
-        abort_unless($request->user(), 403);
-        $this->authorize('viewServices', $profile);
+        $this->authorizeConsentOwner($request, $profile);
         $type = ConsentType::tryFrom($consentId);
         abort_unless($type, 422, 'Tipo de consentimiento inválido.');
         $data = $request->validate(['consent_record_id' => ['required', 'string']]);
@@ -197,10 +198,20 @@ class StudentServicesController extends Controller
     {
         $definition ??= config('student_services.consents.'.$type->value);
         $records = Consent::where('user_id', (string) $profile->user_id)->where('type', $type->value)->latest('created_at')->get();
-        $active = $records->first(fn ($record) => $record->status === 'accepted' && ! Consent::where('revokes_consent_id', (string) $record->getKey())->exists());
+        $active = $records->first(fn ($record) => $record->status === 'accepted'
+            && (! $type->isFeatureSpecific() || $record->version === $definition['version'])
+            && ! Consent::where('revokes_consent_id', (string) $record->getKey())->exists());
         $latest = $records->first();
+        if ($type->isFeatureSpecific()) {
+            $latest = $records->first(fn ($record) => $record->version === $definition['version']);
+        }
 
         return ['id' => $type->value, 'name' => $definition['name'], 'description' => $definition['description'], 'version' => $active?->version ?? $latest?->version ?? $definition['version'], 'required' => $definition['required'], 'status' => $active ? 'accepted' : ($latest?->status ?? 'pending'), 'acceptance_id' => $active ? (string) $active->getKey() : null, 'accepted_at' => $active?->accepted_at?->toISOString(), 'revoked_at' => $latest?->revoked_at?->toISOString()];
+    }
+
+    private function authorizeConsentOwner(Request $request, StudentProfile $profile): void
+    {
+        abort_unless($request->user() && (string) $request->user()->getKey() === (string) $profile->user_id, 403);
     }
 
     private function success(array $data, int $status = 200): JsonResponse

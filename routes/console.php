@@ -12,3 +12,10 @@ Artisan::command('inspire', function () {
 Schedule::command('security-events:prune')->daily();
 // Scheduler lock complements the per-event claim; expire it after 30 minutes if the process dies.
 Schedule::command('events:publish')->everyMinute()->withoutOverlapping(30);
+
+Schedule::command('comunidad:entregar-beneficios')->everyMinute()->withoutOverlapping(10);
+Schedule::command('servicios:avisos')->everyMinute()->withoutOverlapping(10);
+
+Schedule::command('inventario:expirar-reservas')->everyFiveMinutes()->withoutOverlapping(10);
+
+Schedule::command('marketplace:reconciliar')->everyMinute()->withoutOverlapping(10);

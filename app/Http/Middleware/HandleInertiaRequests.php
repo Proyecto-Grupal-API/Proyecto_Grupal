@@ -33,6 +33,16 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
+            'inventoryContext' => fn () => $request->is('equipo4*') && $request->attributes->has('inventory_user') ? [
+                'user' => $request->attributes->get('inventory_user'),
+                'business_id' => app(\App\Services\InventoryModule\BusinessContext::class)->id(),
+                'businesses' => app(\App\Services\InventoryModule\BusinessContext::class)->options(),
+            ] : null,
+            'permissions' => fn () => $request->attributes->has('inventory_user')
+                ? app(\App\Services\InventoryModule\IdentityService::class)->effectivePermissions((string) $request->user()->getAuthIdentifier()) : [],
+            'dashboardKpis' => fn () => $request->attributes->has('inventory_user')
+                ? app(\App\Services\InventoryModule\IdentityService::class)->getDashboardKpis($request->attributes->get('inventory_user')['roles']) : [],
+
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
@@ -40,6 +50,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'auth' => [
                 'user' => $request->user(),
+                'servicios_staff' => fn () => app(\App\Services\StudentServices\ServiceAuthority::class)->staff($request->user()),
                 'hasStudentProfile' => $request->user()?->studentProfile()->exists() ?? false,
                 'gestiona_organizaciones' => fn () => app(AutoridadOrganizaciones::class)->permite($request->user()),
                 'organizacion' => fn () => $request->attributes->get('organizacion'),

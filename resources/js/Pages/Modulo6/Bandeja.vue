@@ -6,6 +6,7 @@ import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
 const datos = ref(null),
     seleccionado = ref(null),
     prefs = ref(null),
+    categorias = ref([]),
     filtro = ref("recibidos"),
     buscar = ref(""),
     error = ref(""),
@@ -85,17 +86,20 @@ async function configurar() {
     preferencias.value = !preferencias.value;
     error.value = "";
     try {
-        if (preferencias.value)
-            prefs.value = (await axios.get("/api/bandeja/preferencias")).data;
+        if (preferencias.value) {
+            const [organizaciones, servicios] = await Promise.all([axios.get("/api/bandeja/preferencias"), axios.get("/api/bandeja/categorias")]);
+            prefs.value = organizaciones.data;
+            categorias.value = servicios.data;
+        }
     } catch (e) {
         fallar(e);
     }
 }
-async function silenciar(o) {
+async function silenciar(o, categoria = false) {
     ocupado.value = true;
     error.value = "";
     try {
-        const { data } = await axios.put(`/api/bandeja/preferencias/${o.id}`, {
+        const { data } = await axios.put(categoria ? `/api/bandeja/categorias/${o.id}` : `/api/bandeja/preferencias/${o.id}`, {
             silenciada: !o.silenciada,
         });
         o.silenciada = !o.silenciada;
@@ -152,6 +156,11 @@ onBeforeUnmount(() => clearInterval(timer));
                 v-if="preferencias"
                 class="rounded-xl border bg-white p-5 space-y-3"
             >
+                <h2 class="text-lg font-semibold">Servicios al estudiante</h2>
+                <p class="text-sm text-gray-600">Puedes silenciar recordatorios opcionales. Las multas, préstamos vencidos, reservas disponibles, promociones y ausencias seguirán llegando.</p>
+                <div v-for="o in categorias" :key="o.id" class="flex justify-between items-center gap-3 py-3">
+                    <span>{{ o.nombre }}</span><button @click="silenciar(o, true)" :disabled="ocupado" class="text-blue-800 font-semibold">{{ o.silenciada ? "Volver a recibir" : "Silenciar recordatorios" }}</button>
+                </div>
                 <h2 class="text-lg font-semibold">Campañas por organización</h2>
                 <p class="text-sm text-gray-600">
                     Silenciar evita futuras campañas de esa organización. Tus

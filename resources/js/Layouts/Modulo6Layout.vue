@@ -22,7 +22,10 @@ const props = defineProps({
 
 const page = usePage();
 const currentUrl = computed(() => page.url.split("?")[0].split("#")[0]);
-const esPerfil = computed(() => !currentUrl.value.startsWith("/modulo6"));
+const esServicios = computed(() => currentUrl.value.startsWith("/servicios-estudiante"));
+const esInventario = computed(() => currentUrl.value.startsWith("/equipo4"));
+const esMarketplace = computed(() => currentUrl.value.startsWith("/tienda"));
+const esPerfil = computed(() => !currentUrl.value.startsWith("/modulo6") && !esServicios.value && !esInventario.value && !esMarketplace.value);
 const menuAbierto = ref(false);
 const cuentaAbierta = ref(false);
 const botonMenu = ref(null);
@@ -52,14 +55,50 @@ const iniciales = computed(() =>
 const modulos = [
     { nombre: "Mi Perfil", icono: "👤", href: "/profile", perfil: true },
     { nombre: "Cartera", icono: "💳" },
-    { nombre: "Tienda", icono: "🛍️" },
-    { nombre: "Mis Productos", icono: "📦" },
-    { nombre: "Servicios", icono: "🎓" },
+    { nombre: "Tienda", icono: "🛍️", href: "/tienda", marketplace: true },
+    { nombre: "Inventarios", icono: "📦", href: "/equipo4", inventario: true },
+    { nombre: "Servicios", icono: "🎓", href: "/servicios-estudiante", servicios: true },
     { nombre: "Comunidad", icono: "👥", href: "/modulo6" },
     { nombre: "Recompensas", icono: "🎁" },
 ];
 const enlaces = computed(() =>
-    esPerfil.value
+    esMarketplace.value
+        ? [
+            { nombre: "Catálogo y carrito", icono: "🛍️", href: "/tienda", activo: currentUrl.value === "/tienda" },
+            { nombre: "Negocios y tiendas", icono: "🏪", href: "/tienda/negocios" },
+            { nombre: "Solicitudes", icono: "📝", href: "/tienda/solicitudes" },
+            { nombre: "Productos y servicios", icono: "📦", href: "/tienda/productos" },
+            { nombre: "Mis pedidos", icono: "🧾", href: "/tienda/pedidos" },
+            { nombre: "Panel vendedor", icono: "📊", href: "/tienda/vendedor", activo: currentUrl.value === "/tienda/vendedor" },
+            { nombre: "Atención de pedidos", icono: "📋", href: "/tienda/vendedor/pedidos" },
+            { nombre: "Postventa", icono: "↩️", href: "/tienda/postventa" },
+            { nombre: "Auditoría", icono: "🔎", href: "/tienda/auditoria" },
+          ]
+        : esServicios.value
+        ? [
+              { nombre: "Resumen", icono: "🏠", href: "/servicios-estudiante" },
+              { nombre: "Biblioteca", icono: "📚", href: "/servicios-estudiante/biblioteca" },
+              { nombre: "Mis préstamos", icono: "📖", href: "/servicios-estudiante/biblioteca/prestamos" },
+              { nombre: "Reservas de libros", icono: "🔖", href: "/servicios-estudiante/biblioteca/reservas" },
+              { nombre: "Multas", icono: "🧾", href: "/servicios-estudiante/biblioteca/multas" },
+              { nombre: "Lockers", icono: "🗄️", href: "/servicios-estudiante/lockers" },
+              { nombre: "Solicitudes de locker", icono: "📝", href: "/servicios-estudiante/lockers/solicitudes" },
+              { nombre: "Mi locker", icono: "🔑", href: "/servicios-estudiante/lockers/asignaciones" },
+              { nombre: "Reservas", icono: "📅", href: "/servicios-estudiante/reservas" },
+              { nombre: "Zonas de descanso", icono: "🛋️", href: "/servicios-estudiante/zonas-descanso" },
+              { nombre: "Calendarios y cupos", icono: "🗓️", href: "/servicios-estudiante/calendarios-cupos" },
+              { nombre: "Rentas", icono: "💻", href: "/servicios-estudiante/renta-equipos" },
+              { nombre: "Impresiones", icono: "🖨️", href: "/servicios-estudiante/servicios-impresiones" },
+              { nombre: "Soporte", icono: "🛠️", href: "/servicios-estudiante/soporte" },
+              ...(page.props.auth.servicios_staff ? [
+                  { nombre: "Ejemplares", icono: "📚", href: "/servicios-estudiante/biblioteca/ejemplares" },
+                  { nombre: "Periodos de lockers", icono: "📋", href: "/servicios-estudiante/lockers/periodos" },
+                  { nombre: "Control de acceso", icono: "📱", href: "/servicios-estudiante/validacion-servicios" },
+                  { nombre: "Acceso a lockers", icono: "🔓", href: "/servicios-estudiante/lockers/acceso" },
+              ] : []),
+              { nombre: "Mi bandeja", icono: "📩", href: "/modulo6/bandeja" },
+          ]
+        : esPerfil.value
         ? [
               { nombre: "Inicio", icono: "🏠", href: "/dashboard", activo: currentUrl.value === "/dashboard" },
               { nombre: "Perfil", icono: "👤", href: "/profile", activo: currentUrl.value === "/profile" },
@@ -270,7 +309,7 @@ const eliminarLeidas = async () => {
                 @click="menuAbierto = false"
             >
                 <p class="campus-section-label">
-                    {{ esPerfil ? "Identidad" : "Comunidad" }}
+                    {{ esPerfil ? "Identidad" : esMarketplace ? "Marketplace" : "Comunidad" }}
                 </p>
                 <Link
                     v-for="enlace in enlaces"
@@ -322,10 +361,10 @@ const eliminarLeidas = async () => {
                             :class="{
                                 'is-active': modulo.perfil
                                     ? esPerfil
-                                    : !esPerfil,
+                                    : modulo.servicios ? esServicios : modulo.inventario ? esInventario : modulo.marketplace ? esMarketplace : (!esPerfil && !esServicios && !esInventario && !esMarketplace),
                             }"
                             :aria-current="
-                                (modulo.perfil ? esPerfil : !esPerfil)
+                                (modulo.perfil ? esPerfil : modulo.servicios ? esServicios : modulo.inventario ? esInventario : modulo.marketplace ? esMarketplace : (!esPerfil && !esServicios && !esInventario && !esMarketplace))
                                     ? 'true'
                                     : undefined
                             "
