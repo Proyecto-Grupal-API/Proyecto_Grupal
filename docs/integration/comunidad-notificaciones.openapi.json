@@ -1,0 +1,561 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Campus Digital · Comunidad · Avisos de Servicios",
+    "version": "1.0.0",
+    "description": "REQ-M5-E6-001. Recibos aislados por cliente OAuth. 120 operaciones/minuto/cliente compartidas entre envío, consulta y retiro."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8086/api/v1/comunidad"
+    }
+  ],
+  "paths": {
+    "/notificaciones": {
+      "post": {
+        "operationId": "enviarAvisoServicio",
+        "security": [
+          {
+            "OAuthServicio": [
+              "notifications:send"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[a-zA-Z0-9_.:-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "destinatario_id",
+                  "tipo",
+                  "asunto",
+                  "texto",
+                  "accion"
+                ],
+                "properties": {
+                  "destinatario_id": {
+                    "type": "string",
+                    "maxLength": 128,
+                    "description": "User._id canónico de Identidad; se valida por su API de condición académica."
+                  },
+                  "tipo": {
+                    "type": "string",
+                    "enum": [
+                      "prestamo_por_vencer",
+                      "prestamo_vencido",
+                      "reserva_libro_disponible",
+                      "multa_generada",
+                      "locker_por_vencer",
+                      "lista_espera_promovida",
+                      "recordatorio_reserva",
+                      "no_show_registrado",
+                      "renta_por_devolver",
+                      "orden_lista",
+                      "ticket_actualizado"
+                    ]
+                  },
+                  "asunto": {
+                    "type": "string",
+                    "maxLength": 180,
+                    "description": "Texto sin HTML."
+                  },
+                  "texto": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "description": "Texto sin HTML."
+                  },
+                  "accion": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "destino",
+                      "id"
+                    ],
+                    "properties": {
+                      "destino": {
+                        "type": "string",
+                        "enum": [
+                          "mis_prestamos",
+                          "mis_reservas_libros",
+                          "mis_multas",
+                          "mi_locker",
+                          "mis_reservas",
+                          "mis_rentas",
+                          "mis_ordenes",
+                          "mi_ticket"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "maxLength": 128,
+                        "pattern": "^[a-zA-Z0-9_-]+$"
+                      }
+                    }
+                  },
+                  "importancia": {
+                    "type": "string",
+                    "enum": [
+                      "normal",
+                      "alta"
+                    ],
+                    "default": "normal"
+                  },
+                  "expira_en": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time",
+                    "description": "ISO 8601 con zona, posterior al primer envío. Un reintento posterior conserva el recibo."
+                  }
+                },
+                "example": {
+                  "destinatario_id": "66a123456789abcdef123456",
+                  "tipo": "orden_lista",
+                  "asunto": "Tu impresión está lista",
+                  "texto": "Recoge tu orden en Servicios al estudiante.",
+                  "accion": {
+                    "destino": "mis_ordenes",
+                    "id": "66a123456789abcdef123457"
+                  },
+                  "importancia": "normal"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recibo persistente de la entrega.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recibo"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Recibo persistente de la entrega.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recibo"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "consultarReciboAviso",
+        "security": [
+          {
+            "OAuthServicio": [
+              "notifications:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave_idempotencia",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recibo persistente de la entrega.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recibo"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notificaciones/{id}/retiro": {
+      "post": {
+        "operationId": "retirarAvisoServicio",
+        "security": [
+          {
+            "OAuthServicio": [
+              "notifications:send"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[a-zA-Z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "motivo"
+                ],
+                "properties": {
+                  "motivo": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "example": {
+                  "motivo": "Reserva cancelada"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Aviso retirado conservando el historial de lectura.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "notificacion_id",
+                    "estado"
+                  ],
+                  "properties": {
+                    "notificacion_id": {
+                      "type": "string"
+                    },
+                    "estado": {
+                      "const": "retirada"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "OAuthServicio": {
+        "type": "oauth2",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "/api/oauth/token",
+            "scopes": {
+              "notifications:send": "Enviar y retirar avisos propios.",
+              "notifications:read": "Consultar recibos propios."
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Recibo": {
+        "type": "object",
+        "required": [
+          "notificacion_id",
+          "estado",
+          "motivo"
+        ],
+        "properties": {
+          "notificacion_id": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "entregada",
+              "omitida"
+            ]
+          },
+          "motivo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "preferencia_silenciada",
+              null
+            ]
+          }
+        },
+        "example": {
+          "notificacion_id": "66a123456789abcdef123458",
+          "estado": "entregada",
+          "motivo": null
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "codigo",
+          "mensaje",
+          "correlacion_id"
+        ],
+        "properties": {
+          "codigo": {
+            "type": "string"
+          },
+          "mensaje": {
+            "type": "string"
+          },
+          "correlacion_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "errores": {
+            "type": "object"
+          }
+        },
+        "example": {
+          "codigo": "clave_en_conflicto",
+          "mensaje": "La clave ya se usó con un contenido diferente.",
+          "correlacion_id": "43de1399-7a77-4872-8dbf-c13a9a717dbd"
+        }
+      }
+    }
+  }
+}

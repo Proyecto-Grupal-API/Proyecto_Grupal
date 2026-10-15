@@ -1,0 +1,1195 @@
+{
+  "fecha_corte": "2026-10-15",
+  "zona": "America/Mexico_City",
+  "checkout": "/home/daniel/campus_digital_integracion_e1",
+  "rama_local": "integracion/equipo1-servicios-comunidad",
+  "head_local": "b2da6a0ecb3cadec801e4e62629d4ee0bb3d091d",
+  "working_tree": "Cambios de integración sin commit ni publicación; informe añadido sin modificar implementación.",
+  "documento": {
+    "ruta": "/home/daniel/campus_digital_integracion_e1/docs/Campus_Digital_Diseno_Modulos.pdf",
+    "paginas": 18,
+    "sha256": "c34800655e3f662605e2318d1b1d7c707816a1596d69f85fd7d9c1b15491151e",
+    "referencias": [
+      "secciones 8–14: 74 submódulos / 42 puntos por equipo",
+      "15–19: contratos, propiedad, seguridad",
+      "21–23: DoD, éxito y demo final"
+    ]
+  },
+  "metodologia": {
+    "funcional": "Suma(esfuerzo PDF × estimación del submódulo) / 42. Se evalúan backend, UI, reglas y efectos de negocio; pantallas/rutas no equivalen a operación final.",
+    "integracion": "Cinco criterios de 0–20 puntos: dominio/datos activados, UI/sesión unificadas, APIs vecinas reales, recuperación/auditoría entre módulos, verificación conjunta. No es porcentaje de todas las historias terminadas.",
+    "escala": "0 ausente; 5–20 estructuras/placeholder; 25–50 parcial; 55–75 uso útil con partes sustanciales pendientes; 80–95 avanzado con cierres pendientes; 100 aceptación integral probada.",
+    "incertidumbre": "±5–10 puntos por estimación; mayor incertidumbre en E2/E7, inspeccionados estáticamente. No es calificación oficial ni medición de horas.",
+    "comparabilidad": "Criterio distinto de informes anteriores (60% backend +20% UI +20% integración). Una cifra menor no demuestra regresión."
+  },
+  "verificacion": {
+    "ramas_remotas": "HEAD consultados hoy con git ls-remote y clon bare; coinciden con el corte 13/14 octubre.",
+    "tests": "No se ejecutaron suites en este corte. Último conjunto documentado 14 octubre: E3 33, E4 43, E1/E5/E6 213; total 289.",
+    "build": "Última compilación Vite aprobada según informe 14 octubre; no recompilada hoy.",
+    "runtime_hoy": "Contenedores principal y alterno activos; /login 200, /tienda sin sesión redirige a /login, API de organizaciones sin token 401.",
+    "E2_E7": "No ejecutados; presencia de pruebas en la rama no implica que hayan pasado en este corte."
+  },
+  "equipos": [
+    {
+      "equipo": 1,
+      "nombre": "Identidad, acceso, NFC/QR y perfil",
+      "paginas_pdf": [
+        7,
+        8
+      ],
+      "fuente": {
+        "tipo": "integrado_local",
+        "rama_publicada": "feat/modulo-1-equipo-1",
+        "sha_publicado": "86111548a7659ffa3dab4fd6ee441bb70160b3d9",
+        "nota": "Base final de E1 adaptada localmente; incluye su corrección de consentimientos."
+      },
+      "avance_ponderado": 90.83,
+      "avance_redondeado": 91,
+      "integracion_criterios": [
+        20,
+        20,
+        10,
+        15,
+        20
+      ],
+      "integracion_porcentaje": 85,
+      "modulos": [
+        {
+          "id": "1.1",
+          "nombre": "Gestión de cuentas y perfil",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 95,
+          "implementado": "Altas, importación, perfil académico, fotografía, condición y preferencias.",
+          "falta": "Directorio consumible por otros módulos, en particular búsqueda por matrícula y proyección de participantes sin leer User.",
+          "evidencia": [
+            "app/Http/Controllers/StudentController.php",
+            "app/Http/Controllers/StudentImportController.php",
+            "tests/Feature/StudentManagementTest.php"
+          ]
+        },
+        {
+          "id": "1.2",
+          "nombre": "Autenticación con Fortify",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 95,
+          "implementado": "Login de E1, logout, recuperación, confirmación, contraseña inicial, 2FA y sesiones compartidas.",
+          "falta": "Validación completa de todos los flujos sensibles cuando entren Finanzas y los operadores especializados.",
+          "evidencia": [
+            "app/Providers/FortifyServiceProvider.php",
+            "tests/Feature/RequiredTwoFactorAuthenticationTest.php",
+            "tests/Feature/SecuritySessionFlowTest.php"
+          ]
+        },
+        {
+          "id": "1.3",
+          "nombre": "Roles y permisos contextuales",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 80,
+          "implementado": "RoleAssignment vigente, roles globales/business, autorización institucional interna y comprobaciones por negocio.",
+          "falta": "Contrato consumible de autoridad institucional/financiera/servicios; capacidad operativa de buyer; fuente de departamento. Los cargos internos de E6 conservan su propietario acordado.",
+          "evidencia": [
+            "app/Services/InstitutionalAuthorizationService.php",
+            "app/Services/BusinessAuthorizationService.php",
+            "tests/Feature/BusinessRoleAdministrationTest.php"
+          ]
+        },
+        {
+          "id": "1.4",
+          "nombre": "Registro de tarjetas NFC",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 95,
+          "implementado": "Registro, asociación, validación de UID, control de duplicados y API.",
+          "falta": "Completar las comprobaciones con lectores reales y los flujos de E2/E6 que aún no consumen NFC.",
+          "evidencia": [
+            "app/Http/Controllers/NfcCardController.php",
+            "tests/Feature/NfcCardRegistrationTest.php",
+            "tests/Feature/NfcIdentityApiTest.php"
+          ]
+        },
+        {
+          "id": "1.5",
+          "nombre": "Ciclo de vida de credenciales",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 95,
+          "implementado": "Bloqueo, reemplazo enlazado, suspensión e historial.",
+          "falta": "Probar propagación de cambios y revocaciones con todos los consumidores restantes.",
+          "evidencia": [
+            "tests/Feature/NfcCardLifecycleTest.php",
+            "tests/Feature/NfcCardReplacementTest.php"
+          ]
+        },
+        {
+          "id": "1.6",
+          "nombre": "Identidad QR",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 95,
+          "implementado": "QR temporal, validación, límites de intentos y API; usado por Servicios.",
+          "falta": "Consumo pendiente desde caja/eventos; conservar la distinción entre credencial personal y boleto.",
+          "evidencia": [
+            "app/Http/Controllers/QrController.php",
+            "tests/Feature/QrIdentityTest.php",
+            "tests/Feature/QrValidationAuthorizationTest.php"
+          ]
+        },
+        {
+          "id": "1.7",
+          "nombre": "Dispositivos y sesiones confiables",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 95,
+          "implementado": "Dispositivos, sesiones, cierre remoto y reautenticación; correcciones de integración aplicadas.",
+          "falta": "Regresión de las nuevas operaciones sensibles de los módulos financieros y transversales.",
+          "evidencia": [
+            "app/Http/Controllers/SecurityDeviceController.php",
+            "tests/Feature/SecuritySessionFlowTest.php"
+          ]
+        },
+        {
+          "id": "1.8",
+          "nombre": "Validación de condición estudiantil",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 90,
+          "implementado": "Estado e historial académicos por API; E5 y resumen de E6 los consumen por HTTP.",
+          "falta": "No confundir estado con elegibilidad de beca; terminar la política/contrato de restricciones en cada consumidor.",
+          "evidencia": [
+            "app/Services/StudentStatusService.php",
+            "app/Services/IdentidadComunidadApi.php",
+            "tests/Feature/IdentityApiTest.php"
+          ]
+        },
+        {
+          "id": "1.9",
+          "nombre": "Consentimientos y preferencias",
+          "esfuerzo_pdf": 3,
+          "porcentaje_estimado": 90,
+          "implementado": "Consentimientos por funcionalidad y corrección final de E1 incorporada.",
+          "falta": "Contrato OAuth de servicio para campañas/segmentación; conciliar preferencias globales con las preferencias propias de Comunidad.",
+          "evidencia": [
+            "app/Enums/ConsentType.php",
+            "app/Http/Controllers/StudentServicesController.php",
+            "docs/integration/Dependencias_Equipo_1_Final.md"
+          ]
+        },
+        {
+          "id": "1.10",
+          "nombre": "API/servicio de identidad",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 75,
+          "implementado": "APIs de condición, credenciales y autorización business; provisión inicial de propietario.",
+          "falta": "Directorio, IDs canónicos de campus/programa por API, permisos institucionales/delegaciones y escritura de personal de negocio consumible por Marketplace.",
+          "evidencia": [
+            "routes/api.php",
+            "docs/integration/TEAM-1-INTEGRATION.md",
+            "docs/integration/Dependencias_Equipo_1_Final.md"
+          ]
+        }
+      ]
+    },
+    {
+      "equipo": 2,
+      "nombre": "Wallet, dinero digital, bonos, caja y conciliación",
+      "paginas_pdf": [
+        8,
+        9
+      ],
+      "fuente": {
+        "tipo": "publicado_no_integrado",
+        "rama_publicada": "feat/modulo-2-equipo-2",
+        "sha_publicado": "39de155c98469c8a1972814a3e9d508f1bd70410",
+        "nota": "Inspección estática actual de su rama. No se instaló ni se ejecutó SQL Server o su suite."
+      },
+      "avance_ponderado": 82.98,
+      "avance_redondeado": 83,
+      "integracion_criterios": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "integracion_porcentaje": 0,
+      "modulos": [
+        {
+          "id": "2.1",
+          "nombre": "Cuentas wallet",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 85,
+          "implementado": "Dominio SQL Server, tipos de cuenta, estados y saldos controlados.",
+          "falta": "Identidad/autoridad efectiva para titulares usuario/organización/negocio y alta/consulta real dentro del alterno.",
+          "evidencia": [
+            "app/Domains/Financial/Services/WalletService.php",
+            "app/Domains/Financial/Adapters/PendingFinancialRoleProvider.php"
+          ]
+        },
+        {
+          "id": "2.2",
+          "nombre": "Ledger de movimientos",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 90,
+          "implementado": "Débitos/créditos, referencias, claves de idempotencia y servicios transaccionales.",
+          "falta": "Pruebas reales de consistencia en SQL Server integrado, contrapartida comercial y conciliación de operaciones entre módulos.",
+          "evidencia": [
+            "app/Domains/Financial/Services/LedgerService.php",
+            "tests/Feature/Financial/LedgerServiceTest.php"
+          ]
+        },
+        {
+          "id": "2.3",
+          "nombre": "Recargas de dinero digital",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 80,
+          "implementado": "Servicios, folio, estados, operaciones de caja y confirmación del estudiante.",
+          "falta": "Conectar permisos de agente, identificación por API y vínculo de la asociación/caja de E6.",
+          "evidencia": [
+            "app/Domains/Financial/Services/TopUpService.php",
+            "app/Domains/Financial/Adapters/PendingCashAuthorizationProvider.php"
+          ]
+        },
+        {
+          "id": "2.4",
+          "nombre": "Retiros / cash-out en asociaciones",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 75,
+          "implementado": "Solicitud, saldo/límites, confirmaciones, aprobaciones y recuperación de efectivo.",
+          "falta": "Autoridad vigente, delegación y flujo E6/E1/E2 probado de extremo a extremo, incluido segundo aprobador.",
+          "evidencia": [
+            "app/Domains/Financial/Services/WithdrawalService.php",
+            "app/Domains/Financial/Services/CashWithdrawalRecoveryService.php"
+          ]
+        },
+        {
+          "id": "2.5",
+          "nombre": "Bonos y saldos restringidos",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 75,
+          "implementado": "Emisión/administración internas, consumo, vigencia, restricciones y separación del dinero.",
+          "falta": "API final de emisión desde beca, fuente autorizada de fondos, restricciones estructuradas y revocación/consumo parcial con E6.",
+          "evidencia": [
+            "app/Domains/Financial/Services/BonusService.php",
+            "app/Domains/Financial/Adapters/PendingBonusAuthorizationProvider.php"
+          ]
+        },
+        {
+          "id": "2.6",
+          "nombre": "Transferencias y regalos de saldo",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 85,
+          "implementado": "Políticas, confirmación, débito/crédito, auditoría, interfaz y API delegada.",
+          "falta": "Reemplazar proveedores Pending de autorización/delegación y lecturas directas heredadas de Identidad; probar usuario real.",
+          "evidencia": [
+            "app/Domains/Financial/Services/StudentTransferService.php",
+            "app/Domains/Financial/Adapters/PendingTransferDelegationProvider.php"
+          ]
+        },
+        {
+          "id": "2.7",
+          "nombre": "Retenciones, devoluciones y reversos",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 85,
+          "implementado": "Servicios y APIs de retención/captura/liberación, devoluciones y reversos vinculados.",
+          "falta": "Conectar pedidos, eventos y depósitos; resolver respuesta perdida, cancelación simultánea y devolución integral a negocio/usuario.",
+          "evidencia": [
+            "app/Domains/Financial/Services/WalletHoldService.php",
+            "app/Domains/Financial/Services/PurchaseRefundService.php"
+          ]
+        },
+        {
+          "id": "2.8",
+          "nombre": "Caja de asociaciones y turnos",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 85,
+          "implementado": "Apertura/cierre, movimientos, administración, arqueo y autorizaciones separadas.",
+          "falta": "Mapeo organización↔asociación financiera, roles de agentes/tesorería y permisos efectivos por acción.",
+          "evidencia": [
+            "app/Domains/Financial/Services/CashShiftService.php",
+            "docs/modulo-2/2.8-api.md"
+          ]
+        },
+        {
+          "id": "2.9",
+          "nombre": "Tickets y comprobantes financieros",
+          "esfuerzo_pdf": 3,
+          "porcentaje_estimado": 85,
+          "implementado": "Consulta personal, PDF, revisión administrativa/histórica y API.",
+          "falta": "Delegación confiable: el proveedor predeterminado impide el acceso hasta integrar E1; verificación conjunta y consumo desde otros módulos.",
+          "evidencia": [
+            "docs/modulo-2/2.9-api-comprobantes.md",
+            "app/Providers/PersonalReceiptServiceProvider.php"
+          ]
+        },
+        {
+          "id": "2.10",
+          "nombre": "Límites, alertas y conciliación",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 85,
+          "implementado": "Políticas, historial, alertas, conciliación programada y diferencias.",
+          "falta": "Autoridad operativa real, despliegue del scheduler y prueba con transacciones de todos los dominios; entrega de auditoría a E7.",
+          "evidencia": [
+            "app/Domains/Financial/Services/ReconciliationService.php",
+            "app/Domains/Financial/Services/FinancialLimitService.php",
+            "docs/modulo-2/operacion-conciliacion-programada.md"
+          ]
+        }
+      ]
+    },
+    {
+      "equipo": 3,
+      "nombre": "Marketplace, negocios, ventas y pagos directos",
+      "paginas_pdf": [
+        9
+      ],
+      "fuente": {
+        "tipo": "integrado_local",
+        "rama_publicada": "equipo3_negocios",
+        "sha_publicado": "b9534b9c7eb4da2783a29f210c4a9c69b36e6ff4",
+        "nota": "Se evalúa la copia adaptada, que supera las conexiones simuladas de la rama original."
+      },
+      "avance_ponderado": 62.74,
+      "avance_redondeado": 63,
+      "integracion_criterios": [
+        20,
+        20,
+        10,
+        10,
+        15
+      ],
+      "integracion_porcentaje": 75,
+      "modulos": [
+        {
+          "id": "3.1",
+          "nombre": "Registro y clasificación de negocios",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 80,
+          "implementado": "Tipos, solicitud, negocio y vínculo con asociación/Consejo consultado a E6.",
+          "falta": "Administración del personal mediante E1 y condición académica específica para negocio estudiantil; cerrar tipos/reglas institucionales.",
+          "evidencia": [
+            "app/Http/Controllers/Marketplace/BusinessManagementController.php",
+            "app/Services/Marketplace/MarketplaceIntegration.php"
+          ]
+        },
+        {
+          "id": "3.2",
+          "nombre": "Flujo de autorización de negocio",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 90,
+          "implementado": "Revisión, observaciones, aprobación, suspensión/baja; propietario mediante E1 y registro en E4 con reintento.",
+          "falta": "Completar validaciones de elegibilidad estudiantil y decisiones pendientes en la transición de responsables de organizaciones.",
+          "evidencia": [
+            "app/Http/Controllers/Marketplace/BusinessManagementController.php",
+            "tests/Feature/MarketplaceIntegrationTest.php"
+          ]
+        },
+        {
+          "id": "3.3",
+          "nombre": "Constructor de tienda virtual",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 80,
+          "implementado": "Nombre, marca, descripción, logo/banner por URL, políticas, horarios en JSON, puntos de entrega y publicación.",
+          "falta": "Gestión de canales/contacto y validación estructurada; facilitar edición de horarios y administración de medios desde la UI.",
+          "evidencia": [
+            "resources/js/Pages/Marketplace/Businesses.vue",
+            "app/Http/Controllers/Marketplace/BusinessManagementController.php"
+          ]
+        },
+        {
+          "id": "3.4",
+          "nombre": "Catálogo de productos y servicios",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 80,
+          "implementado": "Altas/edición, precios, imágenes, atributos y vínculo físico a producto/ubicación reales de E4.",
+          "falta": "Variantes operativas completas, impuestos/configuración académica y agenda/cupos de servicios; medios administrados.",
+          "evidencia": [
+            "app/Http/Controllers/Marketplace/BusinessManagementController.php",
+            "app/Services/Marketplace/MarketplaceIntegration.php"
+          ]
+        },
+        {
+          "id": "3.5",
+          "nombre": "Carrito, pedido y estados",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 85,
+          "implementado": "Carrito de un negocio, centavos, reserva real, idempotencia, cancelación, vencimiento y recuperación.",
+          "falta": "Ruta normal pagado→preparación→entrega y sus cancelaciones; dirección/entrega y trazabilidad financiera completas.",
+          "evidencia": [
+            "app/Services/Marketplace/MarketplaceOrders.php",
+            "tests/Feature/MarketplaceIntegrationTest.php"
+          ]
+        },
+        {
+          "id": "3.6",
+          "nombre": "Checkout y orquestación de pago",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 40,
+          "implementado": "Crea pedido pendiente, recalcula precios y reserva E4 por 15 minutos.",
+          "falta": "Wallet/bonos con E2, puntos con E7, selección mixta real y confirmación/descuento de inventario. Hoy no ejecuta ningún cobro.",
+          "evidencia": [
+            "app/Services/Marketplace/MarketplaceOrders.php",
+            "resources/js/Pages/Marketplace/Index.vue"
+          ]
+        },
+        {
+          "id": "3.7",
+          "nombre": "Configuración SPEI directa",
+          "esfuerzo_pdf": 3,
+          "porcentaje_estimado": 60,
+          "implementado": "Instrucciones por negocio y envío de referencia/evidencia; estado pendiente.",
+          "falta": "CLABE/datos estructurados y validación autorizada que cierre el pedido. El PDF permite validación manual; debe acordarse su autoridad, sin fingir confirmación bancaria.",
+          "evidencia": [
+            "app/Http/Controllers/Marketplace/BusinessManagementController.php",
+            "resources/js/Pages/Marketplace/Orders.vue"
+          ]
+        },
+        {
+          "id": "3.8",
+          "nombre": "Adaptador Openpay por negocio",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 10,
+          "implementado": "Campo de perfil y método seleccionable con aviso de integración pendiente.",
+          "falta": "Adaptador real/sandbox por negocio, credenciales protegidas, intención, referencia, webhook verificado, reintentos y devolución. Es desarrollo propio de E3.",
+          "evidencia": [
+            "app/Http/Controllers/Marketplace/BusinessManagementController.php",
+            "resources/js/Pages/Marketplace/Index.vue"
+          ]
+        },
+        {
+          "id": "3.9",
+          "nombre": "Panel del vendedor",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 70,
+          "implementado": "Pedidos, pendientes/cancelados, importe de ventas pagadas y productos principales.",
+          "falta": "Alimentar ventas reales, desgloses por método/periodo y atención completa tras pago confirmado.",
+          "evidencia": [
+            "app/Http/Controllers/Marketplace/BusinessManagementController.php",
+            "resources/js/Pages/Marketplace/SellerDashboard.vue"
+          ]
+        },
+        {
+          "id": "3.10",
+          "nombre": "Postventa comercial",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 45,
+          "implementado": "Solicitud, evidencia, decisión y estado de devolución/reembolso pendiente.",
+          "falta": "Reembolso real E2/proveedor, devolución de stock E4 y reverso de puntos E7; casos parciales y consistencia ante reintentos.",
+          "evidencia": [
+            "app/Http/Controllers/Marketplace/BusinessManagementController.php",
+            "resources/js/Pages/Marketplace/Returns.vue"
+          ]
+        }
+      ]
+    },
+    {
+      "equipo": 4,
+      "nombre": "Inventarios, proveedores, compras y abastecimiento",
+      "paginas_pdf": [
+        10
+      ],
+      "fuente": {
+        "tipo": "integrado_local",
+        "rama_publicada": "Modulo_4",
+        "sha_publicado": "1dec1fc7f0ebe027101ad8a645a0617e766228b2",
+        "nota": "La copia local corrige actor, autorización, ámbito, fechas, recepciones y API para E3."
+      },
+      "avance_ponderado": 82.86,
+      "avance_redondeado": 83,
+      "integracion_criterios": [
+        20,
+        20,
+        10,
+        15,
+        15
+      ],
+      "integracion_porcentaje": 80,
+      "modulos": [
+        {
+          "id": "4.1",
+          "nombre": "Inventario multi-negocio",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 90,
+          "implementado": "Datos aislados por negocio, contexto real y autorización E1; se habilitan negocios desde E3.",
+          "falta": "Completar la comprobación con múltiples negocios reales y el ciclo venta/devolución; evitar cualquier stock paralelo.",
+          "evidencia": [
+            "app/Services/InventoryModule/BusinessContext.php",
+            "app/Services/InventoryModule/BusinessService.php",
+            "tests/Feature/InventoryIntegrationTest.php"
+          ]
+        },
+        {
+          "id": "4.2",
+          "nombre": "Almacenes y ubicaciones",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 90,
+          "implementado": "Catálogo de almacenes/ubicaciones y transferencias con contexto de negocio.",
+          "falta": "Validar todos los escenarios de consignación/ubicaciones virtuales y su integración comercial.",
+          "evidencia": [
+            "app/Http/Controllers/InventoryModule/WarehouseController.php",
+            "app/Http/Controllers/InventoryModule/LocationController.php"
+          ]
+        },
+        {
+          "id": "4.3",
+          "nombre": "Kardex y movimientos",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 90,
+          "implementado": "Entradas, ajustes, transferencias, reservas y referencias/actor real.",
+          "falta": "Salidas por ventas pagadas, canjes y devoluciones sincronizadas; auditoría central.",
+          "evidencia": [
+            "app/Services/InventoryModule/InventoryService.php",
+            "app/Http/Controllers/InventoryModule/KardexController.php"
+          ]
+        },
+        {
+          "id": "4.4",
+          "nombre": "Proveedores",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 90,
+          "implementado": "Alta, datos administrativos, contactos, catálogo y estado.",
+          "falta": "Comprobar condiciones/productos suministrados en recorridos completos de abastecimiento.",
+          "evidencia": [
+            "app/Http/Controllers/InventoryModule/SupplierController.php",
+            "resources/js/Pages/Equipo4/Proveedores.vue"
+          ]
+        },
+        {
+          "id": "4.5",
+          "nombre": "Órdenes de compra",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 90,
+          "implementado": "Solicitud, autorización, partidas, costos y estados; gerente solicita y propietario autoriza.",
+          "falta": "Definición operativa del rol buyer en E1 y comprobación con sus usuarios reales.",
+          "evidencia": [
+            "app/Http/Controllers/InventoryModule/PurchaseOrderController.php",
+            "tests/Feature/InventoryIntegrationTest.php"
+          ]
+        },
+        {
+          "id": "4.6",
+          "nombre": "Recepción y devolución a proveedor",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 85,
+          "implementado": "Recepción parcial/total validada, cantidades pendientes y devolución con movimientos.",
+          "falta": "Completar evidencias/diferencias y recuperación ante interrupciones en escrituras relacionadas; lotes son opcionales.",
+          "evidencia": [
+            "app/Http/Controllers/InventoryModule/GoodsReceiptController.php",
+            "app/Services/InventoryModule/ReturnService.php"
+          ]
+        },
+        {
+          "id": "4.7",
+          "nombre": "Costos y precios de referencia",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 75,
+          "implementado": "Último costo, promedio de los últimos cinco costos, margen sugerido e historial.",
+          "falta": "Normalizar importes actualmente float, acordar criterio de promedio y validar costos durante recepción/devolución.",
+          "evidencia": [
+            "app/Services/InventoryModule/CostService.php",
+            "app/Http/Controllers/InventoryModule/CostController.php"
+          ]
+        },
+        {
+          "id": "4.8",
+          "nombre": "Reserva de stock para pedidos/canjes",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 80,
+          "implementado": "E3 reserva/libera por HTTP firmado; vencimientos y consulta recuperable de estado.",
+          "falta": "Confirmación definitiva tras pago E2, devolución y canje real E7. Registrar endpoints no demuestra esos flujos.",
+          "evidencia": [
+            "app/Services/InventoryModule/ReservationService.php",
+            "routes/inventory-api.php",
+            "tests/Feature/InventoryIntegrationTest.php"
+          ]
+        },
+        {
+          "id": "4.9",
+          "nombre": "Alertas de reabastecimiento",
+          "esfuerzo_pdf": 3,
+          "porcentaje_estimado": 65,
+          "implementado": "Mínimos/reorden, alertas activas/resueltas y prioridades.",
+          "falta": "Productos sin movimiento y notificación al responsable; completar recorrido máximo/reorden con compra.",
+          "evidencia": [
+            "app/Services/InventoryModule/AlertGeneratorService.php",
+            "app/Services/InventoryModule/ReorderRuleService.php"
+          ]
+        },
+        {
+          "id": "4.10",
+          "nombre": "Conteos y ajustes de inventario",
+          "esfuerzo_pdf": 3,
+          "porcentaje_estimado": 85,
+          "implementado": "Conteos, diferencias, aplicación de ajustes, permisos y bitácora.",
+          "falta": "Comprobar ciclo de autorización y escenarios concurrentes; consolidar auditoría transversal.",
+          "evidencia": [
+            "app/Http/Controllers/InventoryModule/StockCountController.php",
+            "app/Services/InventoryModule/InventoryService.php"
+          ]
+        },
+        {
+          "id": "4.11",
+          "nombre": "Operación especializada de souvenirs",
+          "esfuerzo_pdf": 3,
+          "porcentaje_estimado": 60,
+          "implementado": "Catálogo de souvenirs usando los mismos servicios y stock; demo vinculada a E3.",
+          "falta": "Operación completa de colecciones, tallas/colores, temporadas, paquetes y preventas; no basta una categoría souvenirs.",
+          "evidencia": [
+            "resources/js/Pages/Equipo4/Souvenirs.vue",
+            "app/Http/Controllers/InventoryModule/ProductController.php"
+          ]
+        }
+      ]
+    },
+    {
+      "equipo": 5,
+      "nombre": "Servicios al estudiante",
+      "paginas_pdf": [
+        10,
+        11
+      ],
+      "fuente": {
+        "tipo": "integrado_local",
+        "rama_publicada": "Equipo-5",
+        "sha_publicado": "ea7f0dc36e4c49119d7abbac60ab31cbca9c6d57",
+        "nota": "Mismo árbol funcional importado desde 257baeb. La copia local añade APIs reales E1/E6 y bloquea pagos ficticios."
+      },
+      "avance_ponderado": 80.6,
+      "avance_redondeado": 81,
+      "integracion_criterios": [
+        20,
+        20,
+        10,
+        15,
+        15
+      ],
+      "integracion_porcentaje": 80,
+      "modulos": [
+        {
+          "id": "5.1",
+          "nombre": "Biblioteca y catálogo",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 90,
+          "implementado": "Libros/ejemplares, préstamo, devolución, reserva, renovación, historial y sanciones.",
+          "falta": "Permiso específico de bibliotecario y cierre de adeudos/pagos y bloqueos; hoy opera admin E1.",
+          "evidencia": [
+            "app/Services/StudentServices/Library/LoanService.php",
+            "tests/Feature/StudentServices/LibraryLoansTest.php"
+          ]
+        },
+        {
+          "id": "5.2",
+          "nombre": "Multas y pagos de biblioteca",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 60,
+          "implementado": "Cálculo/registro de multas y cargos con estados.",
+          "falta": "Cobro real, conciliación y liberación del bloqueo por confirmación E2; no hay confirmación manual de pago.",
+          "evidencia": [
+            "app/Services/StudentServices/Library/FineService.php",
+            "app/Services/StudentServices/Payments/PendingStudentPaymentGateway.php"
+          ]
+        },
+        {
+          "id": "5.3",
+          "nombre": "Lockers",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 90,
+          "implementado": "Catálogo, zonas, tamaño/estado, periodos, costo y disponibilidad.",
+          "falta": "Rol de responsable, comprobar ciclo de mantenimiento e integración financiera.",
+          "evidencia": [
+            "app/Http/Controllers/StudentServices/Lockers/LockerController.php",
+            "tests/Feature/StudentServices/LockersTest.php"
+          ]
+        },
+        {
+          "id": "5.4",
+          "nombre": "Solicitud/asignación de locker",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 80,
+          "implementado": "Solicitud, disponibilidad, asignación becada E6, acceso y ciclo propio.",
+          "falta": "Pago de reserva/renovación, devolución y revocación coordinada de beneficio ya utilizado.",
+          "evidencia": [
+            "app/Services/StudentServices/Lockers/LockerAssignmentService.php",
+            "app/Services/StudentServices/Benefits/ServiceBenefitService.php"
+          ]
+        },
+        {
+          "id": "5.5",
+          "nombre": "Reservación de instalaciones",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 85,
+          "implementado": "Espacios, calendario, capacidad, reglas y reservas.",
+          "falta": "Cargos/cancelaciones financieras y permisos especializados de responsable de instalaciones.",
+          "evidencia": [
+            "app/Services/StudentServices/Reservations/FacilityReservationService.php",
+            "tests/Feature/StudentServices/FacilityReservationTest.php"
+          ]
+        },
+        {
+          "id": "5.6",
+          "nombre": "Zonas de descanso",
+          "esfuerzo_pdf": 3,
+          "porcentaje_estimado": 90,
+          "implementado": "Recursos, franjas, límites, solapamientos y uso.",
+          "falta": "Validación de operación física completa y conexión de métricas con E7.",
+          "evidencia": [
+            "app/Services/StudentServices/RestSpaces/RestBookingService.php",
+            "tests/Feature/StudentServices/RestSpaceTest.php"
+          ]
+        },
+        {
+          "id": "5.7",
+          "nombre": "Renta de equipos",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 65,
+          "implementado": "Activos, reserva, retiro/entrega, devolución y cálculo de daños.",
+          "falta": "Retención/liberación/cobro real de garantía con E2; integración E4 si se adopta para activos, sin duplicar propiedad.",
+          "evidencia": [
+            "app/Services/StudentServices/Rentals/RentalService.php",
+            "tests/Feature/StudentServices/RentalsTest.php"
+          ]
+        },
+        {
+          "id": "5.8",
+          "nombre": "Servicios e impresiones",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 75,
+          "implementado": "Archivo, opciones, cotización, pedido, estado/entrega y saldo de impresiones becadas.",
+          "falta": "Pago ordinario, devolución/conciliación y cobertura de beneficios de servicios todavía no soportados.",
+          "evidencia": [
+            "app/Services/StudentServices/Services/ServiceOrderService.php",
+            "tests/Feature/StudentServices/ServiceOrdersTest.php"
+          ]
+        },
+        {
+          "id": "5.9",
+          "nombre": "Tickets de soporte e incidencias",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 80,
+          "implementado": "Categoría, prioridad, evidencia, asignación, comentarios, fecha SLA y cierre.",
+          "falta": "Agente especializado E1, acceso controlado a evidencias y seguimiento/escalamiento automático de vencimiento SLA.",
+          "evidencia": [
+            "app/Services/StudentServices/Support/SupportTicketService.php",
+            "tests/Feature/StudentServices/SupportTicketsTest.php"
+          ]
+        },
+        {
+          "id": "5.10",
+          "nombre": "Calendarios, cupos y reglas",
+          "esfuerzo_pdf": 3,
+          "porcentaje_estimado": 90,
+          "implementado": "Motor compartido, disponibilidad, solapamientos, cancelación y restricciones.",
+          "falta": "Cerrar políticas no-show/listas y probarlas junto con pagos y devoluciones de cada servicio.",
+          "evidencia": [
+            "app/Services/StudentServices/Calendars/BookingService.php",
+            "app/Services/StudentServices/Calendars/CalendarRuleChecker.php"
+          ]
+        },
+        {
+          "id": "5.11",
+          "nombre": "Validación de acceso/uso",
+          "esfuerzo_pdf": 3,
+          "porcentaje_estimado": 85,
+          "implementado": "Credenciales QR/NFC reales de E1 y eventos de acceso/entrega.",
+          "falta": "Pruebas con lectores reales y todos los tipos de entrega/retorno; publicación transversal de eventos.",
+          "evidencia": [
+            "app/Services/StudentServices/ServiceAccess/IdentityCredentialResolver.php",
+            "tests/Feature/StudentServices/ServiceAccessTest.php"
+          ]
+        }
+      ]
+    },
+    {
+      "equipo": 6,
+      "nombre": "Asociaciones, Consejo, becas, eventos y comunicación",
+      "paginas_pdf": [
+        11,
+        12
+      ],
+      "fuente": {
+        "tipo": "integrado_local_propio",
+        "rama_publicada": "integracion/equipo1-comunidad",
+        "sha_publicado": "233293b2d392daa49e27dfe08e55635bbb5775c1",
+        "nota": "Se evalúa el avance local, superior a lo publicado; no se considera el número de pantallas como cumplimiento completo."
+      },
+      "avance_ponderado": 77.62,
+      "avance_redondeado": 78,
+      "integracion_criterios": [
+        20,
+        20,
+        10,
+        15,
+        15
+      ],
+      "integracion_porcentaje": 80,
+      "modulos": [
+        {
+          "id": "6.1",
+          "nombre": "Gestión de asociaciones",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 80,
+          "implementado": "Alta, perfil, estado, integrantes, responsables, suspensión/reactivación e historial.",
+          "falta": "Documentos institucionales de la asociación, periodos organizacionales completos, directorio E1 y vínculo canónico campus/programa.",
+          "evidencia": [
+            "app/Models/Organizacion.php",
+            "app/Http/Controllers/OrganizacionController.php",
+            "app/Services/RegistroOrganizaciones.php"
+          ]
+        },
+        {
+          "id": "6.2",
+          "nombre": "Gestión del Consejo Estudiantil",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 70,
+          "implementado": "Consejo como organización, integrantes, cargos, convocatorias/eventos y continuidad de presidencia.",
+          "falta": "Comisiones del Consejo, atribuciones diferenciadas y ámbitos institucionales; compartir base con asociaciones no cubre toda la especialización.",
+          "evidencia": [
+            "app/Models/Organizacion.php",
+            "app/Models/RolOrganizacion.php",
+            "app/Policies/OrganizacionPolicy.php"
+          ]
+        },
+        {
+          "id": "6.3",
+          "nombre": "Roles internos y vigencias",
+          "esfuerzo_pdf": 3,
+          "porcentaje_estimado": 60,
+          "implementado": "Cinco cargos, fechas, retiro, transferencia y comprobación de presidencia vigente.",
+          "falta": "Delegaciones temporales; permisos funcionales de tesorería/comunicación/comité y agentes de caja; múltiples periodos futuros. No otorgar autoridad financiera por el nombre del cargo.",
+          "evidencia": [
+            "app/Models/RolOrganizacion.php",
+            "app/Policies/OrganizacionPolicy.php",
+            "app/Services/AutoridadOrganizaciones.php"
+          ]
+        },
+        {
+          "id": "6.4",
+          "nombre": "Convocatorias y becas",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 90,
+          "implementado": "Convocatoria, requisitos/documentos privados, solicitud, cierre, dictamen, cupo e idempotencia.",
+          "falta": "Comité/revisores delegados y comprobaciones académicas pactadas; revocación coordinada cuando ya se entregó el apoyo.",
+          "evidencia": [
+            "app/Http/Controllers/BecaController.php",
+            "tests/Feature/BecasTest.php"
+          ]
+        },
+        {
+          "id": "6.5",
+          "nombre": "Asignación de beneficios",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 60,
+          "implementado": "Aprobación separada de entrega; locker e impresiones reales E5, recibo y reintentos.",
+          "falta": "Dinero/bonos E2, comidas/transporte y otros servicios; restricciones estructuradas, fondos, consumo y revocación coordinada.",
+          "evidencia": [
+            "app/Services/EntregaBeneficiosServicios.php",
+            "app/Services/BeneficiosBeca.php",
+            "tests/Feature/IntegracionServiciosComunidadTest.php"
+          ]
+        },
+        {
+          "id": "6.6",
+          "nombre": "Eventos y actividades",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 80,
+          "implementado": "Eventos, cupos, inscripción, espera FIFO, boleto QR, asistencia y staff por evento.",
+          "falta": "NFC de identidad, cobro E2, plazo financiero de reserva, pago tardío, generaciones de reinscripción y devolución/cancelación pagada.",
+          "evidencia": [
+            "app/Services/InscripcionesEvento.php",
+            "app/Http/Controllers/StaffEventoController.php",
+            "tests/Feature/StaffEventosTest.php"
+          ]
+        },
+        {
+          "id": "6.7",
+          "nombre": "Mensajería segmentada",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 60,
+          "implementado": "Audiencias de miembros, inscritos/espera y solicitudes/aprobados; cola, vista previa, lotes y reintentos.",
+          "falta": "Todos/campus/carrera/semestre/grupo; consentimiento global por API y permisos institucionales/de Comunicación.",
+          "evidencia": [
+            "app/Services/AudienciaCampana.php",
+            "docs/Entrega_4_Comunicacion.md",
+            "tests/Feature/ComunicacionTest.php"
+          ]
+        },
+        {
+          "id": "6.8",
+          "nombre": "Bandeja y notificaciones",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 90,
+          "implementado": "Privacidad, leído/importante/archivo, preferencias, enlaces, campana y avisos E5 por API.",
+          "falta": "Avisos de E2/E3/E7 y contrato específico de lotes Rewards; conciliar preferencias globales E1. Push/correo son ampliaciones posteriores.",
+          "evidencia": [
+            "app/Http/Controllers/BandejaController.php",
+            "app/Http/Controllers/Api/Community/AvisoController.php",
+            "tests/Feature/AvisosServiciosTest.php"
+          ]
+        },
+        {
+          "id": "6.9",
+          "nombre": "Encuestas y consultas",
+          "esfuerzo_pdf": 3,
+          "porcentaje_estimado": 90,
+          "implementado": "Población objetivo propia, preguntas, periodo, respuestas y resultados agregados.",
+          "falta": "Segmentación académica externa cuando corresponda y publicación hacia analítica E7.",
+          "evidencia": [
+            "app/Services/ConsultasComunidad.php",
+            "tests/Feature/ConsultasTest.php"
+          ]
+        },
+        {
+          "id": "6.10",
+          "nombre": "Votaciones internas",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 90,
+          "implementado": "Padrón congelado, periodo, opciones, voto único y resultados privados hasta cierre.",
+          "falta": "Validación institucional acordada para procesos especiales y auditoría transversal. Son votaciones académicas, no certificación electoral.",
+          "evidencia": [
+            "app/Http/Controllers/ConsultaController.php",
+            "tests/Feature/ConsultasTest.php"
+          ]
+        },
+        {
+          "id": "6.11",
+          "nombre": "Transparencia y resultados",
+          "esfuerzo_pdf": 2,
+          "porcentaje_estimado": 90,
+          "implementado": "Cifras agregadas, reportes inmutables/publicados/retirados, CSV e impresión y privacidad.",
+          "falta": "Incorporar entrega financiera real y datos externos autorizados; enviar hechos a auditoría/analítica global.",
+          "evidencia": [
+            "app/Services/MetricasComunidad.php",
+            "app/Http/Controllers/ReporteController.php",
+            "tests/Feature/ReportesTest.php"
+          ]
+        }
+      ]
+    },
+    {
+      "equipo": 7,
+      "nombre": "Recompensas globales, administración, auditoría y analítica",
+      "paginas_pdf": [
+        12,
+        13
+      ],
+      "fuente": {
+        "tipo": "publicado_no_integrado",
+        "rama_publicada": "Equipo-7",
+        "sha_publicado": "71d49b959c095f6951a17e9825d0896e3ab2894a",
+        "nota": "Inspección estática de servicio/modelos/migraciones/pruebas; no se ejecutó su suite ni se instaló en el alterno."
+      },
+      "avance_ponderado": 23.21,
+      "avance_redondeado": 23,
+      "integracion_criterios": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "integracion_porcentaje": 0,
+      "modulos": [
+        {
+          "id": "7.1",
+          "nombre": "Ledger global de puntos",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 65,
+          "implementado": "Servicio earn/redeem/reverse, saldo, referencias e idempotencia; pruebas de servicio.",
+          "falta": "Ajustes/expiraciones completos, API/UI, permisos y concurrencia; probar consistencia en réplica y con ventas reales.",
+          "evidencia": [
+            "src/app/Services/PointsLedgerService.php",
+            "src/tests/Feature/Services/PointsLedgerServiceTest.php"
+          ]
+        },
+        {
+          "id": "7.2",
+          "nombre": "Adhesión de negocios al programa",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 10,
+          "implementado": "Modelo/estructura de membresías.",
+          "falta": "Alta/baja operativa, aceptación, condiciones, permisos y consulta desde negocio.",
+          "evidencia": [
+            "src/app/Models/RewardProgramMembership.php",
+            "src/routes/web.php"
+          ]
+        },
+        {
+          "id": "7.3",
+          "nombre": "Reglas de acumulación",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 50,
+          "implementado": "Reglas por negocio, importe/fijos, multiplicador, campaña y topes.",
+          "falta": "Administración/API, reglas por producto/categoría/acción y evento de venta confirmada.",
+          "evidencia": [
+            "src/app/Services/PointsLedgerService.php",
+            "src/app/Models/EarningRule.php"
+          ]
+        },
+        {
+          "id": "7.4",
+          "nombre": "Catálogo de recompensas",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 10,
+          "implementado": "Entidades y migraciones de recompensas.",
+          "falta": "CRUD, imágenes, puntos, vigencia/límites, stock/cupo y catálogo consultable.",
+          "evidencia": [
+            "src/app/Models/Reward.php",
+            "src/routes/web.php"
+          ]
+        },
+        {
+          "id": "7.5",
+          "nombre": "Canje y entrega",
+          "esfuerzo_pdf": 5,
+          "porcentaje_estimado": 20,
+          "implementado": "Débito de puntos por referencia y base de canje.",
+          "falta": "Orquestación de reserva E4, validación/QR de canje, entrega, reverso y recuperación.",
+          "evidencia": [
+            "src/app/Services/PointsLedgerService.php",
+            "src/app/Models/Redemption.php"
+          ]
+        },
+        {
+          "id": "7.6",
+          "nombre": "Gobierno de puntos",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 35,
+          "implementado": "Topes, reverso con faltante y FraudFlag.",
+          "falta": "Expiración operativa, políticas administrables, revisión de alertas y conciliación integral.",
+          "evidencia": [
+            "src/app/Services/PointsLedgerService.php",
+            "src/app/Models/FraudFlag.php"
+          ]
+        },
+        {
+          "id": "7.7",
+          "nombre": "Administración general",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 5,
+          "implementado": "Estructuras iniciales de configuración/catálogos.",
+          "falta": "Flujos administrativos, permisos, validaciones, UI y relación con catálogos canónicos.",
+          "evidencia": [
+            "src/routes/web.php"
+          ]
+        },
+        {
+          "id": "7.8",
+          "nombre": "Auditoría transversal",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 20,
+          "implementado": "Auditoría/correlación generadas por su servicio de puntos.",
+          "falta": "API receptora de todos los equipos, actor real y antes/después, deduplicación, consulta autorizada y retención.",
+          "evidencia": [
+            "src/app/Services/PointsLedgerService.php",
+            "src/app/Models/AuditLog.php"
+          ]
+        },
+        {
+          "id": "7.9",
+          "nombre": "Dashboards y analítica",
+          "esfuerzo_pdf": 4,
+          "porcentaje_estimado": 0,
+          "implementado": "Sin vistas/controladores de KPIs operativos observados.",
+          "falta": "Ingesta/lecturas de dominios, métricas y dashboards globales.",
+          "evidencia": [
+            "src/routes/web.php"
+          ]
+        },
+        {
+          "id": "7.10",
+          "nombre": "Integración y observabilidad",
+          "esfuerzo_pdf": 2,
+          "porcentaje_estimado": 10,
+          "implementado": "Estructuras base y referencias internas.",
+          "falta": "Receptor de eventos, webhooks, reintentos, errores, health checks y correlación entre dominios.",
+          "evidencia": [
+            "src/routes/web.php",
+            "src/app/Services/PointsLedgerService.php"
+          ]
+        },
+        {
+          "id": "7.11",
+          "nombre": "Gestión de configuraciones sensibles",
+          "esfuerzo_pdf": 2,
+          "porcentaje_estimado": 5,
+          "implementado": "Estructuras iniciales.",
+          "falta": "Edición/aprobación, versiones, vigencias y trazabilidad ejecutables.",
+          "evidencia": [
+            "src/routes/web.php"
+          ]
+        }
+      ]
+    }
+  ],
+  "conexiones": [
+    {
+      "origen_destino": "E1 ↔ E6",
+      "estado": "Parcial",
+      "operativo": "Sesión, seguridad, baja coordinada y condición académica HTTP.",
+      "pendiente": "Directorio/matrícula, IDs/segmentación, consentimiento de servicio y permiso institucional.",
+      "responsables": "E1 publica contratos; E6 sustituye las lecturas heredadas."
+    },
+    {
+      "origen_destino": "E1 ↔ E3/E4",
+      "estado": "Parcial avanzada",
+      "operativo": "Asignaciones/checks por API; propietario inicial E3; actor real y contexto E4.",
+      "pendiente": "API de gestión del personal; definición operativa buyer y escenarios restantes.",
+      "responsables": "E1/E3/E4."
+    },
+    {
+      "origen_destino": "E1 ↔ E5",
+      "estado": "Parcial avanzada",
+      "operativo": "Estado académico y validación QR/NFC reales.",
+      "pendiente": "Roles de bibliotecario, instalaciones, lockers y soporte. Hoy admin E1.",
+      "responsables": "E1/E5."
+    },
+    {
+      "origen_destino": "E6 ↔ E5",
+      "estado": "Parcial avanzada",
+      "operativo": "Entrega de lockers/impresiones; avisos a bandeja, recibos, reintentos y deduplicación.",
+      "pendiente": "Comidas/transporte/otros servicios; revocación después de consumo.",
+      "responsables": "E6/E5."
+    },
+    {
+      "origen_destino": "E6 ↔ E3",
+      "estado": "Operativa para alta de tienda",
+      "operativo": "Organización/cargo vigentes por API; solicitud, aprobación y enlace de tienda.",
+      "pendiente": "Definir continuidad de propiedad al cambiar presidencia; cierre financiero comercial depende E2.",
+      "responsables": "E6/E3/E1 para propiedad, E2 para dinero."
+    },
+    {
+      "origen_destino": "E3 ↔ E4",
+      "estado": "Parcial avanzada",
+      "operativo": "Catálogo/ubicaciones, registro de negocio, reserva, consulta, vencimiento y liberación reales.",
+      "pendiente": "Salida definitiva tras pago, devolución comercial y reconciliación integral.",
+      "responsables": "E3/E4/E2."
+    },
+    {
+      "origen_destino": "E6 ↔ E4",
+      "estado": "Indirecta a través de E3",
+      "operativo": "La tienda oficial puede vincular productos al inventario de su negocio.",
+      "pendiente": "Demostración completa de abastecimiento/venta de una asociación; no construir otro stock en E6.",
+      "responsables": "E6/E3/E4."
+    },
+    {
+      "origen_destino": "E5 ↔ E4",
+      "estado": "No conectada; alcance por acordar",
+      "operativo": "E5 conserva sus activos de renta.",
+      "pendiente": "Acordar propiedad y contrato si equipo/material se integrará con E4. El PDF no enumera este enlace como obligación directa de E5.",
+      "responsables": "E5/E4."
+    },
+    {
+      "origen_destino": "E2 ↔ E1/E3/E4/E5/E6",
+      "estado": "No integrada localmente",
+      "operativo": "Contratos, servicios y rutas de la rama financiera inspeccionados.",
+      "pendiente": "Autoridad/delegación, SQL Server, pagos/bonos/caja, contrapartida y callbacks con consumidores reales.",
+      "responsables": "E2 más cada dueño del caso de uso."
+    },
+    {
+      "origen_destino": "E7 ↔ resto",
+      "estado": "Preparación sin consumo real de E7",
+      "operativo": "E6 expone resumen de organizaciones; E4 dispone de rutas para canjes; auditorías propias en cada dominio.",
+      "pendiente": "Instalar E7, receptor/API, eventos, recompensas/canje, consultas y dashboards.",
+      "responsables": "E7 y emisores."
+    }
+  ],
+  "publicacion": {
+    "ultima_integracion_publicada": false,
+    "testings_sha": "f1d03b1a3f465809afdf71bff4d3f63b394b95bc",
+    "main_sha": "f1d03b1a3f465809afdf71bff4d3f63b394b95bc"
+  }
+}

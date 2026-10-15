@@ -1,0 +1,362 @@
+{
+  "corte": "2026-10-09T17:12:15-06:00",
+  "metodo": "0.60*backend_ponderado+0.20*ui+0.20*integracion",
+  "equipos": [
+    {
+      "equipo": 1,
+      "nombre": "Identidad",
+      "rama": "feat/modulo-1-equipo-1",
+      "sha": "86111548a7659ffa3dab4fd6ee441bb70160b3d9",
+      "fecha_commit": "2026-10-07T17:57:05-06:00",
+      "mensaje_commit": "fix(consent): complete feature-specific consent requirements",
+      "backend": 93.6,
+      "ui": 90,
+      "integracion": 75,
+      "global_calculado": 89.1,
+      "global_redondeado": 90,
+      "implementado": "Cuenta/perfil e importación, Fortify, activación, 2FA, NFC y ciclo de vida, QR, sesiones, estado académico, consentimientos y autorización business con APIs y pruebas.",
+      "pendiente": "Contratos externos institucionales/financieros y de algunos contextos; autoridad para ciertos cargos y fuente Department; despliegue conjunto del transporte de eventos con E7.",
+      "pesos": [
+        5,
+        5,
+        4,
+        5,
+        4,
+        4,
+        4,
+        4,
+        3,
+        4
+      ],
+      "estimaciones_backend_por_funcion": [
+        95,
+        95,
+        90,
+        95,
+        95,
+        95,
+        95,
+        95,
+        95,
+        85
+      ],
+      "evidencia": [
+        "routes/api.php",
+        "docs/integration/TEAM-1-INTEGRATION.md",
+        "app/Services/InstitutionalAuthorizationService.php"
+      ]
+    },
+    {
+      "equipo": 2,
+      "nombre": "Finanzas y wallet",
+      "rama": "feat/modulo-2-equipo-2",
+      "sha": "d4a7e6b8cfe2ba3fc0f9258605d6afcf02b54dd5",
+      "fecha_commit": "2026-10-09T16:37:29-06:00",
+      "mensaje_commit": "feat(financial): administrar emision y cancelacion de bonos con auditoria e idempotencia",
+      "backend": 83.8,
+      "ui": 80,
+      "integracion": 40,
+      "global_calculado": 74.3,
+      "global_redondeado": 75,
+      "implementado": "Ledger SQL Server, recargas/retiros, pagos internos con bonos, devoluciones/reversos, retenciones y políticas, caja/turnos/arqueo, comprobantes de caja, confirmación del titular/supervisor, conciliación y diez pantallas financieras.",
+      "pendiente": "PendingFinancialWebAuthorizer, PendingCashAuthorizationProvider y PendingBonusAuthorizationProvider siguen denegando permisos. Identidad usa adaptador local antiguo. No hay todavía API OAuth de emisión de bonos para E6, checkout/cobro comercial y transferencia; contrapartida del vendedor y parte de recibos siguen pendientes.",
+      "pesos": [
+        5,
+        5,
+        4,
+        5,
+        4,
+        4,
+        4,
+        4,
+        3,
+        4
+      ],
+      "estimaciones_backend_por_funcion": [
+        90,
+        90,
+        90,
+        85,
+        85,
+        50,
+        95,
+        90,
+        65,
+        90
+      ],
+      "evidencia": [
+        "app/Providers/AppServiceProvider.php",
+        "routes/api.php",
+        "routes/web.php",
+        "docs/modulo-2/2.5-administracion-bonos.md",
+        "docs/modulo-2/2.8-api.md"
+      ]
+    },
+    {
+      "equipo": 3,
+      "nombre": "Marketplace",
+      "rama": "equipo3_negocios",
+      "sha": "85a63cbf81d34605c0bd8d6470b730e9b26fde54",
+      "fecha_commit": "2026-10-07T18:13:03-06:00",
+      "mensaje_commit": "Primera integración funcional de negocios",
+      "backend": 33.9,
+      "ui": 40,
+      "integracion": 10,
+      "global_calculado": 30.4,
+      "global_redondeado": 30,
+      "implementado": "Catálogo/negocios, carrito persistente, pedido e intento de pago, cinco páginas Vue y endpoints de catálogo. La base coincide con el controlador del ZIP entregado.",
+      "pendiente": "Pagos, reservas y puntos usan MockTeamAdapters. No aparecen flujos operativos completos de alta/aprobación de negocio, edición de tienda/catálogo, panel por vendedor o postventa. SPEI/Openpay quedan en validación/configuración; solo hay una prueba de acceso.",
+      "pesos": [
+        4,
+        4,
+        4,
+        4,
+        5,
+        5,
+        3,
+        5,
+        4,
+        4
+      ],
+      "estimaciones_backend_por_funcion": [
+        35,
+        15,
+        30,
+        55,
+        70,
+        45,
+        20,
+        10,
+        35,
+        15
+      ],
+      "evidencia": [
+        "campus-digital-equipo3/routes/web.php",
+        "campus-digital-equipo3/app/Http/Controllers/MarketplaceController.php",
+        "campus-digital-equipo3/app/Services/Integrations/MockTeamAdapters.php",
+        "campus-digital-equipo3/docs/integration-contracts.md"
+      ]
+    },
+    {
+      "equipo": 4,
+      "nombre": "Inventarios",
+      "rama": "Modulo_4",
+      "sha": "8876af1b83f4f7f308b93e525710ebf413e61aa9",
+      "fecha_commit": "2026-10-02T22:58:33-06:00",
+      "mensaje_commit": "Delete docs/test_team4_api_v3.ps1",
+      "backend": 82.4,
+      "ui": 85,
+      "integracion": 30,
+      "global_calculado": 72.4,
+      "global_redondeado": 70,
+      "implementado": "Inventario, ubicaciones, kardex, proveedores, compra/recepción, devolución, costos, reserva/liberación, reorden, conteos y souvenirs con pantallas y APIs de reserva.",
+      "pendiente": "IdentityService usa stubs por defecto. Team1Client requiere HMAC y /users/{id}, que no coinciden con el contrato OAuth final de E1. Muchos servicios fijan un business_id de instalación; falta contexto multi-negocio por solicitud y prueba real con E3/E7.",
+      "pesos": [
+        5,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        3,
+        3,
+        3
+      ],
+      "estimaciones_backend_por_funcion": [
+        65,
+        85,
+        85,
+        90,
+        85,
+        85,
+        85,
+        85,
+        80,
+        85,
+        80
+      ],
+      "evidencia": [
+        "routes/web.php",
+        "app/Services/Team1Client.php",
+        "app/Services/IdentityService.php",
+        "app/Services/ReservationService.php",
+        "config/team1.php"
+      ]
+    },
+    {
+      "equipo": 5,
+      "nombre": "Servicios al estudiante",
+      "rama": "equipo5/completa-modulo-5",
+      "sha": "257baeb67ff72c4efd6fe04db05f81fe75351835",
+      "fecha_commit": "2026-10-08T20:51:23-06:00",
+      "mensaje_commit": "Formato Pint en LockerPeriod",
+      "backend": 84.9,
+      "ui": 85,
+      "integracion": 30,
+      "global_calculado": 73.9,
+      "global_redondeado": 75,
+      "implementado": "Biblioteca/préstamos/multas, lockers, instalaciones/descanso, rentas, impresiones, soporte/calendarios y validación de servicios. API de beneficios de lockers e impresiones, pruebas y auditoría de dominio.",
+      "pendiente": "En su rama publicada siguen LocalStudentDirectory, LocalStudentCredentialResolver y LocalStudentPaymentGateway; OAuth usa adaptador local. Faltan identidad, pagos/depósitos y avisos reales en esa rama. Parte de esto ya se resolvió en nuestra integración local, sin atribuirlo al GitHub del equipo.",
+      "pesos": [
+        5,
+        4,
+        4,
+        4,
+        4,
+        3,
+        4,
+        4,
+        4,
+        3,
+        3
+      ],
+      "estimaciones_backend_por_funcion": [
+        90,
+        75,
+        90,
+        85,
+        90,
+        90,
+        85,
+        85,
+        85,
+        90,
+        65
+      ],
+      "evidencia": [
+        "app/Providers/AppServiceProvider.php",
+        "routes/student-services.php",
+        "routes/api.php",
+        "docs/integration/EQUIPO-5-BENEFICIOS.md"
+      ]
+    },
+    {
+      "equipo": 6,
+      "nombre": "Comunidad",
+      "rama": "integracion/equipo1-comunidad",
+      "sha": "233293b2d392daa49e27dfe08e55635bbb5775c1",
+      "fecha_commit": "2026-09-24T13:35:35-06:00",
+      "mensaje_commit": "Corrige cierre de sesiones y acceso a autenticación",
+      "backend": 84.6,
+      "ui": 90,
+      "integracion": 45,
+      "global_calculado": 77.8,
+      "global_redondeado": 80,
+      "implementado": "Organizaciones/Consejo/cargos, becas, eventos y Staff, campañas/bandeja, consultas/votaciones, transparencia. La publicación más nueva de Comunidad incluye una primera adaptación de Identidad.",
+      "pendiente": "En GitHub todavía faltan la integración final 1–5–6, la API nueva de avisos y entrega automática de beneficios. Pagos, caja/bonos, tiendas oficiales y auditoría central pendientes; siguen consultas heredadas al directorio/roles de E1.",
+      "pesos": [
+        4,
+        4,
+        3,
+        5,
+        4,
+        4,
+        5,
+        4,
+        3,
+        4,
+        2
+      ],
+      "estimaciones_backend_por_funcion": [
+        90,
+        85,
+        80,
+        95,
+        45,
+        85,
+        90,
+        90,
+        90,
+        90,
+        90
+      ],
+      "evidencia": [
+        "routes/comunidad.php",
+        "docs/Contratos_Integracion_Modulo_6.md",
+        "docs/integration/COMUNIDAD-EQUIPO-1.md"
+      ]
+    },
+    {
+      "equipo": 7,
+      "nombre": "Recompensas y auditoría",
+      "rama": "Equipo-7",
+      "sha": "71d49b959c095f6951a17e9825d0896e3ab2894a",
+      "fecha_commit": "2026-09-29T22:54:44-06:00",
+      "mensaje_commit": "feat(equipo7): PointsLedgerService con earn/redeem/reverse, idempotencia, shortfall+FraudFlag, y suite de 20 tests",
+      "backend": 32.3,
+      "ui": 0,
+      "integracion": 5,
+      "global_calculado": 20.4,
+      "global_redondeado": 20,
+      "implementado": "Modelos y migraciones MongoDB; PointsLedgerService con earn/redeem/reverse, reglas/campañas/topes, faltantes, FraudFlag y auditoría ligada a puntos; veinte pruebas declaradas.",
+      "pendiente": "Sin controladores/API de dominio ni vistas de usuario. Falta catálogo/canje con inventario y entrega, membresías operativas, administración/configuración, auditoría transversal, sink de eventos y dashboards. Dependencias externas no explican toda la ausencia de esos flujos.",
+      "pesos": [
+        5,
+        4,
+        4,
+        4,
+        5,
+        4,
+        4,
+        4,
+        4,
+        2,
+        2
+      ],
+      "estimaciones_backend_por_funcion": [
+        80,
+        20,
+        60,
+        15,
+        35,
+        45,
+        10,
+        30,
+        5,
+        10,
+        10
+      ],
+      "evidencia": [
+        "src/app/Services/PointsLedgerService.php",
+        "src/routes/web.php",
+        "src/tests/Feature/Services/PointsLedgerServiceTest.php"
+      ]
+    }
+  ],
+  "verificacion_sintaxis": {
+    "php_version": "8.5.10",
+    "unique_sources": 1086,
+    "branches": {
+      "feat/modulo-1-equipo-1": {
+        "files": 221,
+        "errors": []
+      },
+      "feat/modulo-2-equipo-2": {
+        "files": 355,
+        "errors": []
+      },
+      "equipo3_negocios": {
+        "files": 39,
+        "errors": []
+      },
+      "Modulo_4": {
+        "files": 100,
+        "errors": []
+      },
+      "equipo5/completa-modulo-5": {
+        "files": 203,
+        "errors": []
+      },
+      "integracion/equipo1-comunidad": {
+        "files": 259,
+        "errors": []
+      },
+      "Equipo-7": {
+        "files": 58,
+        "errors": []
+      }
+    }
+  }
+}

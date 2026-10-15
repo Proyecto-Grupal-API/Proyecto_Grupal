@@ -1,0 +1,49 @@
+{
+  "fecha_local": "2026-10-13T23:45:43-06:00",
+  "origen_e4": {
+    "rama": "Modulo_4",
+    "sha": "1dec1fc7f0ebe027101ad8a645a0617e766228b2"
+  },
+  "destino": "/home/daniel/campus_digital_integracion_e1",
+  "rama_local": "integracion/equipo1-servicios-comunidad",
+  "url": "http://127.0.0.1:8086/equipo4",
+  "database_inventory": "campus_integracion_inventarios",
+  "demo_user": "identidad@campus.test",
+  "demo_business": "BUS-CD-SOUV-001",
+  "pruebas_inventarios": {
+    "pruebas": 41,
+    "aserciones": 369
+  },
+  "regresion_1_5_6": {
+    "pruebas": 196,
+    "aserciones": 1444
+  },
+  "pruebas_total": 237,
+  "aserciones_total": 1813,
+  "conexion_e1": "HTTP real verificado, asignaciones y capacidades OAuth",
+  "api_catalogo_real": {
+    "status": 200,
+    "productos": 10,
+    "permisos_verificados": 43
+  },
+  "publicado": false,
+  "wallet_integrada": false,
+  "callbacks_financieros_habilitados": false,
+  "respaldo_codigo": "/tmp/campus-pre-integracion4-20261014.zip",
+  "archivos_previos_modificados": [
+    "app/Services/ClienteModuloHttp.php",
+    "app/Enums/ConsentType.php",
+    "app/Http/Middleware/HandleInertiaRequests.php",
+    "app/Http/Controllers/StudentServicesController.php",
+    "bootstrap/app.php",
+    "bootstrap/providers.php",
+    "config/student_services.php",
+    "resources/js/Layouts/Modulo6Layout.vue",
+    "resources/js/Pages/StudentServices/Index.vue",
+    "routes/web.php",
+    "routes/console.php",
+    "routes/api.php",
+    "tests/Feature/StudentServicesOutboxAtomicityTest.php",
+    "tests/Feature/StudentServicesPersistenceTest.php"
+  ]
+}

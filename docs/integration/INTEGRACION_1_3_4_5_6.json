@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-14",
+  "status": "active_local",
+  "checkout": "/home/daniel/campus_digital_integracion_e1",
+  "branch": "integracion/equipo1-servicios-comunidad",
+  "source": {
+    "branch": "equipo3_negocios",
+    "sha": "b9534b9c7eb4da2783a29f210c4a9c69b36e6ff4",
+    "head_verified": true
+  },
+  "url": "http://127.0.0.1:8086/tienda",
+  "demo_products": 10,
+  "tests": {
+    "marketplace": 33,
+    "inventory": 43,
+    "identity_services_community": 213,
+    "total": 289
+  },
+  "vite": "passed",
+  "real_http": {
+    "ok": true,
+    "demo_products": 10,
+    "real_http": "E1/E4/E6",
+    "reserved_quantity": 1,
+    "order_replay": "same_order",
+    "release": "stock_restored",
+    "payment": "pending_no_charge",
+    "provision_validation_status": 422
+  },
+  "browser": {
+    "ok": true,
+    "guest_route": "/tienda",
+    "redirect": "http://127.0.0.1:8086/login",
+    "login_form": true,
+    "javascript_errors": []
+  },
+  "pending": [
+    "E2 financial execution and refunds",
+    "E7 points and rewards",
+    "E1 business membership write API"
+  ],
+  "payments_enabled": false,
+  "main_checkout_modified": false,
+  "pushed": false,
+  "graphify": "workspace_not_selected"
+}
