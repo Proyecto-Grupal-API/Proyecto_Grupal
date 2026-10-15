@@ -15,6 +15,9 @@ use App\Http\Controllers\TransparenciaController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/organizaciones', [OrganizacionController::class, 'index']);
+Route::get('/organizaciones/delegaciones', [\App\Http\Controllers\DelegacionOrganizacionController::class, 'index']);
+Route::post('/organizaciones/delegaciones', [\App\Http\Controllers\DelegacionOrganizacionController::class, 'store']);
+Route::post('/organizaciones/delegaciones/{id}/revocar', [\App\Http\Controllers\DelegacionOrganizacionController::class, 'revocar'])->where('id', '[a-fA-F0-9]{24}');
 Route::post('/organizaciones/seleccionar', [OrganizacionController::class, 'seleccionar']);
 Route::put('/organizaciones/perfil', [OrganizacionController::class, 'updatePerfil']);
 Route::post('/organizaciones/miembros', [OrganizacionController::class, 'addMiembro']);

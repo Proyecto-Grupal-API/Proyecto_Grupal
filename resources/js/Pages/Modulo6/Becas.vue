@@ -5,7 +5,9 @@ import axios from "axios";
 import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
 import PanelLateral from "@/Components/Panellateral.vue";
 const page = usePage();
-const modo = ref(page.props.auth.puede_editar ? "gestion" : "catalogo");
+const puedeGestionar = computed(() => page.props.auth.capacidades_comunidad?.includes("becas.gestionar"));
+const puedeRevisar = computed(() => page.props.auth.capacidades_comunidad?.includes("becas.revisar"));
+const modo = ref(puedeGestionar.value || puedeRevisar.value ? "gestion" : "catalogo");
 const datos = ref(null),
     mias = ref(null),
     lista = ref(null),
@@ -202,7 +204,7 @@ const paginado = computed(() =>
                     </p>
                 </div>
                 <button
-                    v-if="modo === 'gestion'"
+                    v-if="modo === 'gestion' && puedeGestionar"
                     @click="abrir()"
                     :disabled="ocupado || !tipos.length"
                     class="rounded-lg bg-blue-900 text-white px-4 py-2"
@@ -215,11 +217,11 @@ const paginado = computed(() =>
                     v-for="tab in [
                         { id: 'catalogo', texto: 'Explorar apoyos' },
                         { id: 'mias', texto: 'Mis solicitudes' },
-                        ...(page.props.auth.puede_editar
+                        ...(puedeGestionar || puedeRevisar
                             ? [
                                   {
                                       id: 'gestion',
-                                      texto: 'Administrar organización',
+                                      texto: 'Gestión de becas',
                                   },
                               ]
                             : []),
@@ -369,27 +371,28 @@ const paginado = computed(() =>
                             class="mt-auto flex flex-wrap gap-3 text-sm font-semibold"
                         >
                             <button
-                                v-if="c.estado === 'borrador'"
+                                v-if="puedeGestionar && c.estado === 'borrador'"
                                 @click="abrir(c)"
                                 :disabled="ocupado"
                                 class="text-blue-800"
                             >
                                 Editar</button
                             ><button
-                                v-if="c.estado === 'borrador'"
+                                v-if="puedeGestionar && c.estado === 'borrador'"
                                 @click="estado(c, 'publicada')"
                                 :disabled="ocupado"
                                 class="text-green-800"
                             >
                                 Publicar</button
                             ><button
-                                v-if="c.estado === 'publicada'"
+                                v-if="puedeGestionar && c.estado === 'publicada'"
                                 @click="estado(c, 'en_revision')"
                                 :disabled="ocupado"
                                 class="text-blue-800"
                             >
                                 Cerrar recepción</button
                             ><button
+                                v-if="puedeRevisar"
                                 @click="
                                     filtro = '';
                                     verSolicitudes(c);
@@ -399,7 +402,7 @@ const paginado = computed(() =>
                             >
                                 Revisar solicitudes</button
                             ><button
-                                v-if="c.revision_abierta"
+                                v-if="puedeGestionar && c.revision_abierta"
                                 @click="estado(c, 'finalizada')"
                                 :disabled="ocupado"
                                 class="text-blue-800"
@@ -407,7 +410,7 @@ const paginado = computed(() =>
                                 Finalizar dictámenes</button
                             ><button
                                 v-if="
-                                    [
+                                    puedeGestionar && [
                                         'borrador',
                                         'publicada',
                                         'en_revision',

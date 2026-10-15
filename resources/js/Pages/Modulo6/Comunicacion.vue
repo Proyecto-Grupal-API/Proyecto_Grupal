@@ -5,6 +5,7 @@ import axios from "axios";
 import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
 import PanelLateral from "@/Components/Panellateral.vue";
 const page = usePage();
+const puedeComunicar = computed(() => page.props.auth.capacidades_comunidad?.includes("comunicacion.gestionar"));
 const datos = ref(null),
     form = ref({}),
     panel = ref(false),
@@ -65,7 +66,7 @@ async function cargar(p = datos.value?.page ?? 1, silencioso = false) {
     }
 }
 onMounted(() => {
-    if (page.props.auth.puede_editar) {
+    if (puedeComunicar.value) {
         cargar();
         timer = setInterval(() => {
             if (
@@ -178,7 +179,7 @@ function cancelar(c) {
                         class="rounded-lg border bg-white px-4 py-2"
                         >Mi bandeja</Link
                     ><button
-                        v-if="page.props.auth.puede_editar"
+                        v-if="puedeComunicar"
                         @click="abrir()"
                         :disabled="ocupado"
                         class="rounded-lg bg-blue-900 text-white px-4 py-2"
@@ -188,10 +189,10 @@ function cancelar(c) {
                 </div>
             </div>
             <p
-                v-if="!page.props.auth.puede_editar"
+                v-if="!puedeComunicar"
                 class="rounded-xl border bg-white p-6"
             >
-                La presidencia de tu organización administra las campañas.
+                La presidencia, el cargo de Comunicación o una delegación vigente permiten administrar las campañas.
                 Puedes consultar tus mensajes y preferencias en Mi bandeja.
             </p>
             <p
@@ -208,7 +209,7 @@ function cancelar(c) {
             >
                 {{ error }}
             </p>
-            <template v-if="page.props.auth.puede_editar"
+            <template v-if="puedeComunicar"
                 ><form @submit.prevent="cargar(1)" class="flex gap-3">
                     <input
                         v-model="buscar"

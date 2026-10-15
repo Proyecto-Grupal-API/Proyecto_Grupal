@@ -55,6 +55,7 @@ class HandleInertiaRequests extends Middleware
                 'gestiona_organizaciones' => fn () => app(AutoridadOrganizaciones::class)->permite($request->user()),
                 'organizacion' => fn () => $request->attributes->get('organizacion'),
                 'puede_editar' => fn () => $request->attributes->get('organizacion') && Gate::allows('update', $request->attributes->get('organizacion')),
+                'capacidades_comunidad' => fn () => app(\App\Services\PermisosComunidad::class)->capacidades($request->user(), $request->attributes->get('organizacion')),
             ],
         ];
     }

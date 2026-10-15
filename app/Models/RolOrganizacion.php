@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 class RolOrganizacion extends Documento
 {
-    public const CARGOS = ['presidencia', 'vicepresidencia', 'tesoreria', 'secretaria', 'comunicacion'];
+    public const CARGOS = ['presidencia', 'vicepresidencia', 'tesoreria', 'secretaria', 'comunicacion', 'responsable_becas'];
 
     protected $table = 'asignaciones_roles_organizacion';
 

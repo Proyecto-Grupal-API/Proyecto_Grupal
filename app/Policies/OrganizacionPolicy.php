@@ -7,6 +7,7 @@ use App\Models\Organizacion;
 use App\Models\RolOrganizacion;
 use App\Models\User;
 use App\Services\AutoridadOrganizaciones;
+use App\Services\PermisosComunidad;
 
 class OrganizacionPolicy
 {
@@ -26,5 +27,25 @@ class OrganizacionPolicy
         return $this->view($user, $organizacion) && RolOrganizacion::vigentes()
             ->where('organizacion_id', (string) $organizacion->id)->where('usuario_id', (string) $user->id)
             ->where('slug_rol', 'presidencia')->exists();
+    }
+
+    public function comunicar(User $user, Organizacion $organizacion): bool
+    {
+        return app(PermisosComunidad::class)->permite($user, $organizacion, 'comunicacion.gestionar');
+    }
+
+    public function gestionarBecas(User $user, Organizacion $organizacion): bool
+    {
+        return app(PermisosComunidad::class)->permite($user, $organizacion, 'becas.gestionar');
+    }
+
+    public function revisarBecas(User $user, Organizacion $organizacion): bool
+    {
+        return app(PermisosComunidad::class)->permite($user, $organizacion, 'becas.revisar');
+    }
+
+    public function verGestionBecas(User $user, Organizacion $organizacion): bool
+    {
+        return $this->gestionarBecas($user, $organizacion) || $this->revisarBecas($user, $organizacion);
     }
 }

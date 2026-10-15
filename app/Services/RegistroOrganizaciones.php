@@ -6,6 +6,8 @@ use App\Models\AuditoriaComunidad;
 use App\Models\MiembroOrganizacion;
 use App\Models\Organizacion;
 use App\Models\RolOrganizacion;
+use App\Models\DelegacionOrganizacion;
+use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -109,9 +111,13 @@ class RegistroOrganizaciones
                 throw ValidationException::withMessages(['presidencia' => 'Regulariza la presidencia desde mantenimiento antes de reactivar la organización.']);
             }
             $h = ['id' => $d['clave_cambio'], 'desde' => $org->estado, 'hasta' => $d['estado'], 'motivo' => $d['motivo'], 'actor_id' => (string) $actor->id, 'fecha' => now()->toIso8601String(), 'version' => $d['version_estado'] + 1];
-            // Estado y su historial se guardan juntos en un único documento MongoDB.
-            $org->update(['estado' => $d['estado'], 'version_estado' => $h['version'], 'historial_estados' => [...$historial, $h]]);
-            $this->auditar($org, $h);
+            DB::connection('mongodb')->transaction(function () use ($org, $d, $h, $historial, $actor) {
+                $org->update(['estado' => $d['estado'], 'version_estado' => $h['version'], 'historial_estados' => [...$historial, $h]]);
+                if ($d['estado'] === 'suspendida') {
+                    app(DelegacionesComunidad::class)->revocarRegistros(DelegacionOrganizacion::where('organizacion_id', (string) $org->id), (string) $actor->id, 'Se suspendió la organización.');
+                }
+                $this->auditar($org, $h);
+            });
 
             return $org->fresh();
         });

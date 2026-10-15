@@ -21,7 +21,7 @@ class EntregaCampanas
             }
             $actor = User::find($c->enviado_por);
             $org = Organizacion::find($c->organizacion_id);
-            if (! $actor || ! $org || ! Gate::forUser($actor)->allows('update', $org)) {
+            if (! $actor || ! $org || ! Gate::forUser($actor)->allows('comunicar', $org)) {
                 $c->update(['estado' => 'pausada', 'error' => 'Se suspendió el envío porque cambiaron los permisos de la organización.']);
 
                 return false;

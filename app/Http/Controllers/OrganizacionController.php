@@ -10,10 +10,13 @@ use App\Models\StaffEvento;
 use App\Models\User;
 use App\Services\RegistroOrganizaciones;
 use App\Services\ResponsabilidadesComunidad;
+use App\Services\DelegacionesComunidad;
+use App\Models\DelegacionOrganizacion;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -115,6 +118,9 @@ class OrganizacionController extends Controller
                 throw ValidationException::withMessages(['slug_rol' => 'Transfiere la presidencia a un miembro con vigencia actual.']);
             }
             $antes = $rol->exists ? $rol->toArray() : null;
+            if ($rol->exists) {
+                app(DelegacionesComunidad::class)->revocarRegistros(DelegacionOrganizacion::where('cargo_origen_id', (string) $rol->id), (string) $request->user()->id, 'Se modificó el cargo que otorgó la delegación.');
+            }
             $rol->fill([...$data, 'fecha_fin' => $data['fecha_fin'] ?? null, 'organizacion_id' => (string) $org->id, 'otorgado_por' => (string) $request->user()->id, 'eliminado_en' => null])->save();
             $this->auditar($request, $org, 'cargo_asignado', $rol, $antes);
         }, $id ? 200 : 201);
@@ -129,6 +135,7 @@ class OrganizacionController extends Controller
             }
             $antes = $miembro->toArray();
             $miembro->update(['estado' => 'inactivo', 'eliminado_en' => now()]);
+            app(DelegacionesComunidad::class)->revocarRegistros(DelegacionOrganizacion::where('organizacion_id', (string) $org->id)->where(fn ($q) => $q->where('destinatario_id', $miembro->usuario_id)->orWhere('delegante_id', $miembro->usuario_id)), (string) $request->user()->id, 'Baja de un integrante vinculado a la delegación.');
             foreach (RolOrganizacion::where('organizacion_id', (string) $org->id)->where('usuario_id', $miembro->usuario_id)->whereNull('eliminado_en')->get() as $rol) {
                 $anterior = $rol->toArray();
                 $rol->update(['eliminado_en' => now()]);
@@ -152,6 +159,7 @@ class OrganizacionController extends Controller
             }
             $antes = $rol->toArray();
             $rol->update(['eliminado_en' => now()]);
+            app(DelegacionesComunidad::class)->revocarRegistros(DelegacionOrganizacion::where('cargo_origen_id', (string) $rol->id), (string) $request->user()->id, 'Se retiró el cargo que otorgó la delegación.');
             $this->auditar($request, $org, 'cargo_retirado', $rol, $antes);
         });
     }
@@ -162,7 +170,7 @@ class OrganizacionController extends Controller
         try {
             return app(ResponsabilidadesComunidad::class)->ejecutar(fn () => Cache::lock('organizacion:'.$org->id, 15)->block(5, function () use ($org, $operacion, $status) {
                 Gate::authorize('update', $org); // Revalidar después de esperar el bloqueo.
-                $operacion($org);
+                DB::connection('mongodb')->transaction(fn () => $operacion($org));
 
                 return response()->json(['message' => 'Cambios guardados.'], $status);
             }));

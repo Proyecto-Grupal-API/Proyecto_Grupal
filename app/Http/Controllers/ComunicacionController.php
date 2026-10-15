@@ -20,7 +20,7 @@ class ComunicacionController extends Controller
 {
     public function index(Request $r)
     {
-        $org = $this->organizacion($r, true);
+        $org = $this->organizacion($r, 'comunicar');
         $r->validate(['page' => ['nullable', 'integer', 'min:1'], 'buscar' => ['nullable', 'string', 'max:120']]);
         $q = Campana::where('organizacion_id', (string) $org->id);
         if ($r->filled('buscar')) {
@@ -35,7 +35,7 @@ class ComunicacionController extends Controller
 
     public function store(GuardarCampanaRequest $r)
     {
-        $org = $this->organizacion($r, true);
+        $org = $this->organizacion($r, 'comunicar');
         $c = new Campana([...$r->datos(), 'organizacion_id' => (string) $org->id, 'estado' => 'borrador', 'revision' => 1]);
         app(AudienciaCampana::class)->ids($c);
         $c->save();
@@ -140,9 +140,10 @@ class ComunicacionController extends Controller
 
     private function conCampana(Request $r, string $id, callable $fn)
     {
-        $org = $this->organizacion($r, true);
+        $org = $this->organizacion($r, 'comunicar');
         try {
-            return Cache::store('file')->lock('campana:'.$id, 60)->block(5, function () use ($org, $id, $fn) {
+            return Cache::store('file')->lock('campana:'.$id, 60)->block(5, function () use ($r, $org, $id, $fn) {
+                $this->organizacion($r, 'comunicar');
                 return $fn(Campana::where('organizacion_id', (string) $org->id)->findOrFail($id));
             });
         } catch (LockTimeoutException) {

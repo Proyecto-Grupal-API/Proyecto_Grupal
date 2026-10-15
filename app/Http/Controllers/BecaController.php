@@ -28,7 +28,7 @@ class BecaController extends Controller
         $org = $r->attributes->get('organizacion');
         $q = ConvocatoriaBeca::query();
         if ($r->boolean('gestion')) {
-            $q->where('organizacion_id', (string) $this->organizacion($r, true)->id);
+            $q->where('organizacion_id', (string) $this->organizacion($r, 'verGestionBecas')->id);
         } else {
             $q->whereIn('organizacion_id', Organizacion::where('estado', 'activa')->pluck('id'))->whereIn('estado', ['publicada', 'en_revision'])->where('fecha_fin', '>', now());
         }
@@ -39,12 +39,12 @@ class BecaController extends Controller
         $orgs = Organizacion::whereIn('_id', $p->getCollection()->pluck('organizacion_id'))->get()->keyBy('id');
         $mias = SolicitudBeca::whereIn('convocatoria_id', $p->getCollection()->pluck('id'))->where('usuario_id', (string) $r->user()->id)->get()->keyBy('convocatoria_id');
 
-        return response()->json(['convocatorias' => $p->getCollection()->map(fn ($c) => [...$this->convocatoria($c), 'organizacion_nombre' => $orgs->get($c->organizacion_id)?->nombre, 'mi_solicitud' => $mias->has($c->id) ? $this->resumen($mias->get($c->id)) : null]), 'tipos' => TipoBeneficio::whereIn('equipo', [2, 5])->get(), 'puede_gestionar' => $org && Gate::allows('update', $org), 'page' => $p->currentPage(), 'last_page' => $p->lastPage()]);
+        return response()->json(['convocatorias' => $p->getCollection()->map(fn ($c) => [...$this->convocatoria($c), 'organizacion_nombre' => $orgs->get($c->organizacion_id)?->nombre, 'mi_solicitud' => $mias->has($c->id) ? $this->resumen($mias->get($c->id)) : null]), 'tipos' => TipoBeneficio::whereIn('equipo', [2, 5])->get(), 'puede_gestionar' => $org && Gate::allows('gestionarBecas', $org), 'puede_revisar' => $org && Gate::allows('revisarBecas', $org), 'page' => $p->currentPage(), 'last_page' => $p->lastPage()]);
     }
 
     public function store(GuardarConvocatoriaRequest $r)
     {
-        $org = $this->organizacion($r, true);
+        $org = $this->organizacion($r, 'gestionarBecas');
         $c = ConvocatoriaBeca::create([...$r->datos(), 'organizacion_id' => (string) $org->id, 'creado_por' => (string) $r->user()->id, 'estado' => 'borrador']);
         $this->auditar($r, $c, 'beca_creada', $c->id, null, $c->toArray());
 
@@ -53,7 +53,7 @@ class BecaController extends Controller
 
     public function update(GuardarConvocatoriaRequest $r, string $id)
     {
-        return $this->conConvocatoria($r, $id, true, function ($c) use ($r) {
+        return $this->conConvocatoria($r, $id, 'gestionarBecas', function ($c) use ($r) {
             $this->exigir($c->estado === 'borrador', 'Solo puedes editar convocatorias en borrador.');
             $antes = $c->toArray();
             $c->update($r->datos());
@@ -67,7 +67,7 @@ class BecaController extends Controller
     {
         $d = $r->validate(['estado' => ['required', Rule::in(['publicada', 'en_revision', 'finalizada', 'cancelada'])], 'motivo' => ['required_if:estado,cancelada', 'nullable', 'string', 'min:10', 'max:2000']]);
 
-        return $this->conConvocatoria($r, $id, true, function ($c) use ($r, $d) {
+        return $this->conConvocatoria($r, $id, 'gestionarBecas', function ($c) use ($r, $d) {
             $antes = $c->toArray();
             $destino = $d['estado'];
             if ($c->estado !== $destino) {
@@ -117,7 +117,7 @@ class BecaController extends Controller
 
     public function solicitudes(Request $r, string $id)
     {
-        $c = ConvocatoriaBeca::where('organizacion_id', (string) $this->organizacion($r, true)->id)->findOrFail($id);
+        $c = ConvocatoriaBeca::where('organizacion_id', (string) $this->organizacion($r, 'revisarBecas')->id)->findOrFail($id);
         $r->validate(['estado' => ['nullable', Rule::in(['pendiente', 'en_revision', 'aprobada', 'rechazada', 'retirada', 'cancelada'])], 'page' => ['nullable', 'integer', 'min:1']]);
         $q = SolicitudBeca::where('convocatoria_id', $id)->whereNotNull('enviado_en');
         if ($r->filled('estado')) {
@@ -239,7 +239,7 @@ class BecaController extends Controller
     {
         $d = $r->validate(['estado' => ['required', Rule::in(['en_revision', 'aprobada', 'rechazada'])], 'motivo' => ['required', 'string', 'min:10', 'max:2000']]);
 
-        return $this->conSolicitud($r, $id, true, function ($s, $c) use ($r, $d) {
+        return $this->conSolicitud($r, $id, 'revisarBecas', function ($s, $c) use ($r, $d) {
             $this->exigir((string) $s->usuario_id !== (string) $r->user()->id, 'No puedes dictaminar tu propia solicitud.');
             if ($s->estado === $d['estado'] && in_array($s->estado, ['aprobada', 'rechazada'])) {
                 if ($s->estado === 'aprobada') {
@@ -311,9 +311,9 @@ class BecaController extends Controller
         }
     }
 
-    private function autorizarGestion(Request $r, ConvocatoriaBeca $c): void
+    private function autorizarGestion(Request $r, ConvocatoriaBeca $c, string $capacidad = 'revisarBecas'): void
     {
-        abort_unless((string) $this->organizacion($r, true)->id === (string) $c->organizacion_id, 404);
+        abort_unless((string) $this->organizacion($r, $capacidad)->id === (string) $c->organizacion_id, 404);
     }
 
     private function autorizarSolicitud(Request $r, SolicitudBeca $s, ConvocatoriaBeca $c): bool
@@ -327,7 +327,7 @@ class BecaController extends Controller
         return false;
     }
 
-    private function conSolicitud(Request $r, string $id, bool $gestion, callable $fn)
+    private function conSolicitud(Request $r, string $id, bool|string $gestion, callable $fn)
     {
         $original = SolicitudBeca::findOrFail($id);
 
@@ -341,13 +341,13 @@ class BecaController extends Controller
         });
     }
 
-    private function conConvocatoria(Request $r, string $id, bool $gestion, callable $fn)
+    private function conConvocatoria(Request $r, string $id, bool|string $gestion, callable $fn)
     {
         try {
             return Cache::store('file')->lock('beca:'.$id, 60)->block(5, function () use ($r, $id, $gestion, $fn) {
                 $c = ConvocatoriaBeca::findOrFail($id);
                 if ($gestion) {
-                    $this->autorizarGestion($r, $c);
+                    $this->autorizarGestion($r, $c, $gestion);
                 }
 
                 return $fn($c);

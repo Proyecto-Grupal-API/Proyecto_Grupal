@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AuditoriaComunidad;
+use App\Models\DelegacionOrganizacion;
 use App\Models\MiembroOrganizacion;
 use App\Models\PermisoGestionOrganizaciones;
 use App\Models\RolOrganizacion;
@@ -49,6 +50,7 @@ class ResponsabilidadesComunidad
                 $permiso->update(['activo' => false]);
                 AuditoriaComunidad::create(['organizacion_id' => null, 'usuario_id' => (string) $user->id, 'accion' => 'gestor_revocado_por_baja', 'entidad_id' => (string) $permiso->id, 'antes' => $antes, 'despues' => ['activo' => false]]);
             }
+            app(DelegacionesComunidad::class)->revocarRegistros(DelegacionOrganizacion::where(fn ($q) => $q->where('destinatario_id', (string) $user->id)->orWhere('delegante_id', (string) $user->id)), (string) $user->id, 'Baja de la cuenta vinculada a la delegación.');
             $eliminarIdentidad(); // Identidad conserva la autoridad sobre la baja y las credenciales.
         }));
     }

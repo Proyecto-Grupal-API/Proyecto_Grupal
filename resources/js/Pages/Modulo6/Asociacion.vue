@@ -4,6 +4,7 @@ import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
 import PanelLateral from "@/Components/Panellateral.vue";
+import DelegacionesOrganizacion from "@/Components/DelegacionesOrganizacion.vue";
 
 const page = usePage();
 const datos = ref(null);
@@ -34,6 +35,7 @@ const nombreCargo = (valor) =>
         secretaria: "Secretaría",
         tesoreria: "Tesorería",
         comunicacion: "Comunicación",
+        responsable_becas: "Responsable de becas",
     })[valor] ?? valor;
 
 function mostrarError(e) {
@@ -485,6 +487,9 @@ async function cambiarOrganizacion() {
                     </div>
                 </template>
             </template>
+        </div>
+        <div v-if="datos?.organizacion" class="campus-page pb-6">
+            <DelegacionesOrganizacion :key="datos" :miembros="datos.miembros" :actor-id="String(page.props.auth.user.id)" :organizacion-id="String(datos.organizacion.id)" />
         </div>
         <PanelLateral
             :show="panel !== null"
