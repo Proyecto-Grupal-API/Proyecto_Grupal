@@ -55,8 +55,10 @@ solicitar una tienda de organización ni modifica el contrato E3/E6.
 
 ## Pendientes que siguen separados
 
-Comisiones/comité formal, documentos y periodos organizacionales, segmentación
-académica, autoridad institucional acordada con E1 y permisos financieros E1/E2.
+Al cierre de este incremento quedaban comisiones/comité formal, documentos y
+periodos organizacionales, segmentación académica, autoridad institucional
+acordada con E1 y permisos financieros E1/E2. Las comisiones y los documentos se
+atienden en el [incremento posterior del 16 de octubre](COMISIONES_Y_DOCUMENTOS_COMUNIDAD.md).
 Los apoyos financieros conservan su estado pendiente y las entregas E5 su contrato.
 
 ## Uso en las vistas

@@ -15,6 +15,16 @@ use App\Http\Controllers\TransparenciaController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/organizaciones', [OrganizacionController::class, 'index']);
+Route::get('/organizaciones/documentos', [\App\Http\Controllers\DocumentoOrganizacionController::class, 'index']);
+Route::post('/organizaciones/documentos', [\App\Http\Controllers\DocumentoOrganizacionController::class, 'store'])->middleware('throttle:30,1');
+Route::prefix('organizaciones/documentos/{id}')->where(['id' => '[a-fA-F0-9]{24}'])->controller(\App\Http\Controllers\DocumentoOrganizacionController::class)->group(function () {
+    Route::put('/', 'update');
+    Route::post('/retirar', 'retirar');
+    Route::get('/descargar', 'descargar');
+    Route::get('/versiones', 'versiones');
+    Route::post('/versiones', 'nuevaVersion')->middleware('throttle:30,1');
+    Route::get('/versiones/{version}/descargar', 'descargar')->where('version', '[a-fA-F0-9]{24}');
+});
 Route::get('/organizaciones/comisiones', [\App\Http\Controllers\ComisionConsejoController::class, 'index']);
 Route::post('/organizaciones/comisiones', [\App\Http\Controllers\ComisionConsejoController::class, 'store']);
 Route::prefix('organizaciones/comisiones/{id}')->where(['id' => '[a-fA-F0-9]{24}'])->controller(\App\Http\Controllers\ComisionConsejoController::class)->group(function () {

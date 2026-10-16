@@ -29,6 +29,12 @@ return [
     */
 
     'disks' => [
+        'organizacion_documentos' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/organizaciones'),
+            'serve' => false,
+            'throw' => true,
+        ],
         'becas' => [
             'driver' => 'local',
             'root' => storage_path('app/private/becas'),

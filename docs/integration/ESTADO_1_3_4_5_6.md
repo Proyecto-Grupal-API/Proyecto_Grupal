@@ -71,6 +71,10 @@ No utilizar `down -v` para detener una copia cuyos datos se necesiten conservar.
 
 ## Documentación y pendientes
 
+- [Comisiones y documentos de Comunidad](COMISIONES_Y_DOCUMENTOS_COMUNIDAD.md):
+  incremento local del 16 de octubre, posterior al corte publicado; comisiones
+  del Consejo y expediente documental privado con versiones y retiro.
+
 - [Permisos por cargo y delegaciones operativas de Comunidad](PERMISOS_Y_DELEGACIONES_COMUNIDAD.md):
   incremento local validado el 16 de octubre, posterior al corte publicado
   de este documento; no representa nuevas autorizaciones financieras.

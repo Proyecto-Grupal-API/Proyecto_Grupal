@@ -6,6 +6,7 @@ import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
 import PanelLateral from "@/Components/Panellateral.vue";
 import DelegacionesOrganizacion from "@/Components/DelegacionesOrganizacion.vue";
 import ComisionesConsejo from "@/Components/ComisionesConsejo.vue";
+import DocumentosOrganizacion from "@/Components/DocumentosOrganizacion.vue";
 
 const page = usePage();
 const datos = ref(null);
@@ -494,6 +495,9 @@ async function cambiarOrganizacion() {
         </div>
         <div v-if="datos?.organizacion?.tipo === 'consejo'" class="campus-page pb-6">
             <ComisionesConsejo :key="datos" :miembros="datos.miembros" :organizacion-id="String(datos.organizacion.id)" />
+        </div>
+        <div v-if="datos?.organizacion" class="campus-page pb-6">
+            <DocumentosOrganizacion :key="datos" :organizacion-id="String(datos.organizacion.id)" />
         </div>
         <PanelLateral
             :show="panel !== null"
