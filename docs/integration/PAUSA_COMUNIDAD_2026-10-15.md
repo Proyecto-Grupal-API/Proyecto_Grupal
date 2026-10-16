@@ -1,5 +1,8 @@
 # Punto de reanudación — Comunidad
 
+> Registro histórico. El usuario pidió reanudar el 16 de octubre de 2026. El
+> resultado posterior se documenta en `PERMISOS_Y_DELEGACIONES_COMUNIDAD.md`.
+
 Pausa solicitada por el usuario el **15 de octubre de 2026**. Detener trabajo;
 reanudar únicamente cuando el usuario lo pida.
 

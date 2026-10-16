@@ -1,6 +1,7 @@
 # Permisos operativos de Comunidad
 
-Incremento del 15 de octubre de 2026, aplicado al entorno alterno E1–E3–E4–E5–E6.
+Incremento iniciado el 15 de octubre de 2026, retomado el 16 de octubre en el
+entorno alterno E1–E3–E4–E5–E6.
 Completa parte de los pendientes 6.1, 6.2, 6.4 y 6.7 del informe funcional.
 
 ## Responsabilidades
@@ -58,7 +59,51 @@ Comisiones/comité formal, documentos y periodos organizacionales, segmentación
 académica, autoridad institucional acordada con E1 y permisos financieros E1/E2.
 Los apoyos financieros conservan su estado pendiente y las entregas E5 su contrato.
 
+## Uso en las vistas
+
+1. Entrar como presidencia y abrir **Comunidad → Organizaciones**. La mesa
+   directiva permite asignar los cargos de Comunicación y Responsable de becas
+   a integrantes activos, con las fechas de vigencia del cargo.
+2. Para una suplencia, usar **Delegaciones temporales → Otorgar una delegación**,
+   seleccionar integrante y funciones e indicar periodo y motivo. Las fechas y
+   horas corresponden a Ciudad de México.
+3. El integrante obtiene las funciones al iniciar sesión o recargar la vista
+   durante el periodo autorizado. La API comprueba el permiso en cada operación.
+4. Presidencia puede revocar una delegación con motivo desde el historial. El
+   registro permanece visible, con fecha de revocación; no se borra la evidencia.
+
+En becas, **Gestión de becas** aparece tanto para quien administra convocatorias
+como para quien revisa solicitudes. **Nueva convocatoria**, edición y cambios
+de estado requieren gestión; **Revisar solicitudes**, expedientes y dictámenes
+requieren revisión. Tener una capacidad no concede la otra.
+
 ## Validación
 
-Trabajo pausado por solicitud del usuario el 15 de octubre de 2026. No es una
-entrega terminada. Ver [punto de reanudación](PAUSA_COMUNIDAD_2026-10-15.md).
+Reanudada el 16 de octubre de 2026. La pausa anterior se conserva como evidencia
+histórica en el [punto de reanudación](PAUSA_COMUNIDAD_2026-10-15.md).
+
+- Regresión de Delegaciones, Continuidad, Gestión de organizaciones y Comunidad:
+  **44 pruebas aprobadas, 375 aserciones**; 144.88 segundos.
+- Navegador Edge con dos sesiones aisladas, en el alterno: creación y revocación
+  de una delegación; receptor con acceso a Comunicación y revisión de becas,
+  sin creación de convocatorias; pérdida del acceso al recargar tras revocar.
+- Sin errores de JavaScript en el flujo observado. Comprobación de ausencia de
+  desbordamiento horizontal a 320, 768, 1024 y 1440 píxeles.
+- La delegación de demostración creada en la prueba quedó revocada y conserva
+  su historial. No se cambiaron cargos ni roles institucionales de las cuentas.
+- Revisión del incremento: pertenencia y cargo de origen vigentes, fin exclusivo,
+  denegación de redelegación/administración general, aislamiento por organización,
+  expedientes privados, prohibición de dictamen propio y revocación en bajas.
+
+Validación cerrada el **16 de octubre de 2026**, en el entorno alterno:
+
+- Suite completa: **1,131 pruebas aprobadas, 8040 aserciones**,
+  cero fallos; 1398.45 segundos. Esta cifra incluye las pruebas específicas;
+  no se suma al resultado de 44 pruebas para calcular cobertura.
+- Compilación de producción actual: `npm run build`, correcta en 15.68 segundos.
+- Evidencia local en `storage/logs/comunidad-permisos-20261016-*` (ignorada por Git).
+
+El incremento queda local. El informe/PDF fechado del 15 de octubre se conserva
+como corte histórico y no cambia sus porcentajes por esta entrega parcial.
+Las comisiones, la segmentación académica y las integraciones pendientes señaladas
+arriba siguen fuera del alcance de este incremento.

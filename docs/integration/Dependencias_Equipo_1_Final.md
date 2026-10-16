@@ -15,7 +15,7 @@ La entrega del Equipo 1 es la referencia correcta. Este registro identifica lo q
 | Preferencias/consentimientos para campañas | Rutas de sesión/Sanctum; no contrato OAuth de servicio | Pendiente. `students:read` no autoriza esas rutas. |
 | Cambios de perfil/credenciales para conciliación | Outbox y transporte de Identidad; sink externo no acordado | Pendiente de transporte compartido. Comunidad no lee el outbox de Identidad. |
 
-Los cargos internos (presidencia, vicepresidencia, secretaría, tesorería, comunicación y Staff de evento), sus asignaciones y la membresía pertenecen a Comunidad. No duplicarlos en Identidad ni usar un rol global para reemplazarlos.
+Los cargos internos (presidencia, vicepresidencia, secretaría, tesorería, comunicación, responsable de becas y Staff de evento), sus asignaciones y la membresía pertenecen a Comunidad. No duplicarlos en Identidad ni usar un rol global para reemplazarlos.
 
 ## Código heredado que debe migrarse cuando exista el contrato
 
