@@ -5,6 +5,7 @@ import axios from "axios";
 import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
 import PanelLateral from "@/Components/Panellateral.vue";
 import DelegacionesOrganizacion from "@/Components/DelegacionesOrganizacion.vue";
+import ComisionesConsejo from "@/Components/ComisionesConsejo.vue";
 
 const page = usePage();
 const datos = ref(null);
@@ -490,6 +491,9 @@ async function cambiarOrganizacion() {
         </div>
         <div v-if="datos?.organizacion" class="campus-page pb-6">
             <DelegacionesOrganizacion :key="datos" :miembros="datos.miembros" :actor-id="String(page.props.auth.user.id)" :organizacion-id="String(datos.organizacion.id)" />
+        </div>
+        <div v-if="datos?.organizacion?.tipo === 'consejo'" class="campus-page pb-6">
+            <ComisionesConsejo :key="datos" :miembros="datos.miembros" :organizacion-id="String(datos.organizacion.id)" />
         </div>
         <PanelLateral
             :show="panel !== null"

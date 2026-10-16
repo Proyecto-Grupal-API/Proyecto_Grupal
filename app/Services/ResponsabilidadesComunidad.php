@@ -51,6 +51,8 @@ class ResponsabilidadesComunidad
                 AuditoriaComunidad::create(['organizacion_id' => null, 'usuario_id' => (string) $user->id, 'accion' => 'gestor_revocado_por_baja', 'entidad_id' => (string) $permiso->id, 'antes' => $antes, 'despues' => ['activo' => false]]);
             }
             app(DelegacionesComunidad::class)->revocarRegistros(DelegacionOrganizacion::where(fn ($q) => $q->where('destinatario_id', (string) $user->id)->orWhere('delegante_id', (string) $user->id)), (string) $user->id, 'Baja de la cuenta vinculada a la delegación.');
+            // Las asignaciones retiradas no se reactivan por un futuro reingreso.
+            app(ComisionesConsejo::class)->retirarRegistros(\App\Models\IntegranteComision::where('usuario_id', (string) $user->id), (string) $user->id, 'Baja de la cuenta vinculada a la comisión.');
             $eliminarIdentidad(); // Identidad conserva la autoridad sobre la baja y las credenciales.
         }));
     }
