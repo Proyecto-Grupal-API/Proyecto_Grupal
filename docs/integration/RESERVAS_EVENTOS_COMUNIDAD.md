@@ -120,24 +120,49 @@ modifica OAuth, roles institucionales o autoridad financiera.
 
 ## Verificación del incremento
 
+Cierre local del **17 de octubre de 2026**. Código verificado: `15a737b`
+(junto con `1c3c6c6`, primer incremento de vencimiento).
+
 - Vencimiento: siete pruebas. RED observado por ausencia de fecha límite y por
   lectores que seguían contando reservas vencidas.
 - Solicitudes: cinco pruebas. RED observado por ausencia de generación.
 - Registro/vencimiento/solicitudes: **12 pruebas aprobadas, 149 aserciones**, 46.02 s.
 - Regresión con eventos, Staff, Comunidad, comunicación y reportes:
   **81 pruebas aprobadas, 769 aserciones**, 260.44 s.
+- Suite integrada completa: **1,173 pruebas aprobadas, 8,476 aserciones**,
+  sin fallos, errores ni omisiones. Se ejecutaron en serie **85 archivos en 15
+  bloques**, únicamente contra `campus_virtual_testing`, como UID/GID `1000:1000`.
+  Tiempo acumulado de los bloques: **1884.25 segundos**. La comprobación
+  independiente de los XML cotejó todos los casos con el inventario del mismo
+  commit: sin pruebas duplicadas ni faltantes.
 - Compilación final de las vistas y ajuste de contraste correcta: **12.12 segundos**.
 
-Edge aislado: reserva y espera reales, pago pendiente y QR bloqueado. Se descartó
-una respuesta de alta ya procesada y la vista repitió la misma UUID/generación,
-sin duplicar la inscripción ni cambiar su fecha límite. Solo se observó el error
-de red provocado deliberadamente; sin errores JavaScript ni consola inesperada.
-Se comprobó el contraste del título y ausencia de desbordamiento horizontal a
-320/768/1024/1440 píxeles. La segunda comprobación visual tuvo consola limpia.
+En Edge aislado se descartó una respuesta de alta ya procesada y la vista repitió
+la misma UUID/generación, sin duplicar la inscripción ni cambiar su fecha límite.
+La reserva quedó con pago pendiente y QR bloqueado; la espera inicial no tenía
+plazo. Se comprobó el título blanco legible y ausencia de desbordamiento horizontal
+a 320/768/1024/1440 píxeles.
 
-El vencimiento/promoción con reloj real y el inventario integrado se documentarán
-al cerrar el incremento. Evidencia local excluida de Git:
-`storage/logs/reservas-eventos-20261017/`.
+Se esperaron los **15 minutos reales**: el scheduler venció la primera reserva y
+promovió a la siguiente persona, con su propio plazo de 15 minutos. Se verificó
+el boleto vencido, la promoción y el filtro administrativo de vencidos. Al terminar
+se cancelaron la reserva promovida y el evento de demostración desde la interfaz;
+el registro vencido se conservó. No se generaron cobros ni accesos pagados.
+
+Durante esta comprobación se observó un error transitorio de red
+`net::ERR_NO_BUFFER_SPACE` en la consulta periódica de notificaciones. El flujo
+funcional y la limpieza concluyeron, pero falló la comprobación final que exigía
+consola vacía; se conservó el registro original. No se modificó el código de
+notificaciones para ocultarlo. En la comprobación posterior, tres sesiones nuevas
+verificaron los estados y la limpieza, con **13 respuestas HTTP 200** de
+notificaciones, sin errores JavaScript, de consola ni de red. El error no se
+reprodujo; no se establece una causa permanente con esta evidencia.
+
+Evidencia local excluida de Git: `storage/logs/reservas-eventos-20261017/`, incluidos
+`validacion/manifest.xml`, `progress.json`, los 15 reportes JUnit y registros de
+navegador. Las capturas y el estado de la demostración se conservan en la carpeta
+de visualizaciones de este chat.
 
 Los informes fechados anteriores conservan sus cifras. El avance queda local;
 su publicación/fusión y la revisión de otro integrante corresponden al equipo.
+La integración financiera real de E2 y NFC quedan fuera de este incremento.

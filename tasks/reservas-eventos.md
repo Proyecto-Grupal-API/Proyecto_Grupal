@@ -40,9 +40,9 @@ ese plazo. No se implementan cobros, callbacks financieros ni devoluciones E2.
   comando y lecturas consistentes. RED, GREEN y regresión de eventos/Staff.
 - [x] Generaciones e idempotencia: recibos, comparación de versión, compatibilidad
   y rollback; pruebas de respuestas perdidas, claves incompatibles y bajas antiguas.
-- [ ] Vistas: plazo en catálogo/boleto/lista de inscritos, reserva vencida,
+- [x] Vistas: plazo en catálogo/boleto/lista de inscritos, reserva vencida,
   reinscripción explícita y reintento de la misma intención; compilar/navegador.
-- [ ] Guía y revisión del alcance; suite serial reanudable, commits locales y
+- [x] Guía y revisión del alcance; suite serial reanudable, commits locales y
   árbol limpio. No publicar ni modificar la copia principal.
 
 Las pruebas ejecutan únicamente `campus_virtual_testing`, en serie, UID/GID 1000.
@@ -72,10 +72,24 @@ Docker Desktop lo enciende el usuario. Se conservan informes anteriores y sus ci
   La vista reintentó con la misma UUID/generación, sin duplicar ni ampliar el plazo.
   Pago pendiente, QR bloqueado y espera sin plazo; sin errores JavaScript ni
   errores de consola inesperados. Un error de red esperado por la respuesta descartada.
-- Sin desbordamiento horizontal a 320/768/1024/1440 px. La comprobación con reloj
-  real está preparada: estado persistido en `reservas-browser-estado.json`, bajo
-  la carpeta de visualizaciones de este chat. Continuar con `reservas-browser.cjs validar`.
-- Pendientes del cierre: verificar vencimiento/promoción reales y limpiar el
-  evento demo; completar inventario serial reanudable y documentar los resultados.
+- Sin desbordamiento horizontal a 320/768/1024/1440 px. Vencimiento y promoción
+  comprobados tras esperar 15 minutos reales; cada persona tuvo su propio plazo.
+  Evento demo y reserva promovida cancelados por la interfaz; registro vencido conservado.
 - Contraste verificado en navegador: título blanco legible, cuatro tamaños de
   pantalla, sin errores JavaScript ni consola. Prueba de solo lectura sobre el mismo boleto.
+
+## Cierre del 17 de octubre de 2026
+
+- Commits de código: `1c3c6c6` y `15a737b`. Migraciones y scheduler activos en el alterno.
+- Inventario integrado: **1,173 pruebas aprobadas, 8,476 aserciones**, sin
+  fallos, errores ni omisiones; 85 archivos en 15 bloques seriales, 1884.25 segundos
+  acumulados. Los XML se contrastaron de forma independiente con el inventario
+  de `15a737b`, sin casos repetidos ni faltantes.
+- La prueba con reloj real conservó un error transitorio de notificaciones:
+  `net::ERR_NO_BUFFER_SPACE`; el flujo y la limpieza terminaron, pero la aserción
+  final de consola vacía falló. Se mantuvo el registro original. Tres sesiones
+  nuevas confirmaron los estados y la limpieza, con 13 HTTP 200 de notificaciones
+  y sin errores JavaScript, consola o red. No se reprodujo ni se ocultó el error.
+- No se ejecutaron cobros, callbacks ni devoluciones. La integración financiera
+  real sigue pendiente de E2. No se modificó la copia principal ni se publicó a GitHub.
+- Guía de operación y evidencia: `docs/integration/RESERVAS_EVENTOS_COMUNIDAD.md`.
