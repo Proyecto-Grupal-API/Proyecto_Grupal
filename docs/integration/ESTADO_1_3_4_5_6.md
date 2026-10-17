@@ -71,6 +71,9 @@ No utilizar `down -v` para detener una copia cuyos datos se necesiten conservar.
 
 ## Documentación y pendientes
 
+- [Actualización de equipos del 17 de octubre](ACTUALIZACION_EQUIPOS_2026-10-17.md):
+  revisión remota, correcciones E4 y preparación de recibos v2/transporte E7, sin activar finanzas.
+
 - [Reservas y reinscripciones de eventos](RESERVAS_EVENTOS_COMUNIDAD.md):
   incremento local del 17 de octubre; vencimiento de pago pendiente a 15 minutos,
   espera FIFO y solicitudes protegidas por generación.

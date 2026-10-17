@@ -23,3 +23,4 @@ Schedule::command('marketplace:reconciliar')->everyMinute()->withoutOverlapping(
 Schedule::command('comunidad:expirar-reservas-eventos')->everyMinute()->withoutOverlapping(10);
 
 Schedule::command('inventario:procesar-devoluciones')->everyMinute()->withoutOverlapping(10);
+Schedule::command('team4:publish-outbox')->everyMinute()->withoutOverlapping(10);

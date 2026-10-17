@@ -8,8 +8,7 @@ use MongoDB\BSON\ObjectId;
 
 /**
  * Outbox simple: guarda eventos de integracion para entrega posterior.
- * NO incluye worker HTTP — solo persistencia. El reenvio puede hacerse
- * por consulta directa a la coleccion o por un job futuro.
+ * El comando team4:publish-outbox entrega eventos cuando exista un receptor E7 acordado.
  */
 class OutboxService
 {
@@ -20,6 +19,7 @@ class OutboxService
             DB::connection('inventory')->getCollection('integration_outbox')->insertOne([
                 '_id'           => $id,
                 'topic'         => $topic,
+                'business_id'   => app(BusinessContext::class)->id(),
                 'payload'       => $payload,
                 'status'        => 'PENDING',
                 'attempts'      => 0,
