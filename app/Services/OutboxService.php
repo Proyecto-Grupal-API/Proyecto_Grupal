@@ -24,8 +24,8 @@ class OutboxService
                 'status'        => 'PENDING',
                 'attempts'      => 0,
                 'last_error'    => null,
-                'created_at'    => now()->toDateTime(),
-                'updated_at'    => now()->toDateTime(),
+                'created_at'    => new \MongoDB\BSON\UTCDateTime(now()),
+                'updated_at'    => new \MongoDB\BSON\UTCDateTime(now()),
                 'delivered_at'  => null,
             ]);
         } catch (\Throwable $e) {

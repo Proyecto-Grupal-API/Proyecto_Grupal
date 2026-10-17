@@ -4,7 +4,7 @@ namespace App\Models;
 
 class CostHistory extends Team4Document
 {
-    protected $collection = 'cost_history';
+    protected $collection = 'cost_histories';
 
     protected $fillable = [
         'business_id',

@@ -39,10 +39,10 @@ class IntegrationContractService
                 // valores null, así que en cuanto el registro llega a un
                 // estado terminal este campo se pone en null (ver más abajo)
                 // y el TTL deja de aplicarle.
-                'unexpired_processing_at' => now()->addMinutes(15)->toDateTime(),
-                'created_at' => now()->toDateTime(),
-                'updated_at' => now()->toDateTime(),
-                'expires_at' => now()->addHours(24)->toDateTime(),
+                'unexpired_processing_at' => new \MongoDB\BSON\UTCDateTime(now()->addMinutes(15)),
+                'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                'expires_at' => new \MongoDB\BSON\UTCDateTime(now()->addHours(24)),
             ]);
         } catch (BulkWriteException $e) {
             if (!$this->isDuplicateKey($e)) {
@@ -102,7 +102,7 @@ class IntegrationContractService
                     'available' => -$quantity,
                 ],
                 '$set' => [
-                    'updated_at' => now()->toDateTime(),
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ],
             ],
             [
@@ -124,7 +124,7 @@ class IntegrationContractService
                             'status' => 'REJECTED',
                             'reason' => 'Existencia insuficiente.',
                         ],
-                        'updated_at' => now()->toDateTime(),
+                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     ],
                 ]
             );
@@ -146,9 +146,9 @@ class IntegrationContractService
                 'source' => $data['source'],
                 'idempotency_key' => $key,
                 'external_reference' => $data['external_reference'] ?? (string) Str::uuid(),
-                'expires_at' => \Illuminate\Support\Carbon::parse($data['expires_at'])->toDateTime(),
-                'created_at' => now()->toDateTime(),
-                'updated_at' => now()->toDateTime(),
+                'expires_at' => new \MongoDB\BSON\UTCDateTime(\Illuminate\Support\Carbon::parse($data['expires_at'])),
+                'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]);
 
             $idempotency->updateOne(
@@ -164,7 +164,7 @@ class IntegrationContractService
                             'reservation_id' => $reservationId,
                             'status' => 'RESERVED',
                         ],
-                        'updated_at' => now()->toDateTime(),
+                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     ],
                 ]
             );
@@ -186,7 +186,7 @@ class IntegrationContractService
                             'available' => $quantity,
                         ],
                         '$set' => [
-                            'updated_at' => now()->toDateTime(),
+                            'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                         ],
                     ]
                 );
@@ -218,7 +218,7 @@ class IntegrationContractService
                             'status' => 'FAILED',
                             'reason' => 'No fue posible persistir la reserva.',
                         ],
-                        'updated_at' => now()->toDateTime(),
+                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     ],
                 ]
             );

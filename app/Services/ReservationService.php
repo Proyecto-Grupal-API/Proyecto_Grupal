@@ -50,7 +50,7 @@ class ReservationService
                     'reserved' => $quantity,
                     'available' => -$quantity,
                 ],
-                '$set' => ['updated_at' => now()->toDateTime()],
+                '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())],
             ],
             [
                 'returnDocument' => \MongoDB\Operation\FindOneAndUpdate::RETURN_DOCUMENT_AFTER,
@@ -77,10 +77,10 @@ class ReservationService
                 'status' => 'RESERVED',
                 'source' => $source,
                 'external_reference' => $externalReference,
-                'expires_at' => \Illuminate\Support\Carbon::parse($expiresAt)->toDateTime(),
+                'expires_at' => new \MongoDB\BSON\UTCDateTime(\Illuminate\Support\Carbon::parse($expiresAt)),
                 'created_by' => ActorResolver::resolve('USR-ADMIN-001'),
-                'created_at' => now()->toDateTime(),
-                'updated_at' => now()->toDateTime(),
+                'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]);
         } catch (\Throwable $e) {
             try {
@@ -94,7 +94,7 @@ class ReservationService
                     ],
                     [
                         '$inc' => ['reserved' => -$quantity, 'available' => $quantity],
-                        '$set' => ['updated_at' => now()->toDateTime()],
+                        '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())],
                     ]
                 );
             } catch (\Throwable $compEx) {
@@ -171,7 +171,7 @@ class ReservationService
             ],
             [
                 '$inc' => ['reserved' => -$quantity, 'available' => $quantity],
-                '$set' => ['updated_at' => now()->toDateTime()],
+                '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())],
             ]
         );
 
@@ -180,9 +180,9 @@ class ReservationService
             ['_id' => $docId],
             ['$set' => [
                 'status' => 'RELEASED',
-                'released_at' => now()->toDateTime(),
+                'released_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 'release_reason' => $reason,
-                'updated_at' => now()->toDateTime(),
+                'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]]
         );
 
@@ -202,7 +202,7 @@ class ReservationService
         $cursor = $collection->find([
             'business_id' => $this->businessId,
             'status' => 'RESERVED',
-            'expires_at' => ['$lt' => now()->toDateTime()],
+            'expires_at' => ['$lt' => new \MongoDB\BSON\UTCDateTime(now())],
         ]);
 
         $count = 0;

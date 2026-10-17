@@ -71,11 +71,11 @@ class InventoryService
                     'available' => $qty,
                 ],
                 '$set' => [
-                    'updated_at' => now()->toDateTime(),
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     'status' => $qty > 0 ? 'AVAILABLE' : 'OUT_OF_STOCK',
                 ],
                 '$setOnInsert' => [
-                    'created_at' => now()->toDateTime(),
+                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     'reserved' => 0,
                 ],
             ],
@@ -122,7 +122,7 @@ class InventoryService
                             'available' => -$qty,
                         ],
                         '$set' => [
-                            'updated_at' => now()->toDateTime(),
+                            'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                         ],
                     ]
                 );

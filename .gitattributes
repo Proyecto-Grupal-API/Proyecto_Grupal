@@ -1,0 +1,3 @@
+# Archivos que se ejecutan/leen dentro de contenedores Linux: siempre LF
+*.sh text eol=lf
+docker/* text eol=lf

@@ -70,7 +70,7 @@ class ReorderRuleService
                     ['$set' => [
                         'min_qty' => $minQty,
                         'max_qty' => $maxQty,
-                        'updated_at' => now()->toDateTime(),
+                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     ]]
                 );
             } else {
@@ -83,8 +83,8 @@ class ReorderRuleService
                     'max_qty' => $maxQty,
                     'reorder_point' => $defaultReorder,
                     'active' => true,
-                    'created_at' => now()->toDateTime(),
-                    'updated_at' => now()->toDateTime(),
+                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ]);
             }
         }
@@ -126,7 +126,7 @@ class ReorderRuleService
                 'min_qty' => $minQty,
                 'max_qty' => $maxQty,
                 'reorder_point' => $newReorder,
-                'updated_at' => now()->toDateTime(),
+                'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]]
         );
     }

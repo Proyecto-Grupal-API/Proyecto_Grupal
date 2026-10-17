@@ -194,7 +194,9 @@ class Team3IntegrationController extends Controller
             'order_id'       => $res['order_id'],
             'status'         => $res['status'],
             'items'          => $res['items'] ?? [],
-            'expires_at'     => $res['expires_at'] ?? null,
+            'expires_at'     => ($res['expires_at'] ?? null) instanceof \MongoDB\BSON\UTCDateTime
+                ? $res['expires_at']->toDateTime()->format(DATE_ATOM)
+                : ($res['expires_at'] ?? null),
             'payment'        => $payment,
         ], 200);
     }

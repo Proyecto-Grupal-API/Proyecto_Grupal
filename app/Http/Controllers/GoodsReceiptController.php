@@ -78,8 +78,8 @@ class GoodsReceiptController extends Controller
             ->values()->all();
 
         // KPIs
-        $monthStart = now()->startOfMonth()->toDateTime();
-        $weekAgo = now()->subDays(7)->toDateTime();
+        $monthStart = new \MongoDB\BSON\UTCDateTime(now()->startOfMonth());
+        $weekAgo = new \MongoDB\BSON\UTCDateTime(now()->subDays(7));
 
         $totalReceipts = GoodsReceipt::where('business_id', $this->businessId)->count();
         $receiptsMonth = GoodsReceipt::where('business_id', $this->businessId)->where('created_at', '>=', $monthStart)->count();
@@ -169,7 +169,7 @@ class GoodsReceiptController extends Controller
                 'received_by' => 'USR-ADMIN-001',
                 'status' => 'COMPLETADA',
                 'notes' => $validated['notes'] ?? '',
-                'received_at' => now()->toDateTime(),
+                'received_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]);
             $receipt->save();
 

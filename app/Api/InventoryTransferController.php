@@ -40,7 +40,7 @@ class InventoryTransferController extends Controller
                 '_id'=>new ObjectId(), 'service'=>$service,
                 'idempotency_key'=>$v['idempotency_key'], 'status'=>'PROCESSING',
                 'unexpired_processing_at'=>new UTCDateTime((time()+900)*1000),
-                'created_at'=>now()->toDateTime(), 'updated_at'=>now()->toDateTime(),
+                'created_at'=>new \MongoDB\BSON\UTCDateTime(now()), 'updated_at'=>new \MongoDB\BSON\UTCDateTime(now()),
             ]);
         } catch (BulkWriteException $e) {
             $ex = (array) ($idem->findOne(['service'=>$service,'idempotency_key'=>$v['idempotency_key']]) ?? []);
@@ -66,7 +66,7 @@ class InventoryTransferController extends Controller
                     ['business_id'=>$this->businessId, 'product_id'=>$pid, 'variant_id'=>$vid,
                      'location_id'=>(string)$v['from_location_id'],
                      '$expr'=>['$gte'=>['$available', $qty]]],
-                    ['$inc'=>['on_hand'=>-$qty, 'available'=>-$qty], '$set'=>['updated_at'=>now()->toDateTime()]],
+                    ['$inc'=>['on_hand'=>-$qty, 'available'=>-$qty], '$set'=>['updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]],
                     ['returnDocument'=>\MongoDB\Operation\FindOneAndUpdate::RETURN_DOCUMENT_AFTER]
                 );
                 if ($upd === null) throw new \DomainException("Stock insuficiente en origen para producto {$pid}.");
@@ -75,7 +75,7 @@ class InventoryTransferController extends Controller
                 $inv->updateOne(
                     ['business_id'=>$this->businessId, 'product_id'=>$pid, 'variant_id'=>$vid,
                      'location_id'=>(string)$v['to_location_id']],
-                    ['$inc'=>['on_hand'=>$qty, 'available'=>$qty], '$set'=>['updated_at'=>now()->toDateTime()]],
+                    ['$inc'=>['on_hand'=>$qty, 'available'=>$qty], '$set'=>['updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]],
                     ['upsert'=>true]
                 );
 
@@ -84,25 +84,25 @@ class InventoryTransferController extends Controller
                     ['_id'=>new ObjectId(), 'business_id'=>$this->businessId, 'product_id'=>$pid,
                      'variant_id'=>$vid, 'location_id'=>(string)$v['from_location_id'],
                      'type'=>'TRANSFER_OUT', 'quantity'=>-$qty, 'reason'=>$v['reason'] ?? 'INTERNAL_TRANSFER',
-                     'correlation_id'=>$corr, 'created_at'=>now()->toDateTime()],
+                     'correlation_id'=>$corr, 'created_at'=>new \MongoDB\BSON\UTCDateTime(now())],
                     ['_id'=>new ObjectId(), 'business_id'=>$this->businessId, 'product_id'=>$pid,
                      'variant_id'=>$vid, 'location_id'=>(string)$v['to_location_id'],
                      'type'=>'TRANSFER_IN', 'quantity'=>$qty, 'reason'=>$v['reason'] ?? 'INTERNAL_TRANSFER',
-                     'correlation_id'=>$corr, 'created_at'=>now()->toDateTime()],
+                     'correlation_id'=>$corr, 'created_at'=>new \MongoDB\BSON\UTCDateTime(now())],
                 ]);
                 $applied[] = ['product_id'=>$pid, 'variant_id'=>$vid, 'quantity'=>$qty];
             }
         } catch (\Throwable $e) {
             Log::error('Team4 transfer failed', ['error'=>$e->getMessage()]);
             $idem->updateOne(['service'=>$service,'idempotency_key'=>$v['idempotency_key']],
-                ['$set'=>['status'=>'FAILED','unexpired_processing_at'=>null,'updated_at'=>now()->toDateTime()]]);
+                ['$set'=>['status'=>'FAILED','unexpired_processing_at'=>null,'updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]]);
             return response()->json(['status'=>'REJECTED','reason'=>$e->getMessage()], 409);
         }
 
         $res = ['from_location_id'=>$v['from_location_id'], 'to_location_id'=>$v['to_location_id'],
                 'status'=>'TRANSFERRED', 'items'=>$applied, 'processed_at'=>now()->toIso8601String()];
         $idem->updateOne(['service'=>$service,'idempotency_key'=>$v['idempotency_key']],
-            ['$set'=>['status'=>'COMPLETED','result'=>$res,'unexpired_processing_at'=>null,'updated_at'=>now()->toDateTime()]]);
+            ['$set'=>['status'=>'COMPLETED','result'=>$res,'unexpired_processing_at'=>null,'updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]]);
         return response()->json($res, 201);
     }
 }

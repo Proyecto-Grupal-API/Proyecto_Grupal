@@ -152,12 +152,12 @@ class PurchaseOrderController extends Controller
                 'status' => (string) ($validated['status'] ?? 'SOLICITADA'),
                 'requested_by' => 'USR-ADMIN-001',
                 'authorized_by' => null,
-                'expected_at' => \Illuminate\Support\Carbon::parse($validated['expected_at'])->toDateTime(),
+                'expected_at' => new \MongoDB\BSON\UTCDateTime(\Illuminate\Support\Carbon::parse($validated['expected_at'])),
                 'notes' => (string) ($validated['notes'] ?? ''),
                 'total_estimated' => (float) $total,
                 'items_count' => count($items),
-                'created_at' => now()->toDateTime(),
-                'updated_at' => now()->toDateTime(),
+                'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]);
 
             foreach ($items as $index => $item) {
@@ -174,8 +174,8 @@ class PurchaseOrderController extends Controller
                     'quantity' => (int) $item['quantity'],
                     'unit_cost' => (float) $item['unit_cost'],
                     'subtotal' => (float) ($item['quantity'] * $item['unit_cost']),
-                    'created_at' => now()->toDateTime(),
-                    'updated_at' => now()->toDateTime(),
+                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ]);
             }
         } catch (\Throwable $e) {
@@ -210,12 +210,12 @@ class PurchaseOrderController extends Controller
                 ['_id' => new ObjectId($id)],
                 ['$set' => [
                     'supplier_id' => (string) $validated['supplier_id'],
-                    'expected_at' => \Illuminate\Support\Carbon::parse($validated['expected_at'])->toDateTime(),
+                    'expected_at' => new \MongoDB\BSON\UTCDateTime(\Illuminate\Support\Carbon::parse($validated['expected_at'])),
                     'notes' => (string) ($validated['notes'] ?? ''),
                     'status' => (string) ($validated['status'] ?? $o['status']),
                     'total_estimated' => (float) $total,
                     'items_count' => count($items),
-                    'updated_at' => now()->toDateTime(),
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ]]
             );
 
@@ -235,8 +235,8 @@ class PurchaseOrderController extends Controller
                     'quantity' => (int) $item['quantity'],
                     'unit_cost' => (float) $item['unit_cost'],
                     'subtotal' => (float) ($item['quantity'] * $item['unit_cost']),
-                    'created_at' => now()->toDateTime(),
-                    'updated_at' => now()->toDateTime(),
+                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ]);
             }
         } catch (\Throwable $e) {
@@ -271,7 +271,7 @@ class PurchaseOrderController extends Controller
             }
             DB::connection('mongodb')->getCollection('purchase_orders')->updateOne(
                 ['_id' => new ObjectId($id)],
-                ['$set' => ['status' => 'AUTORIZADA', 'authorized_by' => 'USR-ADMIN-001', 'updated_at' => now()->toDateTime()]]
+                ['$set' => ['status' => 'AUTORIZADA', 'authorized_by' => 'USR-ADMIN-001', 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
             );
             return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'OC autorizada.');
         }
@@ -283,7 +283,7 @@ class PurchaseOrderController extends Controller
             }
             DB::connection('mongodb')->getCollection('purchase_orders')->updateOne(
                 ['_id' => new ObjectId($id)],
-                ['$set' => ['status' => 'CANCELADA', 'updated_at' => now()->toDateTime()]]
+                ['$set' => ['status' => 'CANCELADA', 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
             );
             return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'OC cancelada.');
         }

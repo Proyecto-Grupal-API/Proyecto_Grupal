@@ -44,7 +44,7 @@ class InventoryAdjustmentController extends Controller
                 '_id'=>new ObjectId(), 'service'=>$service,
                 'idempotency_key'=>$v['idempotency_key'], 'status'=>'PROCESSING',
                 'unexpired_processing_at'=>new UTCDateTime((time()+900)*1000),
-                'created_at'=>now()->toDateTime(), 'updated_at'=>now()->toDateTime(),
+                'created_at'=>new \MongoDB\BSON\UTCDateTime(now()), 'updated_at'=>new \MongoDB\BSON\UTCDateTime(now()),
             ]);
         } catch (BulkWriteException $e) {
             $ex = (array) ($idem->findOne(['service'=>$service,'idempotency_key'=>$v['idempotency_key']]) ?? []);
@@ -69,7 +69,7 @@ class InventoryAdjustmentController extends Controller
         try {
             $inv->updateOne(
                 $filter,
-                ['$set'=>['on_hand'=>$newQty, 'available'=>$newQty, 'updated_at'=>now()->toDateTime()]],
+                ['$set'=>['on_hand'=>$newQty, 'available'=>$newQty, 'updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]],
                 ['upsert'=>true]
             );
             $mov->insertOne([
@@ -78,12 +78,12 @@ class InventoryAdjustmentController extends Controller
                 'location_id'=>(string)$v['location_id'], 'type'=>'ADJUSTMENT',
                 'quantity'=>$actualDelta, 'reason'=>$v['reason'],
                 'actor_id'=>$v['actor_id'] ?? 'API', 'correlation_id'=>(string) Str::uuid(),
-                'created_at'=>now()->toDateTime(),
+                'created_at'=>new \MongoDB\BSON\UTCDateTime(now()),
             ]);
         } catch (\Throwable $e) {
             Log::error('Team4 adjustment failed', ['error'=>$e->getMessage()]);
             $idem->updateOne(['service'=>$service,'idempotency_key'=>$v['idempotency_key']],
-                ['$set'=>['status'=>'FAILED','unexpired_processing_at'=>null,'updated_at'=>now()->toDateTime()]]);
+                ['$set'=>['status'=>'FAILED','unexpired_processing_at'=>null,'updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]]);
             return response()->json(['message'=>'Error al ajustar inventario.'], 500);
         }
 
@@ -91,7 +91,7 @@ class InventoryAdjustmentController extends Controller
                 'previous_qty'=>$currentQty, 'new_qty'=>$newQty, 'delta'=>$actualDelta,
                 'reason'=>$v['reason'], 'processed_at'=>now()->toIso8601String()];
         $idem->updateOne(['service'=>$service,'idempotency_key'=>$v['idempotency_key']],
-            ['$set'=>['status'=>'COMPLETED','result'=>$res,'unexpired_processing_at'=>null,'updated_at'=>now()->toDateTime()]]);
+            ['$set'=>['status'=>'COMPLETED','result'=>$res,'unexpired_processing_at'=>null,'updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]]);
         return response()->json($res, 201);
     }
 }

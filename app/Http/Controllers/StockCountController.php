@@ -152,8 +152,8 @@ class StockCountController extends Controller
             'closed_by' => null,
             'notes' => (string) ($validated['notes'] ?? ''),
             'differences_count' => 0,
-            'created_at' => now()->toDateTime(),
-            'updated_at' => now()->toDateTime(),
+            'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+            'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
         ]);
 
         $stockCountId = (string) $stockCountObjectId;
@@ -174,8 +174,8 @@ class StockCountController extends Controller
                 'difference' => 0,
                 'unit_cost' => 0,
                 'notes' => '',
-                'created_at' => now()->toDateTime(),
-                'updated_at' => now()->toDateTime(),
+                'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ];
         }
 
@@ -255,7 +255,7 @@ class StockCountController extends Controller
                 ['$set' => [
                     'counted_qty' => $counted,
                     'difference' => $difference,
-                    'updated_at' => now()->toDateTime(),
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ]]
             );
 
@@ -265,7 +265,7 @@ class StockCountController extends Controller
 
         DB::connection('mongodb')->getCollection('stock_counts')->updateOne(
             ['_id' => new ObjectId($id)],
-            ['$set' => ['differences_count' => $differencesCount, 'updated_at' => now()->toDateTime()]]
+            ['$set' => ['differences_count' => $differencesCount, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
         );
 
         return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Conteo actualizado. Items: ' . $updatedCount . '. Diferencias: ' . $differencesCount);
@@ -342,7 +342,7 @@ class StockCountController extends Controller
 
         DB::connection('mongodb')->getCollection('stock_counts')->updateOne(
             ['_id' => new ObjectId($id)],
-            ['$set' => ['status' => 'CLOSED', 'closed_by' => 'USR-ADMIN-001', 'updated_at' => now()->toDateTime()]]
+            ['$set' => ['status' => 'CLOSED', 'closed_by' => 'USR-ADMIN-001', 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
         );
 
         return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Conteo cerrado. ' . $applied . ' ajustes aplicados.');

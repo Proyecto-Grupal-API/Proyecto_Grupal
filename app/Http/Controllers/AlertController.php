@@ -172,8 +172,8 @@ class AlertController extends Controller
                 'status' => 'DISMISSED',
                 'resolution_reason' => $validated['reason'],
                 'dismissed_by' => 'USR-ADMIN-001',
-                'dismissed_at' => now()->toDateTime(),
-                'updated_at' => now()->toDateTime(),
+                'dismissed_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]]
         );
 

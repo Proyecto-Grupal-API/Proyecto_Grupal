@@ -76,8 +76,8 @@ class Team3ApiService
                 'idempotency_key' => $idempotencyKey,
                 'status' => 'PROCESSING',
                 'unexpired_processing_at' => new UTCDateTime((time() + 900) * 1000),
-                'created_at' => now()->toDateTime(),
-                'updated_at' => now()->toDateTime(),
+                'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]);
         } catch (BulkWriteException $e) {
             if (!$this->isDuplicateKey($e)) throw $e;
@@ -105,7 +105,7 @@ class Team3ApiService
                     ['business_id' => $this->businessId, 'product_id' => $productId, 'variant_id' => $variantId,
                      'location_id' => $locationId, '$expr' => ['$gte' => ['$available', $quantity]]],
                     ['$inc' => ['reserved' => $quantity, 'available' => -$quantity],
-                     '$set' => ['updated_at' => now()->toDateTime()]],
+                     '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())]],
                     ['returnDocument' => FindOneAndUpdate::RETURN_DOCUMENT_AFTER, 'upsert' => false]
                 );
 
@@ -121,18 +121,18 @@ class Team3ApiService
                          'variant_id' => $a['variant_id'], 'location_id' => $a['location_id'],
                          '$expr' => ['$gte' => ['$reserved', $a['quantity']]]],
                         ['$inc' => ['reserved' => -$a['quantity'], 'available' => $a['quantity']],
-                         '$set' => ['updated_at' => now()->toDateTime()]]
+                         '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
                     );
                 } catch (\Throwable $compEx) { Log::critical('Team3 reserve compensacion fallo', ['item' => $a, 'error' => $compEx->getMessage()]); }
             }
             $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
                 ['$set' => ['status' => 'REJECTED', 'result' => ['error' => $e->getMessage()],
-                            'unexpired_processing_at' => null, 'updated_at' => now()->toDateTime()]]);
+                            'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
             throw $e;
         }
 
         $reservationId = (string) Str::ulid();
-        $expiresAt = isset($data['expires_at']) ? Carbon::parse($data['expires_at'])->toDateTime() : now()->addHours(2)->toDateTime();
+        $expiresAt = isset($data['expires_at']) ? Carbon::parse($data['expires_at']) : now()->addHours(2);
 
         try {
             DB::connection('mongodb')->getCollection($this->reservationsCollection)->insertOne([
@@ -150,8 +150,8 @@ class Team3ApiService
                 'rejection_reason' => null,
                 'external_reference' => (string) ($data['external_reference'] ?? ''),
                 'created_by' => (string) ($data['actor_id'] ?? 'TEAM3'),
-                'created_at' => now()->toDateTime(),
-                'updated_at' => now()->toDateTime(),
+                'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]);
         } catch (\Throwable $e) {
             foreach ($applied as $a) {
@@ -161,7 +161,7 @@ class Team3ApiService
                          'variant_id' => $a['variant_id'], 'location_id' => $a['location_id'],
                          '$expr' => ['$gte' => ['$reserved', $a['quantity']]]],
                         ['$inc' => ['reserved' => -$a['quantity'], 'available' => $a['quantity']],
-                         '$set' => ['updated_at' => now()->toDateTime()]]
+                         '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
                     );
                 } catch (\Throwable $compEx) {}
             }
@@ -177,7 +177,7 @@ class Team3ApiService
 
         $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
             ['$set' => ['status' => 'COMPLETED', 'result' => $result,
-                        'unexpired_processing_at' => null, 'updated_at' => now()->toDateTime()]]);
+                        'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
 
         return $result;
     }
@@ -195,7 +195,7 @@ class Team3ApiService
                 '_id' => new ObjectId(), 'service' => $service, 'idempotency_key' => $idempotencyKey,
                 'status' => 'PROCESSING',
                 'unexpired_processing_at' => new UTCDateTime((time() + 900) * 1000),
-                'created_at' => now()->toDateTime(), 'updated_at' => now()->toDateTime(),
+                'created_at' => new \MongoDB\BSON\UTCDateTime(now()), 'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]);
         } catch (BulkWriteException $e) {
             if (!$this->isDuplicateKey($e)) throw $e;
@@ -209,7 +209,7 @@ class Team3ApiService
 
         if (!$doc) {
             $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
-                ['$set' => ['status' => 'REJECTED', 'unexpired_processing_at' => null, 'updated_at' => now()->toDateTime()]]);
+                ['$set' => ['status' => 'REJECTED', 'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
             throw new \InvalidArgumentException('Reserva no encontrada.');
         }
         $reservation = (array) $doc;
@@ -217,7 +217,7 @@ class Team3ApiService
         if (($reservation['status'] ?? '') !== 'RESERVED') {
             $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
                 ['$set' => ['status' => 'REJECTED', 'result' => ['error' => 'Estado ' . $reservation['status']],
-                            'unexpired_processing_at' => null, 'updated_at' => now()->toDateTime()]]);
+                            'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
             throw new \DomainException('Solo se pueden confirmar reservas RESERVED.');
         }
 
@@ -239,7 +239,7 @@ class Team3ApiService
                      'variant_id' => $variantId, 'location_id' => $locationId,
                      '$expr' => ['$and' => [['$gte' => ['$on_hand', $quantity]], ['$gte' => ['$reserved', $quantity]]]]],
                     ['$inc' => ['on_hand' => -$quantity, 'reserved' => -$quantity],
-                     '$set' => ['updated_at' => now()->toDateTime()]],
+                     '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())]],
                     ['returnDocument' => FindOneAndUpdate::RETURN_DOCUMENT_AFTER]
                 );
 
@@ -257,8 +257,8 @@ class Team3ApiService
                     'external_reference' => (string) ($reservation['order_id'] ?? ''),
                     'actor_id' => (string) ($data['actor_id'] ?? 'TEAM3'),
                     'correlation_id' => (string) Str::uuid(),
-                    'created_at' => now()->toDateTime(),
-                    'updated_at' => now()->toDateTime(),
+                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ]);
 
                 $applied[] = $item;
@@ -271,22 +271,22 @@ class Team3ApiService
                         ['business_id' => $this->businessId, 'product_id' => $a['product_id'],
                          'variant_id' => $a['variant_id'] ?? null, 'location_id' => $a['location_id']],
                         ['$inc' => ['on_hand' => (int) $a['quantity'], 'reserved' => (int) $a['quantity']],
-                         '$set' => ['updated_at' => now()->toDateTime()]]
+                         '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
                     );
                 } catch (\Throwable $ex) {}
             }
             $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
-                ['$set' => ['status' => 'FAILED', 'unexpired_processing_at' => null, 'updated_at' => now()->toDateTime()]]);
+                ['$set' => ['status' => 'FAILED', 'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
             throw $e;
         }
 
         $resColl->updateOne(['reservation_id' => $reservationId],
-            ['$set' => ['status' => 'CONFIRMED', 'confirmed_at' => now()->toDateTime(), 'updated_at' => now()->toDateTime()]]);
+            ['$set' => ['status' => 'CONFIRMED', 'confirmed_at' => new \MongoDB\BSON\UTCDateTime(now()), 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
 
         $result = ['reservation_id' => $reservationId, 'status' => 'CONFIRMED', 'movements' => $movements];
         $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
             ['$set' => ['status' => 'COMPLETED', 'result' => $result,
-                        'unexpired_processing_at' => null, 'updated_at' => now()->toDateTime()]]);
+                        'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
 
         return $result;
     }
@@ -304,7 +304,7 @@ class Team3ApiService
                 '_id' => new ObjectId(), 'service' => $service, 'idempotency_key' => $idempotencyKey,
                 'status' => 'PROCESSING',
                 'unexpired_processing_at' => new UTCDateTime((time() + 900) * 1000),
-                'created_at' => now()->toDateTime(), 'updated_at' => now()->toDateTime(),
+                'created_at' => new \MongoDB\BSON\UTCDateTime(now()), 'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]);
         } catch (BulkWriteException $e) {
             if (!$this->isDuplicateKey($e)) throw $e;
@@ -318,7 +318,7 @@ class Team3ApiService
 
         if (!$doc) {
             $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
-                ['$set' => ['status' => 'REJECTED', 'unexpired_processing_at' => null, 'updated_at' => now()->toDateTime()]]);
+                ['$set' => ['status' => 'REJECTED', 'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
             throw new \InvalidArgumentException('Reserva no encontrada.');
         }
         $reservation = (array) $doc;
@@ -326,7 +326,7 @@ class Team3ApiService
         if (($reservation['status'] ?? '') !== 'RESERVED') {
             $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
                 ['$set' => ['status' => 'REJECTED', 'result' => ['error' => 'Estado ' . $reservation['status']],
-                            'unexpired_processing_at' => null, 'updated_at' => now()->toDateTime()]]);
+                            'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
             throw new \DomainException('Solo se pueden liberar reservas RESERVED.');
         }
 
@@ -345,7 +345,7 @@ class Team3ApiService
                  'variant_id' => $variantId, 'location_id' => $locationId,
                  '$expr' => ['$gte' => ['$reserved', $quantity]]],
                 ['$inc' => ['reserved' => -$quantity, 'available' => $quantity],
-                 '$set' => ['updated_at' => now()->toDateTime()]]
+                 '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
             );
 
             $itemsReleased[] = ['product_id' => $productId, 'variant_id' => $variantId, 'location_id' => $locationId, 'quantity' => $quantity];
@@ -353,13 +353,13 @@ class Team3ApiService
 
         $reason = (string) ($data['reason'] ?? 'RELEASED');
         $resColl->updateOne(['reservation_id' => $reservationId],
-            ['$set' => ['status' => 'RELEASED', 'released_at' => now()->toDateTime(),
-                        'release_reason' => $reason, 'updated_at' => now()->toDateTime()]]);
+            ['$set' => ['status' => 'RELEASED', 'released_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                        'release_reason' => $reason, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
 
         $result = ['reservation_id' => $reservationId, 'status' => 'RELEASED', 'items_released' => $itemsReleased];
         $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
             ['$set' => ['status' => 'COMPLETED', 'result' => $result,
-                        'unexpired_processing_at' => null, 'updated_at' => now()->toDateTime()]]);
+                        'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
 
         return $result;
     }

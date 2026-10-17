@@ -41,7 +41,7 @@ class InventoryReturnController extends Controller
                 '_id' => new ObjectId(), 'service' => $service,
                 'idempotency_key' => $v['idempotency_key'], 'status' => 'PROCESSING',
                 'unexpired_processing_at' => new UTCDateTime((time()+900)*1000),
-                'created_at' => now()->toDateTime(), 'updated_at' => now()->toDateTime(),
+                'created_at' => new \MongoDB\BSON\UTCDateTime(now()), 'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]);
         } catch (BulkWriteException $e) {
             $ex = (array) ($idem->findOne(['service'=>$service,'idempotency_key'=>$v['idempotency_key']]) ?? []);
@@ -61,7 +61,7 @@ class InventoryReturnController extends Controller
                     ['business_id'=>$this->businessId, 'product_id'=>(string)$it['product_id'],
                      'variant_id'=>$it['variant_id'] ?? null, 'location_id'=>(string)$it['location_id']],
                     ['$inc'=>['on_hand'=>(int)$it['quantity'], 'available'=>(int)$it['quantity']],
-                     '$set'=>['updated_at'=>now()->toDateTime()]],
+                     '$set'=>['updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]],
                     ['upsert'=>true]
                 );
                 $mov->insertOne([
@@ -70,20 +70,20 @@ class InventoryReturnController extends Controller
                     'location_id'=>(string)$it['location_id'], 'type'=>'RETURN',
                     'quantity'=>(int)$it['quantity'], 'reason'=>$v['reason'] ?? 'CUSTOMER_RETURN',
                     'external_reference'=>$v['order_id'], 'refund_reference'=>$v['refund_reference'] ?? null,
-                    'correlation_id'=>(string) Str::uuid(), 'created_at'=>now()->toDateTime(),
+                    'correlation_id'=>(string) Str::uuid(), 'created_at'=>new \MongoDB\BSON\UTCDateTime(now()),
                 ]);
                 $applied[] = $it;
             }
         } catch (\Throwable $e) {
             Log::error('Team4 return failed', ['error'=>$e->getMessage()]);
             $idem->updateOne(['service'=>$service,'idempotency_key'=>$v['idempotency_key']],
-                ['$set'=>['status'=>'FAILED','unexpired_processing_at'=>null,'updated_at'=>now()->toDateTime()]]);
+                ['$set'=>['status'=>'FAILED','unexpired_processing_at'=>null,'updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]]);
             return response()->json(['message'=>'Error al procesar devolución.'], 500);
         }
 
         $res = ['order_id'=>$v['order_id'], 'status'=>'RETURNED', 'items'=>$applied, 'processed_at'=>now()->toIso8601String()];
         $idem->updateOne(['service'=>$service,'idempotency_key'=>$v['idempotency_key']],
-            ['$set'=>['status'=>'COMPLETED','result'=>$res,'unexpired_processing_at'=>null,'updated_at'=>now()->toDateTime()]]);
+            ['$set'=>['status'=>'COMPLETED','result'=>$res,'unexpired_processing_at'=>null,'updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]]);
         return response()->json($res, 201);
     }
 }

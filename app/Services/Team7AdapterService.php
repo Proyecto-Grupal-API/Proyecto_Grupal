@@ -157,8 +157,16 @@ class Team7AdapterService
             'origin_reference' => $d['origin_reference'] ?? ($d['external_reference'] ?? ''),
             'quantity'         => $totalQty,
             'items'            => $items,
-            'expires_at'       => $d['expires_at'] ?? null,
+            'expires_at'       => $this->isoDate($d['expires_at'] ?? null),
         ];
+    }
+
+    private function isoDate($v): ?string
+    {
+        if ($v instanceof \MongoDB\BSON\UTCDateTime) {
+            return $v->toDateTime()->format(DATE_ATOM);
+        }
+        return $v === null ? null : (string) $v;
     }
 
     private function mapSource(string $e7): string

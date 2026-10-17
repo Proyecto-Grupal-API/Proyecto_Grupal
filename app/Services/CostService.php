@@ -56,9 +56,9 @@ class CostService
             'reference' => $reference,
             'notes' => $notes,
             'actor_id' => $actorId,
-            'effective_at' => now()->toDateTime(),
-            'created_at' => now()->toDateTime(),
-            'updated_at' => now()->toDateTime(),
+            'effective_at' => new \MongoDB\BSON\UTCDateTime(now()),
+            'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+            'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
         ]);
 
         // Recalcular PricingReference
@@ -108,14 +108,14 @@ class CostService
             'average_cost' => round($averageCost, 2),
             'suggested_margin' => $suggestedMargin,
             'suggested_price' => $suggestedPrice,
-            'updated_at' => now()->toDateTime(),
+            'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
         ];
 
         if ($existing) {
             $refCollection->updateOne(['_id' => $existing['_id']], ['$set' => $payload]);
         } else {
             $payload['_id'] = new ObjectId();
-            $payload['created_at'] = now()->toDateTime();
+            $payload['created_at'] = new \MongoDB\BSON\UTCDateTime(now());
             $refCollection->insertOne($payload);
         }
     }

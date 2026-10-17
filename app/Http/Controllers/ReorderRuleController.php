@@ -65,7 +65,7 @@ class ReorderRuleController extends Controller
             ['$set' => [
                 'reorder_point' => (int) $validated['reorder_point'],
                 'active' => (bool) $validated['active'],
-                'updated_at' => now()->toDateTime(),
+                'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]]
         );
 

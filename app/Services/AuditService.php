@@ -24,7 +24,7 @@ class AuditService
                 'after'          => $payload['after']          ?? null,
                 'correlation_id' => $payload['correlation_id'] ?? (string) Str::uuid(),
                 'ip'             => $payload['ip']             ?? (app()->runningInConsole() ? null : request()->ip()),
-                'created_at'     => now()->toDateTime(),
+                'created_at'     => new \MongoDB\BSON\UTCDateTime(now()),
             ]);
         } catch (\Throwable $e) {
             Log::warning('AuditService::log failed', ['event' => $event, 'error' => $e->getMessage()]);

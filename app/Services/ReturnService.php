@@ -233,11 +233,11 @@ class ReturnService
                     'available' => $delta,
                 ],
                 '$set' => [
-                    'updated_at' => now()->toDateTime(),
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ],
                 '$setOnInsert' => [
                     'reserved' => 0,
-                    'created_at' => now()->toDateTime(),
+                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ],
             ],
             [
@@ -278,12 +278,12 @@ class ReturnService
                     'on_hand' => $quantity,
                 ],
                 '$set' => [
-                    'updated_at' => now()->toDateTime(),
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ],
                 '$setOnInsert' => [
                     'reserved' => 0,
                     'available' => 0,
-                    'created_at' => now()->toDateTime(),
+                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ],
             ],
             [
@@ -319,7 +319,7 @@ class ReturnService
                         'available' => $quantity,
                     ],
                     '$set' => [
-                        'updated_at' => now()->toDateTime(),
+                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     ],
                 ]
             );
@@ -363,7 +363,7 @@ class ReturnService
                 [
                     '$inc' => $inc,
                     '$set' => [
-                        'updated_at' => now()->toDateTime(),
+                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     ],
                 ]
             );

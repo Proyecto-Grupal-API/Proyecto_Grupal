@@ -35,7 +35,7 @@ class DemoSeed extends Command
                         'name' => $name,
                         'business_id' => $this->bid,
                         'active' => true,
-                        'created_at' => now()->toDateTime(),
+                        'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     ],
                 ],
                 ['upsert' => true]
@@ -64,7 +64,7 @@ class DemoSeed extends Command
                     'name' => $w['name'],
                     'type' => $w['type'],
                     'active' => true,
-                    'created_at' => now()->toDateTime(),
+                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ]],
                 ['upsert' => true]
             );
@@ -95,7 +95,7 @@ class DemoSeed extends Command
                     'code' => $l['code'],
                     'name' => $l['name'],
                     'active' => true,
-                    'created_at' => now()->toDateTime(),
+                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ]],
                 ['upsert' => true]
             );
@@ -136,7 +136,7 @@ class DemoSeed extends Command
                     'stock_min' => $p['min'],
                     'stock_max' => $p['max'],
                     'active' => true,
-                    'created_at' => now()->toDateTime(),
+                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ]],
                 ['upsert' => true]
             );
@@ -187,10 +187,10 @@ class DemoSeed extends Command
                         'reserved' => 0,
                         'available' => $plan['qty'],
                         'status' => 'AVAILABLE',
-                        'updated_at' => now()->toDateTime(),
+                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     ], '$setOnInsert' => [
                         '_id' => new ObjectId(),
-                        'created_at' => now()->toDateTime(),
+                        'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     ]],
                     ['upsert' => true]
                 );
@@ -218,7 +218,7 @@ class DemoSeed extends Command
                     'trade_name' => $s['trade'],
                     'tax_id' => $s['tax'],
                     'active' => true,
-                    'created_at' => now()->toDateTime(),
+                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ]],
                 ['upsert' => true]
             );

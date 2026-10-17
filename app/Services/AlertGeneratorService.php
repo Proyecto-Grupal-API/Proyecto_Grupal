@@ -62,7 +62,7 @@ class AlertGeneratorService
                     ['_id' => $existing['_id']],
                     ['$set' => [
                         'status' => 'RESOLVED',
-                        'updated_at' => now()->toDateTime(),
+                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     ]]
                 );
             }
@@ -103,7 +103,7 @@ class AlertGeneratorService
                         'threshold' => $reorderPoint,
                         'priority' => $priority,
                         'message' => $message,
-                        'updated_at' => now()->toDateTime(),
+                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     ]]
                 );
             } else {
@@ -118,8 +118,8 @@ class AlertGeneratorService
                     'priority' => $priority,
                     'status' => 'ACTIVE',
                     'message' => $message,
-                    'created_at' => now()->toDateTime(),
-                    'updated_at' => now()->toDateTime(),
+                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 ]);
             }
         } else {
@@ -129,7 +129,7 @@ class AlertGeneratorService
                     ['$set' => [
                         'status' => 'RESOLVED',
                         'current_qty' => $available,
-                        'updated_at' => now()->toDateTime(),
+                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     ]]
                 );
             }
@@ -147,7 +147,7 @@ class AlertGeneratorService
             ],
             ['$set' => [
                 'status' => 'RESOLVED',
-                'updated_at' => now()->toDateTime(),
+                'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]]
         );
     }
@@ -218,7 +218,7 @@ class AlertGeneratorService
                             'threshold' => $reorderPoint,
                             'priority' => $priority,
                             'message' => $message,
-                            'updated_at' => now()->toDateTime(),
+                            'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                         ]]
                     );
                     $stats['updated']++;
@@ -234,8 +234,8 @@ class AlertGeneratorService
                         'priority' => $priority,
                         'status' => 'ACTIVE',
                         'message' => $message,
-                        'created_at' => now()->toDateTime(),
-                        'updated_at' => now()->toDateTime(),
+                        'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                     ]);
                     $stats['created']++;
                 }
@@ -246,7 +246,7 @@ class AlertGeneratorService
                         ['$set' => [
                             'status' => 'RESOLVED',
                             'current_qty' => $available,
-                            'updated_at' => now()->toDateTime(),
+                            'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
                         ]]
                     );
                     $stats['resolved']++;
