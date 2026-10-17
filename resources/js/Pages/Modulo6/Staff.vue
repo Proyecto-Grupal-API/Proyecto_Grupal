@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link } from "@inertiajs/vue3";
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import axios from "axios";
 import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
 import EscanerEvento from "@/Components/EscanerEvento.vue";
@@ -13,6 +13,17 @@ const error = ref(""),
     resultado = ref(null),
     codigo = ref("");
 const inputCodigo = ref(null);
+const metodo = ref("boleto");
+async function cambiarMetodo(nuevo) {
+    if (validando.value || cargando.value || (nuevo === "nfc" && !datos.value?.nfc_habilitado)) return;
+    metodo.value = nuevo;
+    resultado.value = null;
+    error.value = "";
+    codigo.value = "";
+    version++;
+    await nextTick();
+    inputCodigo.value?.focus();
+}
 let timer,
     version = 0,
     desmontado = false;
@@ -52,6 +63,7 @@ async function cargar(pagina = 1) {
             await axios.get("/api/staff/eventos", { params: { page: pagina } })
         ).data;
         if (desmontado) return;
+        if (!datos.value.nfc_habilitado) metodo.value = "boleto";
         const solicitado = new URLSearchParams(window.location.search).get(
             "evento",
         );
@@ -96,8 +108,8 @@ async function actualizar() {
         }
     }
 }
-async function validar(token = codigo.value) {
-    if (!habilitado.value || !token?.trim()) return;
+async function validar(token = codigo.value, via = metodo.value) {
+    if (!habilitado.value || !token?.trim() || via !== metodo.value) return;
     const id = evento.value.id;
     version++;
     validando.value = true;
@@ -106,7 +118,9 @@ async function validar(token = codigo.value) {
     try {
         const res = await axios.post("/api/eventos/checkin", {
             evento_id: id,
-            token_qr: token.trim(),
+            ...(via === "nfc"
+                ? { metodo: "nfc", credential_uid: token.trim() }
+                : { token_qr: token.trim() }),
         });
         if (desmontado) return;
         resultado.value = res.data;
@@ -154,7 +168,7 @@ onBeforeUnmount(() => {
                         Recibe a tu comunidad
                     </h1>
                     <p class="mt-2 text-slate-600">
-                        Selecciona tu evento y valida cada boleto al ingresar.
+                        Selecciona tu evento y valida el boleto o la credencial al ingresar.
                     </p>
                 </div>
                 <button
@@ -321,7 +335,7 @@ onBeforeUnmount(() => {
                                 @click="siguiente"
                                 class="mt-4 rounded-lg bg-emerald-800 text-white px-4 py-3 font-semibold"
                             >
-                                Siguiente boleto
+                                Siguiente asistente
                             </button>
                         </div>
                         <p
@@ -332,21 +346,39 @@ onBeforeUnmount(() => {
                             {{ fecha(evento.acceso_abre_en) }} hasta
                             {{ fecha(evento.fecha_hora_fin) }}.
                         </p>
-                        <div>
+                        <fieldset :disabled="validando || cargando" class="space-y-3">
+                            <legend class="font-semibold">Método de acceso</legend>
+                            <div class="flex flex-wrap gap-3">
+                                <label class="flex items-center gap-2 rounded-xl border px-4 py-3 cursor-pointer">
+                                    <input type="radio" name="metodo-acceso" value="boleto" :checked="metodo === 'boleto'" @change="cambiarMetodo('boleto')" />
+                                    Boleto QR o código
+                                </label>
+                                <label class="flex items-center gap-2 rounded-xl border px-4 py-3" :class="datos?.nfc_habilitado ? 'cursor-pointer' : 'opacity-60'">
+                                    <input type="radio" name="metodo-acceso" value="nfc" :checked="metodo === 'nfc'" :disabled="!datos?.nfc_habilitado" @change="cambiarMetodo('nfc')" aria-describedby="ayuda-nfc" />
+                                    Credencial NFC
+                                </label>
+                            </div>
+                            <p id="ayuda-nfc" class="text-sm text-slate-600">
+                                {{ datos?.nfc_habilitado
+                                    ? 'La credencial identifica a la persona. También debe tener un lugar confirmado y pago pagado o exento.'
+                                    : 'El acceso con credencial NFC aún no está disponible. Puedes seguir usando el boleto.' }}
+                            </p>
+                        </fieldset>
+                        <div v-if="metodo === 'boleto'">
                             <h3 class="font-bold text-lg mb-3">
                                 Escanear boleto
                             </h3>
                             <EscanerEvento
                                 :evento-id="evento.id"
                                 :disabled="!habilitado"
-                                @token="validar"
+                                @token="(token) => validar(token, 'boleto')"
                             />
                         </div>
                         <form @submit.prevent="validar()" class="space-y-3">
                             <label
                                 for="codigo-staff"
                                 class="block font-semibold"
-                                >Código del boleto</label
+                                >{{ metodo === "nfc" ? "UID de la credencial NFC" : "Código del boleto" }}</label
                             ><input
                                 id="codigo-staff"
                                 ref="inputCodigo"
@@ -357,9 +389,13 @@ onBeforeUnmount(() => {
                                 autocomplete="off"
                                 autocapitalize="off"
                                 spellcheck="false"
-                                placeholder="Escanea o introduce el código"
+                                :placeholder="metodo === 'nfc' ? 'Acerca la credencial al lector o introduce su UID' : 'Escanea o introduce el código'"
                                 class="w-full rounded-xl border-slate-300 py-3"
-                            /><button
+                            />
+                            <p v-if="metodo === 'nfc'" class="text-sm text-slate-600">
+                                Un lector que escribe el UID puede enviarlo en este campo. Presiona Enter para validar. La cámara solo lee boletos QR.
+                            </p>
+                            <button
                                 :disabled="!habilitado || !codigo.trim()"
                                 class="w-full rounded-xl bg-blue-900 px-4 py-4 text-white font-bold text-lg disabled:opacity-40"
                             >

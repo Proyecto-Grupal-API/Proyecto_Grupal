@@ -71,6 +71,8 @@ No utilizar `down -v` para detener una copia cuyos datos se necesiten conservar.
 
 ## Documentación y pendientes
 
+- [Acceso NFC de Comunidad](ACCESO_NFC_EVENTOS_COMUNIDAD.md): integración de Staff con la API de E1, con activación local sujeta al permiso del cliente.
+
 - [Actualización de equipos del 17 de octubre](ACTUALIZACION_EQUIPOS_2026-10-17.md):
   revisión remota, correcciones E4 y preparación de recibos v2/transporte E7, sin activar finanzas.
 
