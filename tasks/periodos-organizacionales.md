@@ -50,7 +50,7 @@ GET no expone huellas ni claves. Nuevos campos de organización/cargos son aditi
   cargo anterior en recuperación de presidencia; sin reactivar delegaciones.
 - [x] Formulario de cargo y mesa directiva: periodo visible y seleccionable;
   comprobar lectura de integrante y denegaciones en API, navegador y regresión.
-- [ ] Cierre: inventario completo de pruebas en bloques seriales reanudables,
+- [x] Cierre: inventario completo de pruebas en bloques seriales reanudables,
   guía de uso y contratos, commits locales, árbol limpio. No publicar.
 
 Las pruebas usan únicamente `campus_virtual_testing`, en serie y como UID 1000.
@@ -81,3 +81,17 @@ de autoridad de E1, clientes OAuth, integraciones financieras ni informes fechad
   dicha recarga; no hizo falta modificar el código de la aplicación.
 - Regresión de Periodos, Vigencias, Comunidad, Continuidad y Delegaciones:
   **47 pruebas aprobadas, 390 aserciones**, 213.67 segundos.
+
+## Cierre confirmado el 17 de octubre de 2026
+
+- Código validado: `74e4f19`, después del registro de periodos en `b4bcdf1`.
+- Suite completa: **1161 pruebas aprobadas, 8327 aserciones**, cero errores,
+  fallos u omisiones. Tiempo acumulado de los bloques: **1399.42 segundos**.
+- Inventario contrastado con JUnit: **83 archivos, 14 bloques seriales, 1161 casos
+  únicos**. Sin clases faltantes ni casos duplicados. Solo `campus_virtual_testing`.
+- Guía de uso, API, compatibilidad, recuperación y límites:
+  `docs/integration/PERIODOS_ORGANIZACIONALES_COMUNIDAD.md`.
+- Evidencia local excluida de Git:
+  `storage/logs/periodos-organizacionales-20261016/validacion/`.
+- Cierre documental en commit local; la implementación comprobada no cambia.
+  La revisión humana de otro integrante precede a cualquier publicación o fusión.

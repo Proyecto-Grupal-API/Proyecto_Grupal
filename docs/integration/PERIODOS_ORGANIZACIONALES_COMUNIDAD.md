@@ -129,11 +129,26 @@ del código no requiere borrar estos datos.
   **47 pruebas aprobadas, 390 aserciones**, 213.67 segundos.
 - Sin errores JavaScript ni advertencias observadas en el flujo final. Sin
   desbordamiento horizontal a 320, 768, 1024 y 1440 píxeles.
-- Compilación de producción correcta en **15.78 segundos**. Los resultados del
-  cierre completo se registran después del inventario serial reanudable.
+- Compilación de producción correcta en **15.78 segundos**.
+
+Cierre confirmado el **17 de octubre de 2026** sobre el código `74e4f19`:
+
+- Suite integrada completa: **1161 pruebas aprobadas, 8327 aserciones**, cero
+  errores, cero fallos y ninguna prueba omitida.
+- Los **83 archivos de pruebas** se ejecutaron en **14 bloques seriales**, usando
+  únicamente `campus_virtual_testing`. El inventario y los reportes JUnit coinciden:
+  1161 casos únicos, sin clases faltantes ni casos repetidos.
+- Tiempo acumulado de los bloques completos: **1399.42 segundos**. Cada bloque
+  aprobado conserva su reporte y progreso, vinculados al mismo commit y a la
+  huella del inventario para permitir una reanudación verificable.
+- Las pruebas específicas y la regresión anterior son subconjuntos de esta suite;
+  sus cifras no se suman al total integrado.
 
 Evidencia local excluida de Git:
-`storage/logs/periodos-organizacionales-20261016/`. La comprobación conserva un
+`storage/logs/periodos-organizacionales-20261016/`. El subdirectorio `validacion/`
+contiene `manifest.xml`, `progress.json`, los 14 reportes `bloque-XX.xml` y los
+logs de ejecución. Los logs de compilación y navegador están en el directorio padre.
+La comprobación conserva un
 periodo cancelado sin cargos y un periodo histórico finalizado con un cargo
 retirado; este último nunca dio permisos vigentes por sus fechas pasadas.
 
