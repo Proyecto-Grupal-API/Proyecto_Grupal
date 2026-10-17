@@ -3,6 +3,11 @@
 namespace App\Http\Middleware;
 
 use App\Services\AutoridadOrganizaciones;
+use App\Services\ComiteBecas;
+use App\Services\InventoryModule\BusinessContext;
+use App\Services\InventoryModule\IdentityService;
+use App\Services\PermisosComunidad;
+use App\Services\StudentServices\ServiceAuthority;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Middleware;
@@ -35,13 +40,13 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'inventoryContext' => fn () => $request->is('equipo4*') && $request->attributes->has('inventory_user') ? [
                 'user' => $request->attributes->get('inventory_user'),
-                'business_id' => app(\App\Services\InventoryModule\BusinessContext::class)->id(),
-                'businesses' => app(\App\Services\InventoryModule\BusinessContext::class)->options(),
+                'business_id' => app(BusinessContext::class)->id(),
+                'businesses' => app(BusinessContext::class)->options(),
             ] : null,
             'permissions' => fn () => $request->attributes->has('inventory_user')
-                ? app(\App\Services\InventoryModule\IdentityService::class)->effectivePermissions((string) $request->user()->getAuthIdentifier()) : [],
+                ? app(IdentityService::class)->effectivePermissions((string) $request->user()->getAuthIdentifier()) : [],
             'dashboardKpis' => fn () => $request->attributes->has('inventory_user')
-                ? app(\App\Services\InventoryModule\IdentityService::class)->getDashboardKpis($request->attributes->get('inventory_user')['roles']) : [],
+                ? app(IdentityService::class)->getDashboardKpis($request->attributes->get('inventory_user')['roles']) : [],
 
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
@@ -50,12 +55,13 @@ class HandleInertiaRequests extends Middleware
             ],
             'auth' => [
                 'user' => $request->user(),
-                'servicios_staff' => fn () => app(\App\Services\StudentServices\ServiceAuthority::class)->staff($request->user()),
+                'servicios_staff' => fn () => app(ServiceAuthority::class)->staff($request->user()),
                 'hasStudentProfile' => $request->user()?->studentProfile()->exists() ?? false,
                 'gestiona_organizaciones' => fn () => app(AutoridadOrganizaciones::class)->permite($request->user()),
                 'organizacion' => fn () => $request->attributes->get('organizacion'),
                 'puede_editar' => fn () => $request->attributes->get('organizacion') && Gate::allows('update', $request->attributes->get('organizacion')),
-                'capacidades_comunidad' => fn () => app(\App\Services\PermisosComunidad::class)->capacidades($request->user(), $request->attributes->get('organizacion')),
+                'comite_becas' => fn () => app(ComiteBecas::class)->participa($request->user(), $request->attributes->get('organizacion')),
+                'capacidades_comunidad' => fn () => app(PermisosComunidad::class)->capacidades($request->user(), $request->attributes->get('organizacion')),
             ],
         ];
     }

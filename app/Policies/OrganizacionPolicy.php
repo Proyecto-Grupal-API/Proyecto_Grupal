@@ -7,6 +7,7 @@ use App\Models\Organizacion;
 use App\Models\RolOrganizacion;
 use App\Models\User;
 use App\Services\AutoridadOrganizaciones;
+use App\Services\ComiteBecas;
 use App\Services\PermisosComunidad;
 
 class OrganizacionPolicy
@@ -46,6 +47,6 @@ class OrganizacionPolicy
 
     public function verGestionBecas(User $user, Organizacion $organizacion): bool
     {
-        return $this->gestionarBecas($user, $organizacion) || $this->revisarBecas($user, $organizacion);
+        return $this->gestionarBecas($user, $organizacion) || $this->revisarBecas($user, $organizacion) || app(ComiteBecas::class)->participa($user, $organizacion);
     }
 }

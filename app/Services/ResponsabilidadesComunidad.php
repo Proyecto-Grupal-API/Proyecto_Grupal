@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AuditoriaComunidad;
 use App\Models\DelegacionOrganizacion;
+use App\Models\IntegranteComision;
 use App\Models\MiembroOrganizacion;
 use App\Models\PermisoGestionOrganizaciones;
 use App\Models\RolOrganizacion;
@@ -52,7 +53,8 @@ class ResponsabilidadesComunidad
             }
             app(DelegacionesComunidad::class)->revocarRegistros(DelegacionOrganizacion::where(fn ($q) => $q->where('destinatario_id', (string) $user->id)->orWhere('delegante_id', (string) $user->id)), (string) $user->id, 'Baja de la cuenta vinculada a la delegación.');
             // Las asignaciones retiradas no se reactivan por un futuro reingreso.
-            app(ComisionesConsejo::class)->retirarRegistros(\App\Models\IntegranteComision::where('usuario_id', (string) $user->id), (string) $user->id, 'Baja de la cuenta vinculada a la comisión.');
+            app(ComisionesConsejo::class)->retirarRegistros(IntegranteComision::where('usuario_id', (string) $user->id), (string) $user->id, 'Baja de la cuenta vinculada a la comisión.');
+            app(ComiteBecas::class)->retirar((string) $user->id, (string) $user->id);
             $eliminarIdentidad(); // Identidad conserva la autoridad sobre la baja y las credenciales.
         }));
     }

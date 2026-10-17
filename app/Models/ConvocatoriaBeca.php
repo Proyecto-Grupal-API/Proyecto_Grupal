@@ -6,7 +6,9 @@ class ConvocatoriaBeca extends Documento
 {
     protected $table = 'convocatorias_becas';
 
-    protected $fillable = ['referencia_demo', 'organizacion_id', 'creado_por', 'titulo', 'descripcion', 'requisitos', 'tipo_beneficio_id', 'beneficio', 'monto_centavos', 'cantidad', 'total_espacios', 'fecha_inicio', 'fecha_fin', 'vigencia_inicio', 'vigencia_fin', 'requisitos_documentos', 'requiere_documentos', 'estado', 'motivo_cancelacion'];
+    protected $fillable = ['referencia_demo', 'organizacion_id', 'creado_por', 'titulo', 'descripcion', 'requisitos', 'tipo_beneficio_id', 'beneficio', 'monto_centavos', 'cantidad', 'total_espacios', 'fecha_inicio', 'fecha_fin', 'vigencia_inicio', 'vigencia_fin', 'requisitos_documentos', 'requiere_documentos', 'estado', 'motivo_cancelacion', 'comite'];
+
+    protected $hidden = ['comite'];
 
     protected function casts(): array
     {

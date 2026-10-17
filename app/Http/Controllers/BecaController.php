@@ -11,6 +11,8 @@ use App\Models\SolicitudBeca;
 use App\Models\TipoBeneficio;
 use App\Models\User;
 use App\Services\BeneficiosBeca;
+use App\Services\ComiteBecas;
+use App\Services\ResponsabilidadesComunidad;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -31,6 +33,9 @@ class BecaController extends Controller
         $q = ConvocatoriaBeca::query();
         if ($r->boolean('gestion')) {
             $q->where('organizacion_id', (string) $this->organizacion($r, 'verGestionBecas')->id);
+            if (! Gate::allows('gestionarBecas', $org) && ! Gate::allows('revisarBecas', $org)) {
+                app(ComiteBecas::class)->limitar($q, $r->user());
+            }
         } else {
             $q->whereIn('organizacion_id', Organizacion::where('estado', 'activa')->pluck('id'))->whereIn('estado', ['publicada', 'en_revision'])->where('fecha_fin', '>', now());
         }
@@ -41,7 +46,7 @@ class BecaController extends Controller
         $orgs = Organizacion::whereIn('_id', $p->getCollection()->pluck('organizacion_id'))->get()->keyBy('id');
         $mias = SolicitudBeca::whereIn('convocatoria_id', $p->getCollection()->pluck('id'))->where('usuario_id', (string) $r->user()->id)->get()->keyBy('convocatoria_id');
 
-        return response()->json(['convocatorias' => $p->getCollection()->map(fn ($c) => [...$this->convocatoria($c), 'organizacion_nombre' => $orgs->get($c->organizacion_id)?->nombre, 'mi_solicitud' => $mias->has($c->id) ? $this->resumen($mias->get($c->id)) : null]), 'tipos' => TipoBeneficio::whereIn('equipo', [2, 5])->get(), 'puede_gestionar' => $org && Gate::allows('gestionarBecas', $org), 'puede_revisar' => $org && Gate::allows('revisarBecas', $org), 'page' => $p->currentPage(), 'last_page' => $p->lastPage()]);
+        return response()->json(['convocatorias' => $p->getCollection()->map(fn ($c) => [...$this->convocatoria($c), 'organizacion_nombre' => $orgs->get($c->organizacion_id)?->nombre, 'mi_solicitud' => $mias->has($c->id) ? $this->resumen($mias->get($c->id)) : null]), 'tipos' => TipoBeneficio::whereIn('equipo', [2, 5])->get(), 'puede_gestionar' => $org && Gate::allows('gestionarBecas', $org), 'puede_revisar' => $org && (Gate::allows('revisarBecas', $org) || app(ComiteBecas::class)->participa($r->user(), $org)), 'page' => $p->currentPage(), 'last_page' => $p->lastPage()]);
     }
 
     public function store(GuardarConvocatoriaRequest $r)
@@ -119,7 +124,8 @@ class BecaController extends Controller
 
     public function solicitudes(Request $r, string $id)
     {
-        $c = ConvocatoriaBeca::where('organizacion_id', (string) $this->organizacion($r, 'revisarBecas')->id)->findOrFail($id);
+        $c = ConvocatoriaBeca::findOrFail($id);
+        $this->autorizarGestion($r, $c);
         $r->validate(['estado' => ['nullable', Rule::in(['pendiente', 'en_revision', 'aprobada', 'rechazada', 'retirada', 'cancelada'])], 'page' => ['nullable', 'integer', 'min:1']]);
         $q = SolicitudBeca::where('convocatoria_id', $id)->whereNotNull('enviado_en');
         if ($r->filled('estado')) {
@@ -140,8 +146,9 @@ class BecaController extends Controller
         return response()->json(['solicitud' => [...$this->resumen($s), 'motivacion' => $s->motivacion, 'documentos' => collect($s->documentos ?? [])->map(fn ($d) => collect($d)->except('ruta')->all())],
             'convocatoria' => $this->convocatoria($c), 'propia' => $propia, 'puede_editar' => $propia && $s->estado === 'borrador' && $this->recepcionAbierta($c),
             'puede_retirar' => $propia && in_array($s->estado, ['borrador', 'pendiente']) && $this->recepcionAbierta($c),
-            'puede_dictaminar' => ! $propia && $this->revisionAbierta($c) && in_array($s->estado, ['pendiente', 'en_revision']),
-            'beneficio' => AsignacionBeneficio::where('solicitud_id', $id)->first()?->only(['id', 'estado', 'recibo_servicios', 'error_integracion'])])->header('Cache-Control', 'private, no-store');
+            'puede_dictaminar' => ! $propia && app(ComiteBecas::class)->puedeDictaminar($r->user(), $c) && $this->revisionAbierta($c) && in_array($s->estado, ['pendiente', 'en_revision']),
+            'comite_revision' => ! $propia ? app(ComiteBecas::class)->resumen($r->user(), $s, $c) : null,
+            'beneficio' => ($propia || app(ComiteBecas::class)->puedeDictaminar($r->user(), $c)) ? AsignacionBeneficio::where('solicitud_id', $id)->first()?->only(['id', 'estado', 'recibo_servicios', 'error_integracion']) : null])->header('Cache-Control', 'private, no-store');
     }
 
     public function guardarSolicitud(Request $r, string $id)
@@ -257,7 +264,8 @@ class BecaController extends Controller
     {
         $d = $r->validate(['estado' => ['required', Rule::in(['en_revision', 'aprobada', 'rechazada'])], 'motivo' => ['required', 'string', 'min:10', 'max:2000']]);
 
-        return $this->conSolicitud($r, $id, 'revisarBecas', fn ($s, $c) => DB::connection('mongodb')->transaction(function () use ($s, $c, $r, $d) {
+        return app(ResponsabilidadesComunidad::class)->ejecutar(fn () => $this->conSolicitud($r, $id, 'revisarBecas', fn ($s, $c) => DB::connection('mongodb')->transaction(function () use ($s, $c, $r, $d) {
+            abort_unless(app(ComiteBecas::class)->puedeDictaminar($r->user(), $c), 403);
             $this->exigir((string) $s->usuario_id !== (string) $r->user()->id, 'No puedes dictaminar tu propia solicitud.');
             if ($s->estado === $d['estado'] && in_array($s->estado, ['aprobada', 'rechazada'])) {
                 if ($s->estado === 'aprobada') {
@@ -273,15 +281,16 @@ class BecaController extends Controller
                 $this->exigir($c->vigencia_fin->gt(now()), 'La vigencia del beneficio ya terminó.');
                 $this->exigir(SolicitudBeca::where('convocatoria_id', (string) $c->id)->where('estado', 'aprobada')->count() < $c->total_espacios, 'Se agotaron los espacios disponibles.');
             }
+            $evidencia = in_array($d['estado'], ['aprobada', 'rechazada']) ? app(ComiteBecas::class)->validarResolucion($r->user(), $s, $c) : null;
             $antes = $this->resumen($s);
-            $s->update(['estado' => $d['estado'], 'dictamen' => ['motivo' => $d['motivo']], 'dictaminado_en' => now(), 'dictaminado_por' => (string) $r->user()->id]);
-            $this->auditar($r, $c, 'beca_dictamen', $s->id, $antes, $this->resumen($s));
+            $s->update(['estado' => $d['estado'], 'dictamen' => ['motivo' => $d['motivo']], 'dictaminado_en' => now(), 'dictaminado_por' => (string) $r->user()->id, 'dictamen_comite' => $evidencia]);
+            $this->auditar($r, $c, 'beca_dictamen', $s->id, $antes, [...$this->resumen($s), 'dictamen_comite' => $evidencia]);
             if ($s->estado === 'aprobada') {
                 app(BeneficiosBeca::class)->preparar($s, $c);
             }
 
             return response()->json(['message' => $s->estado === 'aprobada' ? 'Solicitud aprobada. La entrega del beneficio está pendiente.' : 'Dictamen guardado.']);
-        }));
+        })));
     }
 
     public function contrato(Request $r, string $id)
@@ -289,10 +298,53 @@ class BecaController extends Controller
         $s = SolicitudBeca::findOrFail($id);
         $c = ConvocatoriaBeca::findOrFail($s->convocatoria_id);
         $this->autorizarGestion($r, $c);
+        abort_unless(app(ComiteBecas::class)->puedeDictaminar($r->user(), $c), 403);
         abort_unless($s->estado === 'aprobada', 404);
         $a = AsignacionBeneficio::where('solicitud_id', $id)->firstOrFail();
 
         return response()->json($a->only(['id', 'estado', 'contrato', 'recibo_servicios', 'entregado_en', 'error_integracion']))->header('Cache-Control', 'private, no-store');
+    }
+
+    public function comite(Request $r, string $id)
+    {
+        $c = ConvocatoriaBeca::where('organizacion_id', (string) $this->organizacion($r)->id)->findOrFail($id);
+        $puede = Gate::allows('update', Organizacion::findOrFail($c->organizacion_id));
+        abort_unless($puede || app(ComiteBecas::class)->funcion($r->user(), $c), 403);
+
+        return response()->json(['version' => (int) ($c->comite['version'] ?? 0), 'comite' => $c->comite, 'puede_configurar' => $puede && ! in_array($c->estado, ['cancelada', 'finalizada']), 'historial' => $puede ? AuditoriaComunidad::where('entidad_id', (string) $c->id)->whereIn('accion', ['beca_comite_configurado', 'beca_comite_baja'])->orderBy('creado_en', 'desc')->orderBy('_id', 'desc')->limit(10)->get() : []])->header('Cache-Control', 'private, no-store');
+    }
+
+    public function guardarComite(Request $r, string $id)
+    {
+        $d = $r->validate(['version' => ['required', 'integer', 'min:0'], 'responsable_id' => ['required', 'string', 'regex:/^[a-f0-9]{24}$/'], 'revisor_ids' => ['required', 'array', 'min:1', 'max:10'], 'revisor_ids.*' => ['required', 'string', 'regex:/^[a-f0-9]{24}$/', 'distinct'], 'motivo' => ['required', 'string', 'min:10', 'max:2000']]);
+
+        return $this->conComite($r, $id, function ($c) use ($r, $d) {
+            app(ComiteBecas::class)->configurar($r->user(), $c, $d);
+
+            return response()->json(['message' => 'Comité guardado. Las recomendaciones anteriores se conservan como historial.', 'version' => $c->comite['version']]);
+        });
+    }
+
+    public function recomendar(Request $r, string $id)
+    {
+        $d = $r->validate(['version_comite' => ['required', 'integer', 'min:1'], 'revision' => ['required', 'integer', 'min:0'], 'recomendacion' => ['required', Rule::in(['favorable', 'desfavorable'])], 'motivo' => ['required', 'string', 'min:10', 'max:2000'], 'usuario_id' => ['prohibited']]);
+        $original = SolicitudBeca::findOrFail($id);
+
+        return $this->conComite($r, $original->convocatoria_id, function ($c) use ($r, $id, $d) {
+            $s = SolicitudBeca::where('convocatoria_id', (string) $c->id)->findOrFail($id);
+            app(ComiteBecas::class)->recomendar($r->user(), $s, $c, $d);
+
+            return response()->json(['message' => 'Recomendación guardada. El dictamen corresponde al responsable.']);
+        });
+    }
+
+    private function conComite(Request $r, string $id, callable $fn)
+    {
+        return app(ResponsabilidadesComunidad::class)->ejecutar(fn () => $this->conConvocatoria($r, $id, false, function ($c) use ($r, $fn) {
+            abort_unless((string) $this->organizacion($r)->id === (string) $c->organizacion_id, 404);
+
+            return DB::connection('mongodb')->transaction(fn () => $fn($c));
+        }));
     }
 
     private function limpiarArchivoBeca(string $ruta): bool
@@ -313,7 +365,7 @@ class BecaController extends Controller
     {
         $ocupados = SolicitudBeca::where('convocatoria_id', (string) $c->id)->where('estado', 'aprobada')->count();
 
-        return [...$c->toArray(), 'recepcion_abierta' => $this->recepcionAbierta($c), 'revision_abierta' => $this->revisionAbierta($c), 'espacios_ocupados' => $ocupados, 'porcentaje' => $c->total_espacios ? round($ocupados / $c->total_espacios * 100) : 0];
+        return [...$c->toArray(), 'tiene_comite' => $c->comite !== null, 'puede_revisar' => app(ComiteBecas::class)->puedeConsultar(request()->user(), $c), 'puede_configurar_comite' => Gate::allows('update', Organizacion::findOrFail($c->organizacion_id)), 'recepcion_abierta' => $this->recepcionAbierta($c), 'revision_abierta' => $this->revisionAbierta($c), 'espacios_ocupados' => $ocupados, 'porcentaje' => $c->total_espacios ? round($ocupados / $c->total_espacios * 100) : 0];
     }
 
     private function resumen(SolicitudBeca $s): array
@@ -345,7 +397,10 @@ class BecaController extends Controller
 
     private function autorizarGestion(Request $r, ConvocatoriaBeca $c, string $capacidad = 'revisarBecas'): void
     {
-        abort_unless((string) $this->organizacion($r, $capacidad)->id === (string) $c->organizacion_id, 404);
+        abort_unless((string) $this->organizacion($r, $capacidad === 'revisarBecas' ? 'verGestionBecas' : $capacidad)->id === (string) $c->organizacion_id, 404);
+        if ($capacidad === 'revisarBecas') {
+            abort_unless(app(ComiteBecas::class)->puedeConsultar($r->user(), $c), 403);
+        }
     }
 
     private function autorizarSolicitud(Request $r, SolicitudBeca $s, ConvocatoriaBeca $c): bool
@@ -375,6 +430,7 @@ class BecaController extends Controller
 
     private function conConvocatoria(Request $r, string $id, bool|string $gestion, callable $fn)
     {
+        $id = strtolower($id);
         try {
             return Cache::store('file')->lock('beca:'.$id, 60)->block(5, function () use ($r, $id, $gestion, $fn) {
                 $c = ConvocatoriaBeca::findOrFail($id);

@@ -78,12 +78,15 @@ Route::prefix('becas/solicitudes/{id}')->where(['id' => '[a-fA-F0-9]{24}'])->gro
     Route::get('/documentos/{documento}', [BecaController::class, 'descargarDocumento'])->whereUuid('documento');
     Route::delete('/documentos/{documento}', [BecaController::class, 'eliminarDocumento'])->whereUuid('documento');
     Route::post('/dictamen', [BecaController::class, 'dictaminar']);
+    Route::put('/recomendacion', [BecaController::class, 'recomendar'])->middleware('throttle:30,1');
     Route::get('/contrato', [BecaController::class, 'contrato']);
 });
 Route::prefix('becas/{id}')->where(['id' => '[a-fA-F0-9]{24}'])->group(function () {
     Route::put('/', [BecaController::class, 'update']);
     Route::post('/estado', [BecaController::class, 'cambiarEstado']);
     Route::get('/solicitudes', [BecaController::class, 'solicitudes']);
+    Route::get('/comite', [BecaController::class, 'comite']);
+    Route::put('/comite', [BecaController::class, 'guardarComite'])->middleware('throttle:30,1');
     Route::post('/solicitud', [BecaController::class, 'crearSolicitud'])->middleware('throttle:30,1');
 });
 Route::get('/comunicacion', [ComunicacionController::class, 'index']);

@@ -140,6 +140,7 @@ class OrganizacionController extends Controller
             }
             $antes = $miembro->toArray();
             $miembro->update(['estado' => 'inactivo', 'eliminado_en' => now()]);
+            app(\App\Services\ComiteBecas::class)->retirar((string) $miembro->usuario_id, (string) $request->user()->id, (string) $org->id);
             app(\App\Services\ComisionesConsejo::class)->retirarRegistros(\App\Models\IntegranteComision::where('organizacion_id', (string) $org->id)->where('usuario_id', $miembro->usuario_id), (string) $request->user()->id, 'Baja del integrante de la organización.');
             app(DelegacionesComunidad::class)->revocarRegistros(DelegacionOrganizacion::where('organizacion_id', (string) $org->id)->where(fn ($q) => $q->where('destinatario_id', $miembro->usuario_id)->orWhere('delegante_id', $miembro->usuario_id)), (string) $request->user()->id, 'Baja de un integrante vinculado a la delegación.');
             foreach (RolOrganizacion::where('organizacion_id', (string) $org->id)->where('usuario_id', $miembro->usuario_id)->whereNull('eliminado_en')->get() as $rol) {
