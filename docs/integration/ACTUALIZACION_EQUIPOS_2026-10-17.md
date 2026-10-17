@@ -124,7 +124,24 @@ indicadores apagados. No cambia roles, OAuth, bases E1/E5/E6 ni infraestructura.
   `/security/two-factor-enrollment`; no se desactivó ni modificó 2FA. No se declara
   verificación visual completa de Inventarios con esa sesión. No cambiaron las vistas.
 
-La suite completa y el cotejo de inventario quedan pendientes de cierre.
+Cierre de la suite completa sobre `cc37a7b`: **1,192 pruebas aprobadas,
+8,584 aserciones**, sin errores, fallos ni omisiones; **89 archivos,
+15 bloques seriales**, 1264.47 segundos acumulados. Los XML se
+cotejaron de forma independiente contra el inventario del mismo commit: todos
+los casos, sin duplicados ni faltantes. Las pruebas se ejecutaron exclusivamente
+en `campus_virtual_testing`, como UID/GID 1000:1000.
+
+Commits locales del incremento:
+
+- `0e90f02`: fechas, ámbito de pagos y auditoría automática de E4.
+- `e907670`: receptor v2 y devoluciones recuperables, sin activar pagos.
+- `cc37a7b`: transporte E7 preparado e informe de revisión, sin activar envíos.
+
+Los dos comandos nuevos se ejecutaron también fuera de pruebas con sus indicadores
+apagados: salieron correctamente sin efectos. La sesión visual administradora
+sigue sujeta al enrolamiento 2FA ya descrito; no se declara validada esa navegación.
+El cierre posterior solo actualiza documentación. Publicación y revisión humana
+de otro integrante siguen siendo actividades del equipo.
 Evidencia local excluida de Git: `storage/logs/integracion-e4-20261017/`.
 Respaldo de código previo: `antes-integracion.tar`, en la carpeta de visualizaciones
 de este chat, 1091 entradas, SHA256
