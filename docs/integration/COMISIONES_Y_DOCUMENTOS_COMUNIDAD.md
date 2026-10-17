@@ -105,7 +105,27 @@ php artisan migrate --path=database/migrations/2026_10_16_000100_create_document
 - La comisión de verificación quedó cerrada y el documento de verificación
   retirado; ambos conservan historial. No se cambiaron roles institucionales.
 
-El resultado final de regresión se registra al terminar la ejecución serial.
+Cierre validado el **16 de octubre de 2026** sobre el código `907c0d0`:
+
+- Inventario completo: **1146 pruebas aprobadas, 8189 aserciones**, cero errores,
+  cero fallos y ninguna prueba omitida.
+- Se ejecutaron los 81 archivos de pruebas en **14 bloques seriales** del mismo
+  código, usando únicamente `campus_virtual_testing`. Los reportes JUnit se
+  contrastaron con el inventario: 1146 casos únicos y ninguna clase faltante.
+- Tiempo acumulado de los bloques completos: **1487.08 segundos**. Los intentos
+  interrumpidos no se incluyen en los totales; los bloques completos se conservaron
+  para reanudar la validación después de los reinicios.
+- `npm run build`: correcto en **14.60 segundos**. Formato PHP aplicado a los
+  seis archivos nuevos del expediente documental.
+- Navegador después del reinicio: vista móvil y navegación por teclado correctas,
+  descarga de las versiones 1 y 2 conservadas; sin errores JavaScript, advertencias
+  de consola ni errores HTTP en las rutas documentales observadas.
+
+Evidencia local, excluida de Git:
+`storage/logs/comunidad-comisiones-documentos-20261016/`. Incluye `manifest.xml`,
+`progress.json`, los 14 reportes `bloque-XX.xml`, los logs de cada bloque,
+compilación y comprobaciones del navegador.
+
 Las cifras específicas son subconjuntos y no deben sumarse a la suite completa.
 La revisión humana por otro integrante, exigida por el documento general, sigue
 siendo una actividad del equipo antes de publicar o fusionar.

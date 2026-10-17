@@ -31,3 +31,14 @@ Alcance autorizado: apartados 6.1 y 6.2 del PDF, páginas 11–12. Trabajar en
 
 Las tareas y criterios están en `tasks/todo.md`. Los porcentajes del informe/PDF
 del 15 de octubre se conservan como evidencia histórica.
+
+## Cierre del 16 de octubre de 2026
+
+Este plan queda concluido en el entorno alterno. Comisiones se guardó en
+`099806f` y el expediente documental en `907c0d0`. El inventario completo del
+código de este último commit pasó en 14 bloques seriales: 1146 pruebas y
+8189 aserciones, sin fallos ni omisiones. Compilación y flujos de navegador
+verificados. El cierre posterior modifica únicamente esta documentación.
+
+La guía funcional y los pendientes que siguen separados están en
+`docs/integration/COMISIONES_Y_DOCUMENTOS_COMUNIDAD.md`.

@@ -16,7 +16,9 @@
   Verificación: pruebas de permisos, versiones, concurrencia lógica y retiro.
 - [x] Vista documental: carga, edición, nueva versión, descarga, historial y retiro.
   Verificación: navegador aislado sin delegaciones/roles adicionales; compilación.
-- [ ] Cierre: suite completa serial, documentación, commits locales y árbol limpio.
+- [x] Cierre: inventario completo validado en 14 bloques seriales; documentación
+  y commits locales. Resultado: 1146 pruebas y 8189 aserciones, sin fallos ni
+  omisiones. Evidencia en `storage/logs/comunidad-comisiones-documentos-20261016/`.
 
-Las dos primeras tareas forman el incremento funcional de comisiones. Las tareas
+Las tres primeras tareas forman el incremento funcional de comisiones. Las tareas
 documentales forman un segundo incremento. No publicar ni integrar otros equipos.
