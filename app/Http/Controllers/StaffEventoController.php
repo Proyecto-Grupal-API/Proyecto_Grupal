@@ -35,7 +35,7 @@ class StaffEventoController extends Controller
         }
         $p = $q->orderBy('fecha_hora_inicio')->orderBy('_id')->paginate(12);
 
-        return response()->json(['eventos' => $p->getCollection()->map(fn ($e) => $this->resumen($e)), 'page' => $p->currentPage(), 'last_page' => $p->lastPage(), 'organizacion' => $org->nombre])->header('Cache-Control', 'private, no-store');
+        return response()->json(['eventos' => $p->getCollection()->map(fn ($e) => $this->resumen($e)), 'page' => $p->currentPage(), 'last_page' => $p->lastPage(), 'organizacion' => $org->nombre, 'nfc_habilitado' => (bool) config('comunidad.eventos_nfc_habilitado', false)])->header('Cache-Control', 'private, no-store');
     }
 
     public function show(Request $r, string $id)

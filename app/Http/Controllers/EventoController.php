@@ -200,28 +200,65 @@ class EventoController extends Controller
 
     public function checkin(Request $request)
     {
-        $data = $request->validate(['token_qr' => ['required', 'string', 'max:255'], 'evento_id' => ['required', 'string', 'regex:/^[a-f0-9]{24}$/i']]);
-
-        return $this->conEvento($request, $data['evento_id'], false, function ($e) use ($request, $data) {
-            $org = $this->organizacion($request);
-            abort_unless((string) $e->organizacion_id === (string) $org->id, 404);
-            Gate::authorize('validarAcceso', $e);
-            if ($e->estado !== 'publicado' || ! $e->fecha_hora_fin || now()->lt($e->fecha_hora_inicio->copy()->subMinutes(config('comunidad.checkin_minutos_antes'))) || now()->gte($e->fecha_hora_fin)) {
-                throw ValidationException::withMessages(['evento' => 'El acceso abre 30 minutos antes y termina al finalizar el evento.']);
+        $data = $request->validate([
+            'metodo' => ['sometimes', Rule::in(['boleto', 'nfc'])],
+            'token_qr' => ['required_unless:metodo,nfc', 'prohibited_if:metodo,nfc', 'string', 'max:255'],
+            'credential_uid' => ['required_if:metodo,nfc', 'prohibited_unless:metodo,nfc', 'string', 'max:255'],
+            'usuario_id' => ['prohibited'],
+            'evento_id' => ['required', 'string', 'regex:/^[a-f0-9]{24}$/i'],
+        ]);
+        $method = $data['metodo'] ?? 'boleto';
+        $identity = null;
+        if ($method === 'nfc') {
+            $event = Evento::findOrFail(strtolower($data['evento_id']));
+            $this->validarEventoCheckin($request, $event);
+            abort_unless(config('comunidad.eventos_nfc_habilitado', false), 503, 'La validación NFC aún no está habilitada.');
+            // Resolve externally before taking the event lock or opening its Mongo transaction.
+            try {
+                $identity = app(\App\Services\IdentidadComunidadApi::class)->credencialNfc($data['credential_uid']);
+            } catch (\Illuminate\Http\Client\ConnectionException|\Illuminate\Http\Client\RequestException|\RuntimeException) {
+                abort(503, 'No fue posible validar la credencial con Identidad. Intenta nuevamente.');
             }
-            $reg = RegistroEvento::where('evento_id', (string) $e->id)->where('token_qr', trim($data['token_qr']))->where('estado', 'confirmada')->whereIn('estado_pago', ['pagado', 'exento'])->first();
-            if (! $reg || $reg->estado_asistencia === 'asistio' || ! User::find($reg->usuario_id)) {
-                throw ValidationException::withMessages(['token_qr' => 'Boleto inválido, cancelado, ya utilizado o con pago pendiente.']);
+        }
+
+        return $this->conEvento($request, $data['evento_id'], false, function ($e) use ($request, $data, $method, $identity) {
+            // Recheck permission and time after the external lookup, before applying attendance.
+            $this->validarEventoCheckin($request, $e);
+            $field = $method === 'nfc' ? 'credential_uid' : 'token_qr';
+            $q = RegistroEvento::where('evento_id', (string) $e->id)->where('estado', 'confirmada')->whereIn('estado_pago', ['pagado', 'exento']);
+            $reg = $method === 'nfc' ? $q->where('usuario_id', $identity['user_id'])->first()
+                : $q->where('token_qr', trim($data['token_qr']))->first();
+            $attendee = $method === 'nfc' ? $identity : ($reg ? User::find($reg->usuario_id)?->only(['name', 'matricula']) : null);
+            if (! $reg || $reg->estado_asistencia === 'asistio' || ! $attendee) {
+                throw ValidationException::withMessages([$field => $method === 'nfc'
+                    ? 'No hay una inscripción válida sin utilizar para este evento; revisa su estado y pago.'
+                    : 'Boleto inválido, cancelado, ya utilizado o con pago pendiente.']);
             }
             $antes = $reg->toArray();
-            $updated = RegistroEvento::where('_id', (string) $reg->id)->where('estado_asistencia', '!=', 'asistio')->update(['estado_asistencia' => 'asistio', 'asistio_en' => now(), 'asistencia_por' => (string) $request->user()->id]);
+            $updated = RegistroEvento::where('_id', (string) $reg->id)->where('estado_asistencia', '!=', 'asistio')
+                ->update(['estado_asistencia' => 'asistio', 'asistio_en' => now(), 'asistencia_por' => (string) $request->user()->id]);
             if (! $updated) {
-                throw ValidationException::withMessages(['token_qr' => 'El boleto ya fue utilizado.']);
+                throw ValidationException::withMessages([$field => 'El boleto ya fue utilizado.']);
             }
-            $this->inscripciones->auditar($e, $request->user(), 'evento_asistencia', $reg->id, $antes, $reg->fresh()->toArray());
+            $this->inscripciones->auditar($e, $request->user(), 'evento_asistencia', $reg->id,
+                $antes, [...$reg->fresh()->toArray(), 'metodo_acceso' => $method]);
 
-            return response()->json(['message' => 'Acceso autorizado. Asistencia registrada.', 'asistente' => User::find($reg->usuario_id)?->only(['name', 'matricula']), 'asistio_en' => $reg->fresh()->asistio_en])->header('Cache-Control', 'private, no-store');
+            return response()->json(['message' => 'Acceso autorizado. Asistencia registrada.',
+                'asistente' => ['name' => $attendee['name'], 'matricula' => $attendee['matricula'] ?? null],
+                'asistio_en' => $reg->fresh()->asistio_en])->header('Cache-Control', 'private, no-store');
         });
+    }
+
+    private function validarEventoCheckin(Request $request, Evento $event): void
+    {
+        $org = $this->organizacion($request);
+        abort_unless((string) $event->organizacion_id === (string) $org->id, 404);
+        Gate::authorize('validarAcceso', $event);
+        if ($event->estado !== 'publicado' || ! $event->fecha_hora_fin
+            || now()->lt($event->fecha_hora_inicio->copy()->subMinutes(config('comunidad.checkin_minutos_antes')))
+            || now()->gte($event->fecha_hora_fin)) {
+            throw ValidationException::withMessages(['evento' => 'El acceso abre 30 minutos antes y termina al finalizar el evento.']);
+        }
     }
 
     private function datosSolicitud(Request $request): array
