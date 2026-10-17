@@ -39,10 +39,10 @@ class IntegrationContractService
                 // valores null, así que en cuanto el registro llega a un
                 // estado terminal este campo se pone en null (ver más abajo)
                 // y el TTL deja de aplicarle.
-                'unexpired_processing_at' => now()->addMinutes(15)->toDateTime(),
+                'unexpired_processing_at' => new \MongoDB\BSON\UTCDateTime(now()->addMinutes(15)),
                 'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                'expires_at' => now()->addHours(24)->toDateTime(),
+                'expires_at' => new \MongoDB\BSON\UTCDateTime(now()->addHours(24)),
             ]);
         } catch (BulkWriteException $e) {
             if (!$this->isDuplicateKey($e)) {

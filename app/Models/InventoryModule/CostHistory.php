@@ -4,7 +4,7 @@ namespace App\Models\InventoryModule;
 
 class CostHistory extends Team4Document
 {
-    protected $collection = 'cost_history';
+    protected $table = 'cost_histories';
 
     protected $fillable = [
         'business_id',

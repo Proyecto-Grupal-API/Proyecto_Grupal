@@ -5,6 +5,11 @@ use MongoDB\Laravel\Eloquent\Model;
 
 abstract class Team4Document extends Model
 {
+    protected static function booted(): void
+    {
+        static::observe(\App\Observers\InventoryAuditObserver::class);
+    }
+
     protected $connection = 'inventory';
     public $incrementing = false;
     protected $keyType = 'string';

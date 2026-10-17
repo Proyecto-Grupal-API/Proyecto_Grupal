@@ -92,10 +92,11 @@ class Team3IntegrationController extends Controller
             ->getCollection('payment_events')
             ->findOne(
                 [
+                    'business_id' => $this->apiBusinessId(),
                     'payment_intent_id' => $validated['payment_intent_id'],
                     'order_id'          => $validated['order_id'],
                 ],
-                ['sort' => ['received_at' => -1]]
+                ['sort' => ['event_version' => -1, 'received_at' => -1]]
             );
 
         if (!$payment) {
@@ -160,6 +161,11 @@ class Team3IntegrationController extends Controller
         }
     }
 
+    private function apiBusinessId(): string
+    {
+        return app(\App\Services\InventoryModule\BusinessContext::class)->id();
+    }
+
     /**
      * Consulta el estado completo de una reserva, incluyendo el pago asociado.
      */
@@ -179,8 +185,8 @@ class Team3IntegrationController extends Controller
             $p = DB::connection('inventory')
                 ->getCollection('payment_events')
                 ->findOne(
-                    ['payment_intent_id' => $res['payment_intent_id']],
-                    ['sort' => ['received_at' => -1]]
+                    ['business_id' => $this->apiBusinessId(), 'order_id' => $res['order_id'], 'payment_intent_id' => $res['payment_intent_id']],
+                    ['sort' => ['event_version' => -1, 'received_at' => -1]]
                 );
             if ($p) {
                 $payment = [
@@ -197,7 +203,9 @@ class Team3IntegrationController extends Controller
             'order_id'       => $res['order_id'],
             'status'         => $res['status'],
             'items'          => $res['items'] ?? [],
-            'expires_at'     => $res['expires_at'] ?? null,
+            'expires_at'     => ($res['expires_at'] ?? null) instanceof \MongoDB\BSON\UTCDateTime
+                ? $res['expires_at']->toDateTime()->format(DATE_ATOM)
+                : ($res['expires_at'] ?? null),
             'payment'        => $payment,
         ], 200);
     }

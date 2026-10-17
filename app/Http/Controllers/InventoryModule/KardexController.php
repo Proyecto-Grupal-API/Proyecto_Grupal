@@ -70,8 +70,8 @@ class KardexController extends Controller
         })->values()->all();
 
         // KPIs
-        $weekAgo = now()->subDays(7)->toDateTime();
-        $today = now()->startOfDay()->toDateTime();
+        $weekAgo = new \MongoDB\BSON\UTCDateTime(now()->subDays(7));
+        $today = new \MongoDB\BSON\UTCDateTime(now()->startOfDay());
 
         $totalMovements = StockMovement::where('business_id', $this->businessId())->count();
         $todayMovements = StockMovement::where('business_id', $this->businessId())->where('created_at', '>=', $today)->count();

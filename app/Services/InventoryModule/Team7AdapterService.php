@@ -156,7 +156,9 @@ class Team7AdapterService
             'origin_reference' => $d['origin_reference'] ?? ($d['external_reference'] ?? ''),
             'quantity'         => $totalQty,
             'items'            => $items,
-            'expires_at'       => $d['expires_at'] ?? null,
+            'expires_at'       => ($d['expires_at'] ?? null) instanceof \MongoDB\BSON\UTCDateTime
+                ? $d['expires_at']->toDateTime()->format(DATE_ATOM)
+                : ($d['expires_at'] ?? null),
         ];
     }
 
