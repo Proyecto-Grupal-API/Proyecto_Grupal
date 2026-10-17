@@ -62,21 +62,21 @@ envía la validación. La cámara y la carga de imagen siguen leyendo boletos QR
 Cambiar método limpia el campo y el resultado para evitar mezclar credenciales.
 No se han probado lectores físicos ni se declara soporte de cualquier hardware.
 
-## Activación pendiente de autorización
+## Activación autorizada en el alterno
 
-Al preparar el incremento, el cliente existente `comunidad` está activo y tiene
-solo `students:read`. El código queda deshabilitado por defecto mediante
+Al preparar el incremento, el cliente existente `comunidad` tenía únicamente
+`students:read`. El código permanece deshabilitado por defecto mediante
 `COMUNIDAD_EVENTOS_NFC_HABILITADO=false`. No se utiliza el cliente de Servicios
 para eludir ese límite.
 
-Operación preparada para revisión: agregar **únicamente**
+Operación autorizada y ejecutada el 17 de octubre de 2026: agregar **únicamente**
 `identity:nfc:validate` al cliente existente `comunidad` del alterno y poner su
 indicador local en `true`, conservando `students:read`, ID y secreto existentes.
 Se registra el cambio en el dominio de E1. No crea tarjetas, roles, clientes
 nuevos, allowlists, permisos financieros ni modifica la instalación principal.
 
-El script preparado `activar-nfc.php` está en la carpeta de visualizaciones de
-este chat y debe ejecutarse solamente tras autorización explícita del usuario.
+El usuario autorizó explícitamente: «Sip, activalo y luego prosigue con lo siguiente».
+Se ejecutó el script preparado `activar-nfc.php`, conservado como evidencia local.
 Es una operación de administración local de E1, no una ruta de Comunidad para
 otorgarse permisos. No se versiona `.env` ni se muestran credenciales.
 
@@ -102,10 +102,16 @@ autorizada de E1. No se necesita revertir migraciones ni modificar pagos.
   16 bloques seriales**, 1310.86 segundos acumulados, únicamente
   en `campus_virtual_testing`, UID/GID 1000:1000. Los XML se cotejaron con el
   inventario del commit: todos los casos, sin duplicados ni faltantes.
-- Código en `849c139` y vista/guía en `ded236c`. La activación del permiso y
-  del indicador local sigue pendiente de aprobación explícita; no se declara
-  que NFC esté habilitado en la demo. La comprobación posterior usará una
-  credencial inexistente para verificar el rechazo, sin crear tarjetas.
+- Código en `849c139` y vista/guía en `ded236c`; cierre preparatorio `acf2211`.
+- Activación autorizada: cliente `comunidad` conserva ID, secreto y `students:read`;
+  se añadió `identity:nfc:validate` y se habilitó el indicador solo en el alterno.
+- Edge tras activar: NFC seleccionable, campo UID, envío con Enter y rechazo 422
+  de credencial inexistente; ningún falso acceso. Sin errores JS/consola y sin
+  desbordamiento a 320/768/1024/1440 px. El evento gratuito de prueba
+  `6ad3c6592765ee007308e147` quedó cancelado. No se crearon tarjetas ni cargos.
+  Registro: `browser-activo.log`; captura: `staff-nfc-activo.png`.
+- La prueba de lector físico continúa pendiente. La activación de configuración
+  no altera el código al que corresponden la suite y la compilación anteriores.
 
 Evidencia local excluida de Git: `storage/logs/nfc-comunidad-20261017/`.
 Capturas y respaldo de código previo en la carpeta de visualizaciones de este chat.
