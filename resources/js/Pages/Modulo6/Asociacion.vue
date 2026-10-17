@@ -7,6 +7,7 @@ import PanelLateral from "@/Components/Panellateral.vue";
 import DelegacionesOrganizacion from "@/Components/DelegacionesOrganizacion.vue";
 import ComisionesConsejo from "@/Components/ComisionesConsejo.vue";
 import DocumentosOrganizacion from "@/Components/DocumentosOrganizacion.vue";
+import PeriodosOrganizacion from "@/Components/PeriodosOrganizacion.vue";
 
 const page = usePage();
 const datos = ref(null);
@@ -489,6 +490,9 @@ async function cambiarOrganizacion() {
                     </div>
                 </template>
             </template>
+        </div>
+        <div v-if="datos?.organizacion" class="campus-page pb-6">
+            <PeriodosOrganizacion :miembros="datos.miembros" :organizacion-id="String(datos.organizacion.id)" :key="datos" />
         </div>
         <div v-if="datos?.organizacion" class="campus-page pb-6">
             <DelegacionesOrganizacion :key="datos" :miembros="datos.miembros" :actor-id="String(page.props.auth.user.id)" :organizacion-id="String(datos.organizacion.id)" />

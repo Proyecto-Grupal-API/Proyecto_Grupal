@@ -15,6 +15,13 @@ use App\Http\Controllers\TransparenciaController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/organizaciones', [OrganizacionController::class, 'index']);
+Route::get('/organizaciones/periodos', [\App\Http\Controllers\PeriodoOrganizacionController::class, 'index']);
+Route::post('/organizaciones/periodos', [\App\Http\Controllers\PeriodoOrganizacionController::class, 'store']);
+Route::prefix('organizaciones/periodos/{id}')->where(['id' => '[a-fA-F0-9]{24}'])->controller(\App\Http\Controllers\PeriodoOrganizacionController::class)->group(function () {
+    Route::get('/', 'show');
+    Route::put('/', 'update');
+    Route::post('/cancelar', 'cancelar');
+});
 Route::get('/organizaciones/documentos', [\App\Http\Controllers\DocumentoOrganizacionController::class, 'index']);
 Route::post('/organizaciones/documentos', [\App\Http\Controllers\DocumentoOrganizacionController::class, 'store'])->middleware('throttle:30,1');
 Route::prefix('organizaciones/documentos/{id}')->where(['id' => '[a-fA-F0-9]{24}'])->controller(\App\Http\Controllers\DocumentoOrganizacionController::class)->group(function () {
