@@ -21,3 +21,5 @@ Schedule::command('inventario:expirar-reservas')->everyFiveMinutes()->withoutOve
 Schedule::command('marketplace:reconciliar')->everyMinute()->withoutOverlapping(10);
 
 Schedule::command('comunidad:expirar-reservas-eventos')->everyMinute()->withoutOverlapping(10);
+
+Schedule::command('inventario:procesar-devoluciones')->everyMinute()->withoutOverlapping(10);
