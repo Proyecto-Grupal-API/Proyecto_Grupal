@@ -37,7 +37,7 @@ class DashboardController extends Controller
         $ultimas = $ultimas->filter(fn ($s) => $convocatorias->has($s->convocatoria_id))->map(fn ($s) => [...$s->only(['id', 'estado', 'folio', 'creado_en']), 'beca' => $convocatorias->get($s->convocatoria_id)->titulo])->values();
         $eventos = Evento::where('organizacion_id', $id)->where('estado', 'publicado')->where('fecha_hora_fin', '>', now());
         $proximo = (clone $eventos)->orderBy('fecha_hora_inicio')->first();
-        $reserva = $proximo ? RegistroEvento::where('evento_id', (string) $proximo->id)->where('estado', 'confirmada') : null;
+        $reserva = $proximo ? RegistroEvento::where('evento_id', (string) $proximo->id)->conCupo() : null;
         $consultas = [];
         foreach (['encuestas' => [Encuesta::class, RespuestaEncuesta::class], 'votaciones' => [Eleccion::class, Voto::class]] as $tipo => [$modelo, $respuesta]) {
             $respondidas = $respuesta::where('organizacion_id', $id)->where('usuario_id', $usuario)->pluck('consulta_id');
@@ -49,7 +49,7 @@ class DashboardController extends Controller
             'miembrosActivos' => MiembroOrganizacion::activos()->where('organizacion_id', $id)->count(),
             'eventosActivos' => (clone $eventos)->count(), 'cajaDisponible' => null, 'becasPendientes' => $pendientes, 'ultimasBecas' => $ultimas,
             'proximoEvento' => $proximo ? ['id' => (string) $proximo->id, 'nombre' => $proximo->titulo, 'lugar' => $proximo->ubicacion, 'fecha' => $proximo->fecha_hora_inicio->toIso8601String(), 'en_curso' => $proximo->fecha_hora_inicio->lte(now()), 'reservas' => (clone $reserva)->count(), 'capacidad' => $proximo->capacidad, 'asistencias' => (clone $reserva)->where('estado_asistencia', 'asistio')->whereNotNull('asistio_en')->count()] : null,
-            'personales' => ['no_leidos' => Mensaje::where('usuario_id', $usuario)->visibles()->whereNull('archivado_en')->whereNull('leido_en')->count(), 'consultas' => $consultas, 'boletos' => RegistroEvento::where('usuario_id', $usuario)->whereIn('evento_id', (clone $eventos)->pluck('id'))->whereIn('estado', ['confirmada', 'espera'])->count()],
+            'personales' => ['no_leidos' => Mensaje::where('usuario_id', $usuario)->visibles()->whereNull('archivado_en')->whereNull('leido_en')->count(), 'consultas' => $consultas, 'boletos' => RegistroEvento::where('usuario_id', $usuario)->whereIn('evento_id', (clone $eventos)->pluck('id'))->where(fn ($q) => $q->where(fn ($q) => $q->conCupo())->orWhere('estado', 'espera'))->count()],
             'gestion' => $gestion ? ['campanas_pendientes' => Campana::where('organizacion_id', $id)->whereIn('estado', ['en_cola', 'enviando', 'error', 'pausada'])->count(), 'reportes_borrador' => ReporteTransparencia::where('organizacion_id', $id)->where('version', 1)->where('estado', 'borrador')->count()] : null,
         ])->header('Cache-Control', 'private, no-store');
     }

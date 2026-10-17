@@ -51,7 +51,7 @@ class StaffEventoController extends Controller
     private function resumen(Evento $e): array
     {
         $abre = $e->fecha_hora_inicio->copy()->subMinutes(config('comunidad.checkin_minutos_antes'));
-        $q = RegistroEvento::where('evento_id', (string) $e->id)->where('estado', 'confirmada');
+        $q = RegistroEvento::where('evento_id', (string) $e->id)->conCupo();
 
         return [...$e->only(['id', 'titulo', 'ubicacion', 'fecha_hora_inicio', 'fecha_hora_fin']), 'acceso_abre_en' => $abre,
             'acceso_abierto' => now()->gte($abre) && now()->lt($e->fecha_hora_fin),

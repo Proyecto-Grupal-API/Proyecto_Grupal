@@ -20,7 +20,8 @@ class AudienciaCampana
             $ids = MiembroOrganizacion::activos()->where('organizacion_id', $c->organizacion_id)->pluck('usuario_id');
         } elseif (in_array($c->audiencia, ['evento_confirmados', 'evento_espera'])) {
             Evento::where('organizacion_id', $c->organizacion_id)->findOrFail($c->referencia_id);
-            $ids = RegistroEvento::where('evento_id', $c->referencia_id)->where('estado', $c->audiencia === 'evento_confirmados' ? 'confirmada' : 'espera')->pluck('usuario_id');
+            $q = RegistroEvento::where('evento_id', $c->referencia_id);
+            $ids = ($c->audiencia === 'evento_confirmados' ? $q->conCupo() : $q->where('estado', 'espera'))->pluck('usuario_id');
         } else {
             ConvocatoriaBeca::where('organizacion_id', $c->organizacion_id)->findOrFail($c->referencia_id);
             $q = SolicitudBeca::where('convocatoria_id', $c->referencia_id)->whereNotNull('enviado_en');

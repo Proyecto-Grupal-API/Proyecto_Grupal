@@ -27,7 +27,7 @@ class MetricasComunidad
         };
         $eventos = $periodo(Evento::where('organizacion_id', $org)->where('estado', 'publicado'), 'fecha_hora_inicio')->pluck('id');
         $registros = RegistroEvento::whereIn('evento_id', $eventos);
-        $confirmados = (clone $registros)->where('estado', 'confirmada');
+        $confirmados = (clone $registros)->conCupo($corte);
         $criterio = 'Eventos publicados cuyo inicio cae en el periodo y ya ocurrió al generar; reservas según su estado al generar.';
         $agregar('Eventos', 'eventos_iniciados', 'Eventos publicados con inicio en el periodo', $eventos->count(), $criterio);
         $agregar('Eventos', 'eventos_cancelados', 'Eventos cancelados', $periodo(Evento::where('organizacion_id', $org)->where('estado', 'cancelado'), 'fecha_hora_inicio')->count(), 'Eventos cancelados cuyo inicio previsto cae en el periodo y ya pasó.');

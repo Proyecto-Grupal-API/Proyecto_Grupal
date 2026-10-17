@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Services\InscripcionesEvento;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -45,7 +44,7 @@ class EventoController extends Controller
             $todos = $regs->get((string) $e->id, collect());
             $mio = $todos->firstWhere('usuario_id', (string) $request->user()->id);
 
-            return [...$e->toArray(), 'organizacion_nombre' => $orgs->get($e->organizacion_id)?->nombre, 'mi_registro' => $mio ? $this->resumen($mio) : null, 'stats' => ['confirmados' => $todos->where('estado', 'confirmada')->count(), 'espera' => $todos->where('estado', 'espera')->count(), 'asistieron' => $todos->where('estado_asistencia', 'asistio')->count()], 'registro_abierto' => $e->estado === 'publicado' && $e->fecha_inicio_registro && $e->fecha_fin_registro && now()->gte($e->fecha_inicio_registro) && now()->lt($e->fecha_fin_registro)];
+            return [...$e->toArray(), 'organizacion_nombre' => $orgs->get($e->organizacion_id)?->nombre, 'mi_registro' => $mio ? $this->resumen($mio) : null, 'stats' => ['confirmados' => $todos->filter(fn ($r) => $r->estado_efectivo === 'confirmada')->count(), 'espera' => $todos->where('estado', 'espera')->count(), 'asistieron' => $todos->where('estado_asistencia', 'asistio')->count()], 'registro_abierto' => $e->estado === 'publicado' && $e->fecha_inicio_registro && $e->fecha_fin_registro && now()->gte($e->fecha_inicio_registro) && now()->lt($e->fecha_fin_registro)];
         });
 
         return response()->json(['eventos' => $eventos, 'puede_gestionar' => (bool) $gestiona, 'zona_horaria' => config('comunidad.eventos_timezone'), 'page' => $p->currentPage(), 'last_page' => $p->lastPage(), 'total' => $p->total()]);
@@ -65,12 +64,13 @@ class EventoController extends Controller
         $data = $request->datosEvento();
 
         return $this->conEvento($request, $id, true, function ($e) use ($request, $data) {
+            $this->inscripciones->sincronizar($e, $request->user());
             $this->editable($e);
             $q = RegistroEvento::where('evento_id', (string) $e->id);
-            if ($data['capacidad'] < (clone $q)->where('estado', 'confirmada')->count()) {
+            if ($data['capacidad'] < (clone $q)->conCupo()->count()) {
                 throw ValidationException::withMessages(['capacidad' => 'El cupo no puede ser menor que las reservas confirmadas.']);
             }
-            if ((clone $q)->whereIn('estado', ['confirmada', 'espera'])->exists()) {
+            if ((clone $q)->where(fn ($q) => $q->where(fn ($q) => $q->conCupo())->orWhere('estado', 'espera'))->exists()) {
                 foreach (['costo', 'ubicacion', 'fecha_hora_inicio', 'fecha_hora_fin'] as $c) {
                     $igual = str_starts_with($c, 'fecha') ? $data[$c]->equalTo($e->$c) : $data[$c] == $e->$c;
                     if (! $igual) {
@@ -150,9 +150,13 @@ class EventoController extends Controller
     {
         $org = $this->organizacion($request, true);
         Evento::where('organizacion_id', (string) $org->id)->findOrFail($id);
-        $request->validate(['estado' => ['nullable', Rule::in(['confirmada', 'espera', 'cancelada'])], 'page' => ['nullable', 'integer', 'min:1']]);
+        $request->validate(['estado' => ['nullable', Rule::in(['confirmada', 'espera', 'cancelada', 'vencida'])], 'page' => ['nullable', 'integer', 'min:1']]);
         $q = RegistroEvento::where('evento_id', $id);
-        if ($request->filled('estado')) {
+        if ($request->estado === 'confirmada') {
+            $q->conCupo();
+        } elseif ($request->estado === 'vencida') {
+            $q->vencidas();
+        } elseif ($request->filled('estado')) {
             $q->where('estado', $request->estado);
         }
         $p = $q->orderBy('registrado_en')->orderBy('_id')->paginate(20);
@@ -209,12 +213,12 @@ class EventoController extends Controller
 
     private function resumen(RegistroEvento $reg): array
     {
-        return $reg->only(['id', 'evento_id', 'usuario_id', 'estado', 'estado_pago', 'monto_centavos', 'moneda', 'estado_asistencia', 'registrado_en', 'asistio_en']);
+        return [...$reg->only(['id', 'evento_id', 'usuario_id', 'reserva_hasta', 'vencido_en', 'estado_pago', 'monto_centavos', 'moneda', 'estado_asistencia', 'registrado_en', 'asistio_en']), 'estado' => $reg->estado_efectivo];
     }
 
     private function boleto(RegistroEvento $reg, ?Evento $e): array
     {
-        $estado = $e?->estado === 'cancelado' ? 'cancelada' : $reg->estado;
+        $estado = $e?->estado === 'cancelado' ? 'cancelada' : $reg->estado_efectivo;
         $organizacionActiva = $e && Organizacion::where('_id', $e->organizacion_id)->where('estado', 'activa')->exists();
         $vigente = $organizacionActiva && $e->estado === 'publicado' && $e->fecha_hora_fin?->gt(now());
         $habilitado = $vigente && $estado === 'confirmada' && in_array($reg->estado_pago, ['pagado', 'exento'], true) && $reg->estado_asistencia !== 'asistio';
@@ -237,8 +241,7 @@ class EventoController extends Controller
     private function conEvento(Request $request, string $id, bool $gestionar, callable $accion)
     {
         try {
-            return Cache::store(config('comunidad.eventos_lock_store'))->lock('evento:'.$id, 30)->block(5, function () use ($request, $id, $gestionar, $accion) {
-                $e = Evento::findOrFail($id);
+            return $this->inscripciones->ejecutar($id, function ($e) use ($request, $gestionar, $accion) {
                 if ($gestionar) {
                     $org = $this->organizacion($request, true);
                     abort_unless((string) $e->organizacion_id === (string) $org->id, 404);
