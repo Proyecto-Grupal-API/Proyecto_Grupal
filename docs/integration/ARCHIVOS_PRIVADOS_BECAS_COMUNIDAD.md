@@ -73,3 +73,7 @@ Los respaldos siguen necesitando MongoDB y el directorio privado del mismo corte
 
 Pruebas seriales únicamente contra `campus_virtual_testing`, UID/GID 1000:1000.
 Evidencia ignorada por Git: `storage/logs/archivos-becas-20261017/`.
+
+Continuidad: la [revisión de archivos privados](REVISION_ARCHIVOS_PRIVADOS_COMUNIDAD.md)
+añade un diagnóstico de solo lectura. La reparación y limpieza administrativas
+continúan siendo decisiones separadas; no elimina archivos conservados por incertidumbre.

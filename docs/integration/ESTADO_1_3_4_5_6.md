@@ -71,6 +71,9 @@ No utilizar `down -v` para detener una copia cuyos datos se necesiten conservar.
 
 ## Documentación y pendientes
 
+- [Revisión de archivos privados](REVISION_ARCHIVOS_PRIVADOS_COMUNIDAD.md):
+  diagnóstico local de referencias, archivos faltantes e historial; sin reparación automática.
+
 - [Archivos privados de becas](ARCHIVOS_PRIVADOS_BECAS_COMUNIDAD.md):
   consistencia de carga/retiro, conservación ante resultado incierto y limpieza posterior al commit.
 
