@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use MongoDB\Driver\Exception\ConnectionException;
 
 class BecaController extends Controller
 {
@@ -196,15 +197,28 @@ class BecaController extends Controller
             $file = $r->file('archivo');
             $uuid = (string) Str::uuid();
             $ruta = $file->storeAs((string) $s->id, $uuid.'.'.$file->extension(), 'becas');
-            $nombre = mb_substr(preg_replace('/[\x00-\x1F\x7F]/u', '', basename(str_replace('\\', '/', $file->getClientOriginalName()))), 0, 180);
-            $doc = ['id' => $uuid, 'nombre' => $nombre, 'tipo' => $file->getMimeType(), 'tamano' => $file->getSize(), 'requisito' => $req, 'ruta' => $ruta];
+            if (! is_string($ruta) || $ruta === '') {
+                throw new \RuntimeException('No se pudo almacenar el documento privado.');
+            }
             try {
-                $s->update(['documentos' => [...$docs, $doc]]);
+                $nombre = mb_substr(preg_replace('/[\x00-\x1F\x7F]/u', '', basename(str_replace('\\', '/', $file->getClientOriginalName()))), 0, 180);
+                $doc = ['id' => $uuid, 'nombre' => $nombre, 'tipo' => $file->getMimeType(), 'tamano' => $file->getSize(), 'requisito' => $req, 'ruta' => $ruta];
+                DB::connection('mongodb')->transaction(function () use ($s, $docs, $doc, $r, $c, $uuid, $req) {
+                    $s->update(['documentos' => [...$docs, $doc]]);
+                    $this->auditar($r, $c, 'beca_documento_subido', $s->id, null, ['documento_id' => $uuid, 'requisito' => $req]);
+                });
             } catch (\Throwable $e) {
-                Storage::disk('becas')->delete($ruta);
+                // Un commit incierto puede haber guardado la referencia: conservar el archivo para conciliación.
+                $incierto = false;
+                for ($causa = $e; $causa; $causa = $causa->getPrevious()) {
+                    $incierto = $incierto || $causa instanceof ConnectionException
+                        || (method_exists($causa, 'hasErrorLabel') && $causa->hasErrorLabel('UnknownTransactionCommitResult'));
+                }
+                if (! $incierto) {
+                    $this->limpiarArchivoBeca($ruta);
+                }
                 throw $e;
             }
-            $this->auditar($r, $c, 'beca_documento_subido', $s->id, null, ['documento_id' => $uuid, 'requisito' => $req]);
 
             return response()->json(['message' => 'Documento guardado de forma privada.'], 201);
         });
@@ -216,11 +230,14 @@ class BecaController extends Controller
             $this->editable($s, $c);
             $doc = collect($s->documentos ?? [])->firstWhere('id', $documento);
             abort_unless($doc, 404);
-            $s->update(['documentos' => collect($s->documentos)->reject(fn ($d) => $d['id'] === $documento)->values()->all()]);
-            Storage::disk('becas')->delete($doc['ruta']);
-            $this->auditar($r, $c, 'beca_documento_eliminado', $s->id, ['documento_id' => $documento], []);
+            DB::connection('mongodb')->transaction(function () use ($s, $documento, $r, $c) {
+                $s->update(['documentos' => collect($s->documentos)->reject(fn ($d) => $d['id'] === $documento)->values()->all()]);
+                $this->auditar($r, $c, 'beca_documento_eliminado', $s->id, ['documento_id' => $documento], []);
+            });
+            // Solo borrar contenido después de confirmar que ya no existe una referencia descargable.
+            $limpio = $this->limpiarArchivoBeca($doc['ruta']);
 
-            return response()->json(['message' => 'Documento eliminado del borrador.']);
+            return response()->json(['message' => $limpio ? 'Documento eliminado del borrador.' : 'Documento retirado del borrador. Su limpieza privada está pendiente.']);
         });
     }
 
@@ -276,6 +293,20 @@ class BecaController extends Controller
         $a = AsignacionBeneficio::where('solicitud_id', $id)->firstOrFail();
 
         return response()->json($a->only(['id', 'estado', 'contrato', 'recibo_servicios', 'entregado_en', 'error_integracion']))->header('Cache-Control', 'private, no-store');
+    }
+
+    private function limpiarArchivoBeca(string $ruta): bool
+    {
+        try {
+            if (Storage::disk('becas')->delete($ruta)) {
+                return true;
+            }
+            report(new \RuntimeException('No se pudo completar la limpieza privada de un documento de beca.'));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return false;
     }
 
     private function convocatoria(ConvocatoriaBeca $c): array

@@ -363,4 +363,133 @@ class BecasTest extends TestCase
         $this->assertSame('pendiente_integracion', AsignacionBeneficio::where('solicitud_id', (string) $s->id)->firstOrFail()->estado);
         $this->assertSame(1, AuditoriaComunidad::where('accion', 'beca_dictamen')->where('entidad_id', (string) $s->id)->count());
     }
+
+    public function test_failed_upload_audit_preserves_previous_files_and_removes_only_the_new_file(): void
+    {
+        $c = $this->convocatoria();
+        $s = $this->solicitar($c, enviar: false);
+        $this->subir($s, null)->assertCreated();
+        $antes = $s->fresh()->documentos;
+        AuditoriaComunidad::creating(function ($audit) {
+            if ($audit->accion === 'beca_documento_subido') {
+                throw new \RuntimeException('Fallo controlado al auditar la carga.');
+            }
+        });
+        try {
+            $this->subir($s, null)->assertStatus(500);
+            $this->assertSame($antes, $s->fresh()->documentos);
+            $this->assertCount(1, Storage::disk('becas')->allFiles());
+            Storage::disk('becas')->assertExists($antes[0]['ruta']);
+            $this->assertSame(1, AuditoriaComunidad::where('accion', 'beca_documento_subido')->count());
+        } finally {
+            AuditoriaComunidad::flushEventListeners();
+        }
+    }
+
+    public function test_failed_removal_audit_preserves_document_and_private_content(): void
+    {
+        $c = $this->convocatoria();
+        $s = $this->solicitar($c, enviar: false);
+        $this->subir($s, null)->assertCreated();
+        $doc = $s->fresh()->documentos[0];
+        AuditoriaComunidad::creating(function ($audit) {
+            if ($audit->accion === 'beca_documento_eliminado') {
+                throw new \RuntimeException('Fallo controlado al auditar el retiro.');
+            }
+        });
+        try {
+            $this->deleteJson("/api/becas/solicitudes/$s->id/documentos/{$doc['id']}")->assertStatus(500);
+            $this->assertSame([$doc], $s->fresh()->documentos);
+            Storage::disk('becas')->assertExists($doc['ruta']);
+            $this->assertSame(0, AuditoriaComunidad::where('accion', 'beca_documento_eliminado')->count());
+        } finally {
+            AuditoriaComunidad::flushEventListeners();
+        }
+        $this->get("/api/becas/solicitudes/$s->id/documentos/{$doc['id']}")->assertOk()->assertDownload();
+        $this->deleteJson("/api/becas/solicitudes/$s->id/documentos/{$doc['id']}")->assertOk();
+        Storage::disk('becas')->assertMissing($doc['ruta']);
+        $this->assertSame(1, AuditoriaComunidad::where('accion', 'beca_documento_eliminado')->count());
+    }
+
+    public static function fallosLimpieza(): array
+    {
+        return [[false], [true]];
+    }
+
+    #[DataProvider('fallosLimpieza')]
+    public function test_storage_cleanup_failure_reports_pending_cleanup_without_restoring_access(bool $excepcion): void
+    {
+        $c = $this->convocatoria();
+        $s = $this->solicitar($c, enviar: false);
+        $this->subir($s, null)->assertCreated();
+        $doc = $s->fresh()->documentos[0];
+        $disk = Storage::disk('becas');
+        $fallido = \Mockery::mock($disk);
+        $delete = $fallido->shouldReceive('delete')->once()->with($doc['ruta']);
+        if ($excepcion) {
+            $delete->andThrow(new \RuntimeException('Almacenamiento no disponible durante la limpieza.'));
+        } else {
+            $delete->andReturn(false);
+        }
+        Storage::shouldReceive('disk')->with('becas')->andReturn($fallido);
+        $this->deleteJson("/api/becas/solicitudes/$s->id/documentos/{$doc['id']}")
+            ->assertOk()->assertJsonPath('message', 'Documento retirado del borrador. Su limpieza privada está pendiente.');
+        $this->assertSame([], $s->fresh()->documentos);
+        $disk->assertExists($doc['ruta']);
+        $this->getJson("/api/becas/solicitudes/$s->id/documentos/{$doc['id']}")->assertNotFound();
+        $this->assertSame(1, AuditoriaComunidad::where('accion', 'beca_documento_eliminado')->count());
+    }
+
+    public function test_uncertain_upload_keeps_the_private_file_for_reconciliation(): void
+    {
+        $c = $this->convocatoria();
+        $s = $this->solicitar($c, enviar: false);
+        AuditoriaComunidad::creating(function ($audit) {
+            if ($audit->accion === 'beca_documento_subido') {
+                $cause = new class('Resultado de commit incierto inyectado en pruebas.') extends \RuntimeException
+                {
+                    public function hasErrorLabel(string $label): bool
+                    {
+                        return $label === 'UnknownTransactionCommitResult';
+                    }
+                };
+                throw new \RuntimeException('Error de persistencia envuelto.', 0, $cause);
+            }
+        });
+        try {
+            $this->subir($s, null)->assertStatus(500);
+            $this->assertSame([], $s->fresh()->documentos);
+            $this->assertCount(1, Storage::disk('becas')->allFiles());
+            $this->assertSame(0, AuditoriaComunidad::where('accion', 'beca_documento_subido')->count());
+        } finally {
+            AuditoriaComunidad::flushEventListeners();
+        }
+    }
+
+    public function test_upload_cleanup_failure_does_not_replace_the_original_audit_error(): void
+    {
+        $c = $this->convocatoria();
+        $s = $this->solicitar($c, enviar: false);
+        $disk = Storage::disk('becas');
+        $fallido = \Mockery::mock($disk);
+        $fallido->shouldReceive('delete')->once()->andThrow(new \RuntimeException('Fallo secundario de limpieza.'));
+        Storage::shouldReceive('disk')->with('becas')->andReturn($fallido);
+        AuditoriaComunidad::creating(function ($audit) {
+            if ($audit->accion === 'beca_documento_subido') {
+                throw new \RuntimeException('Fallo original de auditoría.');
+            }
+        });
+        $this->withoutExceptionHandling();
+        try {
+            $this->subir($s, null);
+            $this->fail('La carga fallida no debe anunciar éxito.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('Fallo original de auditoría.', $e->getMessage());
+            $this->assertSame([], $s->fresh()->documentos);
+            $this->assertCount(1, $disk->allFiles());
+            $this->assertSame(0, AuditoriaComunidad::where('accion', 'beca_documento_subido')->count());
+        } finally {
+            AuditoriaComunidad::flushEventListeners();
+        }
+    }
 }

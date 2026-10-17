@@ -71,6 +71,9 @@ No utilizar `down -v` para detener una copia cuyos datos se necesiten conservar.
 
 ## Documentación y pendientes
 
+- [Archivos privados de becas](ARCHIVOS_PRIVADOS_BECAS_COMUNIDAD.md):
+  consistencia de carga/retiro, conservación ante resultado incierto y limpieza posterior al commit.
+
 - [Dictámenes de becas y consistencia](DICTAMENES_ATOMICOS_BECAS_COMUNIDAD.md):
   transacción local para solicitud, auditoría y preparación de su beneficio.
 

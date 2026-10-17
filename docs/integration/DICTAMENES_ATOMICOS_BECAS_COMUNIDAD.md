@@ -62,3 +62,6 @@ el expediente ni toda la integración financiera.
 
 Evidencia local ignorada por Git: `storage/logs/dictamenes-becas-20261017/`.
 El avance queda local; la instalación principal y GitHub no se modifican.
+
+Continuidad posterior del 17 de octubre: [archivos privados de becas](ARCHIVOS_PRIVADOS_BECAS_COMUNIDAD.md).
+Las cifras de este corte se conservan como evidencia del dictamen.
