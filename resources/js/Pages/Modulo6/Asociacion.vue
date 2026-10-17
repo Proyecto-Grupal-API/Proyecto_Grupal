@@ -22,6 +22,8 @@ const seleccion = ref("");
 const perfil = ref({});
 const miembro = ref({});
 const cargo = ref({});
+const periodoCargo = computed(() => datos.value?.periodos?.find(p => p.id === cargo.value.periodo_id));
+const nombrePeriodo = id => datos.value?.periodos?.find(p => p.id === id)?.nombre || "Periodo conservado";
 const miembrosFiltrados = computed(() =>
     (datos.value?.miembros ?? []).filter((m) =>
         `${m.nombre} ${m.matricula ?? ""}`
@@ -83,6 +85,8 @@ function abrir(tipo, rol = null) {
     cargo.value = rol
         ? {
               id: rol.id,
+              periodo_id: rol.periodo_id ?? "",
+              periodo_fijo: Boolean(rol.periodo_id),
               usuario_id: rol.usuario_id,
               slug_rol: rol.slug_rol,
               fecha_inicio: fecha(rol.fecha_inicio),
@@ -91,6 +95,8 @@ function abrir(tipo, rol = null) {
         : {
               usuario_id: "",
               slug_rol: "secretaria",
+              periodo_id: "",
+              periodo_fijo: false,
               fecha_inicio: hoy(),
               fecha_fin: "",
           };
@@ -124,14 +130,19 @@ const guardarPerfil = () =>
 const guardarMiembro = () =>
     ejecutar(() => axios.post("/api/organizaciones/miembros", miembro.value));
 const guardarCargo = () =>
-    ejecutar(() =>
-        cargo.value.id
-            ? axios.put(
-                  `/api/organizaciones/roles/${cargo.value.id}`,
-                  cargo.value,
-              )
-            : axios.post("/api/organizaciones/roles", cargo.value),
-    );
+    ejecutar(() => {
+        const body = { ...cargo.value, periodo_id: cargo.value.periodo_id || null };
+        const contexto = { headers: { "X-Organization-Id": String(datos.value.organizacion.id) } };
+        return cargo.value.id
+            ? axios.put(`/api/organizaciones/roles/${cargo.value.id}`, body, contexto)
+            : axios.post("/api/organizaciones/roles", body, contexto);
+    });
+async function actualizarPeriodos() {
+    try {
+        const { data } = await axios.get("/api/organizaciones");
+        if (datos.value?.organizacion?.id === data.organizacion?.id) datos.value.periodos = data.periodos;
+    } catch (e) { mostrarError(e); }
+}
 function quitar(tipo, id) {
     if (
         confirm(
@@ -350,6 +361,7 @@ async function cambiarOrganizacion() {
                                         >
                                     </div>
                                     <p class="mt-1 text-sm">{{ rol.nombre }}</p>
+                                    <p v-if="rol.periodo_id" class="mt-1 text-xs text-gray-600">Periodo: {{ nombrePeriodo(rol.periodo_id) }}</p>
                                     <p class="text-xs text-gray-500 mt-1">
                                         {{ fecha(rol.fecha_inicio) }} —
                                         {{
@@ -492,7 +504,7 @@ async function cambiarOrganizacion() {
             </template>
         </div>
         <div v-if="datos?.organizacion" class="campus-page pb-6">
-            <PeriodosOrganizacion :miembros="datos.miembros" :organizacion-id="String(datos.organizacion.id)" :key="datos" />
+            <PeriodosOrganizacion :miembros="datos.miembros" :organizacion-id="String(datos.organizacion.id)" :key="datos" @actualizados="actualizarPeriodos" />
         </div>
         <div v-if="datos?.organizacion" class="campus-page pb-6">
             <DelegacionesOrganizacion :key="datos" :miembros="datos.miembros" :actor-id="String(page.props.auth.user.id)" :organizacion-id="String(datos.organizacion.id)" />
@@ -667,6 +679,15 @@ async function cambiarOrganizacion() {
                     </select>
                 </div>
                 <div>
+                    <label for="cargo-periodo" class="block text-sm font-medium mb-1">Periodo de la mesa directiva</label>
+                    <select id="cargo-periodo" v-model="cargo.periodo_id" :disabled="cargo.periodo_fijo" class="w-full rounded-lg border-gray-300 disabled:bg-gray-100">
+                        <option value="">Sin periodo vinculado</option>
+                        <option v-for="p in datos?.periodos" :key="p.id" :value="p.id">{{ p.nombre }} · {{ p.fecha_inicio }} — {{ p.fecha_fin }}</option>
+                    </select>
+                    <p v-if="periodoCargo" class="mt-2 text-xs text-gray-600">Indica inicio y fin dentro de {{ periodoCargo.fecha_inicio }} — {{ periodoCargo.fecha_fin }}.</p>
+                    <p v-if="cargo.periodo_fijo" class="mt-1 text-xs text-gray-600">El periodo vinculado se conserva para el historial de este cargo.</p>
+                </div>
+                <div>
                     <label for="inicio" class="block text-sm font-medium mb-1"
                         >Inicio de vigencia</label
                     ><input
@@ -674,17 +695,21 @@ async function cambiarOrganizacion() {
                         v-model="cargo.fecha_inicio"
                         required
                         type="date"
+                        :min="periodoCargo?.fecha_inicio"
+                        :max="periodoCargo?.fecha_fin"
                         class="w-full rounded-lg border-gray-300"
                     />
                 </div>
                 <div>
                     <label for="fin" class="block text-sm font-medium mb-1"
-                        >Fin de vigencia (opcional)</label
+                        >{{ cargo.periodo_id ? "Fin de vigencia" : "Fin de vigencia (opcional)" }}</label
                     ><input
                         id="fin"
                         v-model="cargo.fecha_fin"
                         type="date"
-                        :min="cargo.fecha_inicio"
+                        :required="Boolean(cargo.periodo_id)"
+                        :min="cargo.fecha_inicio || periodoCargo?.fecha_inicio"
+                        :max="periodoCargo?.fecha_fin"
                         class="w-full rounded-lg border-gray-300"
                     />
                 </div>

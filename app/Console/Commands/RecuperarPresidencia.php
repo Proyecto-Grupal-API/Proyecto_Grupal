@@ -45,6 +45,11 @@ class RecuperarPresidencia extends Command
                 if ($rol->exists) {
                     app(DelegacionesComunidad::class)->revocarRegistros(DelegacionOrganizacion::where('cargo_origen_id', (string) $rol->id), null, 'Recuperación de presidencia desde mantenimiento: '.$data['motivo']);
                 }
+                // El mandato anterior permanece ligado a su periodo; la recuperación inicia otro.
+                if ($rol->periodo_id) {
+                    $rol->update(['eliminado_en' => now()]);
+                    $rol = new RolOrganizacion(['organizacion_id' => (string) $org->id, 'slug_rol' => 'presidencia', 'eliminado_en' => null]);
+                }
                 $rol->fill(['usuario_id' => (string) $user->id, 'fecha_inicio' => today(), 'fecha_fin' => $data['hasta'], 'otorgado_por' => null])->save();
                 AuditoriaComunidad::create(['organizacion_id' => (string) $org->id, 'usuario_id' => null, 'accion' => 'presidencia_recuperada', 'entidad_id' => (string) $rol->id,
                     'antes' => $antes, 'despues' => ['cargo' => $rol->toArray(), 'canal' => 'consola', 'operador' => $data['operador'], 'motivo' => $data['motivo']]]);

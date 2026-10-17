@@ -19,6 +19,7 @@ Route::get('/organizaciones/periodos', [\App\Http\Controllers\PeriodoOrganizacio
 Route::post('/organizaciones/periodos', [\App\Http\Controllers\PeriodoOrganizacionController::class, 'store']);
 Route::prefix('organizaciones/periodos/{id}')->where(['id' => '[a-fA-F0-9]{24}'])->controller(\App\Http\Controllers\PeriodoOrganizacionController::class)->group(function () {
     Route::get('/', 'show');
+    Route::get('/historial', 'historial');
     Route::put('/', 'update');
     Route::post('/cancelar', 'cancelar');
 });

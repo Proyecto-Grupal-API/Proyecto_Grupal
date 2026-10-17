@@ -35,8 +35,7 @@ documentos está concluido y conserva sus resultados históricos.
 
 ## API de sesión
 
-`/api/organizaciones/periodos`: GET paginado y POST. `{id}`: GET de cargos e
-historial, PUT de datos y POST `/cancelar`. Contexto, sesión y CSRF actuales.
+`/api/organizaciones/periodos`: GET paginado y POST. `{id}`: GET de cargos, GET `/historial`, PUT de datos y POST `/cancelar`. Contexto, sesión y CSRF actuales.
 GET no expone huellas ni claves. Nuevos campos de organización/cargos son aditivos.
 
 ## Tareas verificables
@@ -45,11 +44,11 @@ GET no expone huellas ni claves. Nuevos campos de organización/cargos son aditi
   revisión, cancelación conservadora y reversión si falla la auditoría.
 - [x] Vista de periodos: alta, lista, edición, cancelación, estados, vacíos/errores;
   compilación y comprobación en navegador; guardar el primer incremento.
-- [ ] Vinculación de cargos: límites, organización, periodo no cancelado, vínculo
+- [x] Vinculación de cargos: límites, organización, periodo no cancelado, vínculo
   estable; cargos previos compatibles y mismos controles de presidencia.
-- [ ] Historial y recuperación: consultas filtradas y paginadas; preservación del
+- [x] Historial y recuperación: consultas filtradas y paginadas; preservación del
   cargo anterior en recuperación de presidencia; sin reactivar delegaciones.
-- [ ] Formulario de cargo y mesa directiva: periodo visible y seleccionable;
+- [x] Formulario de cargo y mesa directiva: periodo visible y seleccionable;
   comprobar lectura de integrante y denegaciones en API, navegador y regresión.
 - [ ] Cierre: inventario completo de pruebas en bloques seriales reanudables,
   guía de uso y contratos, commits locales, árbol limpio. No publicar.
@@ -68,3 +67,17 @@ de autoridad de E1, clientes OAuth, integraciones financieras ni informes fechad
   integrante solo lectura y cancelación conservando el registro; sin errores
   JavaScript ni advertencias; sin desbordamiento a 320/768/1024/1440 px.
 - El periodo de comprobación quedó cancelado y nunca tuvo cargos asociados.
+
+## Validación de vínculos e historial
+
+- RED observado: el endpoint anterior aceptaba un cargo vinculado sin fecha fin.
+- Quince pruebas de registro/vínculos: aprobadas, 138 aserciones, 53.39 segundos.
+- Compilación de producción correcta en 15.78 segundos.
+- Edge aislado: cargo histórico vinculado, límites y vínculo protegidos, lectura
+  de integrante, retiro e historial. Sin desbordamiento a 320/768/1024/1440 px,
+  errores JavaScript ni advertencias de consola. El cargo demo quedó retirado.
+- El primer script de lectura de integrante adelantó un clic a la recarga del
+  cambio de organización. Se conservó el log y se comprobó el flujo esperando
+  dicha recarga; no hizo falta modificar el código de la aplicación.
+- Regresión de Periodos, Vigencias, Comunidad, Continuidad y Delegaciones:
+  **47 pruebas aprobadas, 390 aserciones**, 213.67 segundos.

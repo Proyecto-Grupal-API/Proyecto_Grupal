@@ -137,3 +137,9 @@ periodo organizacional como entidad propia, la segmentación académica y la
 autoridad institucional acordada con E1. Una comisión tampoco equivale todavía
 a un comité de becas con reglas colegiadas de dictamen. Las integraciones
 financieras y demás dependencias mantienen sus estados anteriores.
+
+Actualización local posterior del 16 de octubre: el [incremento de periodos
+organizacionales](PERIODOS_ORGANIZACIONALES_COMUNIDAD.md) añade la entidad propia,
+la vinculación con cargos y su historial. El relevo automático de mesas, la
+segmentación académica y la autoridad institucional continúan separados. Las
+cifras de validación de este documento corresponden al corte anterior.

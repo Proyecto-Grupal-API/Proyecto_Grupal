@@ -10,7 +10,7 @@ class RolOrganizacion extends Documento
 
     protected $table = 'asignaciones_roles_organizacion';
 
-    protected $fillable = ['organizacion_id', 'usuario_id', 'slug_rol', 'fecha_inicio', 'fecha_fin', 'otorgado_por', 'eliminado_en'];
+    protected $fillable = ['organizacion_id', 'usuario_id', 'slug_rol', 'periodo_id', 'fecha_inicio', 'fecha_fin', 'otorgado_por', 'eliminado_en'];
 
     protected function casts(): array
     {

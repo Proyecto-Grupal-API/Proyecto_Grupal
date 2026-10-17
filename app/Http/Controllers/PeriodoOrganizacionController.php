@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditoriaComunidad;
 use App\Models\PeriodoOrganizacion;
 use App\Models\RolOrganizacion;
 use App\Services\PeriodosOrganizacion;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
@@ -41,9 +43,28 @@ class PeriodoOrganizacionController extends Controller
         $org = $this->organizacion($r);
         $r->validate(['page' => ['nullable', 'integer', 'min:1']]);
         $t = PeriodoOrganizacion::where('organizacion_id', (string) $org->id)->findOrFail($id);
+        $id = (string) $t->id;
         $p = RolOrganizacion::where('organizacion_id', (string) $org->id)->where('periodo_id', $id)->orderBy('creado_en', 'desc')->orderBy('_id')->paginate(20);
 
         return response()->json(['periodo' => $this->resumen($t, $s->enUso($t)), 'cargos' => $p->getCollection()->map(fn ($c) => [...$c->only(['id', 'usuario_id', 'slug_rol', 'fecha_inicio', 'fecha_fin', 'eliminado_en']), 'vigente' => $c->vigente]), 'page' => $p->currentPage(), 'last_page' => $p->lastPage()])->header('Cache-Control', 'private, no-store');
+    }
+
+    public function historial(Request $r, string $id)
+    {
+        $org = $this->organizacion($r);
+        $r->validate(['page' => ['nullable', 'integer', 'min:1']]);
+        $t = PeriodoOrganizacion::where('organizacion_id', (string) $org->id)->findOrFail($id);
+        $id = (string) $t->id;
+        $p = AuditoriaComunidad::where('organizacion_id', (string) $org->id)
+            ->whereIn('accion', ['cargo_asignado', 'cargo_retirado', 'cuenta_baja_responsabilidad', 'presidencia_recuperada'])
+            ->where(fn ($q) => $q->where('antes.periodo_id', $id)->orWhere('despues.periodo_id', $id))
+            ->orderBy('creado_en', 'desc')->orderBy('_id', 'desc')->paginate(20);
+        $campos = ['id', 'usuario_id', 'slug_rol', 'periodo_id', 'fecha_inicio', 'fecha_fin', 'eliminado_en'];
+        $movimientos = $p->getCollection()->map(fn ($a) => [...$a->only(['id', 'accion', 'entidad_id', 'usuario_id', 'creado_en']),
+            'anterior' => Arr::only($a->antes ?? [], $campos),
+            'actual' => Arr::only(data_get($a->despues, 'cargo', $a->despues ?? []), $campos)]);
+
+        return response()->json(['movimientos' => $movimientos, 'page' => $p->currentPage(), 'last_page' => $p->lastPage()])->header('Cache-Control', 'private, no-store');
     }
 
     public function store(Request $r, PeriodosOrganizacion $s)

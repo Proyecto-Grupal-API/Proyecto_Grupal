@@ -71,6 +71,10 @@ No utilizar `down -v` para detener una copia cuyos datos se necesiten conservar.
 
 ## Documentación y pendientes
 
+- [Periodos de asociaciones y Consejo](PERIODOS_ORGANIZACIONALES_COMUNIDAD.md):
+  incremento local del 16 de octubre; registro de periodos, cargos vinculados
+  con fechas limitadas e historial de cambios.
+
 - [Comisiones y documentos de Comunidad](COMISIONES_Y_DOCUMENTOS_COMUNIDAD.md):
   incremento local del 16 de octubre, posterior al corte publicado; comisiones
   del Consejo y expediente documental privado con versiones y retiro.

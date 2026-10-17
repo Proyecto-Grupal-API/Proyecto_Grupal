@@ -68,6 +68,31 @@ class PeriodosOrganizacion
         });
     }
 
+    // El llamador ya comparte bloqueo y transacción con edición/cancelación del periodo.
+    public function validarCargo(Organizacion $org, array $datos, RolOrganizacion $actual): array
+    {
+        $anterior = $actual->periodo_id;
+        $id = array_key_exists('periodo_id', $datos) ? $datos['periodo_id'] : $anterior;
+        if (! $id) {
+            if ($anterior) {
+                throw ValidationException::withMessages(['periodo_id' => 'El periodo vinculado se conserva para el historial del cargo.']);
+            }
+
+            return [...$datos, 'periodo_id' => null];
+        }
+        $p = $this->buscar($org, $id);
+        $id = (string) $p->id;
+        if ($anterior && $anterior !== $id) {
+            throw ValidationException::withMessages(['periodo_id' => 'El cargo ya pertenece a otro periodo. Conserva su registro histórico.']);
+        }
+        abort_unless($p->estado === 'registrado', 422, 'Un periodo cancelado no admite cargos.');
+        if (empty($datos['fecha_fin']) || $datos['fecha_inicio'] < $p->fecha_inicio || $datos['fecha_fin'] > $p->fecha_fin) {
+            throw ValidationException::withMessages(['fecha_fin' => 'Indica inicio y fin del cargo dentro de las fechas del periodo seleccionado.']);
+        }
+
+        return [...$datos, 'periodo_id' => $id];
+    }
+
     public function enUso(PeriodoOrganizacion $p): bool
     {
         return RolOrganizacion::where('organizacion_id', $p->organizacion_id)->where('periodo_id', (string) $p->id)->exists();

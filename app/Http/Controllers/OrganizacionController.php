@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\AuditoriaComunidad;
 use App\Models\MiembroOrganizacion;
 use App\Models\Organizacion;
+use App\Models\PeriodoOrganizacion;
+use App\Services\PeriodosOrganizacion;
 use App\Models\RolOrganizacion;
 use App\Models\StaffEvento;
 use App\Models\User;
@@ -37,6 +39,7 @@ class OrganizacionController extends Controller
             'puede_editar' => $org && Gate::allows('update', $org),
             'miembros' => $miembros->map(fn ($m) => [...$m->toArray(), ...$identidad($m)]),
             'roles' => $roles->map(fn ($r) => [...$r->toArray(), ...$identidad($r), 'vigente' => $r->vigente]),
+            'periodos' => $org ? PeriodoOrganizacion::where('organizacion_id', (string) $org->id)->where('estado', 'registrado')->orderBy('fecha_inicio', 'desc')->get(['id', 'nombre', 'fecha_inicio', 'fecha_fin']) : collect(),
             'cargos' => RolOrganizacion::CARGOS,
         ]);
     }
@@ -99,10 +102,12 @@ class OrganizacionController extends Controller
             'slug_rol' => ['required', Rule::in(RolOrganizacion::CARGOS)],
             'fecha_inicio' => ['required', 'date_format:Y-m-d'],
             'fecha_fin' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:fecha_inicio'],
+            'periodo_id' => ['nullable', 'string', 'regex:/^[a-f0-9]{24}$/i'],
         ]);
 
         return $this->modificar($request, function ($org) use ($request, $data, $id) {
             $rol = $id ? RolOrganizacion::where('organizacion_id', (string) $org->id)->whereNull('eliminado_en')->findOrFail($id) : new RolOrganizacion;
+            $data = app(PeriodosOrganizacion::class)->validarCargo($org, $data, $rol);
             if (! User::find($data['usuario_id']) || ! MiembroOrganizacion::activos()->where('organizacion_id', (string) $org->id)->where('usuario_id', $data['usuario_id'])->exists()) {
                 throw ValidationException::withMessages(['usuario_id' => 'El cargo requiere un miembro activo de esta organización.']);
             }
