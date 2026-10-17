@@ -65,3 +65,6 @@ El avance queda local; la instalación principal y GitHub no se modifican.
 
 Continuidad posterior del 17 de octubre: [archivos privados de becas](ARCHIVOS_PRIVADOS_BECAS_COMUNIDAD.md).
 Las cifras de este corte se conservan como evidencia del dictamen.
+
+Continuidad funcional posterior: [comité de becas por convocatoria](COMITE_BECAS_COMUNIDAD.md),
+con recomendaciones previas, responsable único y evidencia de la resolución.

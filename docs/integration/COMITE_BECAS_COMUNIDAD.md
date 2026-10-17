@@ -90,6 +90,9 @@ comparten transacción MongoDB con la auditoría. Reutilizan bloqueo de
 responsabilidades y bloqueo por convocatoria normalizado, siempre en ese orden.
 No se realizan llamadas HTTP dentro de esas transacciones.
 
+El comité comprueba membresía E6 y sesión; no certifica condición académica ni
+consume bajas externas por un transporte de eventos aún no acordado.
+
 Las convocatorias sin comité conservan el flujo anterior de revisión. Configurar
 un comité es explícito; no se convierte ni se reasigna el historial previo.
 La selección de organización se revalida y las nuevas vistas envían
@@ -108,7 +111,7 @@ Tampoco usar controladores anteriores mientras existan comités configurados,
 porque desconocen sus restricciones de acceso. Conservar convocatorias,
 solicitudes, recomendaciones y auditoría del mismo respaldo.
 
-## Validación en curso
+## Validación
 
 - RED observado: ausencia de rutas del comité, cuatro casos fallidos.
 - Primer GREEN: cuatro pruebas y 36 aserciones aprobadas, 9.86 segundos.
@@ -129,8 +132,14 @@ solicitudes, recomendaciones y auditoría del mismo respaldo.
   y restauración del foco, recomendación propia en modo lectura tras resolver
   y privacidad del solicitante. Sin errores JS/consola y sin desbordamiento
   a 320/768/1024/1440 px, tanto en expediente como en diálogo.
-- Regresión final de Comunidad en curso; no se atribuye la suite completa histórica
-  a este incremento.
+- Regresión final: **115 pruebas aprobadas, 1,049 aserciones**, 328.32 segundos,
+  once archivos en ejecución serial. Incluye comité, becas, permisos/delegaciones,
+  continuidad, organizaciones, comisiones, documentos, periodos e integración E1/E5.
+  XML cotejado: 115 casos únicos, once clases, cero errores/fallos/omisiones.
+  PHP verificado: `ad62e48`; vistas verificadas: `e07b395`. No hubo cambios de
+  PHP, pruebas, rutas ni migración durante esta ejecución.
+- Formato PHP y `git diff --check` correctos. No se repitió la suite completa
+  histórica de todos los dominios; estas cifras corresponden a la regresión indicada.
 
 Evidencia local ignorada por Git: `storage/logs/comite-becas-20261017/`.
 La copia principal y la publicación a GitHub quedan fuera de este incremento.
