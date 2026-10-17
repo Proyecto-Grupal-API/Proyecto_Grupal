@@ -71,6 +71,9 @@ No utilizar `down -v` para detener una copia cuyos datos se necesiten conservar.
 
 ## Documentación y pendientes
 
+- [Dictámenes de becas y consistencia](DICTAMENES_ATOMICOS_BECAS_COMUNIDAD.md):
+  transacción local para solicitud, auditoría y preparación de su beneficio.
+
 - [Acceso NFC de Comunidad](ACCESO_NFC_EVENTOS_COMUNIDAD.md): integración de Staff con la API de E1, activada con autorización explícita solo en el alterno; lector físico pendiente.
 
 - [Actualización de equipos del 17 de octubre](ACTUALIZACION_EQUIPOS_2026-10-17.md):

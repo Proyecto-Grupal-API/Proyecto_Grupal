@@ -14,6 +14,7 @@ use App\Services\BeneficiosBeca;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -239,7 +240,7 @@ class BecaController extends Controller
     {
         $d = $r->validate(['estado' => ['required', Rule::in(['en_revision', 'aprobada', 'rechazada'])], 'motivo' => ['required', 'string', 'min:10', 'max:2000']]);
 
-        return $this->conSolicitud($r, $id, 'revisarBecas', function ($s, $c) use ($r, $d) {
+        return $this->conSolicitud($r, $id, 'revisarBecas', fn ($s, $c) => DB::connection('mongodb')->transaction(function () use ($s, $c, $r, $d) {
             $this->exigir((string) $s->usuario_id !== (string) $r->user()->id, 'No puedes dictaminar tu propia solicitud.');
             if ($s->estado === $d['estado'] && in_array($s->estado, ['aprobada', 'rechazada'])) {
                 if ($s->estado === 'aprobada') {
@@ -263,7 +264,7 @@ class BecaController extends Controller
             }
 
             return response()->json(['message' => $s->estado === 'aprobada' ? 'Solicitud aprobada. La entrega del beneficio está pendiente.' : 'Dictamen guardado.']);
-        });
+        }));
     }
 
     public function contrato(Request $r, string $id)

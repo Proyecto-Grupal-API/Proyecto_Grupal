@@ -12,6 +12,7 @@ use App\Models\User;
 use Database\Seeders\BecaSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\RefreshMongoDatabase;
 use Tests\TestCase;
 
@@ -306,5 +307,60 @@ class BecasTest extends TestCase
         $this->assertSame(2, ConvocatoriaBeca::count());
         $this->assertSame(6, TipoBeneficio::count());
         $this->assertSame('Título ajustado por el equipo', $c->fresh()->titulo);
+    }
+
+    public static function estadosDictamen(): array
+    {
+        return [['aprobada'], ['rechazada'], ['en_revision']];
+    }
+
+    #[DataProvider('estadosDictamen')]
+    public function test_failed_audit_leaves_the_application_and_capacity_unchanged(string $estado): void
+    {
+        $c = $this->convocatoria();
+        $s = $this->solicitar($c);
+        $this->cerrar($c);
+        AuditoriaComunidad::creating(function ($audit) {
+            if ($audit->accion === 'beca_dictamen') {
+                throw new \RuntimeException('Fallo controlado de auditoría del dictamen.');
+            }
+        });
+        try {
+            $this->decidir($s, $estado)->assertStatus(500);
+            $this->assertSame('pendiente', $s->fresh()->estado);
+            $this->assertNull($s->fresh()->dictaminado_en);
+            $this->assertNull($s->fresh()->dictamen);
+            $this->assertSame(0, SolicitudBeca::where('convocatoria_id', (string) $c->id)->where('estado', 'aprobada')->count());
+            $this->assertSame(0, AsignacionBeneficio::where('solicitud_id', (string) $s->id)->count());
+            $this->assertSame(0, AuditoriaComunidad::where('accion', 'beca_dictamen')->where('entidad_id', (string) $s->id)->count());
+        } finally {
+            AuditoriaComunidad::flushEventListeners();
+        }
+        $this->decidir($s, $estado)->assertOk();
+        $this->assertSame($estado, $s->fresh()->estado);
+        $this->assertSame(1, AuditoriaComunidad::where('accion', 'beca_dictamen')->where('entidad_id', (string) $s->id)->count());
+    }
+
+    public function test_failed_benefit_preparation_rolls_back_the_decision_and_audit_then_retries_once(): void
+    {
+        $c = $this->convocatoria();
+        $s = $this->solicitar($c);
+        $this->cerrar($c);
+        AsignacionBeneficio::created(fn () => throw new \RuntimeException('Fallo controlado después de guardar el beneficio.'));
+        try {
+            $this->decidir($s)->assertStatus(500);
+            $this->assertSame('pendiente', $s->fresh()->estado);
+            $this->assertNull($s->fresh()->dictaminado_por);
+            $this->assertSame(0, AsignacionBeneficio::where('solicitud_id', (string) $s->id)->count());
+            $this->assertSame(0, AuditoriaComunidad::where('accion', 'beca_dictamen')->where('entidad_id', (string) $s->id)->count());
+        } finally {
+            AsignacionBeneficio::flushEventListeners();
+        }
+        $this->decidir($s)->assertOk();
+        $this->decidir($s)->assertOk();
+        $this->assertSame('aprobada', $s->fresh()->estado);
+        $this->assertSame(1, AsignacionBeneficio::where('solicitud_id', (string) $s->id)->count());
+        $this->assertSame('pendiente_integracion', AsignacionBeneficio::where('solicitud_id', (string) $s->id)->firstOrFail()->estado);
+        $this->assertSame(1, AuditoriaComunidad::where('accion', 'beca_dictamen')->where('entidad_id', (string) $s->id)->count());
     }
 }
