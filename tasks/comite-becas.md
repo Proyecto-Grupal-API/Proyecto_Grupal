@@ -8,7 +8,7 @@ responsable de resolución final.
 - [x] Recomendaciones con revisión optimista, auditoría y protección de solicitud propia.
 - [x] Dictamen por responsable con recomendaciones independientes completas; evidencia congelada.
 - [x] Baja/reingreso no reactiva asignación; suspensión y reemplazos conservan historial.
-- [ ] Vistas de configuración, revisión y decisión; pruebas y navegador.
+- [x] Vistas de configuración, revisión y decisión; pruebas y navegador.
 - [ ] Migración aditiva del alterno, documentación y commits locales.
 
 Las convocatorias sin comité conservan el comportamiento anterior. Presidencia

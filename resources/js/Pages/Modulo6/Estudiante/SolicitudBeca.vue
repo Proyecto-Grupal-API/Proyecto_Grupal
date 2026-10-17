@@ -2,6 +2,7 @@
 import { Head, Link } from "@inertiajs/vue3";
 import { ref, onMounted } from "vue";
 import axios from "axios";
+import RevisionComiteBeca from "@/Components/RevisionComiteBeca.vue";
 import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
 const props = defineProps({ solicitudId: String });
 const datos = ref(null),
@@ -365,6 +366,7 @@ function dictaminar() {
                         Retirar solicitud
                     </button>
                 </div>
+                <RevisionComiteBeca v-if="datos.comite_revision" :revision="datos.comite_revision" :solicitud-id="solicitudId" :organizacion-id="datos.convocatoria.organizacion_id" @saved="cargar" />
                 <section
                     v-if="datos.puede_dictaminar"
                     class="rounded-xl border bg-white p-5 space-y-4"
@@ -384,8 +386,8 @@ function dictaminar() {
                             class="w-full rounded-lg border-gray-300"
                         >
                             <option value="en_revision">En revisión</option>
-                            <option value="aprobada">Aprobar</option>
-                            <option value="rechazada">Rechazar</option></select
+                            <option value="aprobada" :disabled="datos.comite_revision && !datos.comite_revision.puede_resolver">Aprobar</option>
+                            <option value="rechazada" :disabled="datos.comite_revision && !datos.comite_revision.puede_resolver">Rechazar</option></select
                         ><label for="dictamen-motivo" class="block"
                             >Motivo y evidencia del dictamen</label
                         ><textarea
@@ -398,8 +400,8 @@ function dictaminar() {
                             class="w-full rounded-lg border-gray-300"
                         ></textarea
                         ><button
-                            :disabled="ocupado"
-                            class="rounded-lg bg-blue-900 text-white px-4 py-2"
+                            :disabled="ocupado || (decision !== 'en_revision' && datos.comite_revision && !datos.comite_revision.puede_resolver)"
+                            class="rounded-lg bg-blue-900 text-white px-4 py-2 disabled:opacity-50"
                         >
                             Guardar dictamen
                         </button>

@@ -3,10 +3,17 @@ import { Head, Link, usePage, router } from "@inertiajs/vue3";
 import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
+import ComiteBecaPanel from "@/Components/ComiteBecaPanel.vue";
 import PanelLateral from "@/Components/Panellateral.vue";
 const page = usePage();
 const puedeGestionar = computed(() => page.props.auth.capacidades_comunidad?.includes("becas.gestionar"));
-const puedeRevisar = computed(() => page.props.auth.capacidades_comunidad?.includes("becas.revisar"));
+const puedeRevisar = computed(() => page.props.auth.capacidades_comunidad?.includes("becas.revisar") || page.props.auth.comite_becas);
+const comiteSeleccionado = ref(null);
+async function comiteGuardado() {
+    comiteSeleccionado.value = null;
+    await cargar();
+    aviso.value = "Comité guardado. Sus integrantes ya pueden revisar esta convocatoria.";
+}
 const modo = ref(puedeGestionar.value || puedeRevisar.value ? "gestion" : "catalogo");
 const datos = ref(null),
     mias = ref(null),
@@ -370,6 +377,7 @@ const paginado = computed(() =>
                             v-if="modo === 'gestion'"
                             class="mt-auto flex flex-wrap gap-3 text-sm font-semibold"
                         >
+                            <button v-if="c.puede_configurar_comite" @click="comiteSeleccionado = c" :disabled="ocupado" class="text-blue-800">Comité</button>
                             <button
                                 v-if="puedeGestionar && c.estado === 'borrador'"
                                 @click="abrir(c)"
@@ -392,7 +400,7 @@ const paginado = computed(() =>
                             >
                                 Cerrar recepción</button
                             ><button
-                                v-if="puedeRevisar"
+                                v-if="c.puede_revisar"
                                 @click="
                                     filtro = '';
                                     verSolicitudes(c);
@@ -713,5 +721,6 @@ const paginado = computed(() =>
                 </button></template
             ></PanelLateral
         >
+        <ComiteBecaPanel :show="!!comiteSeleccionado" :convocatoria="comiteSeleccionado" @close="comiteSeleccionado = null" @saved="comiteGuardado" />
     </Modulo6Layout>
 </template>

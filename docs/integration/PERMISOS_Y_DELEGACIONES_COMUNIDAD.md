@@ -109,3 +109,7 @@ El incremento queda local. El informe/PDF fechado del 15 de octubre se conserva
 como corte histórico y no cambia sus porcentajes por esta entrega parcial.
 Las comisiones, la segmentación académica y las integraciones pendientes señaladas
 arriba siguen fuera del alcance de este incremento.
+
+Actualización posterior del 17 de octubre: el [comité por convocatoria](COMITE_BECAS_COMUNIDAD.md)
+añade designaciones de revisión y resolución acotadas al expediente, sin conceder
+capacidades globales. Las convocatorias sin comité conservan el modelo anterior.

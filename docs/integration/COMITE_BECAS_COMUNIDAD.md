@@ -32,6 +32,22 @@ Las comprobaciones heredadas de identidad y la proyección de nombres siguen
 documentadas en `Dependencias_Equipo_1_Final.md`; no se añaden búsquedas directas
 al directorio E1. Las vistas reutilizan la API de integrantes existente.
 
+## Uso en las vistas
+
+1. Como presidencia, abrir **Becas y apoyos → Gestión de becas → Comité**
+   en la tarjeta de la convocatoria. Seleccionar responsable, revisores y motivo.
+2. Publicar la convocatoria y recibir solicitudes con el flujo habitual.
+3. Cerrar recepción. Los integrantes designados encuentran la convocatoria
+   en **Gestión de becas → Revisar solicitudes** al iniciar sesión o recargar.
+4. El revisor abre un expediente enviado, registra su recomendación y observa
+   la confirmación. Puede corregirla antes de la resolución; conserva consulta
+   de su propia recomendación después, en modo lectura.
+5. El responsable consulta las recomendaciones y registra la resolución con
+   motivo. Aprobar/rechazar permanecen deshabilitados mientras falten revisiones.
+6. El solicitante consulta su resolución; las notas internas no aparecen.
+7. Presidencia consulta el historial del comité. Escape cierra el diálogo y
+   devuelve el foco al botón que lo abrió. Los cambios desactualizados exigen recargar.
+
 ## Versiones, bajas e historial
 
 Configurar o reemplazar el comité incrementa su versión y conserva el antes/después
@@ -101,7 +117,20 @@ solicitudes, recomendaciones y auditoría del mismo respaldo.
   31.55 segundos. Comprueban privacidad, versiones, cambios, auditoría fallida,
   dictamen propio, recomendaciones completas, bajas/reingreso y baja de cuenta.
 - Compilación inicial de vistas correcta, 8.22 segundos.
-- Migración real, navegador y cierre de regresión pendientes de registro.
+- Migración aditiva aplicada al alterno, sin reseed. Compilación final de vistas:
+  correcta, 9.94 segundos. Código backend en `ad62e48`.
+- Edge con tres sesiones aisladas: designación, solicitud enviada, cierre,
+  recomendación, resolución bloqueada antes de la revisión y resolución final.
+  El solicitante solo recibe el motivo final; no ve notas internas.
+- La demostración quedó con convocatoria cancelada y solicitud rechazada,
+  sin asignaciones de beneficios. Se conservan comité y evidencia históricos:
+  convocatoria `6ad3d0f58439417f8301c26a`, solicitud `6ad3d0f92765ee007308e14c`.
+- Comprobación posterior sin escrituras: historial del comité cerrado, Escape
+  y restauración del foco, recomendación propia en modo lectura tras resolver
+  y privacidad del solicitante. Sin errores JS/consola y sin desbordamiento
+  a 320/768/1024/1440 px, tanto en expediente como en diálogo.
+- Regresión final de Comunidad en curso; no se atribuye la suite completa histórica
+  a este incremento.
 
 Evidencia local ignorada por Git: `storage/logs/comite-becas-20261017/`.
 La copia principal y la publicación a GitHub quedan fuera de este incremento.

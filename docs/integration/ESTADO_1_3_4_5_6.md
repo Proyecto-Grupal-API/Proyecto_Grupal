@@ -71,6 +71,9 @@ No utilizar `down -v` para detener una copia cuyos datos se necesiten conservar.
 
 ## Documentación y pendientes
 
+- [Comité de becas por convocatoria](COMITE_BECAS_COMUNIDAD.md):
+  revisores con recomendaciones y un responsable del dictamen; acceso limitado al expediente enviado.
+
 - [Revisión de archivos privados](REVISION_ARCHIVOS_PRIVADOS_COMUNIDAD.md):
   diagnóstico local de referencias, archivos faltantes e historial; sin reparación automática.
 
