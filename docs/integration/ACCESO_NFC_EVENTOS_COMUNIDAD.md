@@ -96,7 +96,16 @@ autorizada de E1. No se necesita revertir migraciones ni modificar pagos.
 - Edge aislado: selector de métodos, NFC deshabilitado, QR inválido rechazado,
   sin errores JavaScript ni consola inesperada. Sin desbordamiento horizontal a
   320/768/1024/1440 px. El evento gratuito de prueba quedó cancelado.
-- Regresión final, suite completa y eventual activación: pendientes de cierre.
+- Regresión final: **61 pruebas aprobadas, 583 aserciones**, 115.24 s.
+- Suite completa sobre `ded236c`: **1,202 pruebas aprobadas,
+  8,685 aserciones**, sin errores, fallos ni omisiones. **91 archivos,
+  16 bloques seriales**, 1310.86 segundos acumulados, únicamente
+  en `campus_virtual_testing`, UID/GID 1000:1000. Los XML se cotejaron con el
+  inventario del commit: todos los casos, sin duplicados ni faltantes.
+- Código en `849c139` y vista/guía en `ded236c`. La activación del permiso y
+  del indicador local sigue pendiente de aprobación explícita; no se declara
+  que NFC esté habilitado en la demo. La comprobación posterior usará una
+  credencial inexistente para verificar el rechazo, sin crear tarjetas.
 
 Evidencia local excluida de Git: `storage/logs/nfc-comunidad-20261017/`.
 Capturas y respaldo de código previo en la carpeta de visualizaciones de este chat.
