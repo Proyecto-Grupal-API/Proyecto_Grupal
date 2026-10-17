@@ -19,3 +19,5 @@ Schedule::command('servicios:avisos')->everyMinute()->withoutOverlapping(10);
 Schedule::command('inventario:expirar-reservas')->everyFiveMinutes()->withoutOverlapping(10);
 
 Schedule::command('marketplace:reconciliar')->everyMinute()->withoutOverlapping(10);
+
+Schedule::command('comunidad:expirar-reservas-eventos')->everyMinute()->withoutOverlapping(10);

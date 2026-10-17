@@ -38,7 +38,7 @@ ese plazo. No se implementan cobros, callbacks financieros ni devoluciones E2.
 
 - [x] Vencimiento: modelo, índices, transacción/bloqueo compartidos, promoción,
   comando y lecturas consistentes. RED, GREEN y regresión de eventos/Staff.
-- [ ] Generaciones e idempotencia: recibos, comparación de versión, compatibilidad
+- [x] Generaciones e idempotencia: recibos, comparación de versión, compatibilidad
   y rollback; pruebas de respuestas perdidas, claves incompatibles y bajas antiguas.
 - [ ] Vistas: plazo en catálogo/boleto/lista de inscritos, reserva vencida,
   reinscripción explícita y reintento de la misma intención; compilar/navegador.
@@ -58,4 +58,24 @@ Docker Desktop lo enciende el usuario. Se conservan informes anteriores y sus ci
   agrupación explícita y conciliación limitada al flujo de reservas, edición y comando.
 - Regresión final: **76 pruebas aprobadas, 699 aserciones**, 237.22 segundos
   (ReservasEventos, Eventos, StaffEventos, Comunidad, Comunicacion y Reportes).
-- El scheduler nuevo se mantiene sin activar hasta completar solicitudes y vistas.
+- En el primer corte, el scheduler nuevo se mantuvo sin activar hasta completar solicitudes y vistas.
+
+## Solicitudes y preparación de navegador
+
+- RED de solicitudes: la respuesta no incluía generación.
+- 12 pruebas de vencimiento/solicitudes aprobadas, 149 aserciones, 46.02 segundos.
+- Regresión conjunta: **81 pruebas aprobadas, 769 aserciones**, 260.44 segundos.
+- Compilación final de vistas tras corregir el contraste del título: **12.12 segundos**.
+- Ambas migraciones aplicadas solo al alterno. Scheduler activado y comprobado
+  con `schedule:list`: conciliación cada minuto, sin ejecutar pagos.
+- Edge aislado: se descartó deliberadamente una respuesta de alta ya confirmada.
+  La vista reintentó con la misma UUID/generación, sin duplicar ni ampliar el plazo.
+  Pago pendiente, QR bloqueado y espera sin plazo; sin errores JavaScript ni
+  errores de consola inesperados. Un error de red esperado por la respuesta descartada.
+- Sin desbordamiento horizontal a 320/768/1024/1440 px. La comprobación con reloj
+  real está preparada: estado persistido en `reservas-browser-estado.json`, bajo
+  la carpeta de visualizaciones de este chat. Continuar con `reservas-browser.cjs validar`.
+- Pendientes del cierre: verificar vencimiento/promoción reales y limpiar el
+  evento demo; completar inventario serial reanudable y documentar los resultados.
+- Contraste verificado en navegador: título blanco legible, cuatro tamaños de
+  pantalla, sin errores JavaScript ni consola. Prueba de solo lectura sobre el mismo boleto.

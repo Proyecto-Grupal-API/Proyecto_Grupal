@@ -129,20 +129,33 @@ class EventoController extends Controller
 
     public function inscribir(Request $request, string $id)
     {
-        return $this->conEvento($request, $id, false, function ($e) use ($request) {
-            abort_unless($e->estado === 'publicado' && Organizacion::where('_id', $e->organizacion_id)->where('estado', 'activa')->exists(), 404);
-            $reg = $this->inscripciones->inscribir($e, $request->user());
+        $datos = $this->datosSolicitud($request);
 
-            return response()->json(['registro' => $this->resumen($reg), 'message' => $reg->estado === 'espera' ? 'Estás en lista de espera.' : ($reg->estado_pago === 'pendiente' ? 'Lugar reservado. El pago está pendiente de integración.' : 'Inscripción confirmada.')]);
+        return $this->conEvento($request, $id, false, function ($e) use ($request, $datos) {
+            abort_unless($e->estado === 'publicado' && Organizacion::where('_id', $e->organizacion_id)->where('estado', 'activa')->exists(), 404);
+            $resultado = $this->inscripciones->solicitar($e, $request->user(), 'inscribir', $datos);
+            $reg = $resultado['registro'];
+            $mensaje = match (true) {
+                $resultado['repetida'] => 'Solicitud ya procesada. Se muestra tu inscripción actual.',
+                $reg->estado_efectivo === 'vencida' => 'La reserva venció. Actualiza para solicitar un nuevo lugar.',
+                $reg->estado === 'espera' => 'Estás en lista de espera.',
+                $reg->estado_pago === 'pendiente' => 'Lugar reservado durante un máximo de 15 minutos. El pago aún no está disponible.',
+                default => 'Inscripción confirmada.',
+            };
+
+            return response()->json([...$resultado, 'registro' => $this->resumen($reg), 'message' => $mensaje])->header('Cache-Control', 'private, no-store');
         });
     }
 
     public function cancelarInscripcion(Request $request, string $id)
     {
-        return $this->conEvento($request, $id, false, function ($e) use ($request) {
-            $this->inscripciones->cancelar($e, $request->user());
+        $datos = $this->datosSolicitud($request);
 
-            return response()->json(['message' => 'Inscripción cancelada.']);
+        return $this->conEvento($request, $id, false, function ($e) use ($request, $datos) {
+            $resultado = $this->inscripciones->solicitar($e, $request->user(), 'cancelar', $datos);
+            $mensaje = $resultado['repetida'] ? 'Solicitud ya procesada. Se muestra tu inscripción actual.' : ($resultado['registro']->estado_efectivo === 'vencida' ? 'La reserva ya había vencido.' : 'Inscripción cancelada.');
+
+            return response()->json([...$resultado, 'registro' => $this->resumen($resultado['registro']), 'message' => $mensaje])->header('Cache-Control', 'private, no-store');
         });
     }
 
@@ -211,9 +224,14 @@ class EventoController extends Controller
         });
     }
 
+    private function datosSolicitud(Request $request): array
+    {
+        return $request->validate(['clave_solicitud' => ['nullable', 'uuid', 'required_with:generacion'], 'generacion' => ['nullable', 'integer', 'min:0', 'required_with:clave_solicitud']]);
+    }
+
     private function resumen(RegistroEvento $reg): array
     {
-        return [...$reg->only(['id', 'evento_id', 'usuario_id', 'reserva_hasta', 'vencido_en', 'estado_pago', 'monto_centavos', 'moneda', 'estado_asistencia', 'registrado_en', 'asistio_en']), 'estado' => $reg->estado_efectivo];
+        return [...$reg->only(['id', 'evento_id', 'usuario_id', 'reserva_hasta', 'vencido_en', 'estado_pago', 'monto_centavos', 'moneda', 'estado_asistencia', 'registrado_en', 'asistio_en']), 'estado' => $reg->estado_efectivo, 'generacion' => max(1, (int) $reg->generacion)];
     }
 
     private function boleto(RegistroEvento $reg, ?Evento $e): array

@@ -4,6 +4,8 @@ import { ref, onMounted, onBeforeUnmount } from "vue";
 import axios from "axios";
 import QRCode from "qrcode";
 import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
+import { useReservasEventos } from "@/Composables/useReservasEventos";
+const solicitarReserva = useReservasEventos();
 const props = defineProps({ eventoId: String });
 const boletos = ref([]),
     cargando = ref(false),
@@ -77,9 +79,7 @@ async function cancelar(b) {
     error.value = "";
     aviso.value = "";
     try {
-        const { data } = await axios.delete(
-            `/api/eventos/${b.evento_id}/inscripcion`,
-        );
+        const { data } = await solicitarReserva("cancelar", b.evento_id, b.generacion);
         aviso.value = data.message;
         await cargar();
     } catch (e) {
@@ -95,6 +95,7 @@ async function cancelar(b) {
 }
 function estado(b) {
     if (b.estado === "cancelada") return "Inscripción cancelada";
+    if (b.estado === "vencida") return "Reserva vencida";
     if (b.estado_asistencia === "asistio") return "Asistencia registrada";
     if (b.estado === "espera")
         return `Lista de espera · posición ${b.posicion_espera ?? "—"}`;
@@ -164,7 +165,7 @@ function estado(b) {
                         >
                             Campus Digital · Boleto personal
                         </p>
-                        <h1 class="mt-2 text-xl font-bold">{{ b.titulo }}</h1>
+                        <h1 class="mt-2 text-xl font-bold !text-white">{{ b.titulo }}</h1>
                         <p class="mt-3 text-sm">
                             {{ fecha(b.fecha_hora_inicio) }}
                         </p>
@@ -177,7 +178,7 @@ function estado(b) {
                         <p
                             class="font-semibold"
                             :class="
-                                b.estado === 'cancelada'
+                                ['cancelada', 'vencida'].includes(b.estado)
                                     ? 'text-red-700'
                                     : b.estado === 'espera' ||
                                         b.estado_pago === 'pendiente'
@@ -230,7 +231,7 @@ function estado(b) {
                         <p
                             v-if="
                                 b.estado_pago === 'pendiente' &&
-                                b.estado !== 'cancelada'
+                                ['confirmada', 'espera'].includes(b.estado)
                             "
                             class="text-sm text-amber-800"
                         >
@@ -240,9 +241,11 @@ function estado(b) {
                                     { style: "currency", currency: "MXN" },
                                 )
                             }}
-                            pendientes. No se han realizado cobros. El QR se
-                            habilitará cuando se integre y confirme el pago.
+                            pendientes. El pago aún no está disponible. No se han realizado cobros y el QR permanece bloqueado.
                         </p>
+                        <p v-if="b.estado === 'confirmada' && b.estado_pago === 'pendiente' && b.reserva_hasta" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Tu lugar se liberará si no se confirma el pago antes de {{ fecha(b.reserva_hasta) }} (Ciudad de México).</p>
+                        <p v-if="b.estado === 'espera' && b.estado_pago === 'pendiente'" class="text-sm text-gray-600">El plazo de hasta 15 minutos empezará cuando obtengas un lugar, con límite al inicio del evento.</p>
+                        <div v-if="b.estado === 'vencida'" class="rounded-lg bg-red-50 p-3 space-y-2 text-sm text-red-800"><p>Se liberó tu lugar al vencer el plazo. Esta reserva no permite el acceso y no generó un cobro.</p><Link href="/modulo6/eventos" class="font-semibold underline">Consultar disponibilidad para otra reserva</Link></div>
                         <p
                             v-if="b.motivo_cancelacion"
                             class="text-sm text-red-700"

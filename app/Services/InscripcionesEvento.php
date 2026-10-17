@@ -6,6 +6,7 @@ use App\Models\AuditoriaComunidad;
 use App\Models\Evento;
 use App\Models\Organizacion;
 use App\Models\RegistroEvento;
+use App\Models\SolicitudReservaEvento;
 use App\Models\User;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
@@ -33,7 +34,7 @@ class InscripcionesEvento
             throw ValidationException::withMessages(['evento' => 'Se agotaron los lugares y no hay lista de espera.']);
         }
         $antes = $reg->exists ? $reg->toArray() : null;
-        $reg->fill(['reserva_hasta' => $estado === 'confirmada' && $evento->costo > 0 ? $this->limite($evento) : null, 'vencido_en' => null, 'estado' => $estado, 'estado_pago' => $evento->costo > 0 ? 'pendiente' : 'exento', 'monto_centavos' => (int) round($evento->costo * 100), 'moneda' => 'MXN', 'token_qr' => Str::random(64), 'estado_asistencia' => 'pendiente', 'registrado_en' => now(), 'cancelado_en' => null, 'confirmado_en' => $estado === 'confirmada' ? now() : null, 'asistio_en' => null, 'asistencia_por' => null])->save();
+        $reg->fill(['generacion' => $reg->exists ? max(1, (int) $reg->generacion) + 1 : 1, 'reserva_hasta' => $estado === 'confirmada' && $evento->costo > 0 ? $this->limite($evento) : null, 'vencido_en' => null, 'estado' => $estado, 'estado_pago' => $evento->costo > 0 ? 'pendiente' : 'exento', 'monto_centavos' => (int) round($evento->costo * 100), 'moneda' => 'MXN', 'token_qr' => Str::random(64), 'estado_asistencia' => 'pendiente', 'registrado_en' => now(), 'cancelado_en' => null, 'confirmado_en' => $estado === 'confirmada' ? now() : null, 'asistio_en' => null, 'asistencia_por' => null])->save();
         $this->auditar($evento, $user, 'evento_inscripcion', $reg->id, $antes, $reg->toArray());
 
         return $reg;
@@ -82,6 +83,38 @@ class InscripcionesEvento
             $reg->update(['estado' => 'confirmada', 'confirmado_en' => now(), 'reserva_hasta' => $reg->estado_pago === 'pendiente' ? $this->limite($evento) : null]);
         }
         $this->auditar($evento, $actor, 'evento_lista_promovida', $evento->id, null, ['registros' => $ids->all()]);
+    }
+
+    public function solicitar(Evento $evento, User $user, string $accion, array $datos): array
+    {
+        $q = RegistroEvento::where('evento_id', (string) $evento->id)->where('usuario_id', (string) $user->id);
+        $reg = (clone $q)->first();
+        $generacion = $reg ? max(1, (int) $reg->generacion) : 0;
+        $clave = isset($datos['clave_solicitud']) ? strtolower($datos['clave_solicitud']) : null;
+        if ($clave) {
+            $previo = SolicitudReservaEvento::where('usuario_id', (string) $user->id)->where('clave_solicitud', $clave)->first();
+            if ($previo) {
+                abort_unless($previo->evento_id === (string) $evento->id && $previo->accion === $accion && $previo->generacion_esperada === (int) $datos['generacion'], 409, 'La clave de solicitud ya se utilizó con otra intención.');
+                return ['registro' => $q->firstOrFail(), 'repetida' => true, 'generacion_solicitud' => $previo->generacion_resultado];
+            }
+            abort_unless($generacion === (int) $datos['generacion'], 409, 'Tu inscripción cambió. Actualiza antes de intentar otra operación.');
+        } else {
+            abort_if($reg?->solicitudes_versionadas, 409, 'Esta inscripción requiere clave y generación. Actualiza la página.');
+        }
+        if ($accion === 'inscribir') {
+            $reg = $this->inscribir($evento, $user, (bool) $clave);
+        } else {
+            $this->cancelar($evento, $user);
+            $reg = $q->firstOrFail();
+        }
+        $resultado = max(1, (int) $reg->generacion);
+        if ($clave) {
+            if (! $reg->solicitudes_versionadas) {
+                $reg->update(['solicitudes_versionadas' => true]);
+            }
+            SolicitudReservaEvento::create(['usuario_id' => (string) $user->id, 'clave_solicitud' => $clave, 'evento_id' => (string) $evento->id, 'accion' => $accion, 'generacion_esperada' => (int) $datos['generacion'], 'generacion_resultado' => $resultado]);
+        }
+        return ['registro' => $reg, 'repetida' => false, 'generacion_solicitud' => $resultado];
     }
 
     public function ejecutar(string $id, callable $accion): mixed

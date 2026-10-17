@@ -13,7 +13,7 @@ class RegistroEvento extends Documento
     protected $table = 'registros_eventos';
 
     protected $fillable = [
-        'reserva_hasta', 'vencido_en', 'estado', 'monto_centavos', 'moneda', 'cancelado_en', 'confirmado_en', 'asistio_en', 'asistencia_por',
+        'generacion', 'solicitudes_versionadas', 'reserva_hasta', 'vencido_en', 'estado', 'monto_centavos', 'moneda', 'cancelado_en', 'confirmado_en', 'asistio_en', 'asistencia_por',
         'evento_id',
         'usuario_id',
         'estado_pago',
@@ -54,6 +54,6 @@ class RegistroEvento extends Documento
 
     protected function casts(): array
     {
-        return ['reserva_hasta' => 'datetime', 'vencido_en' => 'datetime', 'registrado_en' => 'datetime', 'cancelado_en' => 'datetime', 'confirmado_en' => 'datetime', 'asistio_en' => 'datetime', 'monto_centavos' => 'integer'];
+        return ['generacion' => 'integer', 'solicitudes_versionadas' => 'boolean', 'reserva_hasta' => 'datetime', 'vencido_en' => 'datetime', 'registrado_en' => 'datetime', 'cancelado_en' => 'datetime', 'confirmado_en' => 'datetime', 'asistio_en' => 'datetime', 'monto_centavos' => 'integer'];
     }
 }

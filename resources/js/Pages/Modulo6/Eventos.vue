@@ -6,6 +6,8 @@ import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
 import PanelLateral from "@/Components/Panellateral.vue";
 import EscanerEvento from "@/Components/EscanerEvento.vue";
 import StaffEventoPanel from "@/Components/StaffEventoPanel.vue";
+import { useReservasEventos } from "@/Composables/useReservasEventos";
+const solicitarReserva = useReservasEventos();
 const staffEvento = ref(null);
 const page = usePage();
 const modo = ref(page.props.auth.puede_editar ? "gestion" : "catalogo");
@@ -154,7 +156,7 @@ function cancelar(e) {
         ejecutar(() => axios.post(`/api/eventos/${e.id}/cancelar`, { motivo }));
 }
 const inscribir = (e) =>
-    ejecutar(() => axios.post(`/api/eventos/${e.id}/inscripcion`));
+    ejecutar(() => solicitarReserva("inscribir", e.id, e.mi_registro?.generacion ?? 0));
 async function cargarLista(pagina = 1) {
     if (!seleccionado.value) return;
     paginaLista.value = pagina;
@@ -389,7 +391,7 @@ function cerrar() {
                         <Link
                             v-if="
                                 e.mi_registro &&
-                                e.mi_registro.estado !== 'cancelada'
+                                ['confirmada', 'espera'].includes(e.mi_registro.estado)
                             "
                             :href="`/modulo6/eventos/${e.id}/boleto`"
                             class="block text-center rounded-lg bg-blue-900 px-4 py-2 font-semibold text-white"
@@ -418,13 +420,14 @@ function cerrar() {
                                           ? "Unirme a la espera"
                                           : "Cupo agotado"
                                       : e.costo > 0
-                                        ? "Reservar lugar"
-                                        : "Inscribirme"
+                                        ? (e.mi_registro ? "Volver a reservar" : "Reservar lugar")
+                                        : (e.mi_registro ? "Volver a inscribirme" : "Inscribirme")
                             }}
                         </button>
+                        <p v-if="e.mi_registro?.estado === 'vencida'" class="text-sm text-red-700">Tu reserva anterior venció. Puedes solicitar otro lugar si hay disponibilidad.</p>
+                        <p v-if="e.mi_registro?.estado === 'confirmada' && e.mi_registro.estado_pago === 'pendiente' && e.mi_registro.reserva_hasta" class="text-xs text-amber-800">Lugar reservado hasta {{ fecha(e.mi_registro.reserva_hasta) }}.</p>
                         <p v-if="e.costo > 0" class="text-xs text-amber-800">
-                            El lugar se reserva con pago pendiente. Aún no se
-                            realizan cobros ni se habilita el acceso.
+                            El lugar se reserva hasta por 15 minutos al obtener cupo. El pago aún no está disponible; no se realizan cobros ni se habilita el acceso.
                         </p>
                     </div>
                 </article>
@@ -510,6 +513,7 @@ function cerrar() {
                     <option value="confirmada">Confirmadas</option>
                     <option value="espera">Lista de espera</option>
                     <option value="cancelada">Canceladas</option>
+                    <option value="vencida">Vencidas</option>
                 </select>
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm text-left">
@@ -526,7 +530,7 @@ function cerrar() {
                             <tr v-for="reg in lista?.registros" :key="reg.id">
                                 <td class="py-3 pr-3">{{ reg.nombre }}</td>
                                 <td class="pr-3">{{ reg.matricula || "—" }}</td>
-                                <td class="pr-3">{{ reg.estado }}</td>
+                                <td class="pr-3">{{ reg.estado }}<span v-if="reg.reserva_hasta && reg.estado_pago === 'pendiente'" class="block text-xs text-gray-500">{{ reg.estado === 'vencida' ? 'Venció' : 'Plazo' }}: {{ fecha(reg.reserva_hasta) }}</span></td>
                                 <td class="pr-3">{{ reg.estado_pago }}</td>
                                 <td>
                                     {{
@@ -674,8 +678,7 @@ function cerrar() {
                     />Habilitar lista de espera</label
                 >
                 <p v-if="formulario.costo > 0" class="text-sm text-amber-800">
-                    Se aceptarán reservas con pago pendiente; el cobro lo
-                    integrará el equipo 2.
+                    Las reservas con pago pendiente vencerán a los 15 minutos o al inicio del evento, lo que ocurra primero. El pago todavía no está disponible.
                 </p>
             </form>
             <template #footer

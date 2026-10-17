@@ -71,6 +71,10 @@ No utilizar `down -v` para detener una copia cuyos datos se necesiten conservar.
 
 ## Documentación y pendientes
 
+- [Reservas y reinscripciones de eventos](RESERVAS_EVENTOS_COMUNIDAD.md):
+  incremento local del 17 de octubre; vencimiento de pago pendiente a 15 minutos,
+  espera FIFO y solicitudes protegidas por generación.
+
 - [Periodos de asociaciones y Consejo](PERIODOS_ORGANIZACIONALES_COMUNIDAD.md):
   incremento local del 16 de octubre; registro de periodos, cargos vinculados
   con fechas limitadas e historial de cambios.
