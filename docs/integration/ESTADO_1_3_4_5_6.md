@@ -71,6 +71,9 @@ No utilizar `down -v` para detener una copia cuyos datos se necesiten conservar.
 
 ## Documentación y pendientes
 
+- [Revisión de APIs E1/E2](REVISION_APIS_E1_E2_2026-10-17.md):
+  ramas contrastadas después del comité; validación del estado académico y dependencias pendientes de directorio, segmentación y pagos.
+
 - [Comité de becas por convocatoria](COMITE_BECAS_COMUNIDAD.md):
   revisores con recomendaciones y un responsable del dictamen; acceso limitado al expediente enviado.
 
