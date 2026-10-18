@@ -30,7 +30,18 @@ class AvisosServiciosTest extends TestCase
         config(['identidad_comunidad.url' => 'https://identidad.test', 'identidad_comunidad.client_id' => 'comunidad', 'identidad_comunidad.client_secret' => 'test']);
         Http::preventStrayRequests();
         Http::fake(['https://identidad.test/api/oauth/token' => Http::response(['access_token' => 'identity-test']),
-            'https://identidad.test/api/v1/students/*/status' => Http::response(['data' => ['user_id' => (string) $this->alumno->id, 'status' => 'active']])]);
+            'https://identidad.test/api/v1/students/*/status' => Http::response(['data' => ['student_id' => (string) $this->alumno->id, 'user_id' => (string) $this->alumno->id, 'status' => 'active', 'restrictions' => null, 'benefits_eligible' => null]])]);
+    }
+
+    public function test_una_respuesta_de_identidad_ajena_no_crea_un_aviso(): void
+    {
+        config(['identidad_comunidad.url' => 'https://otra-respuesta.test']);
+        $otro = (string) new \MongoDB\BSON\ObjectId;
+        Http::fake(['https://otra-respuesta.test/api/oauth/token' => Http::response(['access_token' => 'identity-test']),
+            'https://otra-respuesta.test/api/v1/students/*/status' => Http::response(['data' => [
+                'student_id' => $otro, 'user_id' => $otro, 'status' => 'active', 'restrictions' => null, 'benefits_eligible' => null]])]);
+        $this->enviar($this->datos())->assertServiceUnavailable()->assertJsonPath('codigo', 'identidad_no_disponible');
+        $this->assertSame(0, Mensaje::count());
     }
 
     private function datos(string $tipo = 'orden_lista', string $destino = 'mis_ordenes'): array

@@ -16,7 +16,7 @@ class IntegracionIdentidadComunidadTest extends TestCase
         Http::preventStrayRequests();
         Http::fake([
             'identity.test/api/oauth/token' => Http::response(['access_token' => 'token-demo']),
-            'identity.test/api/v1/students/'.$user->id.'/status' => Http::response(['data' => ['student_id' => (string) $user->id, 'status' => 'active', 'benefits_eligible' => null]]),
+            'identity.test/api/v1/students/'.$user->id.'/status' => Http::response(['data' => ['student_id' => (string) $user->id, 'user_id' => (string) $user->id, 'status' => 'active', 'restrictions' => null, 'benefits_eligible' => null]]),
         ]);
         $this->actingAs($user)->getJson('/api/identidad/mi-condicion?student_id=otro')
             ->assertOk()->assertJsonPath('data.student_id', (string) $user->id)->assertJsonPath('data.benefits_eligible', null);

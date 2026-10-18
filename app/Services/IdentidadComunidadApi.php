@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
@@ -11,11 +12,25 @@ class IdentidadComunidadApi
     {
         $data = app(ClienteModuloHttp::class)->para('identidad_comunidad', 'students:read')
             ->get('/api/v1/students/'.rawurlencode($usuarioId).'/status')->throw()->json('data');
-        if (! is_array($data)) {
+        if (! is_array($data) || ($data['student_id'] ?? null) !== $usuarioId
+            || ($data['user_id'] ?? null) !== $usuarioId
+            || ! in_array($data['status'] ?? null, ['active', 'inactive', 'suspended', 'restricted', 'leave', 'graduated'], true)
+            || ! array_key_exists('restrictions', $data) || $data['restrictions'] !== null
+            || ! array_key_exists('benefits_eligible', $data) || $data['benefits_eligible'] !== null) {
+            throw new RuntimeException('Respuesta de Identidad inválida.');
+        }
+        $textos = ['name', 'enrollment', 'program', 'campus', 'status_label', 'effective_from', 'status_reason'];
+        foreach ($textos as $campo) {
+            if (isset($data[$campo]) && ! is_string($data[$campo])) {
+                throw new RuntimeException('Respuesta de Identidad inválida.');
+            }
+        }
+        if (isset($data['semester']) && ! is_int($data['semester'])) {
             throw new RuntimeException('Respuesta de Identidad inválida.');
         }
 
-        return $data;
+        // E1 publishes academic labels, not institutional scopes or benefit decisions.
+        return Arr::only($data, ['student_id', 'user_id', ...$textos, 'semester', 'status', 'restrictions', 'benefits_eligible']);
     }
 
     public function credencialNfc(string $uid): array
