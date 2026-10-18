@@ -71,6 +71,9 @@ No utilizar `down -v` para detener una copia cuyos datos se necesiten conservar.
 
 ## Documentación y pendientes
 
+- [Solicitud a E1: directorio y autorización institucional](SOLICITUD_EQUIPO6_A_EQUIPO1_DIRECTORIO_Y_AUTORIZACION_2026-10-17.md):
+  necesidades D1–D4 e I1–I3 para el líder y agente de Identidad.
+
 - [Revisión de APIs E1/E2](REVISION_APIS_E1_E2_2026-10-17.md):
   ramas contrastadas después del comité; validación del estado académico y dependencias pendientes de directorio, segmentación y pagos.
 
