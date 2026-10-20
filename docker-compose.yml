@@ -1,58 +1,117 @@
+# Campus Digital — Equipo 7 (Programa de Recompensas y Puntos)
+# Estructura definitiva: ./backend_respaldo (Laravel 13), ./frontend_respaldo (Vue 3), ./docker (infra).
+# El archivo original docker-compose-respaldo.yml se conserva sin cambios como referencia.
+#
+# Uso:  docker compose up -d --build
+#   API:       http://localhost:8000/api/v1
+#   Frontend:  http://localhost:5173
+#   MongoDB:   127.0.0.1:27017 (solo localhost; usar ?directConnection=true desde el host)
+
+name: campus_digital
+
 services:
   app:
     build:
       context: ./docker/php
     container_name: campus_digital_app
+    working_dir: /var/www
+    environment:
+      MONGO_DB_DSN: "mongodb://${MONGO_ROOT_USERNAME:-root}:${MONGO_ROOT_PASSWORD:-secret}@mongodb:27017/?authSource=admin&replicaSet=rs0"
+      RUN_MIGRATIONS: "${RUN_MIGRATIONS:-true}"
     volumes:
-      - ./src:/var/www
+      - ./backend_respaldo:/var/www
     depends_on:
       mongodb:
         condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\", 9000) ? 0 : 1);'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
 
   webserver:
     image: nginx:stable-alpine
     container_name: campus_digital_webserver
     ports:
-      - "8000:80"
+      - "${API_PORT:-8000}:80"
     volumes:
-      - ./src:/var/www
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./backend_respaldo:/var/www:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - app
+      app:
+        condition: service_healthy
+    restart: unless-stopped
 
   mongodb:
     image: mongo:7
     container_name: campus_digital_mongodb
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: secret
+      MONGO_INITDB_ROOT_USERNAME: "${MONGO_ROOT_USERNAME:-root}"
+      MONGO_INITDB_ROOT_PASSWORD: "${MONGO_ROOT_PASSWORD:-secret}"
     volumes:
       - mongodb_data:/data/db
-      - ./docker/mongodb/mongo-keyfile:/keyfile-source/mongo-keyfile:ro
+      - mongodb_keyfile:/data/keyfile
+    # El keyfile (requerido por auth + replica set) se genera UNA vez dentro del volumen;
+    # no se versiona en Git y sobrevive a reinicios.
     entrypoint: >
-      sh -c "
-      cp /keyfile-source/mongo-keyfile /etc/mongo-keyfile &&
+      bash -c "
+      if [ ! -s /data/keyfile/mongo-keyfile ]; then head -c 756 /dev/urandom | base64 -w0 > /data/keyfile/mongo-keyfile; fi &&
+      cp /data/keyfile/mongo-keyfile /etc/mongo-keyfile &&
       chmod 400 /etc/mongo-keyfile &&
       chown mongodb:mongodb /etc/mongo-keyfile &&
       exec docker-entrypoint.sh mongod --replSet rs0 --bind_ip_all --keyFile /etc/mongo-keyfile
       "
     ports:
-      - "27017:27017"
+      - "127.0.0.1:${MONGO_PORT:-27017}:27017"
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh -u root -p secret --authenticationDatabase admin localhost:27017/test --quiet
-      interval: 10s
+      test: ["CMD-SHELL", "mongosh --quiet -u \"$$MONGO_INITDB_ROOT_USERNAME\" -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval \"db.adminCommand('ping').ok\" | grep -q 1"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-  node:
-    image: node:20
-    container_name: campus_digital_node
-    working_dir: /var/www
+      retries: 30
+      start_period: 20s
+
+  # Servicio de un solo uso: inicializa (o verifica) el replica set rs0 de forma idempotente.
+  mongo-init:
+    image: mongo:7
+    container_name: campus_digital_mongo_init
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      MONGO_RS_HOST: "mongodb:27017"
     volumes:
-      - ./src:/var/www
+      - ./docker/mongodb/init-replica-set.js:/scripts/init-replica-set.js:ro
+    entrypoint:
+      - mongosh
+      - "mongodb://${MONGO_ROOT_USERNAME:-root}:${MONGO_ROOT_PASSWORD:-secret}@mongodb:27017/admin?directConnection=true"
+      - --quiet
+      - /scripts/init-replica-set.js
+    restart: "no"
+
+  frontend:
+    image: node:20
+    container_name: campus_digital_frontend
+    working_dir: /frontend
+    environment:
+      VITE_API_PROXY_TARGET: "http://webserver:80"
+      VITE_USE_POLLING: "true"
+    volumes:
+      - ./frontend_respaldo:/frontend
+      # node_modules propio del contenedor (Linux): evita mezclar binarios nativos de Windows.
+      - frontend_node_modules:/frontend/node_modules
     ports:
-      - "5173:5173"
-    command: sh -c "npm install && npm run dev -- --host"
+      - "${FRONTEND_PORT:-5173}:5173"
+    command: sh -c "npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - webserver
+    restart: unless-stopped
 
 volumes:
   mongodb_data:
+  mongodb_keyfile:
+  frontend_node_modules:

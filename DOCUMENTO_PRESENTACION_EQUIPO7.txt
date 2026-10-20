@@ -1,0 +1,356 @@
+================================================================================
+CAMPUS DIGITAL — PROGRAMA DE RECOMPENSAS Y PUNTOS (EQUIPO 7)
+Documento Maestro de Avances, Arquitectura y Preparación para Integraciones
+================================================================================
+
+Materia:              Ingeniería de Software (7mo Semestre)
+Equipo:               Equipo 7 — Recompensas, Puntos y Lealtad
+Fecha:                Octubre 2026
+Estado del Proyecto:  100% Funcional, Integrado de Extremo a Extremo
+Pruebas:              30 de 30 Aprobadas (100% verde, 81 aserciones)
+URLs Activas:
+  - Frontend SPA:     http://localhost:5173
+  - API REST Backend: http://localhost:8000/api/v1
+  - MongoDB Host:     127.0.0.1:27018 (Replica Set rs0)
+
+--------------------------------------------------------------------------------
+TABLA DE CONTENIDOS
+--------------------------------------------------------------------------------
+1. Resumen Ejecutivo
+2. Arquitectura Tecnológica del Sistema
+3. Avances y Módulos Desarrollados (Lo Construido)
+4. Estrategia y Preparación para Integraciones Inter-Equipos
+   4.1 Integración con Equipo 3 (Marketplace y Ventas)
+   4.2 Integración con Módulos Académicos y Escolares
+   4.3 Integración con Identidad y Autenticación Central (SSO)
+   4.4 Integración con Notificaciones y Comunicaciones
+5. Métricas de Calidad y Pruebas Automatizadas
+6. Guión y Estructura Recomendada para la Presentación (7 Slides)
+7. Guía de Demostración en Vivo (Live Demo Script)
+
+
+================================================================================
+1. RESUMEN EJECUTIVO
+================================================================================
+El Programa de Recompensas y Puntos (Equipo 7) constituye el motor transversal de 
+fidelización, incentivos y gamificación de la plataforma Campus Digital. Su propósito 
+es transformar la experiencia universitaria reconociendo el mérito académico, la 
+participación en actividades extracurriculares y el consumo en comercios afiliados del 
+campus mediante una moneda digital interna ("Puntos Campus").
+
+Hitos Clave Alcanzados:
+- Despliegue Inmediato: Docker Compose con orquestación completa en un comando 
+  (docker compose up -d --build).
+- Fiabilidad Contable: Ledger Inmutable de Doble Entrada basado en MongoDB Replica 
+  Set (rs0) con transacciones ACID multi-documento, previniendo saldos negativos 
+  y dobles gastos.
+- Seguridad Rigurosa: Laravel Sanctum adaptado a modelos de documentos NoSQL con 
+  control de acceso basado en roles (RBAC) y permisos atómicos.
+- Frontend Reactivo: Vue 3 (Composition API) + Vite + Tailwind CSS con 13 interfaces 
+  de usuario adaptativas y conmutador dinámico de roles en vivo.
+- Integraciones Listas: Webhook seguro (/api/v1/integrations/ingest-event) con 
+  verificación HMAC-SHA256 e idempotencia para Marketplace (Equipo 3).
+- Calidad Certificada: 30 de 30 pruebas unitarias y de integración pasando 
+  con éxito (81 aserciones).
+
+
+================================================================================
+2. ARQUITECTURA TECNOLÓGICA DEL SISTEMA
+================================================================================
+El sistema implementa una arquitectura desacoplada por capas:
+
+[CAPA DE PRESENTACIÓN]
+Frontend Vue 3 + Vite + Tailwind CSS (SPA)
+Puerto: http://localhost:5173
+  |
+  | Peticiones REST / Bearer Tokens / Proxy inverso /api
+  v
+[CAPA DE ENTRADA Y GATEWAY]
+Nginx Reverse Proxy & Balanceador
+Puerto: http://localhost:8000
+  |
+  | FastCGI (Puerto 9000)
+  v
+[CAPA DE LÓGICA DE NEGOCIO]
+Backend Laravel 13 (PHP 8.3-FPM)
+  - Autenticación Sanctum NoSQL (PersonalAccessToken)
+  - Control de Acceso por Roles (RBAC)
+  - PointsLedgerService (Libro Mayor Contable)
+  - Motor Antifraude y Auditoría Forense (AuditLog)
+  - Webhook Ingestion Engine
+  |
+  | Driver MongoDB 2.x (Transacciones ACID)
+  v
+[CAPA DE PERSISTENCIA]
+MongoDB 7 Replica Set (rs0, Keyfile Authentication)
+Puerto: mongodb:27017 (Mapeado a host 27018)
+Colecciones: users, accounts, ledger_entries, rewards, redemptions, 
+businesses, rules, campaigns, fraud_flags, audit_logs.
+
+
+================================================================================
+3. AVANCES Y MÓDULOS DESARROLLADOS (LO CONSTRUIDO)
+================================================================================
+
+3.1 Motor Contable y Libro Mayor (PointsLedgerService)
+------------------------------------------------------
+- Contabilidad de Doble Entrada: Cada transacción genera un registro inmutable en 
+  ledger_entries y actualiza de manera atómica el balance agregado en accounts.
+- Tipos de Operación:
+  * earned: Acreditación de puntos por consumo en comercios o mérito escolar.
+  * redeemed: Débito de puntos al solicitar recompensas del catálogo.
+  * reversed: Reversión automática de puntos ante devoluciones o cancelaciones.
+  * adjusted: Ajustes manuales extraordinarios autorizados por gobierno.
+  * expired: Caducidad de puntos por término de ciclo escolar.
+- Idempotencia: Exige un 'idempotency_key' único por operación; ante fallos de 
+  red o reintentos, no se duplican puntos.
+- Reconciliación Contable: Endpoint (/api/v1/points/reconcile/{studentId}) que suma 
+  las entradas históricas del libro mayor y corrige cualquier desfase de caché.
+
+3.2 Seguridad, Autenticación y Autorización (RBAC)
+-------------------------------------------------
+- PersonalAccessToken NoSQL: Extiende DocumentModel para persistir tokens 
+  criptográficos en MongoDB manteniendo compatibilidad con Sanctum.
+- Matriz de Roles:
+  * Estudiante (alumno@campus.edu): Consulta de saldo, catálogo, canje y cupones.
+  * Profesor (profesor@campus.edu): Validación de cupones, entrega física, campañas.
+  * Administrador (admin@campus.edu): Catálogo, comercios, reglas, fraude, auditoría.
+  * Admin Plataforma (platform.admin@campus.edu): Gobernanza, parámetros, webhooks.
+- Switcher Demo: Endpoint (/api/v1/auth/switch-demo-user) que conmuta la identidad 
+  activa al instante desde la barra de navegación del frontend.
+
+3.3 Catálogo de Recompensas y Canjes (Redemptions)
+-------------------------------------------------
+- Tipos de Recompensa: Artículos físicos (mochilas, termos) y digitales (bonos).
+- Reserva Concurrente de Stock en Dos Fases:
+  1. Al solicitar el canje: Se congelan puntos y el stock pasa a 'reserved_stock'.
+  2. Al validar presencialmente: El profesor marca como entregado y se descuenta stock.
+  3. Si se cancela antes de la entrega: Los puntos y el stock se reintegran solos.
+- Código Alfanumérico Seguro: Códigos únicos (ej. CANJE-A9X1K4) para canje en mostrador.
+
+3.4 Motor de Reglas, Campañas y Antifraude
+------------------------------------------
+- Reglas Dinámicas: Puntos multiplicadores por negocio, puntos fijos y vigencias.
+- Topes Diarios: Límites máximos de puntos por transacción y por día por comercio.
+- Banderas de Fraude (FraudFlag): Detección automática de anomalías y panel de dictamen.
+
+3.5 Auditoría Forense Transversal (AuditLog)
+-------------------------------------------
+- Registro inmutable con trazabilidad total: actor_id, actor_role, acción ejecutada, 
+  entidad afectada, dirección IP, User-Agent y estado antes y después (before/after).
+
+3.6 Frontend SPA (13 Interfaces Adaptativas en Vue 3)
+-----------------------------------------------------
+- Alumno: Dashboard, Catálogo interactivo con modal de canje, Mis Canjes con 
+  cupones digitales, Campañas activas y Extracto de Puntos.
+- Profesor: Terminal de validación de códigos de canje con entrega física, propuesta 
+  de campañas académicas y analítica docente.
+- Administrador: Tablero ejecutivo con KPIs, Libro Mayor (Ledger) con reconciliación 
+  en tiempo real, ABM de Recompensas, Comercios, Reglas de acumulación, Monitor de Fraude, 
+  Auditoría forense y Observabilidad de Webhooks.
+
+
+================================================================================
+4. ESTRATEGIA Y PREPARACIÓN PARA INTEGRACIONES INTER-EQUIPOS
+================================================================================
+
+4.1 Integración Principal: Equipo 3 (Marketplace y Ventas)
+---------------------------------------------------------
+El Equipo 3 administra la tienda universitaria, cafeterías y librerías. Cada compra 
+acumula puntos y cada devolución descuenta puntos de forma transaccional.
+
+A. Endpoint de Ingesta:
+   POST http://localhost:8000/api/v1/integrations/ingest-event
+
+B. Cabeceras Requeridas:
+   Content-Type: application/json
+   Accept: application/json
+   Authorization: Bearer <API_TOKEN_EQUIPO_3>
+   X-Campus-Signature: <HMAC_SHA256_HEX(payload, SHARED_SECRET)>
+
+C. Evento 1: Compra Completada (marketplace.purchase_completed)
+   Payload JSON:
+   {
+     "event_id": "evt_mp_20261014_982341",
+     "event_type": "marketplace.purchase_completed",
+     "occurred_at": "2026-10-14T18:30:00Z",
+     "student_id": "std_100234",
+     "payload": {
+       "order_id": "ORD-2026-90412",
+       "business_id": "biz-cafeteria-central",
+       "total_amount": 250.00,
+       "currency": "MXN",
+       "items_count": 3,
+       "points_to_award": 25
+     }
+   }
+
+   Respuesta Exitosa (HTTP 200 OK):
+   {
+     "success": true,
+     "status": "processed",
+     "event_id": "evt_mp_20261014_982341",
+     "transaction_id": "tx_670d8a12b9c34e0012f45a78",
+     "points_credited": 25,
+     "new_balance": 175
+   }
+
+D. Evento 2: Devolución o Reembolso (marketplace.refund_issued)
+   Payload JSON:
+   {
+     "event_id": "evt_mp_20261014_982342",
+     "event_type": "marketplace.refund_issued",
+     "occurred_at": "2026-10-14T19:00:00Z",
+     "student_id": "std_100234",
+     "payload": {
+       "original_order_id": "ORD-2026-90412",
+       "refund_amount": 250.00,
+       "points_to_deduct": 25,
+       "reason": "Devolución de artículo defectuoso"
+     }
+   }
+
+E. Idempotencia y Tolerancia a Fallos:
+   - Si se envía un event_id duplicado, el sistema responde status "already_processed" 
+     evitando doble acreditación.
+   - Observabilidad completa: Todos los webhooks entrantes se monitorean en 
+     /api/v1/integrations/logs con opción de reintento manual desde la interfaz de admin.
+
+4.2 Integración con Módulos Académicos y Escolares
+--------------------------------------------------
+- Eventos de mérito soportados: academic.course_approved, academic.merit_recognized, 
+  academic.library_returned_on_time.
+- Pantalla de Propuestas Docentes (ProfessorCampaigns.vue) para que profesores creen 
+  incentivos asociados a ferias de ciencias, certámenes o investigación.
+
+4.3 Integración con Identidad y Autenticación Central (SSO)
+----------------------------------------------------------
+- Compatibilidad para autenticar vía tokens institucionales o directorios universitarios 
+  (Google Workspace, Microsoft Entra ID).
+- Homologación del identificador de alumno (student_id / matrícula institucional).
+
+4.4 Integración con Notificaciones
+----------------------------------
+- Disparo de eventos de dominio internos: PointEarnedEvent (notificación push), 
+  RedemptionCreatedEvent (cupón por correo), RedemptionDeliveredEvent (confirmación).
+
+
+================================================================================
+5. MÉTRICAS DE CALIDAD Y PRUEBAS AUTOMATIZADAS
+================================================================================
+Comando de ejecución:
+  docker compose exec app php artisan test
+
+Resultados Obtenidos (100% Pasadas):
+- Tests\Feature\AuthApiTest:
+  ✓ login returns token and user profile
+  ✓ login rejects invalid password
+  ✓ me returns authenticated user
+  ✓ logout revokes token
+- Tests\Feature\PermissionsAndRolesApiTest:
+  ✓ student cannot access admin ledger
+  ✓ student cannot view another students balance
+  ✓ student cannot create earning rules
+  ✓ admin can access admin endpoints
+- Tests\Feature\RewardsAndRedemptionsApiTest:
+  ✓ full redemption lifecycle
+  ✓ redemption fails when insufficient points
+- Tests\Feature\Services\PointsLedgerServiceTest (20 Tests):
+  ✓ earn creates ledger entry and updates account balance
+  ✓ earn uses fixed points when set
+  ✓ earn applies rule multiplier
+  ✓ earn applies campaign multiplier when campaign id given
+  ✓ earn caps at max points per operation
+  ✓ earn throws when no active rule for business
+  ✓ earn throws when rule is outside its validity window
+  ✓ earn partially caps points when daily cap is almost reached
+  ✓ earn throws when daily cap is fully exhausted
+  ✓ earn is idempotent on retry with same key
+  ✓ earn writes an audit log entry
+  ✓ redeem debits balance when sufficient points
+  ✓ redeem throws when insufficient points
+  ✓ redeem is idempotent on retry with same key
+  ✓ reverse of earn with full balance available removes all points
+  ✓ reverse of earn already partially redeemed creates shortfall and fraud flag
+  ✓ reverse throws when original ledger entry not found
+  ✓ reverse is idempotent on retry with same key
+  ✓ get available balance sums directly from ledger
+  ✓ reconcile account fixes a cache that drifted from the ledger
+
+Resumen: 30 tests pasados, 81 aserciones, 0 fallos.
+Frontend: Compilación de producción 'npm run build' limpia con 0 errores.
+
+
+================================================================================
+6. GUIÓN Y ESTRUCTURA RECOMENDADA PARA LA PRESENTACIÓN (7 SLIDES)
+================================================================================
+
+SLIDE 1: Portada y Misión
+- Título: Campus Digital — Programa de Recompensas y Puntos (Equipo 7).
+- Subtítulo: Motor Contable Inmutable, Gamificación Universitaria e Integración.
+- Mensaje Central: Presentamos una solución integral de lealtad lista para producción, 
+  segura y conectada con los demás módulos universitarios.
+
+SLIDE 2: El Reto y la Arquitectura
+- El Problema: Gestionar una moneda universitaria sin riesgo de saldos negativos, 
+  dobles gastos o desincronización de bases de datos.
+- La Solución: Docker Compose con 4 servicios (Nginx, PHP 8.3 Laravel 13, MongoDB rs0 
+  con transacciones ACID, y Vue 3 SPA).
+
+SLIDE 3: Innovación Contable — El Ledger Inmutable
+- Explicar por qué no se usa un simple campo "puntos = puntos + 10".
+- Doble entrada contable (PointsLedgerService).
+- Idempotencia matemática que protege contra desconexiones de red.
+- Reconciliación contable en vivo.
+
+SLIDE 4: Seguridad, Roles y Gobernanza Antifraude
+- Control de acceso por roles (Estudiante, Profesor, Administrador, Plataforma).
+- Tokens Sanctum NoSQL adaptados a MongoDB.
+- Detección automática de anomalías y auditoría forense con IP y snapshots.
+
+SLIDE 5: Integración con el Equipo 3 (Marketplace)
+- Contrato de Webhook REST: POST /api/v1/integrations/ingest-event.
+- Firma criptográfica HMAC-SHA256 (X-Campus-Signature).
+- Acreditación de puntos en compras de cafetería y deducción en devoluciones.
+
+SLIDE 6: Demostración en Vivo (Live Demo)
+- Ejecución en vivo de los 3 roles en el navegador (http://localhost:5173).
+
+SLIDE 7: Conclusiones y Métricas
+- 30 de 30 tests automatizados pasando (100% verde).
+- Cero errores de compilación en Frontend.
+- Arquitectura lista para producción institucional.
+
+
+================================================================================
+7. GUÍA DE DEMOSTRACIÓN EN VIVO (LIVE DEMO SCRIPT)
+================================================================================
+
+Paso 1: Apertura
+1. Abrir navegador en http://localhost:5173.
+2. Destacar la interfaz moderna y reactiva y el selector de rol en la barra superior.
+
+Paso 2: Experiencia del Alumno (Canje)
+1. Seleccionar rol "Alumno" (alumno@campus.edu).
+2. Entrar al Catálogo de Recompensas y presionar "Canjear" en un artículo.
+3. Confirmar en el modal.
+4. Ir a "Mis Canjes" y mostrar el cupón generado con el código (ej. CANJE-XXXXXX).
+5. Copiar el código del cupón.
+
+Paso 3: Validación del Docente (Mostrador)
+1. En la barra superior, cambiar a rol "Profesor" (profesor@campus.edu).
+2. Entrar a "Validar Canje".
+3. Pegar el código del cupón y presionar "Buscar Cupón".
+4. Presionar "Marcar como Entregado".
+5. Explicar que en este instante el inventario físico se descontó en MongoDB.
+
+Paso 4: Auditoría del Administrador
+1. Cambiar a rol "Administrador" (admin@campus.edu).
+2. Ir a "Libro Mayor (Ledger)": mostrar la fila del canje registrado con su débito.
+3. Presionar "Reconciliar Cuenta" para mostrar el cálculo matemático en vivo.
+4. Ir a "Auditoría": mostrar el registro con IP y snapshot before/after.
+5. Ir a "Observabilidad / Webhooks": mostrar el monitor de eventos del Equipo 3.
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================
