@@ -2,9 +2,7 @@
 node_modules/
 vendor/
 .env
-.env
-node_modules/
-vendor/
+
 dist/
 *.log
 backend_respaldo/public/hot
