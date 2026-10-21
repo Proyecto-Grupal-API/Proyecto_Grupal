@@ -17,6 +17,12 @@ class Team4InitIndexes extends Command
 
         $specs = [
             [
+                'collection' => 'payment_events',
+                'keys'       => ['event_id' => 1],
+                'options'    => ['unique' => true, 'name' => 'uniq_payment_event_id'],
+                'label'      => 'payment_events (event_id) UNIQUE',
+            ],
+            [
                 'collection' => 'integration_idempotency',
                 'keys'       => ['service' => 1, 'idempotency_key' => 1],
                 'options'    => ['unique' => true, 'name' => 'uniq_service_idem'],
