@@ -24,7 +24,8 @@ class PurchasePaymentService
         string $bonusPublicId,
         string $idempotencyKey,
         ?string $businessId = null,
-        ?string $categoryId = null
+        ?string $categoryId = null,
+        ?array $marketplace = null
     ): array {
         if ($totalAmountCents <= 0) {
             throw new InvalidArgumentException(
@@ -39,7 +40,8 @@ class PurchasePaymentService
                 $bonusPublicId,
                 $idempotencyKey,
                 $businessId,
-                $categoryId
+                $categoryId,
+                $marketplace
             ): array {
                 $existingPayment = PurchasePayment::where(
                     'idempotency_key',
@@ -63,6 +65,7 @@ class PurchasePaymentService
                        );
                    }
 
+                   app(\App\Domains\Financial\Integrations\Team4\PurchasePaymentEvents::class)->paid($existingPayment, $marketplace, true);
                    return [
                        'total_amount_cents' =>
                            $existingPayment->total_amount_cents,
@@ -131,7 +134,7 @@ class PurchasePaymentService
                     );
                 }
 
-                PurchasePayment::create([
+                $payment = PurchasePayment::create([
                     'public_id' => (string) Str::uuid(),
                     'idempotency_key' => $idempotencyKey,
                     'wallet_id' => $wallet->public_id,
@@ -145,6 +148,7 @@ class PurchasePaymentService
                     'status' => 'COMPLETADO',
                 ]);
 
+                app(\App\Domains\Financial\Integrations\Team4\PurchasePaymentEvents::class)->paid($payment, $marketplace);
                 return [
                     'total_amount_cents' => $totalAmountCents,
                     'bonus_amount_cents' => $bonusAmountCents,
@@ -159,7 +163,8 @@ public function payWithMultipleBonuses(
     array $bonusPublicIds,
     string $idempotencyKey,
     ?string $businessId = null,
-    ?string $categoryId = null
+    ?string $categoryId = null,
+        ?array $marketplace = null
 ): array {
     if ($totalAmountCents <= 0) {
         throw new InvalidArgumentException(
@@ -189,7 +194,8 @@ public function payWithMultipleBonuses(
             $bonusPublicIds,
             $idempotencyKey,
             $businessId,
-            $categoryId
+            $categoryId,
+            $marketplace
         ): array {
             $existingPayment = PurchasePayment::where(
                 'idempotency_key',
@@ -238,6 +244,7 @@ public function payWithMultipleBonuses(
                     );
                 }
 
+                app(\App\Domains\Financial\Integrations\Team4\PurchasePaymentEvents::class)->paid($existingPayment, $marketplace, true);
                 return [
                     'consumptions' => $existingPayment
                         ->bonuses()
@@ -364,6 +371,7 @@ public function payWithMultipleBonuses(
                 );
             }
 
+            app(\App\Domains\Financial\Integrations\Team4\PurchasePaymentEvents::class)->paid($payment, $marketplace);
             return [
                 'consumptions' => $consumptions,
                 'wallet_amount_cents' =>

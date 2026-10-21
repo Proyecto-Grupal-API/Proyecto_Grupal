@@ -566,6 +566,7 @@ class PurchaseRefundService
             $requestTransaction->status = TransactionStatus::COMPLETADA;
             $requestTransaction->save();
 
+            app(\App\Domains\Financial\Integrations\Team4\PurchasePaymentEvents::class)->refunded($payment, $request);
             return $transaction;
         }
     );
