@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import Equipo4Layout from '../../Layouts/Equipo4Layout.vue'
 import Team4Module from '../../Components/Team4Module.vue'
@@ -19,9 +19,9 @@ const canUpdate = computed(() => can('productos.update'))
 const canDelete = computed(() => can('productos.delete'))
 const hasAnyAction = computed(() => canUpdate.value || canDelete.value)
 
-const columns = ['SKU', 'Producto', 'Categoría', 'Stock mín.', 'Stock máx.', 'Activo']
+const columns = ['SKU', 'Producto', 'Categoría', 'Stock mín.', 'Stock máx.', 'Activo', 'Detalles']
 
-function categoryLabel(slug) {
+const categoryLabel = (slug) => {
   const found = props.categories.find(c => c.slug === slug)
   return found ? found.name : slug
 }
@@ -35,7 +35,12 @@ const formattedProducts = computed(() => {
     'Categoría': categoryLabel(p.category),
     'Stock mín.': p.stock_min,
     'Stock máx.': p.stock_max,
-    Activo: p.active ? 'Sí' : 'No'
+    Activo: p.active ? 'Sí' : 'No',
+    Detalles: [
+      ...(p.sizes && p.sizes.length ? [`Tallas: ${p.sizes.join(', ')}`] : []),
+      ...(p.colors && p.colors.length ? [`Colores: ${p.colors.join(', ')}`] : []),
+      ...(p.seasons && p.seasons.length ? [`Temps: ${p.seasons.join(', ')}`] : [])
+    ].join(' | ') || 'N/A'
   }))
 })
 
@@ -51,7 +56,20 @@ const form = useForm({
   category: '',
   stock_min: 0,
   stock_max: 0,
-  active: true
+  active: true,
+  sizesString: '',
+  colorsString: '',
+  seasonsString: '',
+  sizes: [],
+  colors: [],
+  seasons: []
+})
+
+const selectedCategoryData = computed(() => {
+  return props.categories.find(c => c.slug === form.category) || {}
+})
+const requiresSouvenirs = computed(() => {
+  return selectedCategoryData.value.has_sizes || selectedCategoryData.value.has_colors || selectedCategoryData.value.has_seasons
 })
 
 const openCreateModal = () => {
@@ -59,7 +77,7 @@ const openCreateModal = () => {
   selectedProduct.value = null
   form.reset()
   form.clearErrors()
-  form.category = props.categories[0]?.slug || ''
+  form.category = localStorage.getItem('last_category') || props.categories[0]?.slug || ''
   showModal.value = true
 }
 
@@ -75,6 +93,15 @@ const openEditModal = (row) => {
   form.stock_min = row.stock_min
   form.stock_max = row.stock_max
   form.active = row.active
+  
+  // Cargar arrays a strings
+  form.sizesString = (row.sizes || []).join(', ')
+  form.sizes = row.sizes || []
+  form.colorsString = (row.colors || []).join(', ')
+  form.colors = row.colors || []
+  form.seasonsString = (row.seasons || []).join(', ')
+  form.seasons = row.seasons || []
+  
   showModal.value = true
 }
 
@@ -85,17 +112,28 @@ const confirmDelete = (row) => {
 }
 
 const submitForm = () => {
+  const categoryBackup = form.category
+  if (categoryBackup) localStorage.setItem('last_category', categoryBackup)
+
+  const options = {
+    preserveScroll: true,
+    onSuccess: () => {
+      showModal.value = false
+      form.reset()
+      localStorage.removeItem('last_category')
+    },
+    onError: (errors) => {
+      console.error('❌ ERROR DEL BACKEND:', errors)
+      alert('Error al guardar: ' + Object.values(errors).join(', '))
+      form.category = categoryBackup
+    }
+  }
+
   if (isEditing.value) {
     if (!selectedProduct.value || !selectedProduct.value._id) return
-    form.put(`/equipo4/productos/${selectedProduct.value._id}`, {
-      preserveScroll: true,
-      onSuccess: () => { showModal.value = false; form.reset() }
-    })
+    form.put(`/equipo4/productos/${selectedProduct.value._id}`, options)
   } else {
-    form.post('/equipo4/productos', {
-      preserveScroll: true,
-      onSuccess: () => { showModal.value = false; form.reset() }
-    })
+    form.post('/equipo4/productos', options)
   }
 }
 
@@ -121,29 +159,17 @@ const deleteProduct = () => {
       search-route="/equipo4/productos"
     >
       <template #toolbar>
-        <button
-          v-if="canCreate"
-          @click="openCreateModal"
-          class="inline-flex items-center px-4 py-2 text-sm font-semibold rounded-lg bg-[#00338D] text-white hover:bg-[#0284C7] transition"
-        >
+        <button v-if="canCreate" @click="openCreateModal" class="inline-flex items-center px-4 py-2 text-sm font-semibold rounded-lg bg-[#00338D] text-white hover:bg-[#0284C7] transition">
           + Nuevo Producto
         </button>
       </template>
 
       <template #actions="{ row }">
         <div v-if="hasAnyAction" class="flex items-center justify-end gap-2">
-          <button
-            v-if="canUpdate"
-            @click="openEditModal(row)"
-            class="px-3 py-1 text-xs font-medium rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition"
-          >
+          <button v-if="canUpdate" @click="openEditModal(row)" class="px-3 py-1 text-xs font-medium rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition">
             Editar
           </button>
-          <button
-            v-if="canDelete"
-            @click="confirmDelete(row)"
-            class="px-3 py-1 text-xs font-medium rounded bg-rose-600 text-white hover:bg-rose-700 transition"
-          >
+          <button v-if="canDelete" @click="confirmDelete(row)" class="px-3 py-1 text-xs font-medium rounded bg-rose-600 text-white hover:bg-rose-700 transition">
             Eliminar
           </button>
         </div>
@@ -153,7 +179,7 @@ const deleteProduct = () => {
 
     <!-- Modal Crear/Editar -->
     <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
-      <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg p-6 space-y-4">
+      <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
           <h2 class="text-lg font-bold text-[#00338D]">{{ isEditing ? 'Editar Producto' : 'Nuevo Producto' }}</h2>
           <button @click="showModal = false" class="text-slate-400 hover:text-slate-600 font-bold">&times;</button>
@@ -178,9 +204,9 @@ const deleteProduct = () => {
           </div>
           <div>
             <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Categoría</label>
-            <select v-model="form.category" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-[#0284C7] bg-white">
+            <select v-model="form.category" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-[#0284C7]" :class="{ 'border-red-500': form.errors.category }">
               <option value="" disabled>Selecciona una categoría</option>
-              <option v-for="cat in categories" :key="cat.slug" :value="cat.slug">{{ cat.name }}</option>
+              <option v-for="cat in categories" :key="cat.id" :value="cat.slug">{{ cat.name }}</option>
             </select>
             <p v-if="form.errors.category" class="mt-1 text-xs text-rose-600">{{ form.errors.category }}</p>
           </div>
@@ -198,6 +224,26 @@ const deleteProduct = () => {
             <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Descripción</label>
             <textarea v-model="form.description" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-[#0284C7]"></textarea>
           </div>
+
+          <!-- Detalles del Souvenir Condicionales -->
+          <div v-if="requiresSouvenirs" class="border-t border-slate-200 pt-4 mt-2">
+            <h4 class="text-xs font-semibold text-slate-600 mb-3 uppercase tracking-wide">Detalles del Souvenir (Opcional)</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div v-if="selectedCategoryData.has_sizes">
+                <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Tallas</label>
+                <input v-model="form.sizesString" @input="form.sizes = form.sizesString.split(',').map(s => s.trim()).filter(Boolean)" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-[#0284C7]" placeholder="Ej. S, M, L" />
+              </div>
+              <div v-if="selectedCategoryData.has_colors">
+                <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Colores</label>
+                <input v-model="form.colorsString" @input="form.colors = form.colorsString.split(',').map(s => s.trim()).filter(Boolean)" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-[#0284C7]" placeholder="Ej. Rojo, Azul" />
+              </div>
+              <div v-if="selectedCategoryData.has_seasons">
+                <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Temporadas</label>
+                <input v-model="form.seasonsString" @input="form.seasons = form.seasonsString.split(',').map(s => s.trim()).filter(Boolean)" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-[#0284C7]" placeholder="Ej. Verano 2026" />
+              </div>
+            </div>
+          </div>
+
           <div class="flex items-center gap-2">
             <input id="active" v-model="form.active" type="checkbox" class="rounded border-slate-300 text-[#00338D]" />
             <label for="active" class="text-sm text-slate-700">Producto Activo</label>
@@ -216,9 +262,7 @@ const deleteProduct = () => {
     <div v-if="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
       <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md p-6 space-y-4">
         <h3 class="text-lg font-bold text-slate-900">¿Eliminar producto?</h3>
-        <p class="text-sm text-slate-600">
-          Vas a eliminar <strong>{{ selectedProduct?.name }}</strong> ({{ selectedProduct?.sku }}).
-        </p>
+        <p class="text-sm text-slate-600">Vas a eliminar <strong>{{ selectedProduct?.name }}</strong> ({{ selectedProduct?.sku }}).</p>
         <div class="flex justify-end gap-2 pt-2">
           <button @click="showDeleteModal = false" class="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition">Cancelar</button>
           <button @click="deleteProduct" class="px-4 py-2 text-sm font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition">Eliminar</button>

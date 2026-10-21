@@ -38,7 +38,10 @@ class CategoryController extends Controller
         $data = $request->validate([
             'name'        => 'required|string|max:80',
             'description' => 'nullable|string|max:255',
-            'active'      => 'boolean',
+            'active' => 'boolean',
+            'has_sizes' => 'boolean',
+            'has_colors' => 'boolean',
+            'has_seasons' => 'boolean',
         ]);
 
         $data['business_id'] = $this->businessId;
@@ -60,7 +63,10 @@ class CategoryController extends Controller
         $data = $request->validate([
             'name'        => 'required|string|max:80',
             'description' => 'nullable|string|max:255',
-            'active'      => 'boolean',
+            'active' => 'boolean',
+            'has_sizes' => 'boolean',
+            'has_colors' => 'boolean',
+            'has_seasons' => 'boolean',
         ]);
 
         $data['slug'] = Str::slug($data['name']);

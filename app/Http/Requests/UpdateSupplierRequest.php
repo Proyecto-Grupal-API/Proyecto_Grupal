@@ -34,6 +34,8 @@ class UpdateSupplierRequest extends FormRequest
             'payment_terms' => 'required|string|in:CONTADO,15_DIAS,30_DIAS,60_DIAS',
             'notes' => 'nullable|string|max:1000',
             'status' => 'required|string|in:ACTIVO,INACTIVO,SUSPENDIDO',
+            'supplied_products' => 'nullable|array',
+            'contacts' => 'nullable|array',
         ];
     }
 }

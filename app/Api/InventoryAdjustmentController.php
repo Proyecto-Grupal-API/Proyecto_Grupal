@@ -77,7 +77,7 @@ class InventoryAdjustmentController extends Controller
                 'product_id'=>(string)$v['product_id'], 'variant_id'=>$v['variant_id'] ?? null,
                 'location_id'=>(string)$v['location_id'], 'type'=>'ADJUSTMENT',
                 'quantity'=>$actualDelta, 'reason'=>$v['reason'],
-                'actor_id'=>$v['actor_id'] ?? 'API', 'correlation_id'=>(string) Str::uuid(),
+                'actor_id'=>$v['actor_id'] ?? auth()->id() ?? 'system', 'correlation_id'=>(string) Str::uuid(),
                 'created_at'=>new \MongoDB\BSON\UTCDateTime(now()),
             ]);
         } catch (\Throwable $e) {

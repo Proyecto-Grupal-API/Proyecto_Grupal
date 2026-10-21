@@ -11,7 +11,10 @@ const q = ref('')
 const open = ref(false)
 const editing = ref(null)
 
-const form = useForm({ name: '', description: '', active: true })
+const form = useForm({
+    has_sizes: false,
+    has_colors: false,
+    has_seasons: false, name: '', description: '', active: true })
 
 const filtered = computed(() =>
   props.categories.filter(c => c.name.toLowerCase().includes(q.value.toLowerCase()))

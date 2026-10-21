@@ -1,60 +1,74 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { useForm } from '@inertiajs/vue3'
+import { useForm, router } from '@inertiajs/vue3'
 import Equipo4Layout from '../../Layouts/Equipo4Layout.vue'
 import Team4Module from '../../Components/Team4Module.vue'
 import { usePermissions } from '@/Composables/usePermissions'
 
 const props = defineProps({
-  products: { type: Array, default: () => [] },
+  activeCosts: { type: Array, default: () => [] },
+  orphanCosts: { type: Array, default: () => [] },
   productsList: { type: Array, default: () => [] },
   kpis: { type: Array, default: () => [] },
-  pagination: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) }
 })
 
 const { can } = usePermissions()
 const canRegister = computed(() => can('costos.register'))
 
-const columns = ['SKU', 'Producto', 'Último costo', 'Costo promedio', 'Precio sugerido', 'Margen', 'Acciones']
-
-const formattedProducts = computed(() => {
-  return props.products.map(p => ({
-    ...p,
-    _id: String(p._id || ''),
-    'SKU': p.sku,
-    'Producto': p.name,
-    'Último costo': p.last_cost !== null ? '$' + Number(p.last_cost).toFixed(2) : '—',
-    'Costo promedio': p.average_cost !== null ? '$' + Number(p.average_cost).toFixed(2) : '—',
-    'Precio sugerido': p.suggested_price !== null && p.suggested_price > 0 ? '$' + Number(p.suggested_price).toFixed(2) : '—',
-    'Margen': p.suggested_margin ? p.suggested_margin + '%' : '—'
-  }))
-})
-
+const activeTab = ref('active')
 const showCostModal = ref(false)
 const showHistoryModal = ref(false)
 const selectedProduct = ref(null)
 const historyItems = ref([])
 const loadingHistory = ref(false)
 
-const costForm = useForm({
-  product_id: '', cost: 0, source: 'MANUAL', reference: '', notes: '', suggested_price: null
+// La tabla cambia según la pestaña activa
+const currentData = computed(() => activeTab.value === 'active' ? props.activeCosts : props.orphanCosts)
+
+// Columnas dinámicas (sin columnas extra que no sirven para huérfanos)
+const columns = computed(() => {
+  if (activeTab.value === 'active') {
+    return ['SKU', 'Producto', 'Estado', 'Último costo', 'Acciones']
+  }
+  return ['SKU', 'Producto', 'Estado', 'Último costo', 'Acciones']
 })
 
-const openCostModal = (row) => {
+const formattedData = computed(() => {
+  return currentData.value.map(p => ({
+    ...p,
+    _id: String(p._id || ''),
+    SKU: p.sku || '—',
+    Producto: p.product_name || p.name || 'Producto Eliminado',
+    Estado: p.product_status === 'active' ? 'Activo' : (p.product_status === 'inactive' ? 'Inactivo' : 'No existe'),
+    'Último costo': p.last_cost !== null && p.last_cost !== undefined ? '$' + Number(p.last_cost).toFixed(2) : '—',
+  }))
+})
+
+const costForm = useForm({
+  sku: '', cost: 0, source: 'MANUAL', reference: '', notes: '', suggested_price: null
+})
+
+const openCostModal = (row = null) => {
   if (!canRegister.value) return
-  selectedProduct.value = row
   costForm.reset()
   costForm.clearErrors()
-  costForm.product_id = row._id
+  
+  if (row && row._id) {
+    selectedProduct.value = row
+    costForm.sku = row.SKU || row.sku || ''
+  } else {
+    selectedProduct.value = null
+    costForm.sku = ''
+  }
   showCostModal.value = true
 }
 
 const submitCost = () => {
   costForm.post('/equipo4/costos', {
     preserveScroll: true,
-    onFinish: () => { if (!Object.keys(costForm.errors).length) { showCostModal.value = false; costForm.reset() } }, onError: (errs) => { console.error("[MODAL ERROR]", errs); window.scrollTo({top:0,behavior:"smooth"}) },
-    onError: (e) => { console.error('Costos error:', e); alert('No se pudo registrar: ' + JSON.stringify(e)) }
+    onSuccess: () => { showCostModal.value = false; costForm.reset(); selectedProduct.value = null; },
+    onError: (errs) => { console.error("[ERROR]", errs); alert('Error: ' + Object.values(errs).join(', ')) }
   })
 }
 
@@ -78,34 +92,70 @@ const openHistory = async (row) => {
       title="Costos y precios de referencia"
       subtitle="Historial de costos, costo promedio y márgenes sugeridos"
       :columns="columns"
-      :rows="formattedProducts"
+      :rows="formattedData"
       :kpis="kpis"
-      :pagination="pagination"
       :filters="filters"
       search-route="/equipo4/costos"
     >
+      <!-- Pestañas dentro del toolbar -->
+      <template #toolbar>
+        <div class="flex items-center gap-2">
+          <div class="flex bg-slate-100 p-1 rounded-lg mr-4">
+            <button 
+              @click="activeTab = 'active'" 
+              :class="['px-4 py-1.5 text-sm font-semibold rounded-md transition', activeTab === 'active' ? 'bg-white shadow-sm text-[#00338D]' : 'text-slate-500 hover:text-slate-700']"
+            >
+              Productos Activos
+            </button>
+            <button 
+              @click="activeTab = 'orphans'" 
+              :class="['px-4 py-1.5 text-sm font-semibold rounded-md transition flex items-center gap-2', activeTab === 'orphans' ? 'bg-white shadow-sm text-[#00338D]' : 'text-slate-500 hover:text-slate-700']"
+            >
+              Productos Eliminados
+              
+            </button>
+          </div>
+          
+          <button v-if="canRegister" @click="openCostModal()" class="inline-flex items-center px-4 py-2 text-sm font-semibold rounded-lg bg-[#00338D] text-white hover:bg-[#0284C7] transition">
+            + Nuevo Costo
+          </button>
+        </div>
+      </template>
+
+      <!-- Acciones por fila -->
       <template #actions="{ row }">
         <div class="flex items-center justify-end gap-2">
-          <button v-if="canRegister" @click="openCostModal(row)" class="px-3 py-1 text-xs font-medium rounded bg-[#00338D] text-white hover:bg-[#0284C7] transition">+ Costo</button>
-          <button @click="openHistory(row)" class="px-3 py-1 text-xs font-medium rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition">Historial</button>
+          <!-- El botón de '+ Costo' SOLO se muestra si estamos en la pestaña de activos -->
+          <button v-if="canRegister && activeTab === 'active'" @click="openCostModal(row)" class="px-3 py-1 text-xs font-medium rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition">
+            + Costo
+          </button>
+          <button @click="openHistory(row)" class="px-3 py-1 text-xs font-medium rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition">
+            Historial
+          </button>
         </div>
       </template>
     </Team4Module>
 
+    <!-- Modal Crear Costo -->
     <div v-if="showCostModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
       <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg p-6 space-y-4 my-8">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
           <h2 class="text-lg font-bold text-[#00338D]">Registrar costo</h2>
           <button @click="showCostModal = false" class="text-slate-400 hover:text-slate-600 font-bold">&times;</button>
         </div>
-        <div v-if="Object.keys(costForm.errors).length > 0" class="rounded-lg bg-rose-50 border border-rose-200 p-3">
+        
+        <div v-if="activeTab === 'active' && Object.keys(costForm.errors).length > 0" class="rounded-lg bg-rose-50 border border-rose-200 p-3">
           <ul class="text-xs text-rose-700 list-disc pl-4 space-y-0.5">
             <li v-for="(err, field) in costForm.errors" :key="field">{{ err }}</li>
           </ul>
         </div>
+
         <div class="bg-slate-50 rounded-lg p-3 text-sm text-slate-600">
-          <p><strong>{{ selectedProduct?.SKU }}</strong> — {{ selectedProduct?.Producto }}</p>
+          <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">SKU del producto *</label>
+          <input v-model="costForm.sku" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300" placeholder="Ej. SOUV-TAZA-001" :disabled="!!selectedProduct" />
+          <p v-if="costForm.errors.sku" class="mt-1 text-xs text-rose-600">{{ costForm.errors.sku }}</p>
         </div>
+
         <form @submit.prevent="submitCost" class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
@@ -143,6 +193,7 @@ const openHistory = async (row) => {
       </div>
     </div>
 
+    <!-- Modal Historial -->
     <div v-if="showHistoryModal" class="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
       <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-2xl p-6 space-y-4 my-8">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">

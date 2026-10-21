@@ -1,4 +1,5 @@
 <script setup>
+import Toast from '@/Components/Toast.vue';
 import { usePage } from '@inertiajs/vue3'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { usePermissions } from '@/Composables/usePermissions'
@@ -167,6 +168,7 @@ function iconPath(href) { return icons[iconByHref[href] || 'cube'] }
 </script>
 
 <template>
+    <Toast />
   <div class="min-h-screen bg-[#F4F7FB] text-slate-800 antialiased">
     <!-- Sidebar -->
     <aside class="hidden lg:flex fixed inset-y-0 left-0 z-40 w-[252px] flex-col bg-[#102F82] text-white">

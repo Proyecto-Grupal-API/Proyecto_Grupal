@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreSupplierRequest;
 use App\Http\Requests\UpdateSupplierRequest;
 use App\Models\Supplier;
+use App\Models\Product;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\RedirectResponse;
@@ -12,12 +13,12 @@ use Illuminate\Http\Request;
 
 class SupplierController extends Controller
 {
+    protected string $businessId;
 
     public function __construct()
     {
         $this->businessId = (string) config('team4.business_id', 'BUS-CD-SOUV-001');
     }
-    protected string $businessId;
 
     public function index(Request $request): Response
     {
@@ -51,6 +52,7 @@ class SupplierController extends Controller
                 'payment_terms' => (string) $s->payment_terms,
                 'notes' => (string) ($s->notes ?? ''),
                 'status' => (string) $s->status,
+                'supplied_products' => (array) ($s->supplied_products ?? []),
             ];
         })->values()->all();
 
@@ -68,8 +70,20 @@ class SupplierController extends Controller
             ['label' => 'Suspendidos', 'value' => $suspendidos, 'color' => $suspendidos > 0 ? 'warning' : 'default'],
         ];
 
+        // Lista de todos los productos para el selector
+        $allProducts = Product::where('business_id', $this->businessId)
+            ->orderBy('name')
+            ->get()
+            ->map(fn($p) => [
+                '_id' => (string)$p->_id,
+                'sku' => (string)$p->sku,
+                'name' => (string)$p->name,
+            ])
+            ->values()->all();
+
         return Inertia::render('Equipo4/Proveedores', [
             'suppliers' => $suppliersData,
+            'allProducts' => $allProducts,
             'kpis' => $kpis,
             'pagination' => [
                 'current_page' => $suppliers->currentPage(),

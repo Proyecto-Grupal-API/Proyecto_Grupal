@@ -274,3 +274,9 @@ Route::prefix('api/v1/inventory')->middleware([
     Route::post(           '/reservations/{id}/confirm', [\App\Api\Team7ApiController::class, 'confirm']);
     Route::post(           '/reservations/{id}/release', [\App\Api\Team7ApiController::class, 'release']);
 });
+
+// Alias para compatibilidad con testers
+Route::middleware(['team4.signature'])->prefix('api/equipo4/inventario')->group(function () {
+    Route::get('/availability', [\App\Api\Team7ApiController::class, 'availability']);
+    Route::get('/reservations/{id}', [\App\Api\Team7ApiController::class, 'show']);
+});

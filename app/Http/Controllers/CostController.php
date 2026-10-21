@@ -35,89 +35,91 @@ class CostController extends Controller
         } catch (\Throwable $e) { return null; }
     }
 
-    public function index(Request $request): Response
+        public function index(Request $request): Response
     {
         $q = trim((string) $request->query('q', ''));
         $perPage = 25;
 
-        $productQuery = Product::where('business_id', $this->businessId);
-        if ($q !== '') {
-            $regex = '/' . preg_quote($q, '/') . '/i';
-            $productQuery->where(function ($sub) use ($regex) {
-                $sub->where('sku', 'regex', $regex)->orWhere('name', 'regex', $regex);
-            });
-        }
-
-        $products = $productQuery->orderBy('name', 'asc')->paginate($perPage);
-
-        $refsMap = [];
-        $allRefs = PricingReference::where('business_id', $this->businessId)->get();
-        foreach ($allRefs as $ref) {
-            $attrs = $ref->getAttributes();
-            $refsMap[(string) ($attrs['product_id'] ?? '')] = $attrs;
-        }
-
-        $data = collect($products->items())->map(function ($p) use ($refsMap) {
-            $pid = (string) $p->_id;
-            $ref = $refsMap[$pid] ?? null;
-            return [
-                '_id' => $pid,
-                'sku' => (string) $p->sku,
+        // 1. Traer todos los productos actuales
+        $products = Product::where('business_id', $this->businessId)->get();
+        $activeProductsMap = [];
+        foreach ($products as $p) {
+            $activeProductsMap[(string) $p->sku] = [
+                'id' => (string) $p->_id,
                 'name' => (string) $p->name,
                 'category' => (string) $p->category,
-                'last_cost' => $ref ? (float) ($ref['last_cost'] ?? 0) : null,
-                'average_cost' => $ref ? (float) ($ref['average_cost'] ?? 0) : null,
-                'suggested_margin' => $ref ? (float) ($ref['suggested_margin'] ?? 0) : null,
-                'suggested_price' => $ref && isset($ref['suggested_price']) ? (float) $ref['suggested_price'] : null,
-                'has_costs' => $ref !== null,
+                'status' => $p->active ? 'active' : 'inactive',
+                'exists' => true,
             ];
-        })->values()->all();
-
-        $productsList = Product::where('business_id', $this->businessId)
-            ->where('active', true)
-            ->orderBy('name', 'asc')
-            ->get()
-            ->map(fn($p) => ['_id' => (string) $p->_id, 'sku' => (string) $p->sku, 'name' => (string) $p->name])
-            ->values()->all();
-
-        // KPIs
-        $productsColl = DB::connection('mongodb')->getCollection('products');
-        $refsColl = DB::connection('mongodb')->getCollection('pricing_references');
-
-        $totalProducts = $productsColl->countDocuments(['business_id' => $this->businessId]);
-        $withCost = $refsColl->countDocuments(['business_id' => $this->businessId]);
-        $withoutCost = max(0, $totalProducts - $withCost);
-
-        // Promedio de costos
-        $agg = $refsColl->aggregate([
-            ['$match' => ['business_id' => $this->businessId]],
-            ['$group' => ['_id' => null, 'avg_cost' => ['$avg' => '$last_cost']]],
-        ])->toArray();
-        $avgCost = 0;
-        if (!empty($agg)) {
-            $a = (array) $agg[0];
-            $avgCost = round((float) ($a['avg_cost'] ?? 0), 2);
         }
 
+        // 2. Traer el último costo de cada SKU desde cost_histories
+        $collection = DB::connection('mongodb')->getCollection('cost_histories');
+        $pipeline = [
+            ['$match' => ['business_id' => $this->businessId]],
+            ['$sort' => ['effective_at' => -1]],
+            ['$group' => [
+                '_id' => '$sku',
+                'last_cost' => ['$first' => '$cost'],
+                'product_id' => ['$first' => '$product_id'],
+                'sku' => ['$first' => '$sku'],
+                'product_exists' => ['$first' => '$product_exists'],
+                'product_status' => ['$first' => '$product_status'],
+            ]],
+        ];
+
+        if ($q !== '') {
+            $pipeline[] = ['$match' => ['sku' => ['$regex' => $q, '$options' => 'i']]];
+        }
+
+        $costs = $collection->aggregate($pipeline)->toArray();
+
+        $activeCosts = [];
+        $orphanCosts = [];
+
+        foreach ($costs as $cost) {
+            $cost = (array) $cost;
+            $sku = (string) $cost['sku'];
+            
+            $productInfo = $activeProductsMap[$sku] ?? null;
+
+            $item = [
+                '_id' => (string) ($cost['product_id'] ?? $cost['_id']),
+                'sku' => $sku,
+                'name' => $productInfo ? $productInfo['name'] : 'Producto Eliminado',
+                'category' => $productInfo ? $productInfo['category'] : '',
+                'last_cost' => (float) ($cost['last_cost'] ?? 0),
+                'product_status' => $productInfo ? $productInfo['status'] : 'deleted',
+                'product_exists' => $productInfo ? true : false,
+            ];
+
+            if ($productInfo) {
+                $activeCosts[] = $item;
+            } else {
+                $orphanCosts[] = $item;
+            }
+        }
+
+        // Ordenar por costo (o por nombre)
+        usort($activeCosts, fn($a, $b) => strcmp($a['name'], $b['name']));
+        usort($orphanCosts, fn($a, $b) => strcmp($a['sku'], $b['sku']));
+
+        // KPIs
+        $totalProducts = count($activeProductsMap);
+        $totalWithCost = count($activeCosts) + count($orphanCosts);
+        $orphansCount = count($orphanCosts);
+
         $kpis = [
-            ['label' => 'Productos con costo', 'value' => $withCost, 'color' => 'success'],
-            ['label' => 'Sin costo registrado', 'value' => $withoutCost, 'color' => $withoutCost > 0 ? 'warning' : 'default'],
-            ['label' => 'Costo promedio global', 'value' => '$' . number_format($avgCost, 2)],
-            ['label' => 'Total productos', 'value' => $totalProducts],
+            ['label' => 'Productos activos', 'value' => $totalProducts, 'color' => 'success'],
+            ['label' => 'Con costo registrado', 'value' => count($activeCosts), 'color' => 'default'],
+            ['label' => 'Historiales huérfanos', 'value' => $orphansCount, 'color' => $orphansCount > 0 ? 'warning' : 'default'],
         ];
 
         return Inertia::render('Equipo4/Costos', [
-            'products' => $data,
-            'productsList' => $productsList,
+            'activeCosts' => $activeCosts,
+            'orphanCosts' => $orphanCosts,
+            'productsList' => $products->map(fn($p) => ['_id' => (string)$p->_id, 'sku' => (string)$p->sku, 'name' => (string)$p->name])->values()->all(),
             'kpis' => $kpis,
-            'pagination' => [
-                'current_page' => $products->currentPage(),
-                'last_page' => $products->lastPage(),
-                'per_page' => $products->perPage(),
-                'total' => $products->total(),
-                'from' => $products->firstItem() ?? 0,
-                'to' => $products->lastItem() ?? 0,
-            ],
             'filters' => ['q' => $q],
         ]);
     }
@@ -125,7 +127,7 @@ class CostController extends Controller
     public function store(Request $request, CostService $costService): RedirectResponse
     {
         $validated = $request->validate([
-            'product_id' => 'required|string',
+            'sku' => 'required|string',
             'cost' => 'required|numeric|min:0|max:1000000',
             'source' => 'nullable|string|in:MANUAL,PURCHASE_ORDER,RECEIPT',
             'reference' => 'nullable|string|max:100',
@@ -134,8 +136,19 @@ class CostController extends Controller
         ]);
 
         try {
+            $product = Product::where('business_id', $this->businessId)
+                ->where('sku', $validated['sku'])
+                ->first();
+
+            $productExists = !is_null($product);
+            $productStatus = $product ? ($product->active ? 'active' : 'inactive') : 'deleted';
+            $productId = $product ? (string) $product->_id : null;
+
             $costService->register([
-                'product_id' => $validated['product_id'],
+                'product_id' => $productId,
+                'sku' => $validated['sku'],
+                'product_exists' => $productExists,
+                'product_status' => $productStatus,
                 'cost' => (float) $validated['cost'],
                 'source' => $validated['source'] ?? 'MANUAL',
                 'reference' => $validated['reference'] ?? '',

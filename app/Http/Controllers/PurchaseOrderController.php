@@ -83,10 +83,17 @@ class PurchaseOrderController extends Controller
             ];
         }
 
-        // Dropdowns
+                // Dropdowns
         $suppliersList = [];
-        foreach ($suppliersMap as $sid => $name) {
-            $suppliersList[] = ['_id' => $sid, 'legal_name' => $name, 'code' => ''];
+        $suppliersCollection = DB::connection('mongodb')->getCollection('suppliers');
+        foreach ($suppliersCollection->find(['business_id' => $this->businessId]) as $s) {
+            $doc = (array) $s;
+            $suppliersList[] = [
+                '_id' => (string) ($doc['_id'] ?? ''),
+                'legal_name' => (string) ($doc['legal_name'] ?? 'Desconocido'),
+                'code' => (string) ($doc['code'] ?? ''),
+                'supplied_products' => (array) ($doc['supplied_products'] ?? []),
+            ];
         }
 
         $productsList = [];

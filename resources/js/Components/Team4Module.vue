@@ -113,7 +113,24 @@ const visiblePages = computed(() => {
           </thead>
           <tbody>
             <tr v-for="(r, i) in rows" :key="r._id || i" class="border-b border-slate-100 last:border-0 hover:bg-slate-50/70 transition">
-              <td v-for="c in columns" :key="c" class="px-4 py-3 text-slate-700">{{ r[c] ?? '—' }}</td>
+              <td v-for="c in columns" :key="c" class="px-4 py-3 text-slate-700">
+                <template v-if="Array.isArray(r[c])">
+                  <details class="relative">
+                    <summary class="cursor-pointer text-xs font-semibold text-[#0284C7] hover:underline list-none">
+                      Ver ({{ r[c].length }})
+                    </summary>
+                    <ul class="absolute z-20 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl p-2 text-xs max-h-40 overflow-y-auto w-56 text-left">
+                      <li v-for="(item, idx) in r[c]" :key="idx" class="py-0.5 border-b border-slate-100 last:border-0">
+                        {{ item }}
+                      </li>
+                      <li v-if="r[c].length === 0" class="text-slate-400 italic">Sin productos</li>
+                    </ul>
+                  </details>
+                </template>
+                <template v-else>
+                  {{ r[c] ?? '—' }}
+                </template>
+              </td>
               <td v-if="$slots.actions" class="px-4 py-3 text-right whitespace-nowrap">
                 <slot name="actions" :row="r" :index="i" />
               </td>

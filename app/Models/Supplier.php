@@ -16,5 +16,7 @@ class Supplier extends Team4Document
         'payment_terms',
         'notes',
         'status',
+        'supplied_products',
+        'contacts',
     ];
 }

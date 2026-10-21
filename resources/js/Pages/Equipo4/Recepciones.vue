@@ -36,7 +36,11 @@ const selectedOrderId = ref('')
 const orderDetails = ref(null)
 const receiptQuantities = ref({})
 
-const form = useForm({ purchase_order_id: '', notes: '', items: [] })
+const form = useForm({
+    lotsString: '',
+    evidenceString: '',
+    lots: [],
+    evidence: [], purchase_order_id: '', notes: '', items: [] })
 
 const openCreateModal = async () => {
   if (!canCreate.value) return

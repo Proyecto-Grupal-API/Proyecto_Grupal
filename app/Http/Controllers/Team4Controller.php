@@ -92,7 +92,15 @@ class Team4Controller extends Controller
                 'status' => ['$in' => ['BORRADOR', 'SOLICITADA', 'AUTORIZADA']],
             ]),
             'suppliers_active' => $suppliers->countDocuments(['business_id' => $bid, 'status' => 'ACTIVO']),
-            'movements_week' => $movements->countDocuments([
+            'movements_today' => $movements->countDocuments([
+                'business_id' => $bid,
+                'created_at' => ['$gte' => new \MongoDB\BSON\UTCDateTime(strtotime('today') * 1000)],
+            ]),
+            'movements_today' => $movements->countDocuments([
+            'business_id' => $bid,
+            'created_at' => ['$gte' => date('Y-m-d')],
+        ]),
+        'movements_week' => $movements->countDocuments([
                 'business_id' => $bid,
                 'created_at' => ['$gte' => $weekAgo],
             ]),

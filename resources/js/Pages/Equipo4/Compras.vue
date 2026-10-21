@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import Equipo4Layout from '../../Layouts/Equipo4Layout.vue'
 import Team4Module from '../../Components/Team4Module.vue'
@@ -16,6 +16,21 @@ const props = defineProps({
 })
 
 const { can } = usePermissions()
+
+// Computed para filtrar productos según el proveedor seleccionado
+const availableProducts = computed(() => {
+  if (!form.supplier_id) return props.productsList
+  
+  const selectedSupplier = props.suppliersList.find(s => s._id === form.supplier_id)
+  if (!selectedSupplier || !selectedSupplier.supplied_products || selectedSupplier.supplied_products.length === 0) {
+    // Si el proveedor no tiene productos asignados, mostramos todos
+    return props.productsList
+  }
+  
+  // Filtrar productos que coincidan con los SKUs surtidos
+  const suppliedSkus = selectedSupplier.supplied_products
+  return props.productsList.filter(p => suppliedSkus.includes(p.sku))
+})
 const canCreate = computed(() => can('compras.create'))
 const canUpdate = computed(() => can('compras.update'))
 const canAuthorize = computed(() => can('compras.authorize'))
@@ -43,6 +58,17 @@ const formattedOrders = computed(() => {
 })
 
 const showModal = ref(false)
+
+// Watch para limpiar productos si el proveedor cambia
+watch(() => form.supplier_id, () => {
+  // Si el proveedor cambia, limpiamos los productos seleccionados que ya no estén disponibles
+  const currentAvailable = availableProducts.value.map(p => p._id)
+  form.items.forEach(item => {
+    if (!currentAvailable.includes(item.product_id)) {
+      item.product_id = ''
+    }
+  })
+})
 const isEditing = ref(false)
 const selectedOrder = ref(null)
 const loadingDetails = ref(false)
@@ -223,7 +249,7 @@ const toggleHistory = () => {
                     <td class="px-3 py-2">
                       <select v-model="item.product_id" class="w-full px-2 py-1 text-xs rounded border border-slate-300 bg-white">
                         <option value="" disabled>Producto</option>
-                        <option v-for="p in productsList" :key="p._id" :value="p._id">{{ p.sku }} - {{ p.name }}</option>
+                        <option v-for="p in availableProducts" :key="p._id" :value="p._id">{{ p.sku }} - {{ p.name }}</option>
                       </select>
                     </td>
                     <td class="px-3 py-2"><input v-model.number="item.quantity" type="number" min="1" class="w-full px-2 py-1 text-xs rounded border border-slate-300" /></td>

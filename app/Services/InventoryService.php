@@ -72,7 +72,7 @@ class InventoryService
                 ],
                 '$set' => [
                     'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                    'status' => $qty > 0 ? 'AVAILABLE' : 'OUT_OF_STOCK',
+                    'status' => ((int) ($updatedArray['available'] ?? 0)) > 0 ? 'AVAILABLE' : 'OUT_OF_STOCK',
                 ],
                 '$setOnInsert' => [
                     'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
