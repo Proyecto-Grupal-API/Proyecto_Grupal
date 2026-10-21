@@ -12,8 +12,4 @@ return [
     'key' => env('APP_KEY'),
     'cipher' => 'AES-256-CBC',
     'maintenance' => ['driver' => 'file'],
-    'providers' => [
-        App\Providers\AppServiceProvider::class,
-        App\Providers\FortifyServiceProvider::class,
-    ],
 ];

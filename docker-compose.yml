@@ -17,7 +17,21 @@ services:
       MONGODB_DATABASE: campus_digital
     depends_on:
       - mongodb
-    command: sh -c "composer install && npm install && npm run build && php artisan serve --host=0.0.0.0 --port=8000"
+    command: >
+      sh -c "
+      echo '>> Preparando .env...' &&
+      [ -f .env ] || cp .env.example .env &&
+      echo '>> Limpiando cachés viejas de Laravel (packages.php/services.php pueden venir desincronizadas del zip)...' &&
+      rm -f bootstrap/cache/packages.php bootstrap/cache/services.php bootstrap/cache/config.php &&
+      echo '>> Instalando dependencias PHP...' &&
+      (composer install --no-interaction || (echo '>> Lock incompatible con este entorno, regenerando con composer update...' && rm -f composer.lock && composer update --no-interaction)) &&
+      if ! grep -qE '^APP_KEY=.+$' .env; then echo '>> Generando APP_KEY...' && php artisan key:generate --ansi --force; fi &&
+      echo '>> Instalando dependencias JS...' &&
+      npm install &&
+      npm run build &&
+      echo '>> Arrancando servidor...' &&
+      php artisan serve --host=0.0.0.0 --port=8000
+      "
 
   mongodb:
     image: mongo:7

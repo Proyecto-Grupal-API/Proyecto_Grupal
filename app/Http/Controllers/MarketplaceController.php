@@ -7,6 +7,7 @@ use App\Models\Cart;
 use App\Models\Order;
 use App\Models\PaymentIntent;
 use App\Models\Product;
+use App\Models\ReturnRequest;
 use App\Services\Integrations\Team2PaymentGateway;
 use App\Services\Integrations\Team4InventoryGateway;
 use App\Services\Integrations\Team7RewardsGateway;
@@ -22,7 +23,7 @@ class MarketplaceController extends Controller
         $businesses = Business::where('status', 'approved')->where('visibility', 'public')
             ->whereIn('_id', $publishedBusinessIds)->limit(12)->get();
 
-        $publicBusinessIds = Business::where('status','approved')->where('visibility','public')->whereIn('_id', $publishedBusinessIds)->pluck('_id')->map(fn($id)=>(string)$id)->all();
+        $publicBusinessIds = Business::where('status','approved')->where('visibility','public')->whereIn('_id', $publishedBusinessIds)->get()->map(fn($m) => (string) $m->getKey())->all();
         $products = Product::where('active', true)->where('available', true)->whereIn('business_id', $publicBusinessIds)
             ->limit(24)->get();
 
@@ -30,7 +31,10 @@ class MarketplaceController extends Controller
             'businesses' => Business::where('status', 'approved')->count(),
             'products' => Product::where('active', true)->count(),
             'orders' => Order::count(),
-            'sales' => (float) Order::where('payment_status', 'paid')->sum('total'),
+            // MongoDB devuelve sum() sobre un campo decimal como un objeto
+            // MongoDB\BSON\Decimal128, que (float) no sabe convertir directo;
+            // pasarlo primero por (string) sí usa su conversión correcta.
+            'sales' => (float) (string) Order::where('payment_status', 'paid')->sum('total'),
         ];
         $cart = Cart::where('user_id', (string) $request->user()->getKey())->first();
         $cartBusiness = null;
@@ -54,12 +58,12 @@ class MarketplaceController extends Controller
         $userId = (string) $request->user()->getKey();
         $query = Business::query();
         if ((string)($request->user()->role ?? '') !== 'admin') {
-            $owned = Business::where('owner_id', $userId)->pluck('_id')->map(fn($id)=>(string)$id)->all();
+            $owned = Business::where('owner_id', $userId)->get()->map(fn($m) => (string) $m->getKey())->all();
             $member = \App\Models\BusinessMember::where('user_id', $userId)->where('status','active')->pluck('business_id')->all();
             $ids = array_values(array_unique(array_merge($owned, $member)));
             $query->where(function($q) use ($ids) { $q->where(function($public) { $public->where('status','approved')->where('visibility','public'); })->orWhereIn('_id',$ids); });
         }
-        $managedIds = Business::where('owner_id',$userId)->pluck('_id')->map(fn($id)=>(string)$id)->all();
+        $managedIds = Business::where('owner_id',$userId)->get()->map(fn($m) => (string) $m->getKey())->all();
         $managedMemberIds = \App\Models\BusinessMember::where('user_id',$userId)->where('status','active')->whereIn('role',['owner','manager','inventory'])->pluck('business_id')->all();
         $managedIds = array_values(array_unique(array_merge($managedIds,$managedMemberIds)));
         $managed = Business::whereIn('_id',$managedIds)->get();
@@ -82,9 +86,9 @@ class MarketplaceController extends Controller
     {
         $userId = (string) $request->user()->getKey();
         $publishedBusinessIds = \App\Models\Storefront::where('published',true)->pluck('business_id')->map(fn($id)=>(string)$id)->all();
-        $publicBusinessIds = Business::where('status','approved')->where('visibility','public')->whereIn('_id',$publishedBusinessIds)->pluck('_id')->map(fn($id)=>(string)$id)->all();
+        $publicBusinessIds = Business::where('status','approved')->where('visibility','public')->whereIn('_id',$publishedBusinessIds)->get()->map(fn($m) => (string) $m->getKey())->all();
         $query = Product::query();
-        $owned = Business::where('owner_id', $userId)->pluck('_id')->map(fn($id)=>(string)$id)->all();
+        $owned = Business::where('owner_id', $userId)->get()->map(fn($m) => (string) $m->getKey())->all();
         $member = \App\Models\BusinessMember::where('user_id', $userId)->where('status','active')->whereIn('role',['owner','manager','inventory'])->pluck('business_id')->all();
         $managedIds = array_values(array_unique(array_merge($owned,$member)));
         if ((string)($request->user()->role ?? '') !== 'admin') {
@@ -107,7 +111,7 @@ class MarketplaceController extends Controller
     public function catalog(Request $request)
     {
         $publishedBusinessIds = \App\Models\Storefront::where('published',true)->pluck('business_id')->map(fn($id)=>(string)$id)->all();
-        $publicBusinessIds = Business::where('status','approved')->where('visibility','public')->whereIn('_id',$publishedBusinessIds)->pluck('_id')->map(fn($id)=>(string)$id)->all();
+        $publicBusinessIds = Business::where('status','approved')->where('visibility','public')->whereIn('_id',$publishedBusinessIds)->get()->map(fn($m) => (string) $m->getKey())->all();
         $query = Product::where('active', true)->where('available', true)->whereIn('business_id', $publicBusinessIds);
 
         if ($request->filled('q')) {
@@ -249,6 +253,11 @@ class MarketplaceController extends Controller
             $freshItems[] = array_merge($item, [
                 'business_id' => (string) $product->business_id, 'name' => $product->name,
                 'unit_price' => $this->moneyDecimal($product->price),
+                // Campos que pidió Equipo 2 para su contrato de items[]: variant_id/location_id
+                // quedan en null hasta que exista una variante o una bodega que ubicarlos.
+                'unit_price_cents' => $this->moneyCents($product->price),
+                'variant_id' => $item['variant_id'] ?? null,
+                'location_id' => $item['location_id'] ?? null,
                 'inventory_required' => (bool) $product->inventory_required,
                 'quantity' => (int) $item['quantity'],
             ]);
@@ -281,6 +290,10 @@ class MarketplaceController extends Controller
             'status' => 'pending', 'provider' => in_array($data['payment_method'], ['wallet','bonus','points','mixed']) ? 'team2/team7' : $data['payment_method'],
             'idempotency_key' => $idempotency, 'metadata' => [],
         ]);
+        // El id propio del PaymentIntent sirve como payment_intent_id estable frente a
+        // Equipo 2 (E3-03): existe antes del cobro y es el mismo en reintentos, webhook
+        // y confirmación, sin confundirse con la referencia MOCK del adaptador simulado.
+        $paymentIntentId = (string) $intent->getKey();
 
         $inventoryResult = ['status' => 'not_required'];
         try {
@@ -290,7 +303,13 @@ class MarketplaceController extends Controller
                 abort_unless(($inventoryResult['status'] ?? null) === 'reserved', 422, 'Inventario no pudo reservarse.');
             }
             $paymentResult = in_array($data['payment_method'], ['wallet','bonus','points','mixed'], true)
-                ? $payments->charge(['idempotency_key'=>$idempotency,'amount'=>$subtotal,'method'=>$data['payment_method'],'order_id'=>(string)$order->getKey(),'buyer_id'=>$buyerId,'business_id'=>$businessId])
+                ? $payments->charge([
+                    'idempotency_key' => $idempotency, 'amount' => $subtotal,
+                    'amount_cents' => $this->moneyCents($subtotal), 'currency' => 'MXN',
+                    'payment_intent_id' => $paymentIntentId,
+                    'method' => $data['payment_method'], 'order_id' => (string) $order->getKey(),
+                    'buyer_id' => $buyerId, 'business_id' => $businessId,
+                ])
                 : ['status'=>'pending_validation','reference'=>strtoupper($data['payment_method']).'-'.Str::upper(Str::random(10)),'provider'=>$data['payment_method']];
         } catch (\Throwable $exception) {
             try { if (($inventoryResult['status'] ?? null) === 'reserved') $inventory->release($freshItems, (string) $order->getKey()); } catch (\Throwable $ignored) {}
@@ -305,9 +324,19 @@ class MarketplaceController extends Controller
         $paid = ($paymentResult['status'] ?? '') === 'authorized' && !$mock;
         $status = $paid ? 'confirmed' : (($paymentResult['status'] ?? '') === 'pending_validation' || $mock ? 'awaiting_payment_validation' : 'payment_failed');
         $paymentStatus = $paid ? 'paid' : (($status === 'payment_failed') ? 'failed' : 'pending');
-        if ($mock || $status === 'payment_failed') {
+        $inventoryLines = array_values(array_filter($freshItems, fn($line) => ($line['inventory_required'] ?? true) === true));
+        if ($paid && $inventoryLines) {
+            // Pago real y autorizado: la reserva pasa a confirmada (salida real de
+            // inventario), nunca antes de este punto (E3-05/E3-06).
             try {
-                $inventoryLines = array_values(array_filter($freshItems, fn($line) => ($line['inventory_required'] ?? true) === true));
+                $confirmResult = $inventory->confirm($inventoryLines, (string) $order->getKey(), $paymentIntentId);
+                $inventoryResult['confirm'] = $confirmResult;
+            } catch (\Throwable $confirmException) {
+                report($confirmException);
+                $inventoryResult['confirm_pending_retry'] = true;
+            }
+        } elseif ($mock || $status === 'payment_failed') {
+            try {
                 if ($inventoryLines) $inventory->release($inventoryLines, (string) $order->getKey());
                 $inventoryResult['release_after_unconfirmed_payment'] = 'attempted';
             } catch (\Throwable $releaseException) {
@@ -315,6 +344,9 @@ class MarketplaceController extends Controller
                 $inventoryResult['release_after_unconfirmed_payment'] = 'pending_retry';
             }
         }
+        // Si quedó "awaiting_payment_validation" por un método directo (SPEI/Openpay) sin
+        // ser mock, el inventario se queda reservado (ni confirmado ni liberado) hasta que
+        // BusinessManagementController::resolveDirectPayment decida.
         $intent->update([
             'status' => $mock ? 'demo_authorized' : ($paymentResult['status'] ?? 'pending'),
             'reference' => $paymentResult['reference'] ?? null, 'provider' => $provider ?: $intent->provider,
@@ -342,15 +374,27 @@ class MarketplaceController extends Controller
     public function returns(Request $request)
     {
         $userId = (string) $request->user()->getKey();
+        $isAdmin = (string) ($request->user()->role ?? '') === 'admin';
         $query = ReturnRequest::query()->latest();
-        if ((string) ($request->user()->role ?? '') !== 'admin') {
-            $owned = Business::where('owner_id', $userId)->pluck('_id')->map(fn($id)=>(string)$id)->all();
+        $managedBusinessIds = [];
+        if (!$isAdmin) {
+            $owned = Business::where('owner_id', $userId)->get()->map(fn($m) => (string) $m->getKey())->all();
             $member = \App\Models\BusinessMember::where('user_id',$userId)->where('status','active')->whereIn('role',['owner','manager'])->pluck('business_id')->all();
-            $query->where(function($q) use ($userId,$owned,$member) {
-                $q->where('buyer_id',$userId)->orWhereIn('business_id',array_values(array_unique(array_merge($owned,$member))));
+            $managedBusinessIds = array_values(array_unique(array_merge($owned,$member)));
+            $query->where(function($q) use ($userId,$managedBusinessIds) {
+                $q->where('buyer_id',$userId)->orWhereIn('business_id',$managedBusinessIds);
             });
         }
-        return Inertia::render('Marketplace/Returns', ['returns' => $query->paginate(20), 'isAdmin' => (string)($request->user()->role ?? '') === 'admin']);
+        $returns = $query->paginate(20);
+        // Returns.vue necesita saber en cuales solicitudes puede mostrar los botones
+        // "Aprobar"/"Rechazar" -antes este prop nunca se mandaba, asi que esos botones
+        // jamas aparecian, ni para el admin.
+        $canResolveIds = $returns->getCollection()
+            ->filter(fn($r) => $isAdmin || in_array((string) $r->business_id, $managedBusinessIds, true))
+            ->map(fn($r) => (string) $r->getKey())->values()->all();
+        return Inertia::render('Marketplace/Returns', [
+            'returns' => $returns, 'isAdmin' => $isAdmin, 'canResolveIds' => $canResolveIds,
+        ]);
     }
 
 }

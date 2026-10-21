@@ -43,6 +43,16 @@ class BusinessManagementController extends Controller
         ]);
     }
 
+    // Mismo calculo en centavos que usa MarketplaceController, para que el monto que
+    // se le manda a Team2PaymentGateway::refund() sea un entero, no un float.
+    private function moneyCents($value): int
+    {
+        $raw = trim((string) $value);
+        if (!preg_match('/^\d+(?:\.\d{1,2})?$/', $raw)) return 0;
+        [$whole, $fraction] = array_pad(explode('.', $raw, 2), 2, '0');
+        return ((int) $whole * 100) + (int) str_pad($fraction, 2, '0');
+    }
+
     public function applications(Request $request)
     {
         $query = BusinessApplication::query()->latest();
@@ -209,16 +219,17 @@ class BusinessManagementController extends Controller
         $product = Product::findOrFail($productId);
         abort_unless($this->canManage($request, (string) $product->business_id, ['owner','manager','inventory']), 403);
         $data = $request->validate([
-            'name' => ['required','string','min:2','max:150'], 'category' => ['required','string','max:80'],
-            'kind' => ['required','in:product,service'], 'description' => ['nullable','string','max:2000'],
+            'name' => ['required','string','min:2','max:150'], 'kind' => ['required','in:product,service'],
+            'category' => ['required','string','max:80'], 'description' => ['nullable','string','max:2000'],
             'price' => ['required','numeric','min:0.01','max:99999999.99'], 'image' => ['nullable','url','max:1000'],
-            'active' => ['required','boolean'], 'available' => ['required','boolean'],
+            'currency' => ['required','in:MXN'], 'active' => ['required','boolean'], 'available' => ['required','boolean'],
             'inventory_required' => ['required','boolean'], 'stock_snapshot' => ['nullable','integer','min:0'],
             'variants' => ['nullable','array'], 'attributes' => ['nullable','array'], 'tags' => ['nullable','array'],
         ]);
+        $old = $product->active ? 'active' : 'inactive';
         $product->update($data);
-        $this->audit($request, 'product_updated', 'product', $productId, (string) $product->business_id, ['fields' => array_keys($data)]);
-        return back()->with('success', 'Producto actualizado.');
+        $this->audit($request, 'product_updated', 'product', $productId, (string) $product->business_id, ['fields' => array_keys($data)], $old, $product->active ? 'active' : 'inactive');
+        return back()->with('success', 'Producto/servicio actualizado.');
     }
 
     public function deactivateProduct(Request $request, string $productId)
@@ -227,7 +238,7 @@ class BusinessManagementController extends Controller
         abort_unless($this->canManage($request, (string) $product->business_id, ['owner','manager','inventory']), 403);
         $product->update(['active' => false, 'available' => false]);
         $this->audit($request, 'product_deactivated', 'product', $productId, (string) $product->business_id, [], 'active', 'inactive');
-        return back()->with('success', 'Producto desactivado; se conserva su historial.');
+        return back()->with('success', 'Producto/servicio desactivado.');
     }
 
     public function saveMember(Request $request, string $businessId)
@@ -261,12 +272,12 @@ class BusinessManagementController extends Controller
 
     public function sellerOrders(Request $request)
     {
-        $businessIds = Business::where('owner_id', $this->userId($request))->pluck('_id')->map(fn($id) => (string) $id)->all();
+        $businessIds = Business::where('owner_id', $this->userId($request))->get()->map(fn($m) => (string) $m->getKey())->all();
         if (!$this->isAdmin($request)) {
             $memberIds = BusinessMember::where('user_id', $this->userId($request))->where('status','active')->whereIn('role',['owner','manager','cashier'])->pluck('business_id')->all();
             $businessIds = array_values(array_unique(array_merge($businessIds, $memberIds)));
         } else {
-            $businessIds = Business::pluck('_id')->map(fn($id) => (string) $id)->all();
+            $businessIds = Business::get()->map(fn($m) => (string) $m->getKey())->all();
         }
         $orders = Order::whereIn('business_id', $businessIds)->latest()->paginate(20);
         foreach ($orders as $order) {
@@ -322,7 +333,7 @@ class BusinessManagementController extends Controller
         return back()->with('success', 'Solicitud de postventa registrada.');
     }
 
-    public function resolveReturn(Request $request, string $returnId)
+    public function resolveReturn(Request $request, string $returnId, \App\Services\Integrations\Team2PaymentGateway $payments)
     {
         $return = ReturnRequest::findOrFail($returnId);
         abort_unless($this->canManage($request, (string) $return->business_id, ['owner','manager']), 403);
@@ -331,15 +342,37 @@ class BusinessManagementController extends Controller
         $old = $return->status;
         $return->update(['status' => $data['decision'], 'resolution_notes' => $data['resolution_notes'], 'resolved_at' => now(), 'resolved_by' => $this->userId($request)]);
         $order = Order::find((string) $return->order_id);
+        $refundResult = null;
         if ($data['decision'] === 'approved' && $order) {
+            // E3-08: un refund_id propio y unico por devolucion, generado aqui y
+            // persistido antes de llamar al adaptador, para no duplicar el reembolso
+            // si esta pantalla se vuelve a enviar (doble clic, reintento).
+            if ($order->payment_status === 'paid' && !$return->refund_id) {
+                $refundId = 'RF-'.strtoupper(substr(md5($returnId.'|'.(string) $order->getKey()), 0, 12));
+                $intent = PaymentIntent::where('order_id', (string) $order->getKey())->first();
+                try {
+                    $refundResult = $payments->refund([
+                        'idempotency_key' => $intent->idempotency_key ?? $returnId,
+                        'payment_intent_id' => $intent ? (string) $intent->getKey() : null,
+                        'refund_id' => $refundId,
+                        'amount_cents' => $this->moneyCents($order->total),
+                    ], (float) $order->total);
+                    $return->update(['refund_id' => $refundId, 'refund_status' => $refundResult['status'] ?? 'requested', 'refund_result' => $refundResult]);
+                } catch (\Throwable $exception) {
+                    report($exception);
+                    $return->update(['refund_id' => $refundId, 'refund_status' => 'pending_retry']);
+                }
+            }
             $order->update([
                 'status' => 'return_approved',
                 'payment_status' => $order->payment_status === 'paid' ? 'refund_pending' : $order->payment_status,
                 'history' => array_merge($order->history ?? [], [['status'=>'return_approved','actor_id'=>$this->userId($request),'at'=>now()->toISOString(),'reason'=>'return_request_approved']]),
             ]);
         }
-        $this->audit($request, 'return_resolved', 'return_request', $returnId, (string) $return->business_id, ['notes' => $data['resolution_notes']], $old, $data['decision']);
-        return back()->with('success', 'Resolución de postventa guardada. El reembolso/inventario requiere confirmar la integración propietaria.');
+        $this->audit($request, 'return_resolved', 'return_request', $returnId, (string) $return->business_id, ['notes' => $data['resolution_notes'], 'refund' => $refundResult], $old, $data['decision']);
+        return back()->with('success', $refundResult
+            ? 'Resolución de postventa guardada; se solicitó el reembolso al adaptador de pagos.'
+            : 'Resolución de postventa guardada. El reembolso/inventario requiere confirmar la integración propietaria.');
     }
 
     public function submitDirectPaymentEvidence(Request $request, string $orderId)
@@ -375,21 +408,28 @@ class BusinessManagementController extends Controller
         ]);
         $intent = PaymentIntent::where('order_id', $orderId)->first();
         if ($intent) $intent->update(['status' => $data['decision'] === 'approved' ? 'manually_authorized' : 'rejected', 'metadata' => array_merge($intent->metadata ?? [], ['review_notes' => $data['notes'], 'reviewed_by' => $this->userId($request), 'reviewed_at' => now()->toISOString()])]);
-        if ($data['decision'] === 'rejected') {
+        $inventoryOutcome = null;
+        $inventoryLines = array_values(array_filter($order->items ?? [], fn($line) => ($line['inventory_required'] ?? true) === true));
+        if ($inventoryLines) {
             try {
-                $releaseLines = array_values(array_filter($order->items ?? [], fn($line) => ($line['inventory_required'] ?? true) === true));
-                if ($releaseLines) $inventory->release($releaseLines, $orderId);
-            } catch (\Throwable $exception) { report($exception); }
+                // El checkout de un metodo directo (SPEI/Openpay) deja el inventario solo
+                // "reserved"; aqui es donde se confirma de verdad (pago aprobado) o se
+                // libera (pago rechazado) -antes esta rama no tocaba el inventario y la
+                // reserva se quedaba "reserved" para siempre.
+                $inventoryOutcome = $data['decision'] === 'approved'
+                    ? $inventory->confirm($inventoryLines, $orderId, $intent ? (string) $intent->getKey() : null)
+                    : $inventory->release($inventoryLines, $orderId);
+            } catch (\Throwable $exception) { report($exception); $inventoryOutcome = ['status' => 'pending_retry']; }
         }
-        $this->audit($request, 'direct_payment_resolved', 'order', $orderId, (string) $order->business_id, ['notes' => $data['notes']], $old, $order->payment_status);
+        $this->audit($request, 'direct_payment_resolved', 'order', $orderId, (string) $order->business_id, ['notes' => $data['notes'], 'inventory' => $inventoryOutcome], $old, $order->payment_status);
         return back()->with('success', 'Resolución manual guardada con auditoría.');
     }
 
     public function sellerDashboard(Request $request)
     {
-        $owned = Business::where('owner_id', $this->userId($request))->pluck('_id')->map(fn($id)=>(string)$id)->all();
+        $owned = Business::where('owner_id', $this->userId($request))->get()->map(fn($m) => (string) $m->getKey())->all();
         $member = BusinessMember::where('user_id', $this->userId($request))->where('status','active')->whereIn('role',['owner','manager','cashier'])->pluck('business_id')->all();
-        $ids = $this->isAdmin($request) ? Business::pluck('_id')->map(fn($id)=>(string)$id)->all() : array_values(array_unique(array_merge($owned,$member)));
+        $ids = $this->isAdmin($request) ? Business::get()->map(fn($m) => (string) $m->getKey())->all() : array_values(array_unique(array_merge($owned,$member)));
         $orders = Order::whereIn('business_id', $ids)->get();
         $sales = $orders->where('payment_status','paid');
         return Inertia::render('Marketplace/SellerDashboard', [

@@ -42,4 +42,5 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/api/tienda/catalogo', [MarketplaceController::class, 'catalog'])->name('api.marketplace.catalog');
     Route::get('/api/tienda/negocios', [MarketplaceController::class, 'businessesApi'])->name('api.marketplace.businesses');
+
 });

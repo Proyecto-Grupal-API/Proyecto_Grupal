@@ -5,9 +5,16 @@
   "require": {
     "php": "^8.2",
     "laravel/framework": "^11.0",
-    "laravel/fortify": "^1.25",
+    "laravel/fortify": "^1.25 <1.37.0",
     "inertiajs/inertia-laravel": "^1.0",
     "mongodb/laravel-mongodb": "^5.8"
+  },
+  "config": {
+    "policy": {
+      "advisories": {
+        "block": false
+      }
+    }
   },
   "require-dev": {
     "fakerphp/faker": "^1.23",
