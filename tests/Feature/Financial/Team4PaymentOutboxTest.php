@@ -57,14 +57,27 @@ test('team4 retry preserves event and bytes across recoverable failure',function
     app(Team4WebhookDelivery::class)->run();expect(t4oRow($id)->state)->toBe('DELIVERED')->and(t4oRow($id)->body)->toBe($body)->and((int)t4oRow($id)->attempts)->toBe(2);
     Http::assertSentCount(2);
 });
-test('team4 permanent rejection and malformed acknowledgement remain pending operator review',function(){
-    foreach([401,403,409,422,302,202] as $status){
-        $id=app(PaymentEventOutbox::class)->record('review-'.Str::uuid(),t4oPayload());
-        Http::fake(['inventory.test/*'=>Http::response(['received'=>'true'], $status)]);
-        app(Team4WebhookDelivery::class)->run();expect(t4oRow($id)->state)->toBe('REVIEW');
+test('team4 permanent rejection and malformed acknowledgement remain pending operator review', function () {
+    foreach ([401, 403, 409, 422, 302, 202] as $status) {
+        $id = app(PaymentEventOutbox::class)->record(
+            'review-' . Str::uuid(),
+            t4oPayload()
+        );
+
+        DB::connection('sqlsrv')
+            ->table('financial_team4_outbox')
+            ->where('event_id', $id)
+            ->update(['available_at' => now()->subSecond()]);
+
+        Http::fake([
+            'inventory.test/*' => Http::response(['received' => 'true'], $status),
+        ]);
+
+        app(Team4WebhookDelivery::class)->run();
+
+        expect(t4oRow($id)->state)->toBe('REVIEW');
     }
-});
-test('team4 same intent cannot overtake blocked event or reuse another order',function(){
+});test('team4 same intent cannot overtake blocked event or reuse another order',function(){
     $p=t4oPayload();$service=app(PaymentEventOutbox::class);$first=$service->record('first-'.Str::uuid(),$p);
     $second=$service->record('second-'.Str::uuid(),[...$p,'status'=>'PARTIALLY_REFUNDED','refund_id'=>'R-2','amount_cents'=>100]);
     expect(fn()=>$service->record('foreign-'.Str::uuid(),[...$p,'order_id'=>'OTHER']))->toThrow(\Symfony\Component\HttpKernel\Exception\ConflictHttpException::class);

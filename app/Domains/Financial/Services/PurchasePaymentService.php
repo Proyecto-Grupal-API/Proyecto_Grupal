@@ -380,4 +380,87 @@ public function payWithMultipleBonuses(
         }
     );
 }
+
+    /** Internal application operation. An HTTP caller must verify payer authorization separately. */
+    public function payWithWallet(
+        Wallet $wallet,
+        int $totalAmountCents,
+        string $idempotencyKey,
+        ?string $businessId = null,
+        ?string $categoryId = null,
+        ?array $marketplace = null
+    ): array {
+        if ($totalAmountCents <= 0 || $totalAmountCents > 9007199254740991
+            || trim($idempotencyKey) === '' || strlen($idempotencyKey) > 255) {
+            throw new InvalidArgumentException('Importe positivo entero y clave de idempotencia valida requeridos.');
+        }
+        try {
+        return DB::connection('sqlsrv')->transaction(function () use (
+            $wallet, $totalAmountCents, $idempotencyKey, $businessId, $categoryId, $marketplace
+        ): array {
+            $lockedWallet = Wallet::where('public_id', $wallet->public_id)->lockForUpdate()->firstOrFail();
+            if ($lockedWallet->owner_type !== 'USER'
+                || $lockedWallet->type !== \App\Domains\Financial\Enums\WalletType::USUARIO
+                || trim((string)$lockedWallet->owner_id) === '') {
+                throw new InvalidArgumentException('La compra requiere una wallet de usuario.');
+            }
+            $payment = PurchasePayment::where('idempotency_key', $idempotencyKey)->lockForUpdate()->first();
+            if ($payment) {
+                if (strtolower($payment->wallet_id) !== strtolower($lockedWallet->public_id)
+                    || $payment->bonus_id !== null || $payment->bonus_amount_cents !== 0
+                    || !empty($payment->requested_bonus_ids) || $payment->bonuses()->exists()
+                    || $payment->total_amount_cents !== $totalAmountCents || $payment->wallet_amount_cents !== $totalAmountCents
+                    || $payment->business_id !== $businessId || $payment->category_id !== $categoryId
+                    || $payment->currency !== strtoupper($lockedWallet->currency) || $payment->status !== 'COMPLETADO') {
+                    throw new InvalidArgumentException('La clave ya pertenece a una compra diferente.');
+                }
+                $transaction = \App\Domains\Financial\Models\FinancialTransaction::where('idempotency_key', $idempotencyKey)->first();
+                $entries = $transaction ? \App\Domains\Financial\Models\LedgerEntry::where('transaction_id', $transaction->public_id)->get() : collect();
+                $entry = $entries->first();
+                if (!$transaction || $transaction->status !== \App\Domains\Financial\Enums\TransactionStatus::COMPLETADA
+                    || $transaction->reference_type !== 'PURCHASE' || strtolower((string)$transaction->reference_id) !== strtolower($payment->public_id)
+                    || $entries->count() !== 1 || !$entry || strtolower($entry->wallet_id) !== strtolower($lockedWallet->public_id)
+                    || $entry->movement_type !== MovementType::PAGO || $entry->amount_cents !== -$totalAmountCents) {
+                    throw new InvalidArgumentException('La compra no tiene evidencia contable consistente.');
+                }
+                app(\App\Domains\Financial\Integrations\Team4\PurchasePaymentEvents::class)->paid($payment, $marketplace, true);
+            } else {
+                if ($lockedWallet->status !== \App\Domains\Financial\Enums\WalletStatus::ACTIVA) {
+                    throw new InvalidArgumentException('La wallet no esta activa.');
+                }
+                if (\App\Domains\Financial\Models\FinancialTransaction::where('idempotency_key', $idempotencyKey)->exists()) {
+                    throw new InvalidArgumentException('La clave ya pertenece a otra operacion financiera.');
+                }
+                $evaluation = app(FinancialLimitService::class)->evaluate($lockedWallet, MovementType::PAGO, $totalAmountCents,
+                    actions: [\App\Domains\Financial\Enums\LimitAction::BLOQUEAR]);
+                if ($evaluation->isBlocked()) {
+                    throw new \App\Domains\Financial\Exceptions\FinancialLimitExceededException($evaluation);
+                }
+                $payment = PurchasePayment::create([
+                    'public_id'=>(string)Str::uuid(), 'idempotency_key'=>$idempotencyKey,
+                    'wallet_id'=>$lockedWallet->public_id, 'bonus_id'=>null, 'requested_bonus_ids'=>null,
+                    'business_id'=>$businessId, 'category_id'=>$categoryId, 'currency'=>strtoupper($lockedWallet->currency),
+                    'total_amount_cents'=>$totalAmountCents, 'bonus_amount_cents'=>0,
+                    'wallet_amount_cents'=>$totalAmountCents, 'status'=>'COMPLETADO',
+                ]);
+                $this->ledgerService->debit(
+                    wallet:$lockedWallet, amountCents:$totalAmountCents, movementType:MovementType::PAGO,
+                    idempotencyKey:$idempotencyKey, referenceType:'PURCHASE', referenceId:$payment->public_id,
+                    metadata:['purchase_payment_id'=>strtolower($payment->public_id),'total_amount_cents'=>$totalAmountCents,
+                        'bonus_amount_cents'=>0,'wallet_amount_cents'=>$totalAmountCents]
+                );
+                app(\App\Domains\Financial\Integrations\Team4\PurchasePaymentEvents::class)->paid($payment, $marketplace);
+            }
+            return ['purchase_payment_id'=>strtolower($payment->public_id),
+                'total_amount_cents'=>$payment->total_amount_cents,'bonus_amount_cents'=>0,
+                'wallet_amount_cents'=>$payment->wallet_amount_cents];
+        });
+        } catch (\App\Domains\Financial\Exceptions\FinancialLimitExceededException $exception) {
+            // Record rejected-attempt evidence after the operation transaction rolled back. No actor is fabricated.
+            $alert = app(TransactionAlertService::class)->recordBlocked($wallet, $exception->evaluation, 'PURCHASE_WALLET_ATTEMPT');
+            throw new \App\Domains\Financial\Exceptions\FinancialLimitExceededException(
+                $exception->evaluation, $alert->public_id, $alert->correlation_id
+            );
+        }
+    }
 }
