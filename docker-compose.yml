@@ -18,8 +18,10 @@ services:
     environment:
       MONGO_DB_DSN: "mongodb://${MONGO_ROOT_USERNAME:-root}:${MONGO_ROOT_PASSWORD:-secret}@mongodb:27017/?authSource=admin&replicaSet=rs0"
       RUN_MIGRATIONS: "${RUN_MIGRATIONS:-true}"
+      COMPOSER_PROCESS_TIMEOUT: "0"
     volumes:
       - ./backend_respaldo:/var/www
+      - backend_vendor:/var/www/vendor
     depends_on:
       mongodb:
         condition: service_healthy
@@ -115,3 +117,4 @@ volumes:
   mongodb_data:
   mongodb_keyfile:
   frontend_node_modules:
+  backend_vendor:
