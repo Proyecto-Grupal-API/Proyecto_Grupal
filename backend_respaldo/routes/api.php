@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\PointsController;
 use App\Http\Controllers\Api\RedemptionController;
 use App\Http\Controllers\Api\RewardController;
 use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\PlatformIngestController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -150,5 +151,11 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [SettingsController::class, 'catalogs']);
             Route::post('/', [SettingsController::class, 'storeCatalog'])->middleware('permission:catalogs.manage');
         });
+
+        Route::prefix('plataforma')->middleware('throttle:300,1')->group(function () {
+            Route::post('/eventos', [PlatformIngestController::class, 'storeEvent'])->middleware('permission:analytics.events.write');
+            Route::post('/auditoria', [PlatformIngestController::class, 'storeAudit'])->middleware('permission:audit.write');
+        });
+
     });
 });

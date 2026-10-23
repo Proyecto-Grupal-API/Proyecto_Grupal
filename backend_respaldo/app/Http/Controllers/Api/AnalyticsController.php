@@ -104,4 +104,23 @@ class AnalyticsController
             'campaigns'             => $academicCampaigns,
         ]);
     }
+
+    public function services(Request $request): JsonResponse
+    {
+        $since = Carbon::now()->subDays((int) $request->query('days', 30))->startOfDay();
+
+        $rows = AnalyticsEvent::raw(fn ($c) => $c->aggregate([
+            ['$match' => ['source_domain' => 'services', 'occurred_at' => ['$gte' => new \MongoDB\BSON\UTCDateTime($since)]]],
+            ['$group' => [
+                '_id'   => ['day' => ['$dateToString' => ['format' => '%Y-%m-%d', 'date' => '$occurred_at']], 'event' => '$event_name'],
+                'count' => ['$sum' => 1],
+            ]],
+            ['$project' => ['_id' => 0, 'day' => '$_id.day', 'event' => '$_id.event', 'count' => 1]],
+            ['$sort' => ['day' => 1]],
+        ]));
+
+        return response()->json([
+            'por_dia' => $rows->groupBy('day')->map(fn ($g) => $g->pluck('count', 'event')),
+        ]);
+    }
 }

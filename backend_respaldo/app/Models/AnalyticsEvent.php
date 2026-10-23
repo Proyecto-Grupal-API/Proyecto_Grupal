@@ -21,11 +21,16 @@ class AnalyticsEvent extends Model
         'processed',
         'processed_at',
         'processing_error',
+        'event_id',
+        'event_name',
+        'aggregate_id',
+        'occurred_at'
     ];
 
     protected $casts = [
         'payload' => 'array',
         'processed' => 'boolean',
         'processed_at' => 'datetime',
+        'occurred_at' => 'datetime'
     ];
 }

@@ -67,6 +67,15 @@ class UserSeeder extends Seeder
                 'student_code' => 'SRV-MKP',
                 'department'   => 'Servicios de Plataforma',
             ],
+
+            [
+                'email'        => 'system.services@campus.edu',
+                'name'         => 'Servicio Integración Servicios (Equipo 5)',
+                'role'         => User::ROLE_SYSTEM,
+                'student_code' => 'SRV-SVC',
+                'department'   => 'Servicios al Estudiante',
+            ],
+
         ];
 
         foreach ($users as $userData) {

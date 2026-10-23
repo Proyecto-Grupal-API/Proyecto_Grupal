@@ -24,11 +24,14 @@ class AuditLog extends Model
         'correlation_id',
         'source_domain',
         'reason',
+        'event_id',
+        'occurred_at'
     ];
 
     protected $casts = [
         'before' => 'array',
         'after' => 'array',
+        'occurred_at' => 'datetime'
     ];
 
     protected static function booted()

@@ -86,6 +86,8 @@ $system = [
     'points.earn',
     'points.reverse',
     'integrations.ingest',
+    'analytics.events.write',
+    'audit.write'
 ];
 
 return [
