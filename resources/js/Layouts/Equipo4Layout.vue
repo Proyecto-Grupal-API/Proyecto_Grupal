@@ -313,6 +313,8 @@ function iconPath(href) { return icons[iconByHref[href] || 'cube'] }
 
       <main>
         <div class="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-8">
+          <p v-if="page.props.flash?.success" role="status" class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{{ page.props.flash.success }}</p>
+          <p v-if="page.props.flash?.error" role="alert" class="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{{ page.props.flash.error }}</p>
           <slot />
         </div>
       </main>
