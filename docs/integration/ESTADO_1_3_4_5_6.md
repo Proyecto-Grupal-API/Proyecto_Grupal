@@ -71,6 +71,9 @@ No utilizar `down -v` para detener una copia cuyos datos se necesiten conservar.
 
 ## Documentación y pendientes
 
+- [Actualización selectiva del 26 de octubre](ACTUALIZACION_EQUIPOS_2026-10-26.md):
+  novedades E4/E3 adaptadas, evaluación aislada SQL de E2 y compatibilidad del receptor E7.
+
 - [Solicitud a E1: directorio y autorización institucional](SOLICITUD_EQUIPO6_A_EQUIPO1_DIRECTORIO_Y_AUTORIZACION_2026-10-17.md):
   necesidades D1–D4 e I1–I3 para el líder y agente de Identidad.
 
