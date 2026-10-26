@@ -59,6 +59,14 @@ const formattedOrders = computed(() => {
 
 const showModal = ref(false)
 
+const isEditing = ref(false)
+const selectedOrder = ref(null)
+const loadingDetails = ref(false)
+
+const form = useForm({
+  supplier_id: '', expected_at: '', notes: '', status: 'SOLICITADA', items: []
+})
+
 // Watch para limpiar productos si el proveedor cambia
 watch(() => form.supplier_id, () => {
   // Si el proveedor cambia, limpiamos los productos seleccionados que ya no estén disponibles
@@ -69,13 +77,7 @@ watch(() => form.supplier_id, () => {
     }
   })
 })
-const isEditing = ref(false)
-const selectedOrder = ref(null)
-const loadingDetails = ref(false)
 
-const form = useForm({
-  supplier_id: '', expected_at: '', notes: '', status: 'SOLICITADA', items: []
-})
 
 function addItem() { form.items.push({ product_id: '', quantity: 1, unit_cost: 0 }) }
 function removeItem(index) { form.items.splice(index, 1) }
