@@ -244,13 +244,14 @@ class BusinessManagementController extends Controller
             'name' => ['required', 'string', 'min:2', 'max:150'], 'category' => ['required', 'string', 'max:80'],
             'kind' => ['required', 'in:product,service'], 'description' => ['nullable', 'string', 'max:2000'],
             'price' => ['required', 'numeric', 'min:0.01', 'max:99999999.99'], 'image' => ['nullable', 'url', 'max:1000'],
-            'active' => ['required', 'boolean'], 'available' => ['required', 'boolean'],
+            'currency' => ['required', 'in:MXN'], 'active' => ['required', 'boolean'], 'available' => ['required', 'boolean'],
             'inventory_required' => ['required', 'boolean'], 'inventory_product_id' => ['required_if:inventory_required,true', 'nullable', 'string', 'max:100'], 'inventory_location_id' => ['required_if:inventory_required,true', 'nullable', 'string', 'max:100'],
             'variants' => ['nullable', 'array'], 'attributes' => ['nullable', 'array'], 'tags' => ['nullable', 'array'],
         ]);
         $this->integration->validateInventory((string) $product->business_id, $data);
+        $previousStatus = $product->active ? 'active' : 'inactive';
         $product->update($data);
-        $this->audit($request, 'product_updated', 'product', $productId, (string) $product->business_id, ['fields' => array_keys($data)]);
+        $this->audit($request, 'product_updated', 'product', $productId, (string) $product->business_id, ['fields' => array_keys($data)], $previousStatus, $product->active ? 'active' : 'inactive');
 
         return back()->with('success', 'Producto actualizado.');
     }

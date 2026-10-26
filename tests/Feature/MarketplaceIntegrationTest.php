@@ -193,6 +193,18 @@ return Http::response(['reservation_id' => 'reservation-A', 'status' => 'RESERVE
         $this->postJson('/tienda/productos', ['business_id' => $this->businessId, 'name' => 'Producto sin stock', 'kind' => 'product', 'category' => 'General', 'price' => '12.00', 'currency' => 'MXN', 'active' => true, 'available' => true, 'inventory_required' => false])->assertUnprocessable();
         expect(Product::count())->toBe(1);
     });
+    it('validates product currency on updates and audits the active state transition', function () {
+        $this->allowed = true;
+        $id = (string) $this->product->getKey();
+        $payload = ['name'=>'Libreta editada','category'=>'Papelería','kind'=>'product','price'=>'15.00','currency'=>'USD',
+            'active'=>false,'available'=>false,'inventory_required'=>true,'inventory_product_id'=>'physical-A','inventory_location_id'=>'location-A'];
+        $this->putJson('/tienda/productos/'.$id, $payload)->assertUnprocessable();
+        expect($this->product->fresh()->active)->toBeTrue();
+        $this->putJson('/tienda/productos/'.$id, [...$payload,'currency'=>'MXN'])->assertRedirect();
+        $event=\App\Models\Marketplace\AuditEvent::where('action','product_updated')->firstOrFail();
+        expect($event->from_status)->toBe('active')->and($event->to_status)->toBe('inactive')
+            ->and($event->actor_id)->toBe((string)$this->actor->getKey());
+    });
     it('accepts a service without stock and still leaves its payment pending', function () {
         $this->product->update(['kind' => 'service', 'inventory_required' => false]);
         $this->post('/tienda/carrito', ['product_id' => (string) $this->product->getKey(), 'quantity' => 1]);
