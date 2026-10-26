@@ -6,16 +6,14 @@ use App\Models\InventoryModule\CostHistory;
 use App\Models\InventoryModule\PricingReference;
 use App\Models\InventoryModule\Product;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use MongoDB\BSON\ObjectId;
+use MongoDB\BSON\UTCDateTime;
 
 class CostService
 {
+    public function __construct() {}
 
-    public function __construct()
-    {
-    }
-    use \App\Services\InventoryModule\UsesBusinessContext;
+    use UsesBusinessContext;
 
     /**
      * Registra un costo para un producto y actualiza su PricingReference.
@@ -40,24 +38,25 @@ class CostService
             ->where('business_id', $this->businessId())
             ->first();
 
-        if (!$product) {
+        if (! $product) {
             throw new \InvalidArgumentException('Producto no encontrado.');
         }
 
         // Insertar CostHistory
-        $costHistoryObjectId = new ObjectId();
+        $costHistoryObjectId = new ObjectId;
         DB::connection('inventory')->getCollection('cost_histories')->insertOne([
             '_id' => $costHistoryObjectId,
             'business_id' => $this->businessId(),
             'product_id' => $productId,
+            'sku' => (string) $product->sku, 'product_name' => (string) $product->name,
             'cost' => $cost,
             'source' => $source,
             'reference' => $reference,
             'notes' => $notes,
             'actor_id' => $actorId,
-            'effective_at' => new \MongoDB\BSON\UTCDateTime(now()),
-            'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
-            'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
+            'effective_at' => new UTCDateTime(now()),
+            'created_at' => new UTCDateTime(now()),
+            'updated_at' => new UTCDateTime(now()),
         ]);
 
         // Recalcular PricingReference
@@ -76,7 +75,7 @@ class CostService
     {
         $recent = CostHistory::where('business_id', $this->businessId())
             ->where('product_id', $productId)
-            ->orderBy('effective_at', 'desc')
+            ->orderBy('effective_at', 'desc')->orderBy('_id', 'desc')
             ->limit(5)
             ->get();
 
@@ -107,14 +106,14 @@ class CostService
             'average_cost' => round($averageCost, 2),
             'suggested_margin' => $suggestedMargin,
             'suggested_price' => $suggestedPrice,
-            'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
+            'updated_at' => new UTCDateTime(now()),
         ];
 
         if ($existing) {
             $refCollection->updateOne(['_id' => $existing['_id']], ['$set' => $payload]);
         } else {
-            $payload['_id'] = new ObjectId();
-            $payload['created_at'] = new \MongoDB\BSON\UTCDateTime(now());
+            $payload['_id'] = new ObjectId;
+            $payload['created_at'] = new UTCDateTime(now());
             $refCollection->insertOne($payload);
         }
     }

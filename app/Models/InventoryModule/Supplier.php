@@ -1,9 +1,11 @@
 <?php
+
 namespace App\Models\InventoryModule;
 
 class Supplier extends Team4Document
 {
     protected $collection = 'suppliers';
+
     protected $fillable = [
         'business_id',
         'code',
@@ -14,7 +16,7 @@ class Supplier extends Team4Document
         'contact_email',
         'contact_phone',
         'payment_terms',
-        'notes',
+        'notes', 'supplied_products', 'contacts',
         'status',
     ];
 }

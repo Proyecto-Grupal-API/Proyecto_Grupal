@@ -3,47 +3,59 @@
 namespace App\Http\Controllers\InventoryModule;
 
 use App\Http\Controllers\Controller;
-
 use App\Models\InventoryModule\PricingReference;
 use App\Models\InventoryModule\Product;
+use App\Services\InventoryModule\ActorResolver;
 use App\Services\InventoryModule\CostService;
-use Inertia\Inertia;
-use Inertia\Response;
+use App\Services\InventoryModule\UsesBusinessContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use MongoDB\BSON\ObjectId;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class CostController extends Controller
 {
+    public function __construct() {}
 
-    public function __construct()
-    {
-    }
-    use \App\Services\InventoryModule\UsesBusinessContext;
+    use UsesBusinessContext;
 
     private function formatRawDate($value, string $format = 'Y-m-d H:i'): ?string
     {
-        if ($value === null) return null;
-        try {
-            if ($value instanceof \DateTimeInterface) return $value->format($format);
-            if (is_string($value)) return Carbon::parse($value)->format($format);
-            if (is_array($value) && isset($value['$date'])) return Carbon::parse($value['$date'])->format($format);
-            if (is_object($value) && method_exists($value, 'toDateTime')) return Carbon::instance($value->toDateTime())->format($format);
+        if ($value === null) {
             return null;
-        } catch (\Throwable $e) { return null; }
+        }
+        try {
+            if ($value instanceof \DateTimeInterface) {
+                return $value->format($format);
+            }
+            if (is_string($value)) {
+                return Carbon::parse($value)->format($format);
+            }
+            if (is_array($value) && isset($value['$date'])) {
+                return Carbon::parse($value['$date'])->format($format);
+            }
+            if (is_object($value) && method_exists($value, 'toDateTime')) {
+                return Carbon::instance($value->toDateTime())->format($format);
+            }
+
+            return null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     public function index(Request $request): Response
     {
+        $request->validate(['q' => 'nullable|string|max:120', 'archived_page' => 'nullable|integer|min:1|max:100000']);
         $q = trim((string) $request->query('q', ''));
         $perPage = 25;
 
         $productQuery = Product::where('business_id', $this->businessId());
         if ($q !== '') {
-            $regex = '/' . preg_quote($q, '/') . '/i';
+            $regex = '/'.preg_quote($q, '/').'/i';
             $productQuery->where(function ($sub) use ($regex) {
                 $sub->where('sku', 'regex', $regex)->orWhere('name', 'regex', $regex);
             });
@@ -61,6 +73,7 @@ class CostController extends Controller
         $data = collect($products->items())->map(function ($p) use ($refsMap) {
             $pid = (string) $p->_id;
             $ref = $refsMap[$pid] ?? null;
+
             return [
                 '_id' => $pid,
                 'sku' => (string) $p->sku,
@@ -78,7 +91,7 @@ class CostController extends Controller
             ->where('active', true)
             ->orderBy('name', 'asc')
             ->get()
-            ->map(fn($p) => ['_id' => (string) $p->_id, 'sku' => (string) $p->sku, 'name' => (string) $p->name])
+            ->map(fn ($p) => ['_id' => (string) $p->_id, 'sku' => (string) $p->sku, 'name' => (string) $p->name])
             ->values()->all();
 
         // KPIs
@@ -95,7 +108,7 @@ class CostController extends Controller
             ['$group' => ['_id' => null, 'avg_cost' => ['$avg' => '$last_cost']]],
         ])->toArray();
         $avgCost = 0;
-        if (!empty($agg)) {
+        if (! empty($agg)) {
             $a = (array) $agg[0];
             $avgCost = round((float) ($a['avg_cost'] ?? 0), 2);
         }
@@ -103,11 +116,41 @@ class CostController extends Controller
         $kpis = [
             ['label' => 'Productos con costo', 'value' => $withCost, 'color' => 'success'],
             ['label' => 'Sin costo registrado', 'value' => $withoutCost, 'color' => $withoutCost > 0 ? 'warning' : 'default'],
-            ['label' => 'Costo promedio global', 'value' => '$' . number_format($avgCost, 2)],
+            ['label' => 'Costo promedio global', 'value' => '$'.number_format($avgCost, 2)],
             ['label' => 'Total productos', 'value' => $totalProducts],
         ];
 
+        $archivedPage = max(1, (int) $request->query('archived_page', 1));
+        $archivedPipeline = [
+            ['$match' => ['business_id' => $this->businessId()]],
+            ['$sort' => ['effective_at' => -1, '_id' => -1]],
+            ['$group' => ['_id' => '$product_id', 'last_cost' => ['$first' => '$cost'],
+                'sku' => ['$first' => '$sku'], 'product_name' => ['$first' => '$product_name']]],
+            ['$lookup' => ['from' => 'products', 'let' => ['pid' => '$_id'], 'pipeline' => [
+                ['$match' => ['business_id' => $this->businessId(), '$expr' => ['$eq' => [['$toString' => '$_id'], '$$pid']]]],
+                ['$limit' => 1],
+            ], 'as' => 'current_product']],
+            ['$match' => ['current_product' => ['$size' => 0]]],
+        ];
+        if ($q !== '') {
+            $archivedPipeline[] = ['$match' => ['$or' => [
+                ['sku' => ['$regex' => preg_quote($q), '$options' => 'i']],
+                ['product_name' => ['$regex' => preg_quote($q), '$options' => 'i']],
+            ]]];
+        }
+        $archivedPipeline[] = ['$facet' => [
+            'total' => [['$count' => 'count']],
+            'rows' => [['$sort' => ['sku' => 1, '_id' => 1]], ['$skip' => ($archivedPage - 1) * 25], ['$limit' => 25]],
+        ]];
+        $archived = DB::connection('inventory')->getCollection('cost_histories')->aggregate($archivedPipeline)->toArray()[0];
+        $archivedTotal = (int) ($archived['total'][0]['count'] ?? 0);
+
         return Inertia::render('Equipo4/Costos', [
+            'archivedCosts' => collect($archived['rows'])->map(fn ($row) => [
+                'product_id' => (string) ($row['_id'] ?? ''), 'sku' => $row['sku'] ?? 'Sin SKU registrado',
+                'name' => $row['product_name'] ?? 'Producto eliminado', 'last_cost' => (float) $row['last_cost'],
+            ])->values()->all(),
+            'archivedPagination' => ['current_page' => $archivedPage, 'last_page' => max(1, (int) ceil($archivedTotal / 25)), 'total' => $archivedTotal],
             'products' => $data,
             'productsList' => $productsList,
             'kpis' => $kpis,
@@ -142,14 +185,15 @@ class CostController extends Controller
                 'reference' => $validated['reference'] ?? '',
                 'notes' => $validated['notes'] ?? '',
                 'suggested_price' => $validated['suggested_price'] ?? null,
-                'actor_id' => \App\Services\InventoryModule\ActorResolver::resolve(),
+                'actor_id' => ActorResolver::resolve(),
             ]);
         } catch (\Throwable $e) {
             Log::error('Fallo al registrar costo.', ['error' => $e->getMessage()]);
-            return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'No se pudo registrar: ' . $e->getMessage()]);
+
+            return redirect(parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH))->withErrors(['error' => 'No se pudo registrar: '.$e->getMessage()]);
         }
 
-        return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Costo registrado.');
+        return redirect(parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH))->with('success', 'Costo registrado.');
     }
 
     public function history(string $productId)

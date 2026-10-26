@@ -1,11 +1,13 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { useForm } from '@inertiajs/vue3'
+import { useForm, Link } from '@inertiajs/vue3'
 import Equipo4Layout from '../../Layouts/Equipo4Layout.vue'
 import Team4Module from '../../Components/Team4Module.vue'
 import { usePermissions } from '@/Composables/usePermissions'
 
 const props = defineProps({
+  archivedCosts: { type: Array, default: () => [] },
+  archivedPagination: { type: Object, default: () => ({}) },
   products: { type: Array, default: () => [] },
   productsList: { type: Array, default: () => [] },
   kpis: { type: Array, default: () => [] },
@@ -53,8 +55,7 @@ const openCostModal = (row) => {
 const submitCost = () => {
   costForm.post('/equipo4/costos', {
     preserveScroll: true,
-    onFinish: () => { if (!Object.keys(costForm.errors).length) { showCostModal.value = false; costForm.reset() } }, onError: (errs) => { console.error("[MODAL ERROR]", errs); window.scrollTo({top:0,behavior:"smooth"}) },
-    onError: (e) => { console.error('Costos error:', e); alert('No se pudo registrar: ' + JSON.stringify(e)) }
+    onSuccess: () => { showCostModal.value = false; costForm.reset() }
   })
 }
 
@@ -91,6 +92,23 @@ const openHistory = async (row) => {
         </div>
       </template>
     </Team4Module>
+
+    <section class="mx-auto max-w-7xl rounded-xl border bg-white p-5 mb-6" aria-labelledby="archived-costs-title">
+      <h2 id="archived-costs-title" class="font-semibold text-slate-800">Costos de productos eliminados</h2>
+      <p class="text-sm text-slate-500 mt-1">Se conserva el historial por producto original, incluso si otro producto reutiliza su SKU.</p>
+      <p v-if="!archivedCosts.length" class="text-sm text-slate-500 mt-3">Sin historiales para esta búsqueda.</p>
+      <ul v-else class="divide-y mt-3">
+        <li v-for="item in archivedCosts" :key="item.product_id" class="flex flex-wrap items-center justify-between gap-3 py-3">
+          <span>{{ item.sku }} · {{ item.name }} · ${{ Number(item.last_cost).toFixed(2) }}</span>
+          <button type="button" @click="openHistory({ _id: item.product_id, SKU: item.sku, Producto: item.name })" class="rounded border px-3 py-1 text-sm" :aria-label="`Ver historial de ${item.sku}`">Historial</button>
+        </li>
+      </ul>
+      <nav v-if="archivedPagination.last_page > 1" aria-label="Páginas de costos eliminados" class="flex gap-4 mt-3 text-sm">
+        <Link v-if="archivedPagination.current_page > 1" :href="`/equipo4/costos?archived_page=${archivedPagination.current_page - 1}&q=${encodeURIComponent(filters.q || '')}`" preserve-scroll>Anterior</Link>
+        <span>{{ archivedPagination.current_page }} / {{ archivedPagination.last_page }}</span>
+        <Link v-if="archivedPagination.current_page < archivedPagination.last_page" :href="`/equipo4/costos?archived_page=${archivedPagination.current_page + 1}&q=${encodeURIComponent(filters.q || '')}`" preserve-scroll>Siguiente</Link>
+      </nav>
+    </section>
 
     <div v-if="showCostModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
       <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg p-6 space-y-4 my-8">

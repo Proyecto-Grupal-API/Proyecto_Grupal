@@ -268,3 +268,78 @@ it('uses the reservation route id when the signed path also contains a business 
     $after=DB::connection('inventory')->getCollection('inventories')->findOne(['_id'=>$stock['_id']]);
     expect($after['available'])->toBe($stock['available'])->and($after['reserved'])->toBe($stock['reserved']);
 });
+
+it('keeps supplier product catalog and additional contacts within the selected business', function () {
+    $product = Product::where('business_id', 'business-A')->firstOrFail();
+    $data = ['code'=>'SUP-NEW', 'legal_name'=>'Proveedor catálogo', 'contact_name'=>'Contacto principal',
+        'payment_terms'=>'CONTADO','status'=>'ACTIVO','supplied_products'=>[$product->sku], 'contacts'=>['Contacto adicional']];
+    $this->actingAs($this->actor)->postJson('/equipo4/proveedores', $data)->assertRedirect();
+    $supplier = \App\Models\InventoryModule\Supplier::where('code','SUP-NEW')->firstOrFail();
+    expect($supplier->supplied_products)->toBe([$product->sku])->and($supplier->contacts)->toBe(['Contacto adicional']);
+    $this->get('/equipo4/proveedores')->assertInertia(fn (Assert $a)=>$a
+        ->where('suppliers',fn ($rows)=>collect($rows)->contains(fn ($r)=>$r['code']==='SUP-NEW' && $r['supplied_products']===[$product->sku] && $r['contacts']===['Contacto adicional']))
+        ->where('allProducts',fn ($rows)=>collect($rows)->contains('sku',$product->sku)));
+    Product::create(['business_id'=>'business-B','sku'=>'ONLY-B','name'=>'Ajeno','active'=>true]);
+    $this->putJson('/equipo4/proveedores/'.$supplier->getKey(), [...$data,'supplied_products'=>['ONLY-B']])->assertUnprocessable();
+    expect($supplier->fresh()->supplied_products)->toBe([$product->sku]);
+});
+
+it('rejects malformed supplier arrays before persisting them', function () {
+    $this->actingAs($this->actor)->postJson('/equipo4/proveedores', ['code'=>'SUP-BAD','legal_name'=>'No guardar',
+        'contact_name'=>'Contacto','payment_terms'=>'CONTADO','status'=>'ACTIVO',
+        'supplied_products'=>[['sku'=>'objeto']], 'contacts'=>[['unsafe'=>'objeto']]])->assertUnprocessable();
+    expect(\App\Models\InventoryModule\Supplier::where('code','SUP-BAD')->exists())->toBeFalse();
+});
+
+it('persists category and product descriptive attributes without inventing stock variants', function () {
+    $this->actingAs($this->actor)->postJson('/equipo4/categorias', ['name'=>'Textiles','active'=>true,
+        'has_sizes'=>true,'has_colors'=>true,'has_seasons'=>false])->assertRedirect();
+    $category=\App\Models\InventoryModule\Category::where('slug','textiles')->firstOrFail();
+    expect($category->has_sizes)->toBeTrue()->and($category->has_seasons)->toBeFalse();
+    $this->postJson('/equipo4/productos', ['sku'=>'TEXT-NEW','name'=>'Playera','category'=>'textiles',
+        'stock_min'=>0,'stock_max'=>20,'active'=>true,'sizes'=>['M','L'],'colors'=>['Azul'],'seasons'=>[]])->assertRedirect();
+    $product=Product::where('sku','TEXT-NEW')->firstOrFail();
+    expect($product->sizes)->toBe(['M','L'])->and($product->colors)->toBe(['Azul']);
+    $this->get('/equipo4/productos')->assertInertia(fn (Assert $a)=>$a
+        ->where('products',fn ($rows)=>collect($rows)->contains(fn ($r)=>$r['sku']==='TEXT-NEW' && $r['sizes']===['M','L'])));
+    $this->putJson('/equipo4/productos/'.$product->getKey(), ['sku'=>'TEXT-NEW','name'=>'Playera','category'=>'textiles',
+        'stock_min'=>0,'stock_max'=>20,'active'=>true,'sizes'=>[['bad'=>'objeto']]])->assertUnprocessable();
+});
+
+it('projects the supplier catalog for the purchase selector without cross business products', function () {
+    $product=Product::where('business_id','business-A')->firstOrFail();
+    $supplier=\App\Models\InventoryModule\Supplier::where('business_id','business-A')->firstOrFail();
+    $supplier->forceFill(['supplied_products'=>[$product->sku]])->save();
+    $this->actingAs($this->actor)->get('/equipo4/compras')->assertInertia(fn (Assert $a)=>$a
+        ->where('suppliersList',fn ($rows)=>collect($rows)->contains(fn ($r)=>$r['_id']===(string)$supplier->getKey() && $r['supplied_products']===[$product->sku])));
+});
+
+it('retains deleted product cost history without merging a reused SKU or another business', function () {
+    $this->actingAs($this->actor);
+    app(\App\Services\InventoryModule\BusinessContext::class)->select('business-A');
+    $old=Product::create(['business_id'=>'business-A','sku'=>'HISTORY-SKU','name'=>'Producto anterior','active'=>true]);
+    $service=app(\App\Services\InventoryModule\CostService::class);
+    $service->register(['product_id'=>(string)$old->getKey(),'cost'=>12,'suggested_price'=>24]);
+    $old->delete();
+    $new=Product::create(['business_id'=>'business-A','sku'=>'HISTORY-SKU','name'=>'Producto nuevo','active'=>false]);
+    $service->register(['product_id'=>(string)$new->getKey(),'cost'=>30,'suggested_price'=>60]);
+    DB::connection('inventory')->getCollection('cost_histories')->insertOne(['business_id'=>'business-B','product_id'=>'FOREIGN',
+        'sku'=>'PRIVATE-SKU','cost'=>999,'effective_at'=>new \MongoDB\BSON\UTCDateTime(now())]);
+    $this->get('/equipo4/costos')->assertOk()->assertInertia(fn (Assert $a)=>$a
+        ->has('archivedCosts',1)->where('archivedCosts.0.product_id',(string)$old->getKey())
+        ->where('archivedCosts.0.sku','HISTORY-SKU')->where('archivedCosts.0.last_cost',12)
+        ->where('products',fn ($rows)=>collect($rows)->contains(fn ($r)=>$r['_id']===(string)$new->getKey() && (float)$r['last_cost']===30.0)));
+    $this->getJson('/equipo4/costos/'.$old->getKey().'/history')->assertOk()->assertJsonCount(1,'history')->assertJsonPath('history.0.cost',12);
+});
+
+it('keeps legacy cost history accessible with bounded archived pagination and literal search', function () {
+    $this->actingAs($this->actor);
+    $collection=DB::connection('inventory')->getCollection('cost_histories');
+    for ($i=0;$i<27;$i++) {
+        $collection->insertOne(['business_id'=>'business-A','product_id'=>(string)new \MongoDB\BSON\ObjectId,
+            'cost'=>$i,'sku'=>$i===0?'LEGACY.[A]':'LEGACY-'.$i,'effective_at'=>new \MongoDB\BSON\UTCDateTime(now())]);
+    }
+    $this->get('/equipo4/costos')->assertInertia(fn (Assert $a)=>$a->has('archivedCosts',25)->where('archivedPagination.total',27));
+    $this->get('/equipo4/costos?archived_page=2')->assertInertia(fn (Assert $a)=>$a->has('archivedCosts',2));
+    $this->get('/equipo4/costos?q=LEGACY.%5BA%5D')->assertInertia(fn (Assert $a)=>$a->has('archivedCosts',1)->where('archivedCosts.0.sku','LEGACY.[A]'));
+});

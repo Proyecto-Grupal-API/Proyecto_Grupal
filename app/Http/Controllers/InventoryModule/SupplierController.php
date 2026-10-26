@@ -3,22 +3,21 @@
 namespace App\Http\Controllers\InventoryModule;
 
 use App\Http\Controllers\Controller;
-
 use App\Http\Requests\InventoryModule\StoreSupplierRequest;
 use App\Http\Requests\InventoryModule\UpdateSupplierRequest;
+use App\Models\InventoryModule\Product;
 use App\Models\InventoryModule\Supplier;
-use Inertia\Inertia;
-use Inertia\Response;
+use App\Services\InventoryModule\UsesBusinessContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class SupplierController extends Controller
 {
+    public function __construct() {}
 
-    public function __construct()
-    {
-    }
-    use \App\Services\InventoryModule\UsesBusinessContext;
+    use UsesBusinessContext;
 
     public function index(Request $request): Response
     {
@@ -28,7 +27,7 @@ class SupplierController extends Controller
         $query = Supplier::where('business_id', $this->businessId());
 
         if ($q !== '') {
-            $regex = '/' . preg_quote($q, '/') . '/i';
+            $regex = '/'.preg_quote($q, '/').'/i';
             $query->where(function ($sub) use ($regex) {
                 $sub->where('code', 'regex', $regex)
                     ->orWhere('legal_name', 'regex', $regex)
@@ -52,6 +51,7 @@ class SupplierController extends Controller
                 'payment_terms' => (string) $s->payment_terms,
                 'notes' => (string) ($s->notes ?? ''),
                 'status' => (string) $s->status,
+                'supplied_products' => (array) ($s->supplied_products ?? []), 'contacts' => (array) ($s->contacts ?? []),
             ];
         })->values()->all();
 
@@ -71,6 +71,7 @@ class SupplierController extends Controller
 
         return Inertia::render('Equipo4/Proveedores', [
             'suppliers' => $suppliersData,
+            'allProducts' => Product::where('business_id', $this->businessId())->orderBy('name')->get()->map(fn ($p) => ['_id' => (string) $p->getKey(), 'sku' => $p->sku, 'name' => $p->name])->values()->all(),
             'kpis' => $kpis,
             'pagination' => [
                 'current_page' => $suppliers->currentPage(),
@@ -89,22 +90,29 @@ class SupplierController extends Controller
         $validated = $request->validated();
         $validated['business_id'] = $this->businessId();
         Supplier::create($validated);
-        return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Proveedor creado exitosamente.');
+
+        return redirect(parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH))->with('success', 'Proveedor creado exitosamente.');
     }
 
     public function update(UpdateSupplierRequest $request, string $id): RedirectResponse
     {
         $supplier = Supplier::where('_id', $id)->where('business_id', $this->businessId())->first();
-        if (!$supplier) abort(404, 'Proveedor no encontrado.');
+        if (! $supplier) {
+            abort(404, 'Proveedor no encontrado.');
+        }
         $supplier->update($request->validated());
-        return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Proveedor actualizado exitosamente.');
+
+        return redirect(parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH))->with('success', 'Proveedor actualizado exitosamente.');
     }
 
     public function destroy(string $id): RedirectResponse
     {
         $supplier = Supplier::where('_id', $id)->where('business_id', $this->businessId())->first();
-        if (!$supplier) abort(404, 'Proveedor no encontrado.');
+        if (! $supplier) {
+            abort(404, 'Proveedor no encontrado.');
+        }
         $supplier->delete();
-        return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Proveedor eliminado exitosamente.');
+
+        return redirect(parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH))->with('success', 'Proveedor eliminado exitosamente.');
     }
 }

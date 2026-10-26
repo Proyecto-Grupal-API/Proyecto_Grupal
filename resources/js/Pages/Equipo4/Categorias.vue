@@ -11,7 +11,7 @@ const q = ref('')
 const open = ref(false)
 const editing = ref(null)
 
-const form = useForm({ name: '', description: '', active: true })
+const form = useForm({ has_sizes: false, has_colors: false, has_seasons: false, name: '', description: '', active: true })
 
 const filtered = computed(() =>
   props.categories.filter(c => c.name.toLowerCase().includes(q.value.toLowerCase()))
@@ -29,6 +29,7 @@ function openEdit(row) {
   form.name = row.name
   form.description = row.description
   form.active = row.active
+  for (const field of ['has_sizes', 'has_colors', 'has_seasons']) form[field] = !!row[field]
   open.value = true
 }
 
@@ -146,6 +147,12 @@ function destroy(row) {
             <textarea v-model="form.description" rows="3"
                       class="w-full border border-slate-300 rounded-lg px-3 py-2"></textarea>
           </div>
+          <fieldset class="space-y-2">
+            <legend class="text-sm font-semibold">Atributos descriptivos del producto</legend>
+            <label v-for="[field, label] in [['has_sizes', 'Tallas'], ['has_colors', 'Colores'], ['has_seasons', 'Temporadas']]" :key="field" class="flex items-center gap-2 text-sm">
+              <input v-model="form[field]" type="checkbox" /> {{ label }}
+            </label>
+          </fieldset>
           <label class="flex items-center gap-2 text-sm">
             <input v-model="form.active" type="checkbox" />
             Activa

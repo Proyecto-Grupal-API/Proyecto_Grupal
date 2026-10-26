@@ -40,6 +40,7 @@ const isEditing = ref(false)
 const selectedProduct = ref(null)
 
 const form = useForm({
+  sizesString: '', colorsString: '', seasonsString: '', sizes: [], colors: [], seasons: [],
   sku: '', name: '', description: '', category: 'souvenirs',
   stock_min: 0, stock_max: 0, active: true
 })
@@ -49,7 +50,7 @@ const openCreateModal = () => {
   selectedProduct.value = null
   form.reset()
   form.clearErrors()
-  form.category = 'souvenirs'
+  form.category = props.categories.find(c => c.slug === 'souvenirs' || c.name.toLowerCase().includes('souvenir'))?.slug || 'souvenirs'
   showModal.value = true
 }
 
@@ -61,10 +62,14 @@ const openEditModal = (row) => {
   form.sku = row.sku
   form.name = row.name
   form.description = row.description || ''
-  form.category = row.category
+  form.category = row.category || props.categories.find(c => c.slug === 'souvenirs' || c.name.toLowerCase().includes('souvenir'))?.slug || 'souvenirs'
   form.stock_min = row.stock_min
   form.stock_max = row.stock_max
   form.active = row.active
+  for (const field of ['sizes', 'colors', 'seasons']) {
+    form[field] = [...(row[field] || [])]
+    form[field + 'String'] = form[field].join(', ')
+  }
   showModal.value = true
 }
 
@@ -160,7 +165,24 @@ const deleteProduct = () => {
           <div>
             <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Descripción</label>
             <textarea v-model="form.description" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300"></textarea>
+          </div>          <div class="border-t border-slate-200 pt-4 mt-2">
+            <h4 class="text-xs font-semibold text-slate-600 mb-3 uppercase tracking-wide">Detalles del Souvenir</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Tallas</label>
+                <input v-model="form.sizesString" @input="form.sizes = form.sizesString.split(',').map(s => s.trim()).filter(Boolean)" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300" placeholder="Ej. S, M, L" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Colores</label>
+                <input v-model="form.colorsString" @input="form.colors = form.colorsString.split(',').map(s => s.trim()).filter(Boolean)" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300" placeholder="Ej. Rojo, Azul" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Temporadas</label>
+                <input v-model="form.seasonsString" @input="form.seasons = form.seasonsString.split(',').map(s => s.trim()).filter(Boolean)" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300" placeholder="Ej. Verano 2026" />
+              </div>
+            </div>
           </div>
+
           <div class="flex items-center gap-2">
             <input id="active" v-model="form.active" type="checkbox" class="rounded border-slate-300 text-[#00338D]" />
             <label for="active" class="text-sm text-slate-700">Activo</label>

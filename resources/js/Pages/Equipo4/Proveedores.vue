@@ -7,6 +7,7 @@ import { usePermissions } from '@/Composables/usePermissions'
 
 const props = defineProps({
   suppliers: { type: Array, default: () => [] },
+  allProducts: { type: Array, default: () => [] },
   kpis: { type: Array, default: () => [] },
   pagination: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) }
@@ -19,7 +20,7 @@ const canDelete = computed(() => can('proveedores.delete'))
 const hasAnyAction = computed(() => canUpdate.value || canDelete.value)
 
 const columns = computed(() => {
-  const base = ['Código', 'Razón social', 'Contacto', 'Email', 'Teléfono', 'Términos', 'Estado']
+  const base = ['Código', 'Razón social', 'Contacto', 'Email', 'Términos', 'Estado', 'Productos Surtidos']
   return hasAnyAction.value ? [...base, 'Acciones'] : base
 })
 
@@ -29,6 +30,10 @@ const isEditing = ref(false)
 const selectedSupplier = ref(null)
 
 const form = useForm({
+    contactsString: '',
+    suppliedProductsString: '', // Temporal para el string
+    contacts: [],
+    supplied_products: [], // Aquí se guardarán los SKUs seleccionados
   code: '', legal_name: '', trade_name: '', tax_id: '',
   contact_name: '', contact_email: '', contact_phone: '',
   payment_terms: 'CONTADO', notes: '', status: 'ACTIVO'
@@ -47,7 +52,8 @@ const formattedSuppliers = computed(() => {
     'Email': s.contact_email || '—',
     'Teléfono': s.contact_phone || '—',
     'Términos': paymentTermsLabels[s.payment_terms] || s.payment_terms,
-    'Estado': statusLabels[s.status] || s.status
+    'Estado': statusLabels[s.status] || s.status,
+    'Productos Surtidos': (s.supplied_products || []).join(', ') || '—'
   }))
 })
 
@@ -74,6 +80,10 @@ const openEditModal = (row) => {
   form.payment_terms = row.payment_terms
   form.notes = row.notes || ''
   form.status = row.status
+  form.contacts = [...(row.contacts || [])]
+  form.contactsString = form.contacts.join(', ')
+  form.suppliedProductsString = (row.supplied_products || []).join(', ')
+  form.supplied_products = row.supplied_products || []
   showModal.value = true
 }
 
@@ -196,13 +206,30 @@ const deleteSupplier = () => {
             <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Notas</label>
             <textarea v-model="form.notes" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300"></textarea>
           </div>
+<div class="col-span-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Contactos adicionales (separados por coma)</label>
+            <input v-model="form.contactsString" @input="form.contacts = form.contactsString.split(',').map(c => c.trim()).filter(Boolean)" type="text" class="mt-1 w-full rounded-md border-slate-300" placeholder="Ej. Juan, 555-1234, juan@mail.com" />
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Productos Surtidos</label>
+            <select v-model="form.supplied_products" multiple class="mt-1 w-full rounded-md border-slate-300 h-32 p-2 text-sm focus:border-[#0284C7] focus:ring-[#0284C7]">
+                <option v-for="prod in allProducts" :key="prod._id" :value="prod.sku">
+                    {{ prod.name }} ({{ prod.sku }})
+                </option>
+            </select>
+            <p class="text-xs text-slate-500 mt-1">Mantén presionado Ctrl (Cmd en Mac) para seleccionar varios.</p>
+        </div>
+    </div>
+
           <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
             <button type="button" @click="showModal = false" class="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition">Cancelar</button>
             <button type="submit" :disabled="form.processing" class="px-4 py-2 text-sm font-semibold rounded-lg bg-[#00338D] text-white hover:bg-[#0284C7] transition disabled:opacity-50">
               {{ form.processing ? 'Guardando...' : (isEditing ? 'Actualizar' : 'Guardar') }}
             </button>
           </div>
-        </form>
+
+</form>
       </div>
     </div>
 

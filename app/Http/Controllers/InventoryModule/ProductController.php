@@ -3,25 +3,26 @@
 namespace App\Http\Controllers\InventoryModule;
 
 use App\Http\Controllers\Controller;
-
 use App\Http\Requests\InventoryModule\StoreProductRequest;
 use App\Http\Requests\InventoryModule\UpdateProductRequest;
-use App\Models\InventoryModule\Product;
 use App\Models\InventoryModule\Category;
+use App\Models\InventoryModule\Product;
+use App\Models\InventoryModule\ReorderRule;
+use App\Services\InventoryModule\AlertGeneratorService;
 use App\Services\InventoryModule\ReorderRuleService;
-use Inertia\Inertia;
-use Inertia\Response;
+use App\Services\InventoryModule\UsesBusinessContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
+use Inertia\Response;
+use MongoDB\BSON\ObjectId;
 
 class ProductController extends Controller
 {
+    public function __construct() {}
 
-    public function __construct()
-    {
-    }
-    use \App\Services\InventoryModule\UsesBusinessContext;
+    use UsesBusinessContext;
 
     public function index(Request $request): Response
     {
@@ -45,7 +46,7 @@ class ProductController extends Controller
         }
 
         if ($q !== '') {
-            $regex = '/' . preg_quote($q, '/') . '/i';
+            $regex = '/'.preg_quote($q, '/').'/i';
             $query->where(function ($sub) use ($regex) {
                 $sub->where('sku', 'regex', $regex)
                     ->orWhere('name', 'regex', $regex);
@@ -61,6 +62,7 @@ class ProductController extends Controller
                 'name' => (string) $product->name,
                 'description' => (string) ($product->description ?? ''),
                 'category' => (string) $product->category,
+                'sizes' => (array) ($product->sizes ?? []), 'colors' => (array) ($product->colors ?? []), 'seasons' => (array) ($product->seasons ?? []),
                 'stock_min' => (int) $product->stock_min,
                 'stock_max' => (int) $product->stock_max,
                 'active' => (bool) $product->active,
@@ -71,8 +73,9 @@ class ProductController extends Controller
             ->where('active', true)
             ->orderBy('name', 'asc')
             ->get()
-            ->map(fn($cat) => [
+            ->map(fn ($cat) => [
                 'slug' => (string) $cat->slug,
+                'has_sizes' => (bool) $cat->has_sizes, 'has_colors' => (bool) $cat->has_colors, 'has_seasons' => (bool) $cat->has_seasons,
                 'name' => (string) $cat->name,
             ])
             ->values()
@@ -97,11 +100,11 @@ class ProductController extends Controller
         ]);
 
         $withAlertsCount = 0;
-        if (!empty($productIdsWithAlerts)) {
+        if (! empty($productIdsWithAlerts)) {
             // Filtrar por los productos del negocio (y opcionalmente categoria)
             $withAlertsCount = $collection->countDocuments(array_merge(
                 $filter,
-                ['_id' => ['$in' => array_map(fn($id) => new \MongoDB\BSON\ObjectId((string) $id), $productIdsWithAlerts)]]
+                ['_id' => ['$in' => array_map(fn ($id) => new ObjectId((string) $id), $productIdsWithAlerts)]]
             ));
         }
 
@@ -143,7 +146,7 @@ class ProductController extends Controller
             // no-op
         }
 
-        return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Producto creado exitosamente.');
+        return redirect(parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH))->with('success', 'Producto creado exitosamente.');
     }
 
     public function update(UpdateProductRequest $request, string $id, ReorderRuleService $reorderService): RedirectResponse
@@ -152,7 +155,9 @@ class ProductController extends Controller
             ->where('business_id', $this->businessId())
             ->first();
 
-        if (!$product) abort(404, 'Producto no encontrado.');
+        if (! $product) {
+            abort(404, 'Producto no encontrado.');
+        }
 
         $product->update($request->validated());
 
@@ -162,7 +167,7 @@ class ProductController extends Controller
             // no-op
         }
 
-        return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Producto actualizado exitosamente.');
+        return redirect(parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH))->with('success', 'Producto actualizado exitosamente.');
     }
 
     public function destroy(string $id): RedirectResponse
@@ -171,21 +176,23 @@ class ProductController extends Controller
             ->where('business_id', $this->businessId())
             ->first();
 
-        if (!$product) abort(404, 'Producto no encontrado.');
+        if (! $product) {
+            abort(404, 'Producto no encontrado.');
+        }
 
         try {
-            $alerts = app(\App\Services\InventoryModule\AlertGeneratorService::class);
-            $rules = \App\Models\InventoryModule\ReorderRule::where('product_id', $id)->get();
+            $alerts = app(AlertGeneratorService::class);
+            $rules = ReorderRule::where('product_id', $id)->get();
             foreach ($rules as $rule) {
                 $alerts->resolveFor((string) $rule->product_id, (string) $rule->location_id);
             }
-            \App\Models\InventoryModule\ReorderRule::where('product_id', $id)->delete();
+            ReorderRule::where('product_id', $id)->delete();
         } catch (\Throwable $e) {
             // no-op
         }
 
         $product->delete();
 
-        return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Producto eliminado exitosamente.');
+        return redirect(parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH))->with('success', 'Producto eliminado exitosamente.');
     }
 }
