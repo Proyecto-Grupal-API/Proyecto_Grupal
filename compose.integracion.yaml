@@ -39,6 +39,17 @@ services:
       - mongodb
     restart: unless-stopped
 
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server@sha256:cf8f0ab2ebe61feec2eed2629061a07d247f791c2a8ddda74a4ac9f06a291718
+    environment:
+      ACCEPT_EULA: 'Y'
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${SQLSERVER_SA_PASSWORD:?Configura la contraseña privada de SQL Server}
+      MSSQL_MEMORY_LIMIT_MB: '2048'
+    mem_limit: 3g
+    volumes:
+      - integration-sql:/var/opt/mssql
+    restart: 'no'
   mongodb:
     image: mongo@sha256:5d7043a4ffe02b9ed1b6e0bab057546981af5ca0a79107e9c461e49bc44c0a7b
     command: ['mongod', '--replSet', 'rs0', '--bind_ip_all']
@@ -46,3 +57,4 @@ services:
       - integration-mongo:/data/db
 volumes:
   integration-mongo:
+  integration-sql:

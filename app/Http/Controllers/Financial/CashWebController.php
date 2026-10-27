@@ -1,0 +1,57 @@
+<?php
+
+namespace App\Http\Controllers\Financial;
+
+use App\Domains\Financial\Contracts\CashAuthorizationProvider;
+use App\Domains\Financial\Models\CashShift;
+use App\Domains\Financial\Services\ReceiptPdfService;
+use App\Http\Controllers\Financial\Concerns\FinancialWebActor;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+// Reuses the API's scoped queries, validation, DTOs and atomic services.
+// Session authentication replaces OAuth identity; CSRF remains enabled.
+class CashWebController extends CashController
+{
+    use FinancialWebActor;
+
+    protected function shiftData(CashShift $shift): array
+    {
+        return array_merge(parent::shiftData($shift), [
+            'is_operator' => $shift->agent_id === $this->authenticatedActor(request()),
+        ]);
+    }
+
+    public function index(): Response
+    {
+        return Inertia::render('Financial/Cash');
+    }
+
+    public function printReceipt(Request $request, string $associationId, string $receiptId): Response
+    {
+        $this->authorizeAssociation($request, $associationId, 'read');
+
+        return Inertia::render('Financial/CashReceipt', ['receipt' => $this->findReceipt($associationId, $receiptId)->snapshot]);
+    }
+
+    public function downloadReceiptPdf(Request $request, string $associationId, string $receiptId, ReceiptPdfService $pdf)
+    {
+        $this->authorizeAssociation($request, $associationId, 'read');
+        $receipt = $this->findReceipt($associationId, $receiptId);
+
+        return $pdf->download($pdf->cash($receipt->snapshot));
+    }
+
+    public function context(Request $request, CashAuthorizationProvider $provider): JsonResponse
+    {
+        $values = $request->validate(['association_id' => ['required', 'string', 'max:255']]);
+        $permissions = [];
+        foreach (['read', 'operate', 'adjust', 'close', 'manage', 'recover', 'approval_read', 'approval_manage', 'approval_review'] as $action) {
+            $permissions[$action] = $provider->allows($this->authenticatedActor($request), $values['association_id'], $action);
+        }
+
+        return $this->ok($request, ['association_id' => $values['association_id'], 'permissions' => $permissions]);
+    }
+}

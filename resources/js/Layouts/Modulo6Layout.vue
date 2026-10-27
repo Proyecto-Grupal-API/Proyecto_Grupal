@@ -25,7 +25,9 @@ const currentUrl = computed(() => page.url.split("?")[0].split("#")[0]);
 const esServicios = computed(() => currentUrl.value.startsWith("/servicios-estudiante"));
 const esInventario = computed(() => currentUrl.value.startsWith("/equipo4"));
 const esMarketplace = computed(() => currentUrl.value.startsWith("/tienda"));
-const esPerfil = computed(() => !currentUrl.value.startsWith("/modulo6") && !esServicios.value && !esInventario.value && !esMarketplace.value);
+const esFinanzas = computed(() => currentUrl.value.startsWith("/finanzas"));
+const esRecompensas = computed(() => currentUrl.value.startsWith("/recompensas"));
+const esPerfil = computed(() => !currentUrl.value.startsWith("/modulo6") && !esServicios.value && !esInventario.value && !esMarketplace.value && !esFinanzas.value && !esRecompensas.value);
 const menuAbierto = ref(false);
 const cuentaAbierta = ref(false);
 const botonMenu = ref(null);
@@ -54,15 +56,23 @@ const iniciales = computed(() =>
 );
 const modulos = [
     { nombre: "Mi Perfil", icono: "👤", href: "/profile", perfil: true },
-    { nombre: "Cartera", icono: "💳" },
+    { nombre: "Cartera", icono: "💳", href: "/finanzas", finanzas: true },
     { nombre: "Tienda", icono: "🛍️", href: "/tienda", marketplace: true },
     { nombre: "Inventarios", icono: "📦", href: "/equipo4", inventario: true },
     { nombre: "Servicios", icono: "🎓", href: "/servicios-estudiante", servicios: true },
     { nombre: "Comunidad", icono: "👥", href: "/modulo6" },
-    { nombre: "Recompensas", icono: "🎁" },
+    { nombre: "Recompensas", icono: "🎁", href: "/recompensas", recompensas: true },
 ];
 const enlaces = computed(() =>
-    esMarketplace.value
+    esFinanzas.value ? [
+        {nombre:"Mi cartera",icono:"💳",href:"/finanzas",activo:currentUrl.value==="/finanzas"},
+        {nombre:"Mis bonos",icono:"🎟️",href:"/finanzas/bonos"},
+        {nombre:"Mis comprobantes",icono:"🧾",href:"/finanzas/comprobantes"},
+        {nombre:"Compras por confirmar",icono:"🛍️",href:"/finanzas/compras"},
+        {nombre:"Transferencias",icono:"🔁",href:"/finanzas/transferencias"},
+        {nombre:"Caja",icono:"🏦",href:"/finanzas/caja"},
+        {nombre:"Controles financieros",icono:"📊",href:"/finanzas/controles"},
+    ] : esRecompensas.value ? [{nombre:"Inicio de Recompensas",icono:"🎁",href:"/recompensas"}] : esMarketplace.value
         ? [
             { nombre: "Catálogo y carrito", icono: "🛍️", href: "/tienda", activo: currentUrl.value === "/tienda" },
             { nombre: "Negocios y tiendas", icono: "🏪", href: "/tienda/negocios" },
@@ -309,7 +319,7 @@ const eliminarLeidas = async () => {
                 @click="menuAbierto = false"
             >
                 <p class="campus-section-label">
-                    {{ esPerfil ? "Identidad" : esMarketplace ? "Marketplace" : "Comunidad" }}
+                    {{ esPerfil ? "Identidad" : esMarketplace ? "Marketplace" : esFinanzas ? "Finanzas" : esRecompensas ? "Recompensas" : "Comunidad" }}
                 </p>
                 <Link
                     v-for="enlace in enlaces"
@@ -361,10 +371,10 @@ const eliminarLeidas = async () => {
                             :class="{
                                 'is-active': modulo.perfil
                                     ? esPerfil
-                                    : modulo.servicios ? esServicios : modulo.inventario ? esInventario : modulo.marketplace ? esMarketplace : (!esPerfil && !esServicios && !esInventario && !esMarketplace),
+                                    : modulo.servicios ? esServicios : modulo.inventario ? esInventario : modulo.marketplace ? esMarketplace : (!esPerfil && !esServicios && !esInventario && !esMarketplace && !esFinanzas && !esRecompensas),
                             }"
                             :aria-current="
-                                (modulo.perfil ? esPerfil : modulo.servicios ? esServicios : modulo.inventario ? esInventario : modulo.marketplace ? esMarketplace : (!esPerfil && !esServicios && !esInventario && !esMarketplace))
+                                (modulo.finanzas ? esFinanzas : modulo.recompensas ? esRecompensas : modulo.perfil ? esPerfil : modulo.servicios ? esServicios : modulo.inventario ? esInventario : modulo.marketplace ? esMarketplace : (!esPerfil && !esServicios && !esInventario && !esMarketplace && !esFinanzas && !esRecompensas))
                                     ? 'true'
                                     : undefined
                             "

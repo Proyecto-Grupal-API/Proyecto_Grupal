@@ -1,0 +1,14 @@
+<script setup>
+import{Head,Link}from'@inertiajs/vue3';import AuthenticatedLayout from'@/Layouts/AuthenticatedLayout.vue';
+const props=defineProps({review:Object});
+const statuses={CONSISTENT:'La evidencia actual coincide con la revisión.',SOURCE_CHANGED:'La evidencia actual cambió o es inconsistente. La consulta del comprobante permanece bloqueada.',SOURCE_MISSING:'Falta la operación o wallet original. La revisión se conserva.',REVIEW_RECORD_INCONSISTENT:'La copia de evidencia de la revisión no coincide con su huella. Requiere investigación.'};
+const fields={transaction_id:'Transacción',reference_id:'Recarga original',wallet_id:'Wallet',owner_id:'Cuenta titular',currency:'Moneda',amount_cents:'Importe (centavos)',transaction_created_at:'Fecha UTC de transacción',topup_created_at:'Fecha UTC de recarga',agent_id:'Agente registrado',movement_type:'Tipo de movimiento',entry_id:'Movimiento contable',entry_created_at:'Fecha UTC de movimiento',balance_after_cents:'Saldo posterior (centavos)',available_balance_after_cents:'Saldo disponible posterior (centavos)',held_balance_after_cents:'Saldo retenido posterior (centavos)',idempotency_digest:'Huella de clave de operación'};
+const date=v=>new Date(v).toLocaleString('es-MX');
+</script>
+<template><Head title="Detalle de revisión"/><AuthenticatedLayout><template #header><h2 class="text-2xl font-bold text-[#00338D]">Detalle de auditoría · 2.9</h2></template>
+<div class="bg-[#F5F8FC] min-h-screen p-6"><div class="max-w-5xl mx-auto"><Link :href="route('financial.receipts.admin.history')">Volver al historial</Link>
+<article class="bg-white border rounded-xl p-6 mt-5"><h3 class="font-bold">Revisión de recarga de demostración</h3><p class="font-mono break-all mt-2">{{review.id}}</p><p>{{date(review.reviewed_at)}}</p><p class="break-all">Cuenta revisora: {{review.reviewed_by}}</p><p class="whitespace-pre-wrap mt-3">{{review.reason}}</p>
+<p class="mt-4 p-3 rounded" :class="review.evidence_status==='CONSISTENT'?'bg-green-50 text-green-800':'bg-amber-50 text-amber-900'">{{statuses[review.evidence_status]||'Estado no reconocido: requiere revisión.'}}</p>
+<h4 class="font-bold mt-6">Copia de evidencia guardada al aprobar</h4><dl class="mt-3 divide-y"><div v-for="(label,key) in fields" :key="key" class="py-3 grid gap-2 sm:grid-cols-2"><dt>{{label}}</dt><dd class="font-mono text-sm break-all">{{review.snapshot?.[key]??'Sin registro'}}</dd></div></dl>
+<p class="mt-4 text-xs break-all">Huella SHA-256 de evidencia: {{review.evidence_hash}}</p><p class="mt-4 text-sm text-slate-600">Esta revisión documenta una demostración sin comprobante de recepción en caja. No genera folio ni dinero y no constituye una factura o firma digital. La huella permite comparar registros; no sustituye los controles de acceso a la base.</p>
+</article></div></div></AuthenticatedLayout></template>

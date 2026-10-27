@@ -1,0 +1,49 @@
+<?php
+
+namespace App\Models\PlatformModule;
+
+use MongoDB\Laravel\Eloquent\Model;
+
+class AuditLog extends Model
+{
+    protected $connection = 'platform';
+
+    protected $collection = 'audit_logs';
+
+    public $timestamps = true;
+
+    protected $fillable = [
+        'envelope_hash',
+        'actor_id',
+        'actor_role',
+        'action',
+        'entity_type',
+        'entity_id',
+        'before',
+        'after',
+        'ip_address',
+        'device',
+        'correlation_id',
+        'source_domain',
+        'reason',
+        'event_id',
+        'occurred_at',
+    ];
+
+    protected $casts = [
+        'before' => 'array',
+        'after' => 'array',
+        'occurred_at' => 'datetime',
+    ];
+
+    protected static function booted()
+    {
+        static::updating(fn () => throw new \RuntimeException('audit_logs es append-only.'));
+        static::deleting(fn () => throw new \RuntimeException('audit_logs es append-only.'));
+    }
+
+    public function correlation()
+    {
+        return $this->belongsTo(AuditCorrelation::class, 'correlation_id', 'correlation_id');
+    }
+}

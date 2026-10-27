@@ -29,6 +29,7 @@ return [
     */
 
     'connections' => [
+        'financial' => ['driver' => 'database', 'connection' => 'sqlsrv', 'table' => 'financial_jobs', 'queue' => 'financial-reconciliation', 'retry_after' => 1000, 'after_commit' => true],
         'comunidad' => [
             'driver' => 'mongodb',
             'connection' => 'mongodb',

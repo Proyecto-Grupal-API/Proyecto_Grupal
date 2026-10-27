@@ -1,0 +1,4 @@
+export const studentDashboardInitial = {balance:0,activeRedemptions:0,availableCampaigns:0,featuredCampaign:{title:'Sin campaña activa',description:'',period:'',multiplier:''},featuredRewards:[],recentActivity:[]}
+export const professorDashboardInitial = {balance:0,pendingValidations:0,activeCampaigns:0,featuredCampaign:{title:'Sin campaña activa',description:'',multiplier:'',period:''},pendingRedemptions:[],groupParticipation:[]}
+export const adminDashboardInitial = {period:'Periodo actual',pointsIssuedMonth:0,completedRedemptions:0,fraudAlerts:0,adheredBusinesses:0,governance:{emissionLimits:0,expiringPoints:0,detectedFrauds:0,pendingCampaigns:0},chartData:{labels:[],issued:[],redeemed:[]},auditLogs:[]}
+export const rewardsInitial=[],campaignsInitial=[],redemptionsInitial=[],activityInitial=[],businessesInitial=[],earningRulesInitial=[],auditInitial=[],settingsInitial=[],integrationInitial=[],ledgerInitial=[]

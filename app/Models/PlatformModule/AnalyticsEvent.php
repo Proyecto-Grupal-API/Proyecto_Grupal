@@ -1,0 +1,38 @@
+<?php
+
+namespace App\Models\PlatformModule;
+
+use MongoDB\Laravel\Eloquent\Model;
+
+class AnalyticsEvent extends Model
+{
+    protected $connection = 'platform';
+
+    protected $collection = 'analytics_events';
+
+    public $timestamps = true;
+
+    protected $fillable = [
+        'envelope_hash',
+        'source_domain',
+        'event_type',
+        'entity_type',
+        'entity_id',
+        'payload',
+        'idempotency_key',
+        'processed',
+        'processed_at',
+        'processing_error',
+        'event_id',
+        'event_name',
+        'aggregate_id',
+        'occurred_at',
+    ];
+
+    protected $casts = [
+        'payload' => 'array',
+        'processed' => 'boolean',
+        'processed_at' => 'datetime',
+        'occurred_at' => 'datetime',
+    ];
+}
