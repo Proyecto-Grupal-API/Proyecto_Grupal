@@ -23,4 +23,5 @@ Alterno: http://127.0.0.1:8086. Fecha: 27 de octubre de 2026.
 
 El estado de integración es demostrable por pantallas, pruebas y bases separadas.
 No equivale a haber terminado todos los requisitos funcionales de cada equipo.
-Los cambios nuevos siguen locales hasta que se autorice publicarlos en GitHub.
+Rama de entrega en GitHub: `MERGE_COMPLETO`, por solicitud del usuario.
+Las credenciales y la activación local permanecen fuera de Git.

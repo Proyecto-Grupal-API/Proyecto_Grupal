@@ -1,8 +1,9 @@
 # Campus Digital: integración local de los siete equipos
 
 Fecha: 27 de octubre de 2026. Copia de trabajo: `/home/daniel/campus_digital_integracion_e1`.
-Dirección: http://127.0.0.1:8086. Rama de trabajo conservada: `MERGE-1-3-4-5-6`.
-No se publica automáticamente en GitHub ni se modifica `/home/daniel/campus_digital`.
+Dirección: http://127.0.0.1:8086. Rama de integración: `MERGE_COMPLETO` (antes `MERGE-1-3-4-5-6`).
+Publicación y renombrado solicitados por el usuario el 27 de octubre de 2026.
+El proyecto principal `/home/daniel/campus_digital` se conserva sin modificaciones.
 
 ## Fuentes incorporadas
 
