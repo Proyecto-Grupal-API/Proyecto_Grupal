@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\PlatformModule;
 
 use App\Models\PlatformModule\AnalyticsEvent;
-use App\Models\PlatformModule\AuditLog;
 use App\Models\PlatformModule\IntegrationLog;
 use App\Models\PlatformModule\WebhookEvent;
 use App\Services\PlatformModule\PointsLedger\DTO\EarnPointsRequest;
@@ -63,33 +62,8 @@ class IntegrationController
      */
     public function retryWebhook(Request $request, string $id): JsonResponse
     {
-        $webhook = WebhookEvent::findOrFail($id);
-
-        $webhook->increment('retry_count');
-        $webhook->update([
-            'status' => 'processed',
-            'processed_at' => now(),
-            'next_retry_at' => null,
-        ]);
-
-        $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'webhook.retried',
-            'entity_type' => 'WebhookEvent',
-            'entity_id' => (string) $webhook->_id,
-            'after' => ['status' => 'processed', 'retry_count' => $webhook->retry_count],
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'integrations',
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Evento reintentado y marcado como procesado.',
-            'webhook' => $webhook->fresh(),
-        ]);
+        WebhookEvent::findOrFail($id);
+        abort(503, 'El reprocesamiento requiere un manejador acordado con el módulo emisor. No se modificó el evento.');
     }
 
     /**

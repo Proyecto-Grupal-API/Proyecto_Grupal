@@ -20,17 +20,17 @@ async function loadAudit() {
     const list = Array.isArray(res) ? res : (res.data || [])
     if (list.length > 0) {
       auditList.value = list.map(a => {
-        const role = a.actor_role || 'system'
+        const role = a.actor_role || 'not_recorded'
         const initials = role === 'admin' ? 'AD' : (role === 'student' ? 'AL' : (role === 'professor' ? 'PR' : 'SY'))
         return {
           id: a._id || a.id,
-          user: a.actor_id ? `${a.actor_role} (${a.actor_id.slice(-6)})` : (a.actor_role || 'Sistema'),
+          user: a.actor_id ? `${role === 'not_recorded' ? 'Cargo no registrado' : role} (${a.actor_id.slice(-6)})` : (a.actor_role || 'Sistema'),
           initials,
           action: a.action,
           entity: a.entity_type || 'General',
-          date: a.created_at ? a.created_at.slice(0, 19).replace('T', ' ') : 'Reciente',
-          ip: a.ip_address || '127.0.0.1',
-          correlation: a.correlation_id ? a.correlation_id.slice(0, 8) : (a._id ? a._id.slice(0, 8) : 'CORR-01'),
+          date: (a.occurred_at || a.created_at || '').slice(0,19).replace('T',' '),
+          ip: a.ip_address || '—',
+          correlation: a.correlation_id || '—',
         }
       })
     }

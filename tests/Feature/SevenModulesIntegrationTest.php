@@ -13,6 +13,7 @@ use App\Models\PlatformModule\PointsLedger;
 use App\Models\PlatformModule\Redemption;
 use App\Models\PlatformModule\RedemptionEvent;
 use App\Models\PlatformModule\Reward;
+use App\Models\PlatformModule\WebhookEvent;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -26,7 +27,7 @@ beforeEach(function () {
     foreach (glob(database_path('migrations/platform/*.php')) as $file) {
         (require $file)->up();
     }
-    config(['database.connections.sqlsrv.database' => 'campus_digital_financial_testing']);
+    config(['database.connections.sqlsrv.database' => 'campus_digital_financial_testing', 'platform.ingest.enabled' => false, 'platform.delivery.enabled' => false]);
     DB::purge('sqlsrv');
     if (! app()->environment('testing') || DB::connection('sqlsrv')->getDatabaseName() !== 'campus_digital_financial_testing') {
         throw new RuntimeException('Unsafe financial test target.');
@@ -129,5 +130,17 @@ it('rolls back the points and stock if writing the redemption timeline fails', f
         RedemptionEvent::flushEventListeners();
     }
     expect(Redemption::count())->toBe(0)->and($reward->fresh()->reserved_stock)->toBe(0)->and(PointsAccount::first()->balance)->toBe(100);
-    $this->getJson('/api/v1/recompensas/points/my-balance')->assertJsonPath('balance',100);
+    $this->getJson('/api/v1/recompensas/points/my-balance')->assertJsonPath('balance', 100);
+});
+
+it('keeps financial receipt delegation closed before resolving pending E1 dependencies', function () {
+    $this->actingAs($this->actor)->get('/finanzas/comprobantes-api')->assertStatus(503)
+        ->assertInertia(fn (Assert $page) => $page->component('Financial/Unavailable'));
+});
+it('never marks an external webhook processed without actually replaying it', function () {
+    $this->actor->assignRole(Role::ADMIN);
+    $this->actingAs($this->actor);
+    $event = WebhookEvent::create(['source' => 'marketplace', 'event_type' => 'sale', 'event_id' => 'fixture-webhook', 'status' => 'failed', 'retry_count' => 0]);
+    $this->postJson('/api/v1/recompensas/integrations/webhooks/'.$event->getKey().'/retry')->assertStatus(503);
+    expect($event->fresh()->status)->toBe('failed')->and($event->fresh()->retry_count)->toBe(0);
 });

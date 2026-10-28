@@ -1,5 +1,7 @@
 # Entrega integrada de Campus Digital — equipos 1, 3, 4, 5 y 6
 
+> **Actualización local del 27 de octubre:** los dominios de E2 y E7 ya se incorporaron al alterno. Consulta [la integración de los siete equipos](INTEGRACION_1_2_3_4_5_6_7.md). El corte publicado y las tablas históricas siguientes siguen correspondiendo al 15 de octubre; los cobros entre módulos y la activación de auditorías tienen los límites indicados en el documento nuevo.
+
 Corte de publicación: **15 de octubre de 2026**, America/Mexico_City.
 Rama: **`MERGE-1-3-4-5-6`**.
 

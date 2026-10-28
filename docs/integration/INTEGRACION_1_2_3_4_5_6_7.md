@@ -57,12 +57,17 @@ El origen de auditoría sale del transporte autenticado, no de un campo libre de
 El recibo debe confirmar el ID enviado; fallos y respuestas desconocidas quedan para reintento.
 El acuse de auditoría no asigna puntos ni acredita un pago.
 
-**Estado de activación:** `PLATFORM_INGEST_ENABLED=false` y
-`PLATFORM_DELIVERY_ENABLED=false`. Las pantallas E7 sí están disponibles.
-La revisión automática pidió confirmación explícita para activar recepción/envío persistentes.
-La activación propuesta se limita al alterno: habilitar ambas banderas y reiniciar su scheduler.
-El envío revisaría también auditorías históricas pendientes en lotes de hasta 100 por minuto.
-No cambia roles/scopes OAuth, fondos, saldos, autoridades ni permisos financieros.
+**Activado con autorización explícita del usuario el 27 de octubre:**
+`PLATFORM_INGEST_ENABLED=true` y `PLATFORM_DELIVERY_ENABLED=true` en el `.env`
+privado del alterno. Su scheduler fue reiniciado. La configuración de ejemplo y
+el entorno de pruebas conservan ambas banderas apagadas.
+
+Se entregaron **71 auditorías históricas**, con 71 acuses en E6 y 71 registros E7
+atribuidos a `community`, sin pendientes fallidos. Prueba HTTP real: repetir el
+mismo sobre devuelve 200/duplicado; cambiar el contenido con el mismo ID devuelve
+409; repetir el exportador entrega cero registros nuevos. Puntos y wallets/saldos
+financieros permanecieron en cero. No se modificaron roles/scopes, autoridades ni
+permisos financieros. Evidencia: `activacion-verificada.json` en los logs de esta entrega.
 
 ## Qué continúa pendiente
 
@@ -100,8 +105,22 @@ Para pruebas nuevas, preparar únicamente el SQL de pruebas con
 No ejecutar `migrate:fresh` ni apuntar las pruebas al SQL de presentación.
 
 Evidencia local y resultados: `storage/logs/integracion-20261027/`.
-La batería dirigida E2/E7 anterior al formato final aprobó **109 pruebas, 498 aserciones**.
-La compilación y regresión final se registrarán al completar la verificación.
+Regresión completa del conjunto: **1,368 pruebas, 9,634 aserciones**, sin fallos,
+errores ni omisiones (XML `regresion-completa.xml`). Tras la revisión final de dos
+casos adicionales, se ejecutó la batería afectada E2/E7: **111 pruebas y 511
+aserciones**, todas aprobadas (`e2-e7-final.xml`). Son ejecuciones con casos
+compartidos; no se suman como si fueran pruebas distintas.
+
+Se corrigió además la resolución prematura de una dependencia pendiente E1 en
+la delegación de comprobantes, mostrando el aviso de indisponibilidad, y se dejó
+el reprocesamiento externo de webhooks en 503 sin cambiar su estado: el corte
+original sólo los marcaba procesados, sin ejecutar un manejador real.
+
+Navegador Edge aislado, login E1 del estudiante demo: diez pantallas reales de
+Finanzas/Recompensas, sin errores JavaScript ni errores en consultas E7. Comprobación
+móvil a 390 px sin desbordamiento horizontal. El panel E7 administrativo fue probado
+mediante APIs/fixtures; no se modificó el enrolamiento MFA del admin para entrar en
+su navegador. Se preserva ese requisito de E1.
 
 ## Reversión
 

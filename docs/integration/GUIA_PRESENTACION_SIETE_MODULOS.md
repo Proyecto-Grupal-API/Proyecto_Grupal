@@ -17,8 +17,8 @@ Alterno: http://127.0.0.1:8086. Fecha: 27 de octubre de 2026.
    No se crearon ni se promovieron usuarios para saltarse ese requisito.
 7. Explicar el estado financiero: E2 ya está instalado sobre SQL Server; los acuerdos de
    fondos, autoridad, receptores y checkout aún no permiten acreditar un pago entre módulos.
-8. La recepción y entrega de auditorías Comunidad → E7 están preparadas y probadas,
-   pero requieren la activación explícita descrita en el documento de integración.
+8. La recepción y entrega de auditorías Comunidad → E7 están probadas
+   y ya se activaron con autorización explícita: hay 71 auditorías entregadas, sin duplicados.
    Aceptar una auditoría no asigna puntos ni confirma dinero.
 
 El estado de integración es demostrable por pantallas, pruebas y bases separadas.

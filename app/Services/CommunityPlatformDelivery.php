@@ -37,7 +37,8 @@ final class CommunityPlatformDelivery
         $receipts = DB::connection('mongodb')->getCollection('community_platform_deliveries');
         $sent = 0;
         $failed = 0;
-        // Bound each pass. A failed old record does not prevent delivery of later records.
+        // ponytail: scans historical audits each pass; add a durable cursor if this grows beyond the local course workload.
+        // Bound deliveries. A failed old record does not prevent delivery of later records.
         $last = null;
         $examined = 0;
         while ($examined < $limit) {
