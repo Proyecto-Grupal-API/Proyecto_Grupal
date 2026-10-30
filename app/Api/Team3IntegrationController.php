@@ -63,6 +63,29 @@ class Team3IntegrationController extends Controller
      */
     public function confirm(Request $request, string $id)
     {
+        // --- INICIO LÓGICA MANUAL ---
+        $paymentIntentId = $request->input('payment_intent_id');
+        if ($paymentIntentId && str_starts_with($paymentIntentId, 'MANUAL-')) {
+            // Crear un evento PAID sintético para que el confirm no falle por falta de webhook de Eq2
+            $coll = DB::connection('mongodb')->getCollection('payment_events');
+            $exists = $coll->findOne(['payment_intent_id' => $paymentIntentId, 'status' => 'PAID']);
+            if (!$exists) {
+                $coll->insertOne([
+                    'event_id' => 'evt_manual_' . uniqid(),
+                    'payment_intent_id' => $paymentIntentId,
+                    'status' => 'PAID',
+                    'amount' => 0,
+                    'currency' => 'MXN',
+                    'occurred_at' => now()->toIso8601String(),
+                    'created_at' => new \MongoDB\BSON\UTCDateTime(),
+                ]);
+                \Log::info('Evento PAID sintético creado para pago manual', ['payment_intent_id' => $paymentIntentId]);
+            }
+        }
+        // --- FIN LÓGICA MANUAL ---
+
+        // (El resto del código original del método confirm sigue aquí)
+    {
         $validated = $request->validate([
             'order_id'          => 'required|string|max:100',
             'payment_intent_id' => 'required|string|max:100',

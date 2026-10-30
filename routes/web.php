@@ -280,4 +280,27 @@ Route::middleware(['team4.signature'])->prefix('api/equipo4/inventario')->group(
     Route::get('/availability', [\App\Api\Team7ApiController::class, 'availability']);
     Route::get('/reservations/{id}', [\App\Api\Team7ApiController::class, 'show']);
 });
+// ============================================================
+// API para Equipo 3 (Integración de inventario)
+// ============================================================
+Route::prefix('api/v1/inventory')->middleware([
+    \App\Http\Middleware\Team4ServiceSignature::class,
+    'throttle:120,1',
+])->group(function () {
+    Route::get('/availability', [\App\Api\Team3IntegrationController::class, 'availability']);
+    Route::post('/reservations', [\App\Api\Team3IntegrationController::class, 'reserve']);
+    Route::get('/reservations/{id}', [\App\Api\Team3IntegrationController::class, 'show']);
+    Route::post('/reservations/{id}/confirm', [\App\Api\Team3IntegrationController::class, 'confirm']);
+    Route::post('/reservations/{id}/release', [\App\Api\Team3IntegrationController::class, 'release']);
+});
 
+// Alias para compatibilidad con la documentación (opcional)
+Route::prefix('api/equipo4/integration')->middleware([
+    \App\Http\Middleware\Team4ServiceSignature::class,
+])->group(function () {
+    Route::get('/availability', [\App\Api\Team3IntegrationController::class, 'availability']);
+    Route::post('/reservations', [\App\Api\Team3IntegrationController::class, 'reserve']);
+    Route::get('/reservations/{id}', [\App\Api\Team3IntegrationController::class, 'show']);
+    Route::post('/reservations/{id}/confirm', [\App\Api\Team3IntegrationController::class, 'confirm']);
+    Route::post('/reservations/{id}/release', [\App\Api\Team3IntegrationController::class, 'release']);
+});
