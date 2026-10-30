@@ -63,6 +63,26 @@ class Team3IntegrationController extends Controller
      */
     public function confirm(Request $request, string $id)
     {
+        // --- INICIO LÓGICA MANUAL (Eq 3) ---
+        $paymentIntentId = $request->input('payment_intent_id');
+        if ($paymentIntentId && str_starts_with($paymentIntentId, 'MANUAL-')) {
+            $coll = DB::connection('mongodb')->getCollection('payment_events');
+            $exists = $coll->findOne(['payment_intent_id' => $paymentIntentId, 'status' => 'PAID']);
+            if (!$exists) {
+                $coll->insertOne([
+                    'event_id' => 'evt_manual_' . uniqid(),
+                    'payment_intent_id' => $paymentIntentId,
+                    'status' => 'PAID',
+                    'amount' => 0,
+                    'currency' => 'MXN',
+                    'occurred_at' => now()->toIso8601String(),
+                    'created_at' => new \MongoDB\BSON\UTCDateTime(),
+                ]);
+                \Log::info('Evento PAID sintético creado para pago manual', ['payment_intent_id' => $paymentIntentId]);
+            }
+        }
+        // --- FIN LÓGICA MANUAL ---
+
         // --- INICIO LÓGICA MANUAL ---
         $paymentIntentId = $request->input('payment_intent_id');
         if ($paymentIntentId && str_starts_with($paymentIntentId, 'MANUAL-')) {
