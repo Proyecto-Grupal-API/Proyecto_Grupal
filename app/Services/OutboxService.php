@@ -33,4 +33,38 @@ class OutboxService
         }
         return (string) $id;
     }
+
+    /**
+     * Despacha los eventos pendientes al Equipo 7.
+     */
+    public function dispatchPending(): int
+    {
+        $coll = DB::connection('mongodb')->getCollection('integration_outbox');
+        $pending = $coll->find(['status' => 'PENDING'])->limit(50);
+        $count = 0;
+
+        foreach ($pending as $doc) {
+            $d = (array) $doc;
+            $topic = $d['topic'] ?? '';
+            $payload = $d['payload'] ?? [];
+            $id = $d['_id'];
+
+            $ok = $this->dispatcher->dispatch($topic, $payload);
+
+            if ($ok) {
+                $coll->updateOne(
+                    ['_id' => $id],
+                    ['$set' => ['status' => 'DISPATCHED', 'delivered_at' => new \MongoDB\BSON\UTCDateTime(now())]]
+                );
+                $count++;
+            } else {
+                $coll->updateOne(
+                    ['_id' => $id],
+                    ['$inc' => ['attempts' => 1], '$set' => ['last_error' => 'Fallo en dispatch']]
+                );
+            }
+        }
+        return $count;
+    }
+
 }

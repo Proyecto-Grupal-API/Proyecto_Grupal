@@ -280,3 +280,4 @@ Route::middleware(['team4.signature'])->prefix('api/equipo4/inventario')->group(
     Route::get('/availability', [\App\Api\Team7ApiController::class, 'availability']);
     Route::get('/reservations/{id}', [\App\Api\Team7ApiController::class, 'show']);
 });
+
