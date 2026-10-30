@@ -1,187 +1,89 @@
-﻿# Integracion con Equipo 7 - Recompensas
+# Integración con Equipo 7 – Inventario, Recompensas y Auditoría
 
-**Rol de Eq.4**: Servidor (exponemos API a Eq.7)
-**Controller**: `App\Api\Team7ApiController`
-**Adapter**: `App\Services\Team7AdapterService`
-**Base path**: `/api/v1/inventory`
+**Versión:** 1.0 (Formalizado tras auditoría del 29 de Octubre)
 
-## Contexto
+**Rol de Eq.4:** Proveedor de Inventario (Receptor de reservas y emisor de eventos de auditoría).
 
-Eq.7 canjea recompensas fisicas. Necesita reservar stock cuando un usuario aplica una recompensa, confirmar el consumo cuando se entrega, y liberar cuando expira.
+## 1. Contrato de Webhooks (Eq 4 → Eq 7)
 
-Eq.4 expone una API adaptada al vocabulario de Eq.7 (SKUs en lugar de IDs de Mongo, `origin_reference` en lugar de `order_id`, etc.) que internamente reusa el mismo motor de reservas de Eq.3.
+Equipo 4 envía eventos de inventario al Equipo 7 para su bitácora y analítica.
 
-## Endpoints expuestos (5)
+*   **Endpoint receptor:** `POST http://localhost:8000/api/v1/integrations/ingest-event`
+*   **Cabeceras requeridas:**
+    *   `Content-Type: application/json`
+    *   `Accept: application/json`
+    *   `X-Team-Timestamp: <timestamp_unix_en_segundos>`
+    *   `X-Team-Signature: <firma_hmac_sha256_hex_lowercase>`
+*   **Algoritmo de firma:**
+    *   `payload = "{timestamp}|POST|/api/v1/integrations/ingest-event|{sha256(body)}"`
+    *   `signature = hash_hmac('sha256', payload, 'secreto_equipo4_eq3_2026')`
 
-Todos requieren firma HMAC-SHA256 con `TEAM_SERVICE_SHARED_SECRET`.
+### Eventos Soportados
+1.  `inventory.movement_created` (Kardex: entradas, salidas, mermas, transferencias)
+2.  `inventory.stock_updated` (Actualización de niveles de stock)
+3.  `inventory.adjustment_made` (Ajustes por conteos físicos)
+4.  `inventory.cost_updated` (Actualizaciones de costo promedio)
+5.  `inventory.return_processed` (Devoluciones a proveedor o cliente)
+6.  `inventory.reservation.expired` (Expiración de reservas de canjes)
 
-### 1. GET /availability
-
-Query params:
-- `product_reference` (required): SKU o ObjectId
-- `variant_sku` (optional)
-- `location_id` (optional)
-- `quantity` (optional, default 1)
-- `business_id` (optional)
-
-Response 200:
+### Formato de Payload (Ejemplo: Movimiento de Kardex)
 ```json
 {
-  "available": true,
-  "available_quantity": 48,
-  "warehouse_id": "6abf...",
-  "items": [{
+  "event_id": "evt_inv_9812401",
+  "event_type": "inventory.movement_created",
+  "source_domain": "inventory",
+  "occurred_at": "2026-10-26T18:30:00Z",
+  "payload": {
+    "business_id": "BUS-CD-SOUV-001",
+    "movement_type": "IN",
     "product_reference": "SOUV-TAZA-001",
     "variant_sku": null,
-    "requested": 2,
-    "available": 48,
-    "has_enough": true,
-    "warehouse_id": "6abf..."
-  }]
+    "quantity": 50,
+    "warehouse_id": "wh_central_01",
+    "cost_unit": 65.00,
+    "reason": "Recepción de orden de compra",
+    "actor_id": "STAFF-01"
+  }
 }
 ```
 
-Response 404 (SKU inexistente):
-```json
-{ "error": "product_not_found", "message": "product_reference no encontrado: XXX" }
-```
-
-Tambien hay `POST /availability` con body `{ items: [...] }` para bulk.
-
-### 2. POST /reservations
-
-Acepta body flat (spec E7):
+### Formato de Payload (Ejemplo: Reserva Expirada)
 ```json
 {
-  "origin_reference": "RWD-2026-ABC123",
-  "origin_type": "REWARD",
-  "product_reference": "SOUV-TAZA-001",
-  "variant_sku": null,
-  "location_id": null,
-  "quantity": 1,
-  "idempotency_key": "e7-reserve-RWD-2026-ABC123",
-  "expires_at": "2026-10-02T21:00:00-06:00"
-}
-```
-
-Tambien acepta `items: [...]` (bulk).
-
-Response 201:
-```json
-{
-  "reservation_id": "01JXXXX...",
-  "status": "reserved",
-  "origin_reference": "RWD-2026-ABC123",
-  "items": [],
-  "expires_at": "..."
-}
-```
-
-Response 404 (SKU no existe):
-```json
-{ "error": "product_not_found", "message": "..." }
-```
-
-Response 409 (sin stock):
-```json
-{ "error": "insufficient_stock", "reason": "Existencia insuficiente..." }
-```
-
-Mapeo de `origin_type`:
-- `REWARD` / `reward` / `recompensa` / `reward_redemption` -> `REWARD`
-- `CANJE` / `redemption` -> `CANJE`
-
-### 3. POST /reservations/{id}/confirm
-
-**NO requiere `payment_intent_id`** - Eq.7 es canje, no pago.
-
-Request:
-```json
-{ "delivered_by": "STAFF-001", "delivered_at": "...", "idempotency_key": "e7-confirm-..." }
-```
-
-Response 200:
-```json
-{
-  "reservation_id": "01JXXXX...",
-  "status": "consumed",
-  "stock_movement_id": "6712abc...",
-  "confirmed_at": "..."
-}
-```
-
-Efecto: reduce `on_hand` y `reserved`, registra movimiento SALE.
-
-### 4. POST /reservations/{id}/release
-
-Request:
-```json
-{ "reason": "CANCELLED", "idempotency_key": "e7-release-..." }
-```
-
-Response 200:
-```json
-{ "reservation_id": "01JXXXX...", "status": "released", "released_at": "..." }
-```
-
-### 5. GET /reservations/{id}
-
-Response 200:
-```json
-{
-  "reservation_id": "01JXXXX...",
-  "status": "reserved | consumed | released | expired | rejected",
-  "origin_reference": "RWD-2026-ABC123",
-  "quantity": 1,
-  "items": [],
-  "expires_at": "..."
-}
-```
-
-Mapeo de estados internos -> publicos:
-
-| Interno | Publico (Eq.7) |
-|---|---|
-| RESERVED | reserved |
-| CONFIRMED | consumed |
-| RELEASED (reason=EXPIRED) | expired |
-| RELEASED (otro reason) | released |
-| REJECTED | rejected |
-
-## Expiracion automatica
-
-Eq.4 corre un scheduler (`campus-eq4-scheduler`) que ejecuta `php artisan e7:expire` cada 5 minutos. Detecta reservas E7 vencidas (`origin_system = 'E7'` y `expires_at < now`), las libera (status = RELEASED, release_reason = EXPIRED), y publica un evento en `integration_outbox`:
-
-```json
-{
-  "topic": "inventory.reservation.expired",
+  "event_id": "evt_inv_exp_01J88A",
+  "event_type": "inventory.reservation.expired",
+  "source_domain": "inventory",
+  "occurred_at": "2026-10-26T20:00:00Z",
   "payload": {
     "reservation_id": "01JXXXX...",
-    "origin_reference": "RWD-2026-ABC123",
+    "origin_reference": "CJ-A9X1-K4L2",
     "origin_type": "REWARD",
-    "expired_at": "2026-10-02T20:00:00-06:00"
-  },
-  "status": "PENDING"
+    "product_reference": "SOUV-TAZA-001",
+    "reason": "EXPIRED"
+  }
 }
 ```
 
-**Pendiente**: definir con Eq.7 si quieren recibir el evento via webhook (como Eq.2) o si van a hacer polling sobre `integration_outbox`.
+## 2. API de Reservas (Eq 7 → Eq 4)
 
-## Errores comunes
+Equipo 7 consume nuestra API para reservar stock cuando un alumno canjea puntos.
 
-| Codigo | Cuando |
-|---|---|
-| 401 | Firma HMAC invalida |
-| 404 | Reserva no encontrada o product_reference no resuelto |
-| 409 | Estado invalido o sin stock |
-| 422 | Payload invalido |
+*   **Ruta oficial:** `POST /api/v1/inventory/reservations`
+*   **Rutas de soporte:**
+    *   `GET /api/v1/inventory/availability`
+    *   `POST /api/v1/inventory/reservations/{id}/confirm`
+    *   `POST /api/v1/inventory/reservations/{id}/release`
+*   **Nota:** El alias `/api/equipo4/inventario` solo expone GET (para testers) y no debe usarse para el flujo real.
 
-## Idempotencia
+### Lógica de Negocio (Acordada)
+1.  **Solicitud de canje:** Eq 7 solicita reserva (`POST /reservations`).
+2.  **Respuesta 409:** Si no hay stock, Eq 7 no debita puntos.
+3.  **Respuesta 201:** Si hay stock, Eq 7 debita puntos y guarda el `reservation_id`.
+4.  **Confirmación:** Al entregar físicamente, Eq 7 llama a `/confirm`.
+5.  **Expiración:** Si la reserva expira, Eq 4 libera el stock y emite `inventory.reservation.expired` para que Eq 7 reembolse los puntos.
 
-Misma `idempotency_key` -> mismo `reservation_id` y mismo `stock_movement_id`. Mismo mecanismo que Eq.3 (indice unico en `integration_idempotency`).
+## 3. Implementación en Eq 4
 
-## Pendientes con Eq.7
-
-1. Confirmar que el path `/api/v1/inventory/*` es el acordado
-2. Definir webhook vs polling para el evento `inventory.reservation.expired`
-3. Confirmar si usaran solo SKUs en `product_reference` (hoy soportamos SKU y ObjectId)
+*   **`HttpEventDispatcher`:** Servicio que construye el payload y envía la petición HTTP con la firma HMAC exacta al endpoint de Eq 7.
+*   **`OutboxService::dispatchPending()`:** Método que lee los eventos pendientes de `integration_outbox` y los envía por red.
+*   **`E7ExpireCommand`:** Comando que, al expirar una reserva, publica el evento en el outbox y dispara el `dispatchPending()` para notificar a Eq 7 de inmediato.
