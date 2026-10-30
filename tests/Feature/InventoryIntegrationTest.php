@@ -343,3 +343,24 @@ it('keeps legacy cost history accessible with bounded archived pagination and li
     $this->get('/equipo4/costos?archived_page=2')->assertInertia(fn (Assert $a)=>$a->has('archivedCosts',2));
     $this->get('/equipo4/costos?q=LEGACY.%5BA%5D')->assertInertia(fn (Assert $a)=>$a->has('archivedCosts',1)->where('archivedCosts.0.sku','LEGACY.[A]'));
 });
+
+it('never manufactures a paid event for a MANUAL checkout reference', function (string $prefix) {
+    $id = inventorySigned($this, $prefix.'/reservations', [
+        'order_id' => 'ORDER-MANUAL-1', 'items' => [inventoryLine()], 'idempotency_key' => 'manual-reserve-1',
+    ])->assertCreated()->json('reservation_id');
+    inventorySigned($this, $prefix.'/reservations/'.$id.'/confirm', [
+        'order_id' => 'ORDER-MANUAL-1', 'payment_intent_id' => 'MANUAL-do-not-trust', 'idempotency_key' => 'manual-confirm-1',
+    ])->assertConflict();
+    expect(DB::connection('inventory')->getCollection('payment_events')->countDocuments())->toBe(0);
+    expect(DB::connection('inventory')->getCollection('team3_api_reservations')->findOne(['reservation_id' => $id])['status'])->toBe('RESERVED');
+})->with(['/api/equipo4/integration', '/api/equipo4/businesses/business-A/integration']);
+
+it('retains the E7 reservation contract on the shared canonical path', function () {
+    $product = Product::first();
+    $body = ['origin_reference' => 'reward-contract-1', 'origin_type' => 'REWARD', 'product_reference' => $product->sku,
+        'quantity' => 1, 'idempotency_key' => 'e7-contract-reserve-1'];
+    $id = inventorySigned($this, '/api/v1/inventory/reservations', $body, 'equipo7')->assertCreated()->assertJsonPath('status', 'reserved')->json('reservation_id');
+    inventorySigned($this, '/api/v1/inventory/reservations/'.$id.'/release', [
+        'reason' => 'CANCELLED', 'idempotency_key' => 'e7-contract-release-1'], 'equipo7')->assertOk();
+    expect(DB::connection('inventory')->getCollection('payment_events')->countDocuments())->toBe(0);
+});
