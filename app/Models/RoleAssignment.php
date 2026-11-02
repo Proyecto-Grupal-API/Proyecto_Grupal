@@ -40,7 +40,7 @@ class RoleAssignment extends AuthorizationLifecycleRecord
             }
         }
         Validator::make($this->getAttributes(), [
-            'role_key' => ['required', Rule::in(Role::FOUNDATION_ROLES)],
+            'role_key' => ['required', Rule::in(Role::AUTHORIZATION_ROLES)],
             'scope_type' => ['nullable', Rule::in(Role::FOUNDATION_SCOPE_TYPES)],
         ])->validate();
         if (! Role::where('name', $this->role_key)->exists()) {
@@ -49,8 +49,8 @@ class RoleAssignment extends AuthorizationLifecycleRecord
         if (($this->scope_type === null) !== ($this->scope_id === null)) {
             throw ValidationException::withMessages(['scope_id' => 'El contexto requiere tipo e identificador.']);
         }
-        if (array_key_exists($this->role_key, Role::FOUNDATION_ROLE_SCOPES)
-            && $this->scope_type !== Role::FOUNDATION_ROLE_SCOPES[$this->role_key]) {
+        if (array_key_exists($this->role_key, Role::AUTHORIZATION_ROLE_SCOPES)
+            && $this->scope_type !== Role::AUTHORIZATION_ROLE_SCOPES[$this->role_key]) {
             throw ValidationException::withMessages(['scope_type' => 'Contexto incompatible con el rol.']);
         }
         if ($this->scope_type === 'department') {

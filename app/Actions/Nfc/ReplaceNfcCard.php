@@ -87,8 +87,14 @@ class ReplaceNfcCard
                     'new_status' => $previous->value,
                 ]);
 
-                CredentialChanged::dispatch((string) $old->getKey(), 'nfc', 'status_changed', NfcCardStatus::Replaced->value, $actorId);
-                CredentialChanged::dispatch((string) $new->getKey(), 'nfc', 'registered', $previous->value, $actorId);
+                CredentialChanged::dispatch(
+                    (string) $old->getKey(), 'nfc', 'status_changed', NfcCardStatus::Replaced->value, $actorId,
+                    studentId: (string) $old->user_id, oldStatus: $previous->value, reason: $reason,
+                );
+                CredentialChanged::dispatch(
+                    (string) $new->getKey(), 'nfc', 'registered', $previous->value, $actorId,
+                    studentId: (string) $new->user_id, oldStatus: null, reason: $reason,
+                );
 
                 return $new;
             });

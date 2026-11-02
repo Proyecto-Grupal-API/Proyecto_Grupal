@@ -93,6 +93,21 @@ test('the NFC endpoint requires a service bearer token even if a web user is aut
         ->assertUnauthorized();
 });
 
+test('a library consumer receives credential identity separately from academic condition and loan rules', function () {
+    $token = nfcApiToken($this);
+    $student = nfcApiStudent();
+    $student->studentProfile->update(['academic_status' => 'suspended']);
+    nfcApiCard((string) $student->getKey());
+
+    $response = $this->postJson('/api/v1/identity/nfc-validate', ['credential_uid' => '04AABBCC'], nfcApiHeaders($token))
+        ->assertOk()->assertJsonPath('student_id', (string) $student->getKey())
+        ->assertJsonPath('credential.status', 'active')
+        ->assertJsonPath('identity.student.academic_status', 'suspended');
+
+    expect(array_keys($response->json()))->toBe(['ok', 'result', 'credential', 'student_id', 'identity'])
+        ->and($response->getContent())->not->toContain('loan_authorized', 'reservation_authorized', 'benefits_eligible', '04AABBCC');
+});
+
 test('students read and QR validation scopes do not grant NFC validation', function (string $scope) {
     $token = nfcApiToken($this, [$scope], $scope);
 

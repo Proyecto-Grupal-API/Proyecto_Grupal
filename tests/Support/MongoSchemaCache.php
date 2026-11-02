@@ -25,6 +25,7 @@ final class MongoSchemaCache
 
     public static function reset(Database $database, string $owner): void
     {
+        E1TestTarget::assertApplication($database);
         if (! app()->environment('testing') || config('database.default') !== 'mongodb') {
             throw new RuntimeException('Schema reuse is restricted to MongoDB testing.');
         }
@@ -37,8 +38,10 @@ final class MongoSchemaCache
                 foreach ($actual as $name => $_) {
                     if (! array_key_exists($name, self::$schema)) {
                         // Collections created by a test must not leak their data or indexes.
+                        E1TestTarget::assertApplication($database);
                         $database->selectCollection($name)->drop();
                     } elseif ($name !== 'migrations') {
+                        E1TestTarget::assertApplication($database);
                         $database->selectCollection($name)->deleteMany([]);
                     }
                 }
@@ -49,7 +52,9 @@ final class MongoSchemaCache
 
         // Class boundary or schema/ledger drift: rebuild using the real migrations.
         self::forget();
+        E1TestTarget::assertApplication($database);
         $database->drop();
+        E1TestTarget::assertApplication($database);
         if (Artisan::call('migrate', ['--force' => true]) !== 0) {
             throw new RuntimeException('Failed to prepare the real MongoDB testing schema.');
         }

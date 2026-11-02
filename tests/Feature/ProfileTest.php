@@ -3,12 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Tests\Concerns\RefreshMongoDatabase;
 use Tests\TestCase;
 
 class ProfileTest extends TestCase
 {
-    use RefreshMongoDatabase;
 
     public function test_profile_page_is_displayed(): void
     {

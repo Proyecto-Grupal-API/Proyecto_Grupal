@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Community\OrganizationSummaryController;
 use App\Http\Controllers\Api\Identity\BusinessAuthorizationController;
+use App\Http\Controllers\Api\Identity\FinancialAuthorizationController;
 use App\Http\Controllers\Api\Identity\NfcValidationController;
 use App\Http\Controllers\Api\Identity\QrValidationController;
 use App\Http\Controllers\OAuthTokenController;
@@ -66,3 +67,17 @@ Route::prefix('v1/marketplace')->middleware(['oauth.service:marketplace:read',\A
     Route::get('catalog',[\App\Http\Controllers\Marketplace\MarketplaceController::class,'catalog']);
     Route::get('businesses',[\App\Http\Controllers\Marketplace\MarketplaceController::class,'businessesApi']);
 });
+
+// LOCAL ONLY: D1-D4 require explicit directory policy; no consumers are enabled by default.
+Route::prefix('v1/identity/directory')->middleware([
+    \App\Http\Middleware\DirectoryTransport::class,
+    'oauth.service:,directory',
+])->group(function () {
+    Route::post('/resolve-enrollment', [\App\Http\Controllers\Api\Identity\IdentityDirectoryController::class, 'resolve'])
+        ->middleware(\App\Http\Middleware\DirectoryAccess::class.':resolve');
+    Route::post('/batch', [\App\Http\Controllers\Api\Identity\IdentityDirectoryController::class, 'batch'])
+        ->middleware(\App\Http\Middleware\DirectoryAccess::class.':batch');
+});
+
+Route::post('/v1/identity/financial-authorization/check', [FinancialAuthorizationController::class, 'check'])
+    ->middleware(['oauth.service:identity:financial-authorization:check', AuthorizeIdentityService::class.':identity:financial-authorization:check', 'throttle:30,1']);

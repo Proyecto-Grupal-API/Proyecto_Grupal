@@ -22,3 +22,16 @@ de acceso entre dominios exclusivamente por API.
 Los archivos `.env`, credenciales, datos de MongoDB, respaldos y dependencias
 no forman parte de la entrega. Las guías históricas documentan cada etapa;
 el estado vigente de publicación se registra en `ESTADO_1_3_4_5_6.md`.
+
+## Incorporación local E1 sobre MERGE_COMPLETO (no publicada)
+
+Esta copia temporal incorpora selectivamente catálogos de autorización, consulta
+financiera E1, directorio D1–D4 y enriquecimiento aditivo de eventos NFC, sin
+reemplazar modelos, providers, consumidores ni conexiones de otros dominios.
+El directorio permanece cerrado por defecto; no se habilitan concesiones
+financieras ni transportes externos. El estado de publicación anterior no cambia.
+
+La certificación histórica del candidato E1 (31 pruebas, 172 aserciones) no
+certifica esta copia integrada. Aquí sólo se permiten verificaciones estáticas:
+las pruebas persistentes requieren un perfil integrado aislado y acreditado.
+Véase [alcance, dependencias y límites](docs/integration/E1-INCORPORACION-MERGE-COMPLETO.md).

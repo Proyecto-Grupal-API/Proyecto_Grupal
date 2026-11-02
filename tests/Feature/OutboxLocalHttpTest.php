@@ -1,7 +1,9 @@
 <?php
 
+use App\Events\CredentialChanged;
 use App\Events\StudentConsentChanged;
 use App\Models\EventOutbox;
+use App\Models\User;
 use Symfony\Component\Process\Process;
 
 function withLocalOutboxSink(string $mode, Closure $assertions): void
@@ -84,5 +86,48 @@ it('retries a lost acknowledgment with the same id while the local sink deduplic
             ->and($state['requests'][1]['event_id'])->toBe($event->event_id)
             ->and($state['processed'])->toHaveCount(1)
             ->and($event->fresh()->published_at)->not->toBeNull();
+    });
+});
+
+it('delivers historical and enriched credential payloads unchanged through retries without relying on arrival order', function () {
+    withLocalOutboxSink('lost_ack', function (string $stateFile): void {
+        $student = User::factory()->create();
+        $historicalPayload = ['credential_id' => 'historical-card', 'credential_type' => 'nfc',
+            'operation' => 'registered', 'status' => 'active', 'actor_id' => null];
+        $historical = EventOutbox::create(['event_id' => 'historical-credential-event',
+            'event_name' => 'identity.credential.changed.v1', 'aggregate_id' => 'historical-card',
+            'occurred_at' => now()->subDay(), 'payload' => $historicalPayload]);
+        CredentialChanged::dispatch('current-card', 'nfc', 'registered', 'active', null,
+            studentId: (string) $student->getKey());
+        $expected = EventOutbox::all()->mapWithKeys(fn ($event) => [$event->event_id => (array) $event->payload])->all();
+
+        $this->artisan('events:publish')->assertFailed();
+        $this->travel(3)->seconds();
+        $this->artisan('events:publish')->assertSuccessful();
+
+        $state = json_decode(file_get_contents($stateFile), true);
+        expect($state['requests'])->toHaveCount(4)->and($state['processed'])->toHaveCount(2);
+        // Validate an unordered batch, including duplicates; never assert a transport ordering contract.
+        $received = [];
+        foreach (array_reverse($state['requests']) as $request) {
+            expect($request['event_name'])->toBe('identity.credential.changed.v1')
+                ->and($request['aggregate_id'])->toBe($request['payload']['credential_id'])
+                ->and($request['payload'])->toBe($expected[$request['event_id']])
+                ->and(array_keys($request))->toBe(['event_id', 'event_name', 'aggregate_id', 'occurred_at', 'payload'])
+                ->and(array_keys($request['payload']))->not->toContain('uid', 'credential_uid', 'token', 'secret');
+            if (isset($received[$request['event_id']])) {
+                expect($request)->toBe($received[$request['event_id']]);
+            }
+            $received[$request['event_id']] = $request;
+        }
+        expect((array) $historical->fresh()->payload)->toBe($historicalPayload)
+            ->and($received)->toHaveCount(2);
+        $new = array_values(array_filter($received, fn ($request) => $request['aggregate_id'] === 'current-card'))[0];
+        expect($new['payload']['student_id'])->toBe((string) $student->getKey())
+            ->and($new['payload']['old_status'])->toBeNull()
+            ->and($new['payload']['reason'])->toBeNull()
+            ->and($new['payload']['actor_id'])->toBeNull()
+            ->and($new['payload']['new_status'])->toBe($new['payload']['status'])
+            ->and(EventOutbox::whereNull('published_at')->count())->toBe(0);
     });
 });

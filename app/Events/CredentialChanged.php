@@ -19,6 +19,9 @@ class CredentialChanged implements DomainEvent
         public string $operation,
         public string $status,
         public ?string $actorId = null,
+        public ?string $studentId = null,
+        public ?string $oldStatus = null,
+        public ?string $reason = null,
     ) {
         $this->id = (string) Str::uuid();
     }
@@ -46,6 +49,10 @@ class CredentialChanged implements DomainEvent
             'operation' => $this->operation,
             'status' => $this->status,
             'actor_id' => $this->actorId,
+            'student_id' => $this->studentId,
+            'old_status' => $this->oldStatus,
+            'new_status' => $this->status,
+            'reason' => $this->reason,
         ];
     }
 }

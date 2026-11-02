@@ -243,7 +243,13 @@ test('closure blocks only operational NFC cards and preserves terminal cards and
     foreach (EventOutbox::all() as $outbox) {
         expect($outbox->event_name)->toBe('identity.credential.changed.v1')
             ->and($outbox->payload['operation'])->toBe('status_changed')
-            ->and($outbox->payload['status'])->toBe('blocked');
+            ->and($outbox->payload['status'])->toBe('blocked')
+            ->and($outbox->payload['student_id'])->toBe((string) $user->getKey())
+            ->and($outbox->payload['old_status'])->toBe(CredentialEvent::where('nfc_card_id', $outbox->aggregate_id)->sole()->previous_status)
+            ->and($outbox->payload['new_status'])->toBe('blocked')
+            ->and($outbox->payload['reason'])->toBe('Baja de cuenta del propietario')
+            ->and($outbox->payload['actor_id'])->toBe((string) $user->getKey())
+            ->and(User::find($outbox->payload['student_id']))->toBeNull();
     }
 
     app(DeleteUserAccount::class)->execute($user);
