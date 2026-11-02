@@ -26,12 +26,38 @@ class RolePermission extends Model
         'department_head' => ['academic.department.manage'],
     ];
 
+    // Versioned financial definitions; no automatic persistence or assignments.
+    public const FINANCIAL_MAPPINGS = [
+        'bonus_beneficio_issuer' => ['bonuses.beneficio.issue'],
+        'bonus_categoria_issuer' => ['bonuses.categoria.issue'],
+        'bonus_negocio_issuer' => ['bonuses.negocio.issue'],
+        'bonus_negocio_business_issuer' => ['bonuses.negocio.issue'],
+        'bonus_beca_issuer' => ['bonuses.beca.issue'],
+        'bonus_beca_program_issuer' => ['bonuses.beca.issue'],
+        'bonus_campania_issuer' => ['bonuses.campania.issue'],
+    ];
+
+    public const REWARDS_MAPPINGS = [];
+
+    public static function approvedPermissionsForRole(mixed $role): array
+    {
+        if (! is_string($role)) {
+            return [];
+        }
+
+        return array_values(array_unique([
+            ...(self::MAPPINGS[$role] ?? []),
+            ...(self::FINANCIAL_MAPPINGS[$role] ?? []),
+            ...(self::REWARDS_MAPPINGS[$role] ?? []),
+        ]));
+    }
+
     protected static function booted(): void
     {
         static::saving(function (self $mapping): void {
             Validator::make($mapping->getAttributes(), [
-                'role_key' => ['required', Rule::in(Role::FOUNDATION_ROLES)],
-                'permission_key' => ['required', Rule::in(self::MAPPINGS[$mapping->role_key] ?? [])],
+                'role_key' => ['required', Rule::in(Role::AUTHORIZATION_ROLES)],
+                'permission_key' => ['required', Rule::in(self::approvedPermissionsForRole($mapping->role_key))],
             ])->validate();
 
             if (! Role::where('name', $mapping->role_key)->exists()

@@ -44,6 +44,42 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        // Directory-only boundary: Laravel's routing pipeline reports before rendering.
+        // Never send raw directory input/driver failures to the default logger.
+        $exceptions->report(function (Throwable $error) {
+            if (\App\Http\Middleware\DirectoryTransport::matches(request())) {
+                return false;
+            }
+        });
+        $exceptions->render(function (Throwable $error, Request $request) {
+            if (\App\Http\Middleware\DirectoryTransport::matches($request)) {
+                return \App\Http\Middleware\DirectoryTransport::failure($request, $error);
+            }
+
+            return null;
+        });
+        // Isolated financial transport errors; do not reuse provisioning/business messages.
+        $exceptions->render(function (Throwable $error, Request $request) {
+            if ($request->decodedPath() !== 'api/v1/identity/financial-authorization/check') {
+                return null;
+            }
+            if ($error instanceof ValidationException) {
+                return response()->json(['message' => 'Invalid request.', 'errors' => $error->errors()], 422);
+            }
+            $http = $error instanceof HttpExceptionInterface;
+            $status = $error instanceof \App\Exceptions\FinancialAuthorizationUnavailable ? 503
+                : ($http ? $error->getStatusCode() : 500);
+            $message = match ($status) {
+                401 => 'A valid service token is required.',
+                403 => 'Service access denied.',
+                405 => 'Method not allowed.',
+                429 => 'Too many requests.',
+                503 => 'Authorization infrastructure unavailable.',
+                default => 'Internal service error.',
+            };
+
+            return response()->json(['message' => $message], $status, $http ? $error->getHeaders() : []);
+        });
         // Only the new business contracts: stable errors even when a local deployment has debug enabled.
         $exceptions->render(function (Throwable $error, Request $request) {
             if ($request->route()?->getControllerClass() !== BusinessAuthorizationController::class

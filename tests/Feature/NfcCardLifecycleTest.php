@@ -66,7 +66,13 @@ it('applies each permitted ordinary transition with history and outbox', functio
         ->and($outbox->event_name)->toBe('identity.credential.changed.v1')
         ->and($outbox->payload['operation'])->toBe('status_changed')
         ->and($outbox->payload['status'])->toBe($to)
-        ->and($outbox->payload['actor_id'])->toBe((string) $this->nfcLifecycleAdmin->getKey());
+        ->and($outbox->payload['actor_id'])->toBe((string) $this->nfcLifecycleAdmin->getKey())
+        ->and($outbox->aggregate_id)->toBe((string) $card->getKey())
+        ->and($outbox->payload['student_id'])->toBe((string) $this->nfcLifecycleOwner->getKey())
+        ->and($outbox->payload['old_status'])->toBe($from)
+        ->and($outbox->payload['new_status'])->toBe($fresh->status)
+        ->and($outbox->payload['reason'])->toBe($event->reason)
+        ->and(json_encode($outbox->payload))->not->toContain($card->uid);
 })->with([
     ['active', 'blocked', 'blocked'],
     ['active', 'suspended', 'suspended'],
@@ -118,7 +124,12 @@ it('records loss structurally as blocked with reason, actor and outbox', functio
         ->and($event->new_status)->toBe('blocked')
         ->and((string) $event->performed_by)->toBe((string) $this->nfcLifecycleAdmin->getKey())
         ->and($outbox->payload['operation'])->toBe('lost')
-        ->and($outbox->payload['status'])->toBe('blocked');
+        ->and($outbox->payload['status'])->toBe('blocked')
+        ->and($outbox->payload['student_id'])->toBe((string) $this->nfcLifecycleOwner->getKey())
+        ->and($outbox->payload['old_status'])->toBe($from)
+        ->and($outbox->payload['new_status'])->toBe($card->fresh()->status)
+        ->and($outbox->payload['reason'])->toBe('Tarjeta extraviada')
+        ->and($outbox->payload['actor_id'])->toBe((string) $this->nfcLifecycleAdmin->getKey());
 })->with(['active', 'suspended']);
 
 it('rejects loss for a blocked or replaced card without persistent effects', function (string $status) {

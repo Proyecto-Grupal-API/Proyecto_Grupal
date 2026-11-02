@@ -51,7 +51,20 @@ it('registers a canonical NFC card for a student with actor, initial history and
         ->and((string) $history->performed_by)->toBe((string) $this->nfcAdmin->getKey())
         ->and($outbox->event_name)->toBe('identity.credential.changed.v1')
         ->and($outbox->payload['operation'])->toBe('registered')
-        ->and($outbox->payload['actor_id'])->toBe((string) $this->nfcAdmin->getKey());
+        ->and($outbox->payload['actor_id'])->toBe((string) $this->nfcAdmin->getKey())
+        ->and((array) $outbox->payload)->toBe([
+            'credential_id' => (string) $card->getKey(),
+            'credential_type' => 'nfc',
+            'operation' => 'registered',
+            'status' => $card->status,
+            'actor_id' => (string) $this->nfcAdmin->getKey(),
+            'student_id' => (string) $this->nfcStudent->getKey(),
+            'old_status' => null,
+            'new_status' => $card->status,
+            'reason' => $history->reason,
+        ])
+        ->and($outbox->payload['student_id'])->not->toBe((string) $this->nfcStudent->studentProfile->getKey())
+        ->and(json_encode($outbox->payload))->not->toContain($card->uid);
 });
 
 it('lists only users with a student profile on the registration page', function () {

@@ -198,3 +198,16 @@ test('institutional canonical mappings and scope creation reuse foundation invar
         ->and(Role::VALID_ROLES)->toHaveCount(6);
     expect(fn () => institutionalAssignment($this->subject, 'career_coordinator', 'academic_program', (string) $this->program->getKey(), ['campus_id' => (string) $this->otherCampus->getKey()]))->toThrow(ValidationException::class);
 });
+
+test('a program in another campus authorizes only its own canonical assignment without campus inheritance', function () {
+    $remoteProgram = AcademicProgram::create(['code' => 'REMOTE', 'name' => 'Remote program',
+        'campus_id' => (string) $this->otherCampus->getKey(), 'is_active' => true]);
+    institutionalAssignment($this->subject, 'career_coordinator', 'academic_program', (string) $remoteProgram->getKey());
+
+    expect($this->engine->allows($this->subject, 'academic.program.coordinate', 'academic_program', (string) $remoteProgram->getKey()))->toBeTrue()
+        ->and($this->engine->allows($this->subject, 'academic.program.coordinate', 'academic_program', (string) $this->program->getKey()))->toBeFalse()
+        ->and($this->engine->allows($this->subject, 'organizations.institutional.manage', 'campus', (string) $this->otherCampus->getKey()))->toBeFalse();
+
+    $this->otherCampus->update(['is_active' => false]);
+    expect($this->engine->allows($this->subject, 'academic.program.coordinate', 'academic_program', (string) $remoteProgram->getKey()))->toBeFalse();
+});

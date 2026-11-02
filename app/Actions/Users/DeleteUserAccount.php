@@ -63,10 +63,11 @@ class DeleteUserAccount
                     throw new RuntimeException('Una credencial NFC cambió durante la baja de cuenta.');
                 }
 
+                $reason = 'Baja de cuenta del propietario';
                 $card->credentialEvents()->create([
                     'performed_by' => $userId,
                     'event_type' => 'blocked',
-                    'reason' => 'Baja de cuenta del propietario',
+                    'reason' => $reason,
                     'previous_status' => $previous,
                     'new_status' => NfcCardStatus::Blocked->value,
                 ]);
@@ -77,6 +78,9 @@ class DeleteUserAccount
                     'status_changed',
                     NfcCardStatus::Blocked->value,
                     $userId,
+                    studentId: $userId,
+                    oldStatus: $previous,
+                    reason: $reason,
                 );
             }
 

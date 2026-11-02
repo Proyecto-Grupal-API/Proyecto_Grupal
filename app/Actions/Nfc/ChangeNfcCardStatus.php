@@ -61,6 +61,9 @@ class ChangeNfcCardStatus
                 $lost ? 'lost' : 'status_changed',
                 $target->value,
                 $actorId,
+                studentId: (string) $card->user_id,
+                oldStatus: $previous->value,
+                reason: $reason,
             );
         });
     }

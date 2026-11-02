@@ -176,6 +176,34 @@ test('assignment read is business isolated minimal and effective only', function
     ]);
 });
 
+test('inventory consumers read shared contextual roles without acquiring fine permissions or global admin bypass', function () {
+    $reader = b5Token($this, 'identity:assignments:read');
+    $checker = b5Token($this, 'identity:authorization:check', null, 'svc_inventory_check');
+    b5Membership($this->subject);
+    b5Membership($this->subject, 'business-B');
+    b5Role($this->subject, 'inventory_manager');
+    b5Role($this->subject, 'buyer');
+
+    $roles = b5Request($this, 'read', $reader)->assertOk()->json('roles');
+    expect(array_column($roles, 'role_key'))->toEqualCanonicalizing(['inventory_manager', 'buyer']);
+    b5Request($this, 'read', $reader, ['subject_id' => (string) $this->subject->getKey(),
+        'scope_type' => 'business', 'scope_id' => 'business-B'])->assertOk()->assertJsonCount(0, 'roles');
+    foreach (['business.inventory.operate' => true, 'inventory.fine.fixture' => false, 'purchases.fine.fixture' => false] as $capability => $allowed) {
+        b5Request($this, 'check', $checker, ['subject_id' => (string) $this->subject->getKey(),
+            'scope_type' => 'business', 'scope_id' => 'business-A', 'capability' => $capability])
+            ->assertOk()->assertExactJson(['authorized' => $allowed]);
+    }
+
+    // The OAuth client is a service, not this human admin or a source of commercial grants.
+    $admin = User::factory()->create();
+    $admin->assignRole('admin');
+    b5Membership($admin);
+    b5Request($this, 'check', [...$checker, 'X-Actor-ID' => (string) $this->subject->getKey()], [
+        'subject_id' => (string) $admin->getKey(), 'scope_type' => 'business',
+        'scope_id' => 'business-A', 'capability' => 'business.inventory.operate',
+    ])->assertOk()->assertExactJson(['authorized' => false]);
+});
+
 test('assignment reads distinguish membership lifecycle without historical role dumps', function (string $state) {
     $headers = b5Token($this, 'identity:assignments:read');
     $membership = b5Membership($this->subject, 'business-A', $state === 'pending' ? 'pending' : 'active');

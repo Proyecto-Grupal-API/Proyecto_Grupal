@@ -95,6 +95,16 @@ it('replaces each allowed state atomically while inheriting the operational stat
     if ($status === 'blocked') {
         expect($new->blocked_at->toDateTimeString())->not->toBe($oldBlockedAt);
     }
+
+    foreach ([[$oldOutbox, $old, $status], [$newOutbox, $new, null]] as [$outbox, $card, $previous]) {
+        expect($outbox->aggregate_id)->toBe((string) $card->getKey())
+            ->and($outbox->payload['student_id'])->toBe((string) $this->replacementStudent->getKey())
+            ->and($outbox->payload['old_status'])->toBe($previous)
+            ->and($outbox->payload['new_status'])->toBe($card->status)
+            ->and($outbox->payload['new_status'])->toBe($outbox->payload['status'])
+            ->and($outbox->payload['reason'])->toBe('Tarjeta física dañada')
+            ->and(json_encode($outbox->payload))->not->toContain($card->uid);
+    }
 })->with(['active', 'blocked', 'suspended']);
 
 it('rejects replaced, duplicate and own UID without persistent effects', function () {

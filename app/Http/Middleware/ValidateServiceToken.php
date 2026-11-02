@@ -12,7 +12,7 @@ class ValidateServiceToken
 {
     public function __construct(private readonly OAuthTokenService $tokens) {}
 
-    public function handle(Request $request, Closure $next, ?string $requiredScope = null): Response
+    public function handle(Request $request, Closure $next, ?string $requiredScope = null, ?string $validationProfile = null): Response
     {
         $header = $request->header('Authorization', '');
         if (! preg_match('/^Bearer\s+(.+)$/i', $header, $matches)) {
@@ -22,6 +22,13 @@ class ValidateServiceToken
         try {
             $claims = $this->tokens->decode($matches[1]);
         } catch (\Throwable) {
+            throw new UnauthorizedHttpException('Bearer', 'The service access token is invalid or expired.');
+        }
+
+        // Explicit opt-in for D1-D4 only; existing consumers retain their contract.
+        // JWT::decode checks exp when present, but does not require its presence.
+        if ($validationProfile === 'directory'
+            && (! isset($claims->exp) || ! is_int($claims->exp) || $claims->exp <= time())) {
             throw new UnauthorizedHttpException('Bearer', 'The service access token is invalid or expired.');
         }
 

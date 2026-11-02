@@ -63,6 +63,26 @@ class Role extends Model
 
     public const FOUNDATION_ROLES = [...self::VALID_ROLES, ...self::NEW_ROLES];
 
+    // Domain catalogs are explicit: sharing a scope never implies sharing authority.
+    public const BUSINESS_ROLES = ['business_owner', 'business_manager', 'cashier', 'inventory_manager', 'buyer'];
+
+    // Technical financial policy; designation of institutional grant authorities is still pending.
+    public const FINANCIAL_ROLE_SCOPES = [
+        'bonus_beneficio_issuer' => null, 'bonus_categoria_issuer' => null,
+        'bonus_negocio_issuer' => null, 'bonus_negocio_business_issuer' => 'business',
+        'bonus_beca_issuer' => null, 'bonus_beca_program_issuer' => 'academic_program',
+        'bonus_campania_issuer' => null,
+    ];
+
+    public const FINANCIAL_ROLES = [
+        'bonus_beneficio_issuer', 'bonus_categoria_issuer', 'bonus_negocio_issuer',
+        'bonus_negocio_business_issuer', 'bonus_beca_issuer', 'bonus_beca_program_issuer', 'bonus_campania_issuer',
+    ];
+
+    public const AUTHORIZATION_ROLES = [...self::FOUNDATION_ROLES, ...self::FINANCIAL_ROLES];
+
+    public const REWARDS_ROLE_SCOPES = [];
+
     public const FOUNDATION_SCOPE_TYPES = [...self::VALID_SCOPE_TYPES, 'campus', 'academic_program', 'department'];
 
     public const FOUNDATION_ROLE_SCOPES = [
@@ -72,6 +92,8 @@ class Role extends Model
         'organization_manager' => 'campus', 'career_coordinator' => 'academic_program',
         'department_head' => 'department',
     ];
+
+    public const AUTHORIZATION_ROLE_SCOPES = [...self::FOUNDATION_ROLE_SCOPES, ...self::FINANCIAL_ROLE_SCOPES];
 
     /**
      * Roles que, además de "admin", pueden gestionar el perfil y

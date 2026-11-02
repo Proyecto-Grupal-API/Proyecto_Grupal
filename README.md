@@ -312,3 +312,9 @@ El propietario `User._id` es el único que puede leer/aceptar/revocar sus consen
 ## Licencia
 
 La licencia del proyecto se definirá por el equipo antes de la primera versión pública estable.
+
+## Incorporación integral E1 pendiente de publicación
+
+Sobre la rama E1 publicada se añaden política y consulta financiera de identidad, separación de catálogos de autorización, directorio D1–D4, enriquecimiento aditivo de eventos de credenciales y explicitación de user_sessions con índices aditivos. Se conservan los consentimientos por funcionalidad ya publicados, los contratos existentes y los límites de cada consumidor.
+
+El directorio permanece cerrado por defecto; no se habilitan autoridades financieras, concesiones automáticas ni transportes externos. Véase [alcance y evidencia de la entrega](docs/integration/E1-INCORPORACION-MERGE-COMPLETO.md).

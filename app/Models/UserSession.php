@@ -5,7 +5,7 @@ namespace App\Models;
 use MongoDB\Laravel\Eloquent\Model;
 
 /**
- * Coleccion Mongo: sessions (Modulo 1.7 - Dispositivos y sesiones confiables)
+ * Coleccion Mongo: user_sessions (Modulo 1.7 - Dispositivos y sesiones confiables)
  *
  * Cada documento representa una sesion iniciada desde un dispositivo.
  * Se identifica ante el navegador mediante un token opaco guardado en
@@ -13,15 +13,15 @@ use MongoDB\Laravel\Eloquent\Model;
  * marcar revoked_at; en el siguiente request de ese navegador el
  * middleware EnsureSessionIsActive fuerza el logout.
  *
- * Nota: la clase se llama "UserSession" (no "Session") para evitar
- * ambiguedad con clases nativas de Laravel, pero la coleccion Mongo
- * si se llama "sessions", tal como documenta el README del proyecto.
+ * Conserva la coleccion efectiva de la version MongoDB Laravel instalada.
+ * La coleccion historica sessions y las sesiones nativas de Laravel son
+ * independientes; este modelo no mueve ni combina documentos historicos.
  */
 class UserSession extends Model
 {
     protected $connection = 'mongodb';
 
-    protected $collection = 'sessions';
+    protected $table = 'user_sessions';
 
     protected $fillable = [
         'user_id',

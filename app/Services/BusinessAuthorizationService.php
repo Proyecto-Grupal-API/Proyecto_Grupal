@@ -40,7 +40,7 @@ final class BusinessAuthorizationService
 
     public function businessRoles(): array
     {
-        return array_keys(array_filter(Role::FOUNDATION_ROLE_SCOPES, fn ($scope) => $scope === 'business'));
+        return Role::BUSINESS_ROLES;
     }
 
     public function hasMembership(User $user, string $businessId): bool

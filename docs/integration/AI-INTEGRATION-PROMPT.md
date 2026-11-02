@@ -34,3 +34,7 @@ Superficie **MEDIO**:
 | `database/seeders/RoleSeeder.php` | Catálogo de roles, distinto del bootstrap de una cuenta demo admin |
 
 Tras la aprobación humana y la integración, ejecuta los tests del equipo consumidor **y** las regresiones relevantes de Team 1; comprueba rutas, scopes, IDs, eventos, build y `git diff --check`. Reporta cambios, pruebas y dependencias pendientes. No declares éxito basándote sólo en ausencia de conflictos Git.
+
+## Incorporación integral E1 posterior a 86111548 (pendiente de publicación)
+
+Conservar la remediación de consentimientos ya publicada. Incorporar sólo las novedades E1: política/consulta financiera, separación de dominios, directorio D1–D4, eventos de credenciales y sesiones. No importar rutas, providers ni dependencias de MERGE_COMPLETO ausentes en esta rama. El directorio requiere configuración y acreditación explícitas; la autoridad financiera productiva y los consumidores externos no se habilitan. El enriquecimiento E7 es aditivo y conserva eventos históricos; no acredita recepción externa. Véase [alcance de entrega](E1-INCORPORACION-MERGE-COMPLETO.md).

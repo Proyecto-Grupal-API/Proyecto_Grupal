@@ -134,15 +134,19 @@ class NfcCardController extends Controller
                     'registered_at' => now(),
                 ]);
 
+                $reason = 'Registro inicial de tarjeta NFC';
                 $card->credentialEvents()->create([
                     'performed_by' => $actorId,
                     'event_type' => 'registered',
-                    'reason' => 'Registro inicial de tarjeta NFC',
+                    'reason' => $reason,
                     'previous_status' => null,
                     'new_status' => NfcCardStatus::Active->value,
                 ]);
 
-                CredentialChanged::dispatch((string) $card->getKey(), 'nfc', 'registered', NfcCardStatus::Active->value, $actorId);
+                CredentialChanged::dispatch(
+                    (string) $card->getKey(), 'nfc', 'registered', NfcCardStatus::Active->value, $actorId,
+                    studentId: (string) $card->user_id, oldStatus: null, reason: $reason,
+                );
             });
         } catch (Throwable $failure) {
             if ($this->isDuplicateUidFailure($failure)) {
