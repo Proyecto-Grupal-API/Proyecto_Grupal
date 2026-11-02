@@ -2,13 +2,15 @@
 
 Plataforma digital universitaria orientada al estudiante. El proyecto integra identidad digital, credenciales NFC/QR, perfiles académicos, autenticación segura y servicios compartidos para los demás módulos del ecosistema Campus Digital.
 
-Este repositorio contiene la base de trabajo del **Equipo 1: Identidad, Acceso, NFC/QR y Perfil del Estudiante**.
+Esta rama contiene la entrega técnica completa del **Equipo 1: Identidad, Acceso, NFC/QR y Perfil del Estudiante**. E1 está implementado y entregado técnicamente; esto no acredita despliegue productivo ni la operación de consumidores externos.
+
+Entrega integral publicada en `feat/modulo-1-equipo-1`: [`660101af6896466138e8a262149478c7fd043090`](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/commit/660101af6896466138e8a262149478c7fd043090). Incorporación grupal publicada en `MERGE_COMPLETO`: [`59681872462ebae68352869c02b3ae3f72c5be37`](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/commit/59681872462ebae68352869c02b3ae3f72c5be37).
 
 ## Alcance del Equipo 1
 
 El equipo es responsable de construir la identidad común que consumen los demás módulos. Ningún dominio externo debe duplicar la lógica de autenticación ni la lectura de credenciales.
 
-El alcance inicial contempla:
+Capacidades implementadas:
 
 - Gestión de cuentas y perfil del estudiante.
 - Autenticación, recuperación de contraseña y confirmación de cuenta.
@@ -25,130 +27,67 @@ El alcance inicial contempla:
 
 ## Tecnologías
 
-- **Backend:** Laravel 13 y PHP 8.3 o superior.
+- **Backend:** Laravel 13 y PHP compatible con las dependencias bloqueadas.
 - **Frontend:** Vue 3, Inertia.js y Vite.
 - **Autenticación:** Laravel Fortify y Breeze.
 - **Estilos:** Tailwind CSS.
-- **Pruebas:** Pest.
-- **Persistencia:** MongoDB 7 para desarrollo local mediante Podman.
+- **Pruebas:** Pest y PHPUnit.
+- **Persistencia:** MongoDB 7; las operaciones transaccionales requieren un replica set. Podman se utilizó en el entorno local validado.
 - **QR en frontend:** `qrcode` para renderizado y `@zxing/library` para escaneo con cámara.
 
 La aplicación usa el paquete `mongodb/laravel-mongodb` y el modelo de usuario compatible con MongoDB. Laravel Fortify continúa siendo responsable de la autenticación; los módulos 1.8 y 1.9 solo consumen la identidad autenticada.
 
 ## Requisitos
 
-- PHP 8.3 o superior.
+- PHP compatible con `composer.lock`; PHPUnit 13.3.0 requiere al menos PHP 8.4.1. El lote integrado se validó con PHP nativo 8.5.12.
 - Composer.
 - Node.js y npm.
 - Git.
 - Podman 5 o superior.
-- Extensión PHP `mongodb`.
+- Extensión PHP `mongodb` compatible con `^2.4`, requerida por `mongodb/mongodb` 2.4.1.
 
 ## Instalación
 
-Clona el repositorio y entra en la carpeta del proyecto:
+Clona la rama publicada del repositorio grupal:
 
 ```bash
-git clone https://github.com/Julian-Darkstar/campus-virtual.git
-cd campus-virtual
-```
-
-Instala las dependencias de backend y frontend:
-
-```bash
+git clone --branch feat/modulo-1-equipo-1 --single-branch https://github.com/Proyecto-Grupal-API/Proyecto_Grupal.git
+cd Proyecto_Grupal
 composer install
-npm install
-```
-
-Las dependencias del módulo QR se incluyen en `package.json`: `qrcode` genera los códigos en el navegador y
-`@zxing/library` lee códigos mediante la cámara. El backend reutiliza `mongodb/laravel-mongodb`; no es necesario
-añadir otro paquete de Composer para generar imágenes porque el QR se renderiza en Vue.
-
-Crea el archivo de entorno y genera la clave de la aplicación:
-
-```bash
+composer check-platform-reqs
+npm ci
 cp .env.example .env
 php artisan key:generate
-php artisan migrate
 ```
 
-Si el proyecto ya estaba instalado, actualiza ambas dependencias antes de migrar:
-
-```bash
-composer install
-npm install
-php artisan migrate
-```
-
-Configura MongoDB en el archivo `.env`:
+Conserva las versiones de los archivos lock. Configura el entorno antes de ejecutar migraciones: el ejemplo de variables no aprovisiona MongoDB ni establece sus credenciales.
 
 ```env
 DB_CONNECTION=mongodb
+MONGODB_DSN=mongodb://127.0.0.1:27017/?replicaSet=rs0
 DB_HOST=127.0.0.1
 DB_PORT=27017
 DB_DATABASE=campus_virtual
-DB_USERNAME=
-DB_PASSWORD=
 ```
 
-## MongoDB local con Podman
+`rs0` es sólo un ejemplo para un replica set local ya configurado. La URI, el nombre anunciado, la autenticación y el replica set deben coincidir con el servidor real. Conserva las credenciales fuera del repositorio y limita la publicación local de puertos a loopback. Un MongoDB standalone no basta para las transacciones de E1.
 
-Descarga y ejecuta MongoDB 7 con un volumen persistente:
+Una vez verificado el destino de desarrollo y preparado el replica set, aplica las migraciones de esta rama:
 
 ```bash
-podman pull docker.io/library/mongo:7
-podman run -d --name campus-mongo \
-  -p 27017:27017 \
-  -v mongo_data:/data/db \
-  docker.io/library/mongo:7
-podman update --restart=unless-stopped campus-mongo
+php artisan migrate
 ```
 
-Si el contenedor ya existe, solo inícialo:
+La migración aditiva de sesiones crea índices no únicos en `user_sessions`, colección efectiva del modelo. No mueve documentos ni elimina la colección histórica `sessions`. Esta configuración de desarrollo no sirve para ejecutar las pruebas persistentes.
 
-```bash
-podman start campus-mongo
-```
+Para utilizar la aplicación integrada con los demás módulos, consulta la rama `MERGE_COMPLETO` y sus guías de despliegue; no traslades indiscriminadamente su configuración a esta rama E1.
 
-Comprueba MongoDB y Laravel:
+## Ramas publicadas
 
-```bash
-podman exec campus-mongo mongosh --quiet --eval "db.runCommand({ ping: 1 })"
-php artisan config:clear
-php artisan tinker --execute="DB::connection('mongodb')->command(['ping' => 1]); echo 'MONGO_OK';"
-```
+- `feat/modulo-1-equipo-1`: entrega técnica E1, commit integral `660101af6896466138e8a262149478c7fd043090`.
+- `MERGE_COMPLETO`: incorporación integrada E1, commit `59681872462ebae68352869c02b3ae3f72c5be37`.
 
-La instalación local de desarrollo no habilita autenticación en MongoDB. Para DataGrip utiliza `localhost`, puerto `27017`, autenticación `No authentication` y la base `campus_virtual`. En MongoDB, las tablas se representan como colecciones; la aplicación crea `users` y `sessions` cuando existen documentos.
-
-## Ramas de desarrollo
-
-Este proyecto utiliza un flujo de Git con dos ramas principales:
-
-### `main`
-
-- **Rama prevista para versiones estables**; pertenecer a `main` no demuestra por sí solo preparación ni despliegue en producción.
-- Cambios solo a través de pull requests revisados.
-- Cada commit en `main` representa una versión funcional y documentada.
-
-### `develop`
-
-- **Rama de integración continua** donde se agrupan las features en construcción.
-- Contiene trabajo en progreso y funcionalidades pendientes de finalizar.
-- Punto de referencia para ver el estado actual del desarrollo.
-- Cambios se agrupan en commits temáticos antes de proponer PR a `main`.
-
-### Flujo de trabajo
-
-```
-main (stable) ← ← ← ← develop (active development)
-                    ↑
-                  feature branches
-```
-
-1. Crea una rama de feature desde `develop`: `git checkout -b feature/nombre-feature`
-2. Realiza cambios y commits
-3. Cuando esté lista, integra a `develop` mediante PR
-4. Cuando una versión esté completa, crea PR de `develop` a `main`
+Snapshot 1 y Snapshot 2 son antecedentes de publicación. La referencia vigente de la entrega integral es la indicada arriba; pertenecer a una rama no demuestra despliegue productivo.
 
 ## Desarrollo local
 
@@ -184,21 +123,13 @@ Para generar los recursos frontend de producción:
 npm run build
 ```
 
-## Pruebas
+## Pruebas y evidencia de entrega
 
-La suite de pruebas se ejecuta con:
+La validación focal integrada registró **210 pruebas y 1.037 aserciones**, sin fallos ni errores funcionales y sin pruebas Risky. Hubo 210 advertencias de carga del archivo `.env`, excluido deliberadamente de la vista privada. Preflight, índices de sesiones y auditoría de destinos fueron satisfactorios; el build frontend fue satisfactorio. D1–D4 cuenta además con una ejecución integrada previa de **31 pruebas y 172 aserciones** satisfactorias. Son evidencias de los candidatos validados, no una certificación general de E2–E7 ni de producción.
 
-```bash
-php artisan test
-```
+Las pruebas persistentes pueden eliminar y recrear la base sintética. Requieren un perfil privado explícitamente autorizado y el servidor exclusivo `campus-e1-test-mongo:27018`, replica set `rs-e1-testing`, base `campus_virtual_testing`, con identidad y privilegios acreditados. No deben apuntar a `campus-mongo` ni a desarrollo o integración. Las guardas rechazan `.env`, `.env.testing`, cachés de desarrollo y destinos no acreditados. Los perfiles y credenciales privados no se distribuyen en el repositorio; no ejecutar `php artisan test` o `composer test` sobre una instalación de desarrollo como sustituto de ese perfil.
 
-También puede utilizarse el script de Composer:
-
-```bash
-composer test
-```
-
-Las pruebas usan la base MongoDB `campus_virtual_testing` y requieren el contenedor `campus-mongo` activo. El harness limpia esa base antes de cada prueba.
+La evidencia histórica de `PrivilegeEscalationRegressionTest` conserva 6 pruebas y 23 aserciones satisfactorias y una salvedad de continuidad histórica; no se presenta como certificación canónica completa. El lote posterior no modifica sus informes históricos.
 
 ## OAuth 2.0 entre servicios
 
@@ -241,7 +172,7 @@ La entrega es **at-least-once**, no exactly-once: se publica un evento por POST,
 - **Módulos 1.8 y 1.9:** estado académico persistente e historial; consentimientos y preferencias persistentes mediante sesión/Sanctum.
 - **Integración entre servicios:** OAuth 2.0 `client_credentials`, JWT, scopes y middleware Bearer.
 - **Eventos de dominio:** eventos versionados, outbox MongoDB con `event_id` estable y único tras aplicar su migración, y publicador programado con lease atómico y reintentos. La deduplicación del efecto corresponde al consumidor.
-- **Servicio de identidad 1.10:** estado/historial académico y QR son `PUBLISHED_IN_SNAPSHOT_1`; NFC y contratos business están `AVAILABLE_NOW` desde Snapshot 2. INT-1B.1–1B.6 implementaron foundation, backfill/paridad, cutover y motores business/institucional. La entrega externa de eventos a Equipo 7 sigue pendiente; el outbox local no equivale a integración externa completa.
+- **Servicio de identidad 1.10:** consultas OAuth académicas, QR/NFC y contratos business publicados; la entrega integral añade directorio D1–D4 y consulta financiera con activación y autoridades restringidas. La publicación del outbox no demuestra recepción externa por Equipo 7.
 - **Calidad:** pruebas automatizadas y build frontend disponibles; la guía de integración etiqueta la evidencia de validación con fecha.
 
 La guía [Team 1 — Identity Integration Contract](docs/integration/TEAM-1-INTEGRATION.md) distingue las APIs OAuth para servicios de las rutas Sanctum y web, y enumera las capacidades todavía pendientes.
@@ -266,7 +197,7 @@ La guía [Team 1 — Identity Integration Contract](docs/integration/TEAM-1-INTE
 - [x] Pruebas automatizadas contra MongoDB.
 - [x] Integración de autenticación inter-servicios OAuth 2.0.
 - [x] Contratos implementados de estado académico, QR y NFC documentados para consumidores.
-- [x] Módulo 1.10: servicio interno de identidad y contratos de consulta publicados. Configuración de consumidores y entrega externa de eventos con Equipo 7 son pendientes separados; el cierre formal del módulo es un gate distinto.
+- [x] Módulo 1.10: servicio interno de identidad y contratos de consulta publicados. La entrega técnica integral está publicada; la configuración de consumidores, la recepción externa de eventos y la aceptación institucional se distinguen de ese cierre técnico.
 - [x] Contratos de eventos versionados y outbox MongoDB.
 
 ### Notas de integración
@@ -274,14 +205,14 @@ La guía [Team 1 — Identity Integration Contract](docs/integration/TEAM-1-INTE
 - El módulo 1.1 se portó desde la rama SQL Server a documentos MongoDB (`campuses`, `academic_programs`, `student_profiles` y `academic_status_history`).
 - La interfaz administrativa y la importación CSV están disponibles en `/students`; requieren un rol global `admin`, `maestro` o `student_manager`.
 - `StudentCatalogSeeder` inicializa los catálogos; los índices únicos de usuarios y perfiles se crean mediante migraciones, sin depender del seeder.
-- La importación CSV valida todas las filas antes de escribir. El contenedor local MongoDB usa el replica set `rs0`, habilitando transacciones multi-documento para atomicidad estricta.
+- La importación CSV valida todas las filas antes de escribir. Su atomicidad multi-documento requiere un replica set configurado en cada despliegue.
 - El estado académico y los consentimientos/preferencias persisten datos reales. Los endpoints académicos OAuth aceptan `User._id`; los de consentimientos/preferencias usan Sanctum y no son un contrato OAuth de servicio.
 - `RoleAssignment` es la autoridad de autorización; `User.roles` es histórico/no autoritativo, sin fallback. La revalidación read-only de development para INT-1B.7R confirmó marker activo y paridad 42/42; esto no acredita el estado de otros despliegues.
 - La administración legacy conserva seis roles (incluido `student_manager`) y contextos `business`, `association`, `service`, `council`. Foundation añade scopes institucionales `campus` y `academic_program`; `department` está registrado estructuralmente pero no es asignable ni autoriza sin fuente canónica. No existe endpoint `role-check`; los contratos business separados se describen abajo.
 
-### Snapshot 2 publicado
+### Publicación vigente y antecedentes
 
-`LATEST_GROUP_PUBLISHED` es `f41c78066cb8e6dde2a1605233e832395cb20841`, verificado en `proyecto-grupal-api/feat/modulo-1-equipo-1`. `CURRENT_LOCAL` incorpora la remediación de cierre 1.9 sobre ese snapshot; esa remediación requiere publicación separada y todavía no forma parte del snapshot público. No se modifica ningún contrato OAuth publicado.
+Snapshot 2 (`f41c78066cb8e6dde2a1605233e832395cb20841`) es un antecedente. La remediación de consentimientos se publicó en `86111548a7659ffa3dab4fd6ee441bb70160b3d9`; la entrega integral vigente de E1 se publicó en `660101af6896466138e8a262149478c7fd043090` y se incorporó a `MERGE_COMPLETO` en `59681872462ebae68352869c02b3ae3f72c5be37`. Los contratos ya publicados se conservan.
 
 | Estado | Superficie |
 | --- | --- |
@@ -295,26 +226,32 @@ La guía [Team 1 — Identity Integration Contract](docs/integration/TEAM-1-INTE
 
 El motor institucional interno resuelve `organization_manager` → `organizations.institutional.manage` en `campus=Campus._id`, y `career_coordinator` → `academic.program.coordinate` en `academic_program=AcademicProgram._id`. `department_head`/`academic.department.manage` permanece estructural/fail-closed: fuente `UNRESOLVED`, no asignable y grant authority `DEFERRED`. Los endpoints OAuth check/read siguen siendo business-only.
 
-El gap de `identity.credential.changed.v1` solicitado por Team 7 (`student_id`, `old_status`, `new_status` explícito y `reason`) es `NON_BLOCKING_DEFERRED`, no un evento enriquecido disponible. El receiver pertenece a Team 7. QR/NFC/status se integran independientemente; elegibilidad sigue en el consumidor.
+El enriquecimiento aditivo de `identity.credential.changed.v1` está publicado: incorpora `student_id`, `old_status`, `new_status` y `reason`, conservando el sobre y los campos anteriores. Los eventos históricos no se reescriben. Esto no acredita aceptación bilateral ni recepción operativa por E7; el receiver y su deduplicación pertenecen a ese equipo.
 
-### Consentimientos por funcionalidad — remediación local 1.9
+### Consentimientos por funcionalidad — publicados
 
 La UI `/student-services` distingue términos generales (`terms`), privacidad (`privacy`), comunicaciones (`marketing`), perfil estudiantil (`profile_terms`) y credenciales QR/NFC (`credential_terms`). Los dos últimos son identidades estables independientes: aceptar o revocar uno no cambia otro. Su versión vigente se define en `config/student_services.php`; una nueva versión queda pendiente hasta aceptación explícita. Las aceptaciones generales/históricas no se reinterpretan como aceptación funcional y no se borran. No se añaden migraciones ni bloqueos automáticos de otras funcionalidades.
 
-El propietario `User._id` es el único que puede leer/aceptar/revocar sus consentimientos privados por sesión/Sanctum, incluso frente a roles de gestión. Las preferencias de comunicación permanecen independientes. `student.consent.changed.v1` conserva su nombre y payload: la diferenciación se expresa en el `consent_id` existente. Estos cambios son locales, pendientes de publicación posterior; no crean API OAuth ni contratos inter-team nuevos.
+El propietario `User._id` es el único que puede leer/aceptar/revocar sus consentimientos privados por sesión/Sanctum, incluso frente a roles de gestión. Las preferencias de comunicación permanecen independientes. `student.consent.changed.v1` conserva su nombre y payload: la diferenciación se expresa en el `consent_id` existente. Estos cambios están publicados desde `86111548`; no crean API OAuth ni contratos inter-team nuevos.
 
 **OAuth defense-in-depth:** al emitir el token, se valida cliente activo y que los scopes solicitados estén concedidos persistentemente. `oauth.service` valida firma, expiración, issuer/audience y scope del token. Status/QR/NFC no revalidan después el grant persistente: un token ya emitido puede seguir aceptándose durante su vigencia. Los tres contratos business añaden revalidación de cliente activo/grant en cada petición, permitiendo revocación más inmediata para esas rutas. Es una diferencia deliberada `DEFENSE_IN_DEPTH_DIFFERENCE`, no un security blocker demostrado ni un cambio de comportamiento de esta remediación. Véase el [contrato técnico](docs/integration/TEAM-1-INTEGRATION.md).
 
 ## Repositorio
 
-<https://github.com/Julian-Darkstar/campus-virtual>
+<https://github.com/Proyecto-Grupal-API/Proyecto_Grupal>
 
 ## Licencia
 
 La licencia del proyecto se definirá por el equipo antes de la primera versión pública estable.
 
-## Incorporación integral E1 pendiente de publicación
+## Entrega integral E1 publicada
 
-Sobre la rama E1 publicada se añaden política y consulta financiera de identidad, separación de catálogos de autorización, directorio D1–D4, enriquecimiento aditivo de eventos de credenciales y explicitación de user_sessions con índices aditivos. Se conservan los consentimientos por funcionalidad ya publicados, los contratos existentes y los límites de cada consumidor.
+La entrega incluye catálogos de autorización y separación financiera/comercial, política y consulta financiera HTTP E1, directorio D1–D4 con cuotas, privacidad y auditoría, sesiones en `user_sessions` con índices aditivos y enriquecimiento de eventos NFC. Conserva identidad/perfiles, autenticación/2FA, QR/NFC, condición académica, consentimientos, OAuth y outbox existentes.
 
-El directorio permanece cerrado por defecto; no se habilitan autoridades financieras, concesiones automáticas ni transportes externos. Véase [alcance y evidencia de la entrega](docs/integration/E1-INCORPORACION-MERGE-COMPLETO.md).
+- **Directorio D1–D4:** código y contratos publicados; clientes vacíos por defecto, activación sujeta a acreditación de matrícula, cuotas y configuración de despliegue. No se declara consumo operativo por E6.
+- **Autorización financiera:** política y contrato HTTP publicados; no existe binding de autoridad financiera productiva y el escritor de concesiones continúa restringido a testing. No hay concesiones automáticas ni ejecución de efectos financieros E2.
+- **Autorización institucional y recompensas:** Department y autoridad otorgante siguen pendientes; no se sustituyen las reglas E7 ni se habilita una API institucional externa.
+- **Eventos y outbox:** productor y transporte implementados; receptor, autenticación, scheduler de producción y aceptación de E7 continúan sujetos a acuerdo y verificación externos.
+- **Otros equipos:** E2 conserva fondos y efectos financieros; E3/E4 comercio e inventario; E5 servicios y elegibilidad; E6 membresías y cargos; E7 recepción, deduplicación y recompensas.
+
+Estas dependencias no convierten la entrega técnica E1 en una integración externa operativa. Véanse el [contrato E1](docs/integration/TEAM-1-INTEGRATION.md) y el [alcance de la entrega](docs/integration/E1-INCORPORACION-MERGE-COMPLETO.md); las referencias locales o pendientes de publicación que persistan en guías históricas deben interpretarse con los commits de entrega indicados en este README.
