@@ -168,7 +168,7 @@ export const api = {
     getPolicies: () => request('GET', '/governance/policies'),
     createPolicy: (payload) => request('POST', '/governance/policies', payload),
     updatePolicy: (id, payload) => request('PUT', `/governance/policies/${id}`, payload),
-    manualAdjustment: (payload) => request('POST', '/governance/adjustments', payload),
+    manualAdjustment: (payload) => request('POST', '/governance/manual-adjustment', payload),
     getFraudFlags: (params = {}) => {
       const qs = new URLSearchParams(params).toString()
       return request('GET', `/governance/fraud-flags${qs ? `?${qs}` : ''}`)

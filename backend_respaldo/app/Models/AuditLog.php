@@ -25,7 +25,8 @@ class AuditLog extends Model
         'source_domain',
         'reason',
         'event_id',
-        'occurred_at'
+        'occurred_at',
+        'envelope_hash'
     ];
 
     protected $casts = [

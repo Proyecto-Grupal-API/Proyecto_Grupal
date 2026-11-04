@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\RedemptionController;
 use App\Http\Controllers\Api\RewardController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\PlatformIngestController;
+use App\Http\Middleware\AuthenticatePlatformSource;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -34,6 +35,16 @@ Route::prefix('v1')->group(function () {
     // ── Catálogo de recompensas público (7.4) ──────────────────
     Route::get('/rewards', [RewardController::class, 'index']);
     Route::get('/rewards/{id}', [RewardController::class, 'show']);
+
+    // ── Ingesta de eventos inter-equipos (Equipo 1 Identidad, Equipo 3 Marketplace, Equipo 4 Inventarios) ──
+    // Autenticación múltiple: Token Bearer de servicio (EVENTS_SINK_TOKEN), Firma HMAC o Token Bearer Sanctum
+    Route::post('/integrations/ingest-event', [IntegrationController::class, 'ingestEvent'])
+        ->middleware('integration.auth');
+    // Alias para compatibilidad directa con la especificación de Equipo 1 (docs/integration/TEAM-7.md)
+    Route::post('/integration/events', [IntegrationController::class, 'ingestEvent'])
+        ->middleware('integration.auth');
+    Route::post('/integrations/events', [IntegrationController::class, 'ingestEvent'])
+        ->middleware('integration.auth');
 
     // ── Rutas protegidas (Sanctum Token) ───────────────────────
     Route::middleware('auth:sanctum')->group(function () {
@@ -135,7 +146,6 @@ Route::prefix('v1')->group(function () {
             Route::get('/logs', [IntegrationController::class, 'logs'])->middleware('permission:integrations.view');
             Route::get('/webhooks', [IntegrationController::class, 'webhooks'])->middleware('permission:integrations.view');
             Route::post('/webhooks/{id}/retry', [IntegrationController::class, 'retryWebhook'])->middleware('permission:integrations.retry');
-            Route::post('/ingest-event', [IntegrationController::class, 'ingestEvent'])->middleware('permission:integrations.ingest');
         });
 
         // ── Administración general y configuraciones (7.7 & 7.11) ─
@@ -152,10 +162,14 @@ Route::prefix('v1')->group(function () {
             Route::post('/', [SettingsController::class, 'storeCatalog'])->middleware('permission:catalogs.manage');
         });
 
-        Route::prefix('plataforma')->middleware('throttle:300,1')->group(function () {
-            Route::post('/eventos', [PlatformIngestController::class, 'storeEvent'])->middleware('permission:analytics.events.write');
-            Route::post('/auditoria', [PlatformIngestController::class, 'storeAudit'])->middleware('permission:audit.write');
-        });
-
     });
+});
+
+// ── Ingesta de plataforma (Equipo 5, Equipo 6, etc.) ───────────
+// Fuera de Sanctum a propósito: estos equipos no son usuarios de la app, son
+// servicios externos autenticados por firma (ver AuthenticatePlatformSource y
+// config/platform.php). No requieren `auth:sanctum` ni cuenta de servicio.
+Route::prefix('v1/plataforma')->middleware([AuthenticatePlatformSource::class, 'throttle:300,1'])->group(function () {
+    Route::post('/eventos', [PlatformIngestController::class, 'storeEvent']);
+    Route::post('/auditoria', [PlatformIngestController::class, 'storeAudit']);
 });

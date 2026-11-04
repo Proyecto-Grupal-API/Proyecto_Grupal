@@ -24,7 +24,8 @@ class AnalyticsEvent extends Model
         'event_id',
         'event_name',
         'aggregate_id',
-        'occurred_at'
+        'occurred_at',
+        'envelope_hash'
     ];
 
     protected $casts = [

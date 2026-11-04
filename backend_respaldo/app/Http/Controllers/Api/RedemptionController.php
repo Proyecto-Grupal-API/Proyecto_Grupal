@@ -6,7 +6,9 @@ use App\Models\AuditLog;
 use App\Models\Redemption;
 use App\Models\RedemptionEvent;
 use App\Models\Reward;
+use App\Models\RewardItem;
 use App\Models\User;
+use App\Services\Integrations\Team4InventoryService;
 use App\Services\PointsLedger\DTO\RedeemPointsRequest;
 use App\Services\PointsLedger\DTO\ReversePointsRequest;
 use App\Services\PointsLedger\Exception\InsufficientPointsException;
@@ -18,7 +20,14 @@ use Illuminate\Support\Str;
 
 class RedemptionController
 {
-    public function __construct(private readonly PointsLedgerService $ledger) {}
+    private readonly Team4InventoryService $inventory;
+
+    public function __construct(
+        private readonly PointsLedgerService $ledger,
+        ?Team4InventoryService $inventory = null
+    ) {
+        $this->inventory = $inventory ?? app(Team4InventoryService::class);
+    }
 
     /**
      * Listado de canjes:
@@ -119,6 +128,40 @@ class RedemptionController
         $idempotencyKey = $validated['idempotency_key'] ?? (string) Str::uuid();
         $redemptionCode = 'CJ-' . strtoupper(Str::random(4)) . '-' . strtoupper(Str::random(4));
 
+        // ── Reserva en Inventario Central (Equipo 4) si es recompensa física ──
+        $stockReservationRef = null;
+        $isPhysicalReward = (bool) ($reward->is_physical || ! empty($reward->linked_product_reference));
+
+        if ($isPhysicalReward) {
+            $productRef = $reward->linked_product_reference ?: (string) $reward->name;
+            $variantSku = null;
+            if (! empty($validated['reward_item_id'])) {
+                $item = RewardItem::find($validated['reward_item_id']);
+                $variantSku = $item?->sku_reference;
+            }
+
+            $inventoryReservation = $this->inventory->createReservation(
+                originReference:  $redemptionCode,
+                productReference: $productRef,
+                quantity:         1,
+                variantSku:       $variantSku,
+                idempotencyKey:   'e7-reserve-' . $redemptionCode,
+                businessId:       $reward->business_id
+            );
+
+            if (! $inventoryReservation['success']) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'Inventario insuficiente en almacén (Equipo 4): ' . ($inventoryReservation['message'] ?? 'Existencia agotada.'),
+                    'details' => $inventoryReservation,
+                ], 422);
+            }
+
+            $stockReservationRef = $inventoryReservation['reservation_id'] ?? null;
+        }
+
+        $stockReservationRef = $stockReservationRef ?: (string) Str::uuid();
+
         try {
             // Descuento atómico en PointsLedger (maneja su propia transacción)
             $ledgerResult = $this->ledger->redeem(new RedeemPointsRequest(
@@ -134,7 +177,7 @@ class RedemptionController
                 actorRole: $user?->role ?? 'student',
             ));
 
-            // Reserva stock provisional
+            // Reserva stock provisional local
             $reward->increment('reserved_stock', 1);
 
             $redemption = Redemption::create([
@@ -144,7 +187,7 @@ class RedemptionController
                 'points_spent'                => $reward->points_required,
                 'status'                      => 'confirmed', // listo para validación/entrega
                 'redemption_code'             => $redemptionCode,
-                'stock_reservation_reference' => (string) Str::uuid(),
+                'stock_reservation_reference' => $stockReservationRef,
                 'requested_at'                => now(),
                 'ledger_entry_id'             => (string) $ledgerResult->ledgerEntry->_id,
             ]);
@@ -170,6 +213,7 @@ class RedemptionController
                     'points_spent'    => $reward->points_required,
                     'reward_id'       => (string) $reward->_id,
                     'ledger_entry_id' => (string) $ledgerResult->ledgerEntry->_id,
+                    'stock_res_id'    => $stockReservationRef,
                 ],
                 'ip_address'    => $request->ip(),
                 'device'        => $request->userAgent(),
@@ -183,7 +227,15 @@ class RedemptionController
             ], 201);
 
         } catch (InsufficientPointsException $e) {
+            if ($isPhysicalReward && $stockReservationRef) {
+                $this->inventory->releaseReservation($stockReservationRef, 'INSUFFICIENT_POINTS');
+            }
             return response()->json(['success' => false, 'error' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            if ($isPhysicalReward && $stockReservationRef) {
+                $this->inventory->releaseReservation($stockReservationRef, 'REDEMPTION_FAILED');
+            }
+            throw $e;
         }
     }
 
@@ -255,6 +307,15 @@ class RedemptionController
                 }
             }
 
+            // Si la recompensa es física y cuenta con reserva en Equipo 4, confirmar el consumo
+            if ($redemption->stock_reservation_reference && ($reward?->is_physical || ! empty($reward?->linked_product_reference))) {
+                $this->inventory->confirmReservation(
+                    reservationId:  $redemption->stock_reservation_reference,
+                    deliveredBy:    $user?->name ?? 'Staff',
+                    idempotencyKey: 'e7-confirm-' . $redemption->stock_reservation_reference
+                );
+            }
+
             RedemptionEvent::create([
                 'redemption_id' => (string) $redemption->_id,
                 'from_status'   => $fromStatus,
@@ -324,10 +385,18 @@ class RedemptionController
             ));
         }
 
-        // Liberar stock reservado
+        // Liberar stock reservado local y en Equipo 4
         $reward = $redemption->reward;
         if ($reward && $reward->reserved_stock > 0) {
             $reward->decrement('reserved_stock', 1);
+        }
+
+        if ($redemption->stock_reservation_reference && ($reward?->is_physical || ! empty($reward?->linked_product_reference))) {
+            $this->inventory->releaseReservation(
+                reservationId:  $redemption->stock_reservation_reference,
+                reason:         $reason,
+                idempotencyKey: 'e7-release-' . $redemption->stock_reservation_reference
+            );
         }
 
         $redemption->update([
