@@ -37,9 +37,10 @@ it('checks NFC through genuine E1 OAuth HTTP and stops accepting a blocked crede
     }
     $address = stream_socket_get_name($socket, false);
     fclose($socket);
+    $mongoDsn = config('database.connections.mongodb.dsn');
     $process = new Process([PHP_BINARY, '-S', $address, base_path('tests/Fixtures/identity_nfc_server.php')], base_path(), [
         'APP_ENV' => 'testing', 'DB_CONNECTION' => 'mongodb', 'DB_DATABASE' => 'campus_virtual_testing',
-        'MONGODB_DATABASE' => 'campus_virtual_testing', 'MONGODB_DSN' => 'mongodb://mongodb:27017/?replicaSet=rs0',
+        'MONGODB_DATABASE' => 'campus_virtual_testing', 'MONGODB_DSN' => $mongoDsn, 'MONGODB_URI' => $mongoDsn,
         'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array',
     ]);
     try {

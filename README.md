@@ -1,8 +1,11 @@
-# Campus Digital — Integración de equipos 1, 3, 4, 5 y 6
+# Campus Digital — Integración de los siete equipos
 
-Rama actual: `MERGE_COMPLETO` (antecedente de integración: `MERGE-1-3-4-5-6`). Una aplicación Laravel con Identidad,
-Marketplace, Inventarios, Servicios al estudiante y Comunidad. Finanzas (E2)
-y Recompensas/Auditoría (E7) todavía no están incorporados.
+`MERGE_COMPLETO` reúne Identidad (E1), Finanzas (E2), Marketplace (E3),
+Inventarios (E4), Servicios al estudiante (E5), Comunidad (E6) y Plataforma
+de Recompensas y Auditoría (E7) en una aplicación Laravel.
+
+- [Alcance actual, conexiones operativas y dependencias pendientes](docs/integration/INTEGRACION_1_2_3_4_5_6_7.md).
+- [Contrato firmado entre Inventarios y Plataforma](docs/integration/equipo4/eq7.md).
 
 - [Estado de la entrega, alcance y preparación](docs/integration/ESTADO_1_3_4_5_6.md).
 - [Integración Marketplace, APIs y validación](docs/integration/INTEGRACION_1_3_4_5_6.md).
@@ -12,8 +15,9 @@ y Recompensas/Auditoría (E7) todavía no están incorporados.
 
 El entorno alterno usa `compose.integracion.yaml` y el puerto local `8086`.
 Conserva los datos propios de cada dominio y consume las APIs de sus equipos.
-Pagos, bonos, reembolsos y puntos permanecen pendientes de sus proveedores;
-un pedido o beneficio aprobado no representa una operación financiera ejecutada.
+Finanzas usa SQL Server y los demás dominios del alterno usan MongoDB. Los flujos
+financieros entre módulos requieren autoridades, contrapartes y confirmaciones
+verificables. Comunidad entrega auditorías a Plataforma.
 
 Comunidad todavía conserva algunas consultas heredadas a Identidad, documentadas
 como deuda pendiente de sus contratos. La entrega no certifica cumplimiento total
@@ -50,6 +54,15 @@ de destinos y build frontend fueron satisfactorios. D1–D4 integrado dispone
 además de una ejecución previa de **31 pruebas y 172 aserciones** satisfactorias.
 Estas evidencias corresponden al alcance E1 validado, no certifican todos los
 módulos E2–E7 ni un despliegue productivo.
+
+### Validación local de la combinación con E4
+
+El 4 de noviembre de 2026 se combinaron `a19f148` y `3eb692a`. En una réplica
+sintética dedicada y acreditada por las guardas de E1 se ejecutaron 140 casos
+con 1,005 aserciones y cero fallos. El alcance incluye login, NFC por HTTP,
+reservas, transporte de auditoría y directorio D1–D4. Pest reportó advertencias
+por la ausencia deliberada de `.env` en la copia de pruebas. La migración de
+sesiones conservó los documentos y produjo los mismos índices en dos ejecuciones.
 
 ### Activaciones y dependencias externas
 
