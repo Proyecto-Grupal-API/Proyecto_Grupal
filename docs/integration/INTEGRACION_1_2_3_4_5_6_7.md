@@ -5,6 +5,8 @@ Dirección: http://127.0.0.1:8086. Rama de integración: `MERGE_COMPLETO` (antes
 Publicación y renombrado solicitados por el usuario el 27 de octubre de 2026.
 El proyecto principal `/home/daniel/campus_digital` se conserva sin modificaciones.
 
+Actualización del 30 de octubre: [avance E4 a3ea96d](INCORPORACION_E4_a3ea96d_2026-10-30.md), con transporte HMAC preparado, pendiente de activación y cierre funcional de canjes.
+
 ## Fuentes incorporadas
 
 - E2: `feat/modulo-2-equipo-2`, `7460d47`, incluida la nueva consulta OAuth de autorización de bonos, apagada por defecto.
@@ -81,7 +83,8 @@ permisos financieros. Evidencia: `activacion-verificada.json` en los logs de est
    a usuarios/sesiones/clientes de E1; los flujos afectados siguen sin habilitarse.
    La proyección de rol de sesión usa la API interna pública de E1 en la misma aplicación;
    el directorio HTTP y la autorización institucional final siguen pendientes.
-4. E4 → E7 y E5 → E7: adaptar sus emisores al contrato acordado. No se encendieron emisores
+4. E4 → E7: transporte HMAC adaptado el 30 de octubre (ver actualización), sin activar.
+   E5 → E7: adaptar su emisor al contrato acordado. No se encendieron emisores
    antiguos apuntándolos al nuevo receptor, ni se afirma que los siete equipos intercambien
    ya todos sus datos. Recompensas físicas requieren contrato de inventario y compensación.
 5. No se importaron usuarios/datos financieros de demostración de E2/E7 ni se depositó saldo.

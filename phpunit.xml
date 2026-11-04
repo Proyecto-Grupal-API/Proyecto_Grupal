@@ -19,6 +19,8 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing" force="true"/>
+        <env name="INVENTARIO_E7_OUTBOX_HABILITADO" value="false" force="true"/>
+        <env name="INVENTARIO_E7_INBOX_HABILITADO" value="false" force="true"/>
         <env name="PLATFORM_INGEST_ENABLED" value="false" force="true"/>
         <env name="PLATFORM_DELIVERY_ENABLED" value="false" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>

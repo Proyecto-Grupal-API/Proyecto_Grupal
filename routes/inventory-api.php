@@ -42,3 +42,6 @@ Route::prefix('equipo4/businesses/{businessId}')->middleware([Team4ServiceSignat
     Route::post('/integration/reservations/{id}/release',[Team3IntegrationController::class,'release']);
     Route::post('/integration/reservations/{id}/confirm',[Team3IntegrationController::class,'confirm']);
 });
+
+Route::post('v1/integrations/eq7-events', [\App\Api\InventoryModule\Team7WebhookController::class, 'receive'])
+    ->middleware([Team4ServiceSignature::class.':equipo7', 'throttle:120,1']);

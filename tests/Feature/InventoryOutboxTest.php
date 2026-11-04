@@ -8,7 +8,7 @@ use MongoDB\BSON\UTCDateTime;
 
 beforeEach(function () {
     config(['team4.business_id' => 'outbox-business', 'team4.outbox.enabled' => true,
-        'team4.outbox.url' => 'http://e7.test/events', 'team4.outbox.token' => 'test-only-e7']);
+        'team4.outbox.url' => 'http://e7.test/events', 'team4.outbox.secret' => 'test-only-e7-inventory-secret']);
     Http::preventStrayRequests();
 });
 
@@ -22,7 +22,7 @@ it('keeps E7 transport inactive until explicitly configured', function () {
 
 it('retries a failed delivery with the same event identity and does not resend a success', function () {
     $id = app(OutboxService::class)->publish('inventory.reservation.expired', ['reservation_id' => 'expired-1']);
-    Http::fakeSequence()->push([], 503)->push([], 202);
+    Http::fakeSequence()->push([], 503)->push(['status' => 'accepted', 'event_id' => 'evt_inv_'.$id], 202);
     $this->artisan('team4:publish-outbox')->assertFailed();
     $this->artisan('team4:publish-outbox')->assertSuccessful();
     Http::assertSentCount(1);
@@ -30,7 +30,8 @@ it('retries a failed delivery with the same event identity and does not resend a
     $this->artisan('team4:publish-outbox')->assertSuccessful();
     $this->artisan('team4:publish-outbox')->assertSuccessful();
     Http::assertSentCount(2);
-    Http::assertSent(fn ($r) => $r->header('X-Event-Id')[0] === $id && $r['business_id'] === 'outbox-business' && $r['reservation_id'] === 'expired-1');
+    expect(Http::recorded()->map(fn ($pair) => $pair[0]->body())->unique()->count())->toBe(1);
+    Http::assertSent(fn ($r) => $r['event_id'] === 'evt_inv_'.$id && $r['payload']['business_id'] === 'outbox-business' && $r['payload']['reservation_id'] === 'expired-1');
     $event = DB::connection('inventory')->getCollection('integration_outbox')->findOne([]);
     expect($event['status'])->toBe('SENT')->and((int) $event['attempts'])->toBe(2)->and($event['last_error'])->toBeNull();
 });
@@ -51,10 +52,10 @@ it('keeps connection failures retryable and refuses legacy events with no busine
 });
 
 it('does not take a current delivery claim and recovers an expired one', function () {
-    app(OutboxService::class)->publish('inventory.reservation.expired', ['reservation_id' => 'leased']);
+    $id = app(OutboxService::class)->publish('inventory.reservation.expired', ['reservation_id' => 'leased']);
     $coll = DB::connection('inventory')->getCollection('integration_outbox');
     $coll->updateOne([], ['$set' => ['claim_token' => 'interrupted-claim', 'claim_expires_at' => new UTCDateTime(now()->addSeconds(30))]]);
-    Http::fake(['*' => Http::response([], 202)]);
+    Http::fake(['*' => Http::response(['status' => 'accepted', 'event_id' => 'evt_inv_'.$id], 202)]);
     $this->artisan('team4:publish-outbox')->assertSuccessful();
     Http::assertNothingSent();
     $this->travel(31)->seconds();

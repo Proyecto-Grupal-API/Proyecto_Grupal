@@ -10,10 +10,42 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Ramsey\Uuid\Uuid;
 
 class PlatformIngestController
 {
     private const DOMAINS = ['services', 'identity', 'wallet', 'marketplace', 'inventory', 'community'];
+
+    /** Contrato E4: recepción analítica; no ejecuta canjes ni devuelve puntos. */
+    public function storeInventoryEvent(Request $request): JsonResponse
+    {
+        $d = $request->validate([
+            'event_id' => 'required|string|max:100',
+            'event_type' => 'required|in:inventory.movement_created,inventory.stock_updated,inventory.adjustment_made,inventory.cost_updated,inventory.return_processed,inventory.reservation.expired',
+            'source_domain' => 'required|in:inventory', 'occurred_at' => 'required|date',
+            'payload' => 'required|array', 'payload.business_id' => 'required|string|max:100',
+        ]);
+        // Laravel excludes unlisted nested keys from validated(); keep the complete envelope for hashing and privacy checks.
+        $payload = $request->input('payload');
+        $this->assertMinimalPayload($payload);
+        abort_if(array_key_exists('source_event_id', $payload), 422, 'source_event_id es un campo reservado del receptor.');
+        $aggregate = $payload['reservation_id'] ?? $payload['movement_id'] ?? $payload['product_reference'] ?? $payload['product_id'] ?? $payload['business_id'];
+        abort_unless(is_string($aggregate) && strlen($aggregate) <= 100, 422);
+        // Include the business in the key: independent tenants cannot shadow one another.
+        $id = Uuid::uuid5(Uuid::NAMESPACE_URL,
+            'campus:inventory:'.$payload['business_id'].':'.$d['event_id'])->toString();
+        $request->replace(['event_id' => $id, 'event_name' => $d['event_type'].'.v1', 'source_domain' => 'inventory',
+            'aggregate_id' => $aggregate, 'occurred_at' => $d['occurred_at'],
+            'payload' => [...$payload, 'source_event_id' => $d['event_id']]]);
+        $response = $this->storeEvent($request);
+        if ($response->getStatusCode() >= 400) {
+            return $response;
+        }
+        $result = $response->getData(true);
+
+        return response()->json(['status' => $result['estado'] === 'duplicado' ? 'duplicate' : 'accepted',
+            'event_id' => $d['event_id']], $response->getStatusCode());
+    }
 
     public function storeEvent(Request $request): JsonResponse
     {
@@ -153,7 +185,7 @@ class PlatformIngestController
                 }
             }
 
-return $data;
+            return $data;
         };
 
         return hash('sha256', json_encode($sort($value), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));

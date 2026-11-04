@@ -183,3 +183,7 @@ Route::prefix('api/v1/plataforma')->middleware([AuthenticatePlatformSource::clas
     Route::post('/eventos', [PlatformIngestController::class, 'storeEvent']);
     Route::post('/auditoria', [PlatformIngestController::class, 'storeAudit']);
 });
+
+// Compatibilidad del contrato E4 sin sesión web ni atribuciones de emisión de puntos.
+Route::post('api/v1/integrations/ingest-event', [PlatformIngestController::class, 'storeInventoryEvent'])
+    ->middleware([AuthenticatePlatformSource::class.':inventory', 'throttle:120,1']);

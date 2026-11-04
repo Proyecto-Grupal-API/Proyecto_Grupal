@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Services\InventoryModule\HttpEventDispatcher;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Operation\FindOneAndUpdate;
@@ -15,23 +15,16 @@ class PublishInventoryOutbox extends Command
 
     protected $description = 'Entrega eventos de reservas vencidas de E4 al receptor E7 configurado.';
 
-    public function handle(): int
+    public function handle(HttpEventDispatcher $dispatcher): int
     {
         if (! config('team4.outbox.enabled')) {
             $this->info('Transporte E7 deshabilitado.');
 
             return self::SUCCESS;
         }
-        $url = config('team4.outbox.url');
-        $token = config('team4.outbox.token');
-        if (! $url || ! $token || ! filter_var($url, FILTER_VALIDATE_URL) || ! in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'], true)) {
-            $this->error('Faltan el receptor HTTP y su credencial de servicio.');
-
-            return self::FAILURE;
-        }
         $coll = DB::connection('inventory')->getCollection('integration_outbox');
         $now = new UTCDateTime(now());
-        $filter = ['topic' => 'inventory.reservation.expired', 'status' => ['$in' => ['PENDING', 'FAILED']],
+        $filter = ['topic' => ['$in' => HttpEventDispatcher::EVENTS], 'status' => ['$in' => ['PENDING', 'FAILED']],
             '$and' => [
                 ['$or' => [['next_attempt_at' => null], ['next_attempt_at' => ['$lte' => $now]]]],
                 ['$or' => [['claim_expires_at' => null], ['claim_expires_at' => ['$lte' => $now]]]],
@@ -47,20 +40,9 @@ class PublishInventoryOutbox extends Command
             }
             $error = null;
             try {
-                if (empty($event['business_id'])) {
-                    throw new \DomainException('legacy_business_missing');
-                }
-                $payload = (array) $event['payload'];
-                $payload['business_id'] = $event['business_id'];
-                $response = Http::acceptJson()->withToken($token)->connectTimeout(5)->timeout(10)
-                    ->withOptions(['allow_redirects' => false])->withHeaders([
-                        'X-Event-Id' => (string) $event['_id'], 'X-Event-Type' => $event['topic'], 'X-Event-Version' => '1',
-                    ])->post($url, $payload);
-                if (! $response->successful()) {
-                    $error = 'HTTP '.$response->status();
-                }
+                $dispatcher->dispatch((array) $event);
             } catch (\Throwable $e) {
-                $error = class_basename($e);
+                $error = $e instanceof \DomainException ? $e->getMessage() : class_basename($e);
             }
             $updates = ['status' => $error === null ? 'SENT' : 'FAILED', 'last_error' => $error, 'updated_at' => new UTCDateTime(now())];
             if ($error === null) {
