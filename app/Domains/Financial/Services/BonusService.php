@@ -49,14 +49,6 @@ class BonusService
             );
         }
 
-        $authorized = $issuerContext === null
-            ? $this->bonusAuthorization->canIssueBonus($issuerType, $issuerId, $type)
-            : ($this->bonusAuthorization instanceof ContextualBonusAuthorizationProvider
-                && $this->bonusAuthorization->canIssueInContext($issuerType, $issuerId, $type, $issuerContext));
-        if (! $authorized) {
-            throw new InvalidArgumentException('El emisor no está autorizado para asignar este tipo de bono.');
-        }
-
         if ($issuerType === '' || $issuerId === '') {
             throw new InvalidArgumentException(
                 'El emisor del bono es obligatorio.'
@@ -67,6 +59,14 @@ class BonusService
             throw new InvalidArgumentException(
                 'La fecha de vencimiento debe ser posterior al inicio de vigencia.'
             );
+        }
+
+        $authorized = $issuerContext === null
+            ? $this->bonusAuthorization->canIssueBonus($issuerType, $issuerId, $type)
+            : ($this->bonusAuthorization instanceof ContextualBonusAuthorizationProvider
+                && $this->bonusAuthorization->canIssueInContext($issuerType, $issuerId, $type, $issuerContext));
+        if (! $authorized) {
+            throw new InvalidArgumentException('El emisor no está autorizado para asignar este tipo de bono.');
         }
 
         return DB::connection('sqlsrv')->transaction(
