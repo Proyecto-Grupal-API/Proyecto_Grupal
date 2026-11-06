@@ -24,10 +24,11 @@ class BonusAdministrationService
 
     public function issue(string $userId, array $data, string $key, ?array $audit = null): array
     {
+        $this->authorize($userId, 'bonus.issue');
+        $data = \App\Domains\Financial\Support\BonusIssuanceInput::validate($data);
+        $this->validateKeyAndReason($key, $data['reason']);
         $type = BonusType::from($data['type']);
         $context = null;
-        $this->authorize($userId, 'bonus.issue');
-        if (!$this->issuers->canIssueBonus('USER', $userId, $type)) { throw new AuthorizationException('El emisor no tiene autorización para este tipo de bono.'); }
         $start = CarbonImmutable::parse($data['valid_from'])->setTimezone(config('app.timezone', 'UTC'));
         $end = CarbonImmutable::parse($data['expires_at'])->setTimezone(config('app.timezone', 'UTC'));
         $restrictions = collect($data['restrictions'] ?? [])->map(fn ($row) => [
@@ -39,20 +40,10 @@ class BonusAdministrationService
             'allows_partial_use' => (bool) ($data['allows_partial_use'] ?? false),
             'external_reference' => trim((string) ($data['external_reference'] ?? '')) ?: null,
             'restrictions' => $restrictions, 'reason' => trim($data['reason']), ...($context?->toArray() ?? [])];
+        $this->validateEmission($userId, $payload, $type, $start, $end);
+        if (!$this->issuers->canIssueBonus('USER', $userId, $type)) { throw new AuthorizationException('El emisor no tiene autorización para este tipo de bono.'); }
         return $this->run($userId, 'ISSUE', $payload, $key, function () use ($userId, $payload, $type, $start, $end, $context) {
-            $beneficiary = User::find($payload['beneficiary_id']);
-            if (!$beneficiary || $beneficiary->deleted_at || $beneficiary->account_activation_pending || $beneficiary->must_change_password || !$beneficiary->hasVerifiedEmail()) { throw new InvalidArgumentException('El beneficiario no existe o no está activo y verificado.'); }
-            if ($end->lte($start) || $end->lte(now())) {
-                throw new InvalidArgumentException('La vigencia debe terminar después de su inicio y en una fecha futura.');
-            }
-            if (count(array_unique(array_map(fn ($row) => $row['type'] . ':' . $row['target_id'], $payload['restrictions'])))
-                !== count($payload['restrictions'])) {
-                throw new InvalidArgumentException('No se permiten restricciones duplicadas.');
-            }
-            if (in_array($type, [BonusType::NEGOCIO, BonusType::CATEGORIA], true)
-                && !in_array($type->value, array_column($payload['restrictions'], 'type'), true)) {
-                throw new InvalidArgumentException('Este tipo de bono requiere al menos una restricción del mismo tipo.');
-            }
+            $this->validateEmission($userId, $payload, $type, $start, $end);
             if ($context?->scopeType === 'business') {
                 $businesses = array_column(array_filter($payload['restrictions'], fn ($r) => $r['type'] === 'NEGOCIO'), 'target_id');
                 if ($businesses !== [$context->scopeId]) { throw new InvalidArgumentException('Una emisión de negocio debe restringirse únicamente al negocio autorizado.'); }
@@ -81,12 +72,38 @@ class BonusAdministrationService
             }, $audit);
     }
 
+    private function validateEmission(string $userId, array $payload, BonusType $type, CarbonImmutable $start, CarbonImmutable $end): void
+    {
+        if (strtolower($userId) === $payload['beneficiary_id']) {
+            throw new InvalidArgumentException('El emisor no puede asignarse un bono a si mismo.');
+        }
+        $beneficiary = User::find($payload['beneficiary_id']);
+        if (!$beneficiary || $beneficiary->deleted_at || $beneficiary->account_activation_pending || $beneficiary->must_change_password || !$beneficiary->hasVerifiedEmail()) { throw new InvalidArgumentException('El beneficiario no existe o no está activo y verificado.'); }
+        if ($end->lte($start) || $end->lte(now())) {
+            throw new InvalidArgumentException('La vigencia debe terminar después de su inicio y en una fecha futura.');
+        }
+        if (count(array_unique(array_map(fn ($row) => $row['type'] . ':' . $row['target_id'], $payload['restrictions'])))
+            !== count($payload['restrictions'])) {
+            throw new InvalidArgumentException('No se permiten restricciones duplicadas.');
+        }
+        if (in_array($type, [BonusType::NEGOCIO, BonusType::CATEGORIA], true)
+            && !in_array($type->value, array_column($payload['restrictions'], 'type'), true)) {
+            throw new InvalidArgumentException('Este tipo de bono requiere al menos una restricción del mismo tipo.');
+        }
+    }
+
+    private function validateKeyAndReason(string $key, string $reason): void
+    {
+        $key = strtolower(trim($key));
+        if (!preg_match('/\A[A-Za-z0-9._:-]+\z/', $key) || strlen($key) > 255 || trim($reason) === '') {
+            throw new InvalidArgumentException('La llave de idempotencia y el motivo son obligatorios.');
+        }
+    }
+
     private function run(string $userId, string $action, array $payload, string $key, callable $callback, ?array $audit = null): array
     {
         $key = strtolower(trim($key));
-        if (!preg_match('/\A[A-Za-z0-9._:-]+\z/', $key) || strlen($key) > 255 || trim($payload['reason'] ?? '') === '') {
-            throw new InvalidArgumentException('La llave de idempotencia y el motivo son obligatorios.');
-        }
+        $this->validateKeyAndReason($key, $payload['reason'] ?? '');
         $actor = 'user:' . $userId;
         $hash = hash('sha256', json_encode([$actor, $action, $payload], JSON_THROW_ON_ERROR));
         $lockKey = 'bonus-admin:' . hash('sha256', $key);

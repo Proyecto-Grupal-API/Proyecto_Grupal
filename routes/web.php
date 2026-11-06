@@ -23,7 +23,7 @@ Route::get('/', function () {
     ]);
 });
 
-Route::middleware(['auth', 'verified', 'session.active', 'device.track'])->group(function () {
+Route::middleware(['auth', 'verified', \App\Http\Middleware\RequireBonusAdministrativeSession::class, 'session.active', 'device.track'])->group(function () {
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');

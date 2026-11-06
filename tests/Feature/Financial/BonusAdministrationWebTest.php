@@ -33,6 +33,13 @@ function bonusAdminCleanup(): void
     BonusRestriction::whereIn('bonus_id', $ids)->delete();
     Bonus::whereIn('public_id', $ids)->delete();
 }
+
+function bonusAdminSignIn($test, User $user)
+{
+    $session = \App\Models\UserSession::create(['user_id' => (string) $user->getKey(), 'started_at' => now()]);
+    return $test->withSession(['cd_session_id' => (string) $session->getKey()])->actingAs($user);
+}
+
 function bonusAdminUser(): User
 {
     $user = User::factory()->create(); $user->forceFill(['email_verified_at' => now()])->save(); return $user;
@@ -66,7 +73,7 @@ function bonusAdminEmit($test, User $recipient, ?array $payload = null): Bonus
 test('bonus administration endpoints require authentication and dedicated permissions', function () {
     $this->postJson('/finanzas/bonos/administracion/issue', [])->assertUnauthorized();
     $user = bonusAdminUser(); $user->assignRole('admin');
-    $this->actingAs($user)->get('/finanzas/bonos/administracion')->assertOk()->assertInertia(fn (Assert $page) => $page
+    bonusAdminSignIn($this, $user)->get('/finanzas/bonos/administracion')->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('Financial/BonusAdministration')->where('permissions.issue', false)->where('permissions.view', false));
     $this->getJson('/finanzas/bonos/administracion/records')->assertForbidden();
     $this->postJson('/finanzas/bonos/administracion/issue', [])->assertForbidden();
@@ -76,7 +83,7 @@ test('bonus administration endpoints require authentication and dedicated permis
 test('emission requires both web permission and authorization of the issuer', function () {
     $operator = bonusAdminUser(); $recipient = bonusAdminUser(); $payload = bonusAdminPayload($recipient);
     bonusAdminGrant(['bonus.issue'], false);
-    $this->actingAs($operator)->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => bonusAdminKey()])->assertForbidden();
+    bonusAdminSignIn($this, $operator)->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => bonusAdminKey()])->assertForbidden();
     expect(Bonus::where('external_reference', $payload['external_reference'])->exists())->toBeFalse();
     expect(app(PendingBonusAuthorizationProvider::class)->canIssueBonus('USER', (string) $operator->getKey(), BonusType::BECA))->toBeFalse();
 });
@@ -85,7 +92,7 @@ test('emission retries once and records trusted issuer actor reason restrictions
     $operator = bonusAdminUser(); $recipient = bonusAdminUser(); bonusAdminGrant(['bonus.issue']);
     $payload = bonusAdminPayload($recipient); $payload['issuer_id'] = 'forged'; $payload['actor_id'] = 'forged'; $key = bonusAdminKey();
     $wallets = Wallet::orderBy('id')->get(['public_id', 'available_balance_cents', 'held_balance_cents'])->toArray();
-    $first = $this->actingAs($operator)->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => $key])->assertCreated();
+    $first = bonusAdminSignIn($this, $operator)->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => $key])->assertCreated();
     $id = $first->json('data.bonus_id');
     $this->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => $key])->assertOk()
         ->assertJsonPath('data.bonus_id', $id)->assertJsonPath('replayed', true);
@@ -96,6 +103,8 @@ test('emission retries once and records trusted issuer actor reason restrictions
         ->and($bonus->ledgerEntries()->first()->actor_id)->toBe('user:' . $operator->getKey())
         ->and($bonus->ledgerEntries()->first()->reason)->toBe($payload['reason'])
         ->and($operation->actor_id)->toBe('user:' . $operator->getKey())
+        ->and($operation->request_data['audit_context']['identity_session_id'])->toBe(session('cd_session_id'))
+        ->and($operation->request_data['audit_context']['native_session_hash'])->toHaveLength(64)
         ->and($operation->before_data)->toBeNull()->and($operation->after_data['restrictions'])->toHaveCount(1)
         ->and(Wallet::orderBy('id')->get(['public_id', 'available_balance_cents', 'held_balance_cents'])->toArray())->toBe($wallets);
 });
@@ -103,16 +112,16 @@ test('emission retries once and records trusted issuer actor reason restrictions
 test('same emission key rejects a changed request and a different administrator', function () {
     $operator = bonusAdminUser(); $recipient = bonusAdminUser(); bonusAdminGrant(['bonus.issue']); $key = bonusAdminKey();
     $payload = bonusAdminPayload($recipient);
-    $this->actingAs($operator)->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => $key])->assertCreated();
+    bonusAdminSignIn($this, $operator)->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => $key])->assertCreated();
     $changed = $payload; $changed['amount_cents'] = 20000;
     $this->postJson('/finanzas/bonos/administracion/issue', $changed, ['Idempotency-Key' => $key])->assertConflict();
-    $this->actingAs(bonusAdminUser())->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => $key])->assertConflict();
+    bonusAdminSignIn($this, bonusAdminUser())->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => $key])->assertConflict();
     expect(Bonus::where('external_reference', $payload['external_reference'])->count())->toBe(1);
 });
 
 test('emission validates recipients required restrictions and idempotency header', function () {
     $operator = bonusAdminUser(); $recipient = bonusAdminUser(); bonusAdminGrant(['bonus.issue']); $payload = bonusAdminPayload($recipient);
-    $this->actingAs($operator)->postJson('/finanzas/bonos/administracion/issue', $payload)->assertUnprocessable();
+    bonusAdminSignIn($this, $operator)->postJson('/finanzas/bonos/administracion/issue', $payload)->assertUnprocessable();
     $bad = $payload; $bad['beneficiary_id'] = '000000000000000000000000';
     $this->postJson('/finanzas/bonos/administracion/issue', $bad, ['Idempotency-Key' => bonusAdminKey()])->assertConflict();
     $bad = $payload; $bad['type'] = 'CATEGORIA'; $bad['restrictions'] = [];
@@ -128,7 +137,7 @@ test('audit failure rolls back the whole emission and allows retry with the orig
     $operator = bonusAdminUser(); $recipient = bonusAdminUser(); bonusAdminGrant(['bonus.issue']);
     $payload = bonusAdminPayload($recipient); $key = bonusAdminKey();
     BonusAdministrativeOperation::creating(function () { throw new RuntimeException('test-bonus-admin-audit-failure'); });
-    try { $this->actingAs($operator)->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => $key])->assertStatus(500); }
+    try { bonusAdminSignIn($this, $operator)->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => $key])->assertStatus(500); }
     finally { BonusAdministrativeOperation::flushEventListeners(); }
     expect(Bonus::where('external_reference', $payload['external_reference'])->exists())->toBeFalse()
         ->and(BonusAdministrativeOperation::where('idempotency_key', $key)->exists())->toBeFalse();
@@ -138,14 +147,14 @@ test('audit failure rolls back the whole emission and allows retry with the orig
 test('an in progress emission does not create a second bonus', function () {
     $operator = bonusAdminUser(); $recipient = bonusAdminUser(); bonusAdminGrant(['bonus.issue']); $key = bonusAdminKey();
     $lockKey = 'bonus-admin:' . hash('sha256', $key); $lock = app(FinancialJobLock::class); $token = $lock->acquire($lockKey, 180);
-    try { $this->actingAs($operator)->postJson('/finanzas/bonos/administracion/issue', bonusAdminPayload($recipient), ['Idempotency-Key' => $key])->assertConflict(); }
+    try { bonusAdminSignIn($this, $operator)->postJson('/finanzas/bonos/administracion/issue', bonusAdminPayload($recipient), ['Idempotency-Key' => $key])->assertConflict(); }
     finally { $lock->release($lockKey, $token); }
     expect(BonusAdministrativeOperation::where('idempotency_key', $key)->exists())->toBeFalse();
 });
 
 test('cancellation retries once preserves consumed amounts and records before and after without crediting wallet', function () {
     $operator = bonusAdminUser(); $recipient = bonusAdminUser(); bonusAdminGrant(['bonus.issue', 'bonus.cancel', 'bonus.view']);
-    $this->actingAs($operator); $bonus = bonusAdminEmit($this, $recipient); $bonus->update(['remaining_amount_cents' => 3000]);
+    bonusAdminSignIn($this, $operator); $bonus = bonusAdminEmit($this, $recipient); $bonus->update(['remaining_amount_cents' => 3000]);
     $wallets = Wallet::orderBy('id')->get(['public_id', 'available_balance_cents', 'held_balance_cents'])->toArray();
     $key = bonusAdminKey(); $url = '/finanzas/bonos/administracion/' . $bonus->public_id . '/cancel';
     $this->postJson($url, ['reason' => 'Fin del beneficio'], ['Idempotency-Key' => $key])->assertCreated();
@@ -163,8 +172,8 @@ test('cancellation retries once preserves consumed amounts and records before an
 
 test('administrative view and cancellation remain scoped to the issuer unless explicit global grants exist', function () {
     $issuer = bonusAdminUser(); $recipient = bonusAdminUser(); bonusAdminGrant(['bonus.issue', 'bonus.view', 'bonus.cancel']);
-    $this->actingAs($issuer); $bonus = bonusAdminEmit($this, $recipient);
-    $outsider = bonusAdminUser(); $this->actingAs($outsider);
+    bonusAdminSignIn($this, $issuer); $bonus = bonusAdminEmit($this, $recipient);
+    $outsider = bonusAdminUser(); bonusAdminSignIn($this, $outsider);
     $this->getJson('/finanzas/bonos/administracion/records')->assertOk()->assertJsonCount(0, 'data');
     $this->getJson('/finanzas/bonos/administracion/' . $bonus->public_id . '/history')->assertNotFound();
     $this->postJson('/finanzas/bonos/administracion/' . $bonus->public_id . '/cancel', ['reason' => 'Sin ámbito'], ['Idempotency-Key' => bonusAdminKey()])->assertNotFound();
@@ -177,7 +186,7 @@ test('administrative view and cancellation remain scoped to the issuer unless ex
 
 test('cancel failure rolls back and a cancelled or exhausted bonus cannot be cancelled with a new key', function () {
     $operator = bonusAdminUser(); $recipient = bonusAdminUser(); bonusAdminGrant(['bonus.issue', 'bonus.cancel']);
-    $this->actingAs($operator); $bonus = bonusAdminEmit($this, $recipient); $key = bonusAdminKey(); $url = '/finanzas/bonos/administracion/' . $bonus->public_id . '/cancel';
+    bonusAdminSignIn($this, $operator); $bonus = bonusAdminEmit($this, $recipient); $key = bonusAdminKey(); $url = '/finanzas/bonos/administracion/' . $bonus->public_id . '/cancel';
     BonusAdministrativeOperation::creating(function () { throw new RuntimeException('test-bonus-admin-cancel-failure'); });
     try { $this->postJson($url, ['reason' => 'Cancelar'], ['Idempotency-Key' => $key])->assertStatus(500); }
     finally { BonusAdministrativeOperation::flushEventListeners(); }
@@ -192,7 +201,7 @@ test('cancel failure rolls back and a cancelled or exhausted bonus cannot be can
 
 test('expired cancellation is rejected without an expiry mutation inside a failed administrative request', function () {
     $operator = bonusAdminUser(); $recipient = bonusAdminUser(); bonusAdminGrant(['bonus.issue', 'bonus.cancel']);
-    $this->actingAs($operator); $bonus = bonusAdminEmit($this, $recipient); $bonus->update(['expires_at' => now()->subMinute()]);
+    bonusAdminSignIn($this, $operator); $bonus = bonusAdminEmit($this, $recipient); $bonus->update(['expires_at' => now()->subMinute()]);
     $before = $bonus->ledgerEntries()->count();
     $this->postJson('/finanzas/bonos/administracion/' . $bonus->public_id . '/cancel', ['reason' => 'Ya venció'], ['Idempotency-Key' => bonusAdminKey()])->assertConflict();
     expect($bonus->fresh()->status)->toBe(BonusStatus::ACTIVO)->and($bonus->ledgerEntries()->count())->toBe($before);
@@ -201,7 +210,93 @@ test('expired cancellation is rejected without an expiry mutation inside a faile
 test('permissions are rechecked before replaying a previously successful issuance', function () {
     $operator = bonusAdminUser(); $recipient = bonusAdminUser(); bonusAdminGrant(['bonus.issue']);
     $payload = bonusAdminPayload($recipient); $key = bonusAdminKey();
-    $this->actingAs($operator)->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => $key])->assertCreated();
+    bonusAdminSignIn($this, $operator)->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => $key])->assertCreated();
     bonusAdminGrant([]);
     $this->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => $key])->assertForbidden();
+});
+
+function bonusAdminNeverConsultIssuer(): void
+{
+    bonusAdminGrant(['bonus.issue', 'bonus.cancel']);
+    $provider = Mockery::mock(BonusAuthorizationProvider::class);
+    $provider->shouldNotReceive('canIssueBonus');
+    app()->instance(BonusAuthorizationProvider::class, $provider);
+}
+
+test('bonus writes reject missing malformed absent foreign and revoked session records before authorization', function () {
+    $operator = bonusAdminUser(); $recipient = bonusAdminUser(); bonusAdminNeverConsultIssuer();
+    $this->actingAs($operator);
+    $payload = bonusAdminPayload($recipient);
+    $foreign = \App\Models\UserSession::create(['user_id' => (string) $recipient->getKey(), 'started_at' => now()]);
+    $revoked = \App\Models\UserSession::create(['user_id' => (string) $operator->getKey(), 'revoked_at' => now()]);
+    foreach ([null, 'invalid', '000000000000000000000000', (string) $foreign->getKey(), (string) $revoked->getKey()] as $id) {
+        $this->withSession(['cd_session_id' => $id]);
+        // The existing revocation middleware can log out the user; restore authentication for each attempt.
+        $this->actingAs($operator)->postJson('/finanzas/bonos/administracion/issue', $payload,
+            ['Idempotency-Key' => bonusAdminKey()])->assertForbidden();
+    }
+    expect(Bonus::where('external_reference', $payload['external_reference'])->exists())->toBeFalse();
+});
+
+test('bonus writes recheck current account eligibility even with an authenticated stale user', function () {
+    $operator = bonusAdminUser(); $recipient = bonusAdminUser(); bonusAdminNeverConsultIssuer();
+    bonusAdminSignIn($this, $operator);
+    $fresh = User::findOrFail($operator->getKey());
+    $fresh->forceFill(['account_activation_pending' => true])->save();
+    $this->postJson('/finanzas/bonos/administracion/issue', bonusAdminPayload($recipient),
+        ['Idempotency-Key' => bonusAdminKey()])->assertForbidden();
+});
+
+test('bonus administrative self issuance rejects before consulting identity and without evidence', function () {
+    $operator = bonusAdminUser(); bonusAdminNeverConsultIssuer(); bonusAdminSignIn($this, $operator);
+    $payload = bonusAdminPayload($operator); $key = bonusAdminKey();
+    $this->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => $key])->assertConflict();
+    expect(Bonus::where('external_reference', $payload['external_reference'])->exists())->toBeFalse()
+        ->and(BonusAdministrativeOperation::where('idempotency_key', $key)->exists())->toBeFalse();
+});
+
+test('bonus malformed amount dates restrictions beneficiary and key reject before issuer consultation', function () {
+    $operator = bonusAdminUser(); $recipient = bonusAdminUser(); bonusAdminNeverConsultIssuer(); bonusAdminSignIn($this, $operator);
+    $original = bonusAdminPayload($recipient);
+    $cases = [
+        [['amount_cents' => 0], 422], [['amount_cents' => 1.5], 422],
+        [['expires_at' => now()->subDay()->toISOString()], 409],
+        [['beneficiary_id' => '000000000000000000000000'], 409],
+        [['type' => 'NEGOCIO', 'restrictions' => []], 409],
+        [['restrictions' => [$original['restrictions'][0], $original['restrictions'][0]]], 409],
+        [['issuer_scope_type' => 'business', 'issuer_scope_id' => 'unapproved'], 422],
+    ];
+    foreach ($cases as [$changes, $status]) {
+        $this->postJson('/finanzas/bonos/administracion/issue', [...$original, ...$changes],
+            ['Idempotency-Key' => bonusAdminKey()])->assertStatus($status);
+    }
+    $this->postJson('/finanzas/bonos/administracion/issue', $original, ['Idempotency-Key' => 'invalid key'])->assertUnprocessable();
+    expect(Bonus::where('external_reference', $original['external_reference'])->exists())->toBeFalse();
+});
+
+test('direct bonus administration callers cannot bypass shared input or self issuance validation', function () {
+    $operator = bonusAdminUser(); bonusAdminNeverConsultIssuer();
+    $service = app(\App\Domains\Financial\Services\BonusAdministrationService::class);
+    expect(fn () => $service->issue((string) $operator->getKey(), [...bonusAdminPayload($operator), 'amount_cents' => 1.5], bonusAdminKey()))
+        ->toThrow(\Illuminate\Validation\ValidationException::class);
+    expect(fn () => $service->issue((string) $operator->getKey(), bonusAdminPayload($operator), bonusAdminKey()))
+        ->toThrow(InvalidArgumentException::class);
+});
+
+test('bonus administrative cancellation requires its own valid session before any mutation', function () {
+    $operator = bonusAdminUser(); $recipient = bonusAdminUser(); bonusAdminGrant(['bonus.issue', 'bonus.cancel']);
+    bonusAdminSignIn($this, $operator); $bonus = bonusAdminEmit($this, $recipient);
+    $this->withSession(['cd_session_id' => null]);
+    $this->postJson('/finanzas/bonos/administracion/'.$bonus->public_id.'/cancel', ['reason' => 'Sin sesion'],
+        ['Idempotency-Key' => bonusAdminKey()])->assertForbidden();
+    expect($bonus->fresh()->status)->toBe(BonusStatus::ACTIVO);
+});
+
+test('invalid bonus domain dates and empty issuer fail before consulting identity', function () {
+    $provider = Mockery::mock(BonusAuthorizationProvider::class); $provider->shouldNotReceive('canIssueBonus');
+    $service = new \App\Domains\Financial\Services\BonusService($provider);
+    expect(fn () => $service->issue('USER', 'recipient', 'USER', '', BonusType::BECA, 100, now(), now()->addDay()))
+        ->toThrow(InvalidArgumentException::class);
+    expect(fn () => $service->issue('USER', 'recipient', 'USER', 'issuer', BonusType::BECA, 100, now(), now()->subDay()))
+        ->toThrow(InvalidArgumentException::class);
 });

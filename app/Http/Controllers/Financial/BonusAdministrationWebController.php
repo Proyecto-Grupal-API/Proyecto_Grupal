@@ -56,21 +56,9 @@ class BonusAdministrationWebController extends Controller
     public function store(Request $request)
     {
         $this->authorizeAction($request, 'bonus.issue');
-        $data = $request->validate([
-            'beneficiary_id' => ['required', 'string', 'size:24', 'regex:/\A[0-9a-fA-F]{24}\z/'],
-            'type' => ['required', Rule::enum(BonusType::class)],
-            'amount_cents' => ['required', 'integer', 'min:1', 'max:9007199254740991'],
-            'valid_from' => ['required', 'date', 'regex:/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})\z/'],
-            'expires_at' => ['required', 'date', 'regex:/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})\z/'],
-            'combinable' => ['required', 'boolean'], 'allows_partial_use' => ['required', 'boolean'],
-            'external_reference' => ['nullable', 'string', 'max:255'],
-            'reason' => ['required', 'string', 'max:1000', 'regex:/\S/u'],
-            'restrictions' => ['nullable', 'array', 'max:50'],
-            'restrictions.*.type' => ['required', Rule::enum(BonusRestrictionType::class)],
-            'restrictions.*.target_id' => ['required', 'string', 'max:255', 'regex:/\S/u'],
-        ]);
+        $data = \App\Domains\Financial\Support\BonusIssuanceInput::validate($request->all());
         return $this->run(fn () => app(BonusAdministrationService::class)->issue(
-            (string) $request->user()->getKey(), $data, $this->key($request)));
+            (string) $request->user()->getKey(), $data, $this->key($request), $this->sessionAudit($request)));
     }
     public function cancel(Request $request, string $bonusId)
     {
@@ -78,7 +66,7 @@ class BonusAdministrationWebController extends Controller
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000', 'regex:/\S/u']]);
         $bonus = $this->scoped($request, 'bonus.cancel.all')->where('public_id', $bonusId)->firstOrFail();
         return $this->run(fn () => app(BonusAdministrationService::class)->cancel(
-            (string) $request->user()->getKey(), $bonus, $data['reason'], $this->key($request)));
+            (string) $request->user()->getKey(), $bonus, $data['reason'], $this->key($request), $this->sessionAudit($request)));
     }
     public function history(Request $request, string $bonusId)
     {
@@ -108,6 +96,11 @@ class BonusAdministrationWebController extends Controller
     private function authorizeAction(Request $request, string $action): void
     {
         abort_unless($this->allowed($request, $action), 403);
+    }
+    private function sessionAudit(Request $request): array
+    {
+        return ['identity_session_id' => $request->session()->get('cd_session_id'),
+            'native_session_hash' => hash('sha256', $request->session()->getId())];
     }
     private function key(Request $request): string
     {
