@@ -260,31 +260,31 @@ class BonusService
             );
         }
 
-        $bonusIds = [];
-
-        foreach ($consumptions as $consumption) {
-            if (
-                ! isset($consumption['bonus_id'])
-                || ! isset($consumption['amount_cents'])
-            ) {
-                throw new InvalidArgumentException(
-                    'Cada consumo debe indicar bono y monto.'
-                );
-            }
-
-            if ($consumption['amount_cents'] <= 0) {
-                throw new InvalidArgumentException(
-                    'El monto a consumir debe ser mayor que cero.'
-                );
-            }
-
-            $bonusIds[] = $consumption['bonus_id'];
+        // Validate the complete batch before expiration or any database mutation.
+        if (! array_is_list($consumptions)) {
+            throw new InvalidArgumentException('Los consumos deben ser una lista ordenada.');
         }
-
+        $bonusIds = [];
+        foreach ($consumptions as $index => $consumption) {
+            if (! is_array($consumption) || ! isset($consumption['bonus_id'], $consumption['amount_cents'])) {
+                throw new InvalidArgumentException('Cada consumo debe indicar bono y monto.');
+            }
+            if (! is_string($consumption['bonus_id'])
+                || ! preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i', $consumption['bonus_id'])) {
+                throw new InvalidArgumentException('El identificador del bono debe ser un UUID valido.');
+            }
+            if (! is_int($consumption['amount_cents'])) {
+                throw new InvalidArgumentException('El monto a consumir debe ser un entero positivo en centavos.');
+            }
+            if ($consumption['amount_cents'] <= 0) {
+                throw new InvalidArgumentException('El monto a consumir debe ser mayor que cero.');
+            }
+            $canonicalId = strtolower($consumption['bonus_id']);
+            $consumptions[$index]['bonus_id'] = $canonicalId;
+            $bonusIds[] = $canonicalId;
+        }
         if (count($bonusIds) !== count(array_unique($bonusIds))) {
-            throw new InvalidArgumentException(
-                'Un bono no puede repetirse en la misma combinación.'
-            );
+            throw new InvalidArgumentException('Un bono no puede repetirse en la misma combinación.');
         }
 
         foreach ($bonusIds as $bonusPublicId) {
@@ -320,7 +320,7 @@ class BonusService
                         );
                     }
 
-                    $bonuses[$bonus->public_id] = $bonus;
+                    $bonuses[strtolower($bonus->public_id)] = $bonus;
                 }
 
                 $firstBonus = $bonuses[
