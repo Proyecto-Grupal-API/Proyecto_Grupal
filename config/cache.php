@@ -46,6 +46,13 @@ return [
             'lock_table' => env('DB_CACHE_LOCK_TABLE'),
         ],
 
+        'financial_scheduler' => [
+            'driver' => 'database',
+            'connection' => 'sqlsrv',
+            'table' => 'financial_scheduler_cache',
+            'lock_connection' => 'sqlsrv',
+            'lock_table' => 'financial_scheduler_cache_locks',
+        ],
         'file' => [
             'driver' => 'file',
             'path' => storage_path('framework/cache/'.(env('APP_ENV') === 'testing' ? 'testing' : 'data')),

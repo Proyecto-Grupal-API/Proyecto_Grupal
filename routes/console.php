@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Financial\Support\FinancialOperationsConfiguration;
+use Illuminate\Console\Scheduling\CacheEventMutex;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -27,4 +29,20 @@ Schedule::command('team4:publish-outbox')->everyMinute()->withoutOverlapping(10)
 
 if (config('platform.delivery.enabled') === true) {
     Schedule::command('comunidad:publicar-plataforma')->everyMinute()->withoutOverlapping();
+}
+
+if (config('financial.reconciliation.schedule_enabled')
+    && app(FinancialOperationsConfiguration::class)->errors(requireSchedule: true) === []) {
+    Schedule::command('financial:reconcile --dispatch')
+        ->dailyAt(config('financial.reconciliation.daily_at'))
+        ->timezone(config('financial.business_timezone'))
+        ->preventOverlapsUsing(app(CacheEventMutex::class)->useStore('financial_scheduler'))
+        ->withoutOverlapping();
+}
+
+if (config('financial.holds.schedule_expiration')) {
+    Schedule::command('financial:expire-holds')
+        ->everyMinute()
+        ->preventOverlapsUsing(app(CacheEventMutex::class)->useStore('financial_scheduler'))
+        ->withoutOverlapping(10);
 }

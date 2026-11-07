@@ -31,7 +31,8 @@ class FinancialOperationsConfiguration
         if (config('financial.reconciliation.queue_connection') !== 'financial'
             || config('financial.reconciliation.queue_name') !== 'financial-reconciliation'
             || config('queue.connections.financial.driver') !== 'database'
-            || config('queue.connections.financial.connection') !== 'sqlsrv') {
+            || config('queue.connections.financial.connection') !== 'sqlsrv'
+            || config('queue.connections.financial.table') !== 'financial_queue_jobs') {
             $errors[] = 'La conciliación debe utilizar la cola dedicada financial en sqlsrv.';
         }
         if ($requireSchedule || config('financial.reconciliation.schedule_enabled')) {
