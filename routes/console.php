@@ -46,3 +46,10 @@ if (config('financial.holds.schedule_expiration')) {
         ->preventOverlapsUsing(app(CacheEventMutex::class)->useStore('financial_scheduler'))
         ->withoutOverlapping(10);
 }
+
+if (config('financial_team4.enabled') === true) {
+    Schedule::command('financial:team4-deliver')
+        ->everyMinute()
+        ->preventOverlapsUsing(app(CacheEventMutex::class)->useStore('financial_scheduler'))
+        ->withoutOverlapping(10);
+}

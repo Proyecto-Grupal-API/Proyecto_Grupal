@@ -120,3 +120,36 @@ cancelación entre E2 y E3 cuando se cruce con un cobro. Se debe ejecutar luego
 el flujo desde la tienda con los workers y el transporte del alterno. Las
 banderas del alterno siguen apagadas y este corte no provisiona wallets,
 clientes OAuth ni permisos institucionales.
+
+## Garantías, caja y operaciones programadas
+
+- Para `RENTAL_DEPOSIT`, Finanzas puede liquidar un cargo positivo y liberar
+  el resto en la misma transacción SQL. El cargo sale del saldo retenido
+  del alumno y entra en una wallet institucional activa de la misma moneda.
+  El cierre guarda el importe cobrado, el liberado y el receptor. Un reintento
+  idéntico devuelve el mismo cierre. Un depósito sin cargo se libera con la
+  operación existente. El adaptador de E5 permanece pendiente hasta acordar la
+  cuenta receptora, quién autoriza y el contrato de liquidación.
+- La API de cancelación de Marketplace es
+  `POST /api/v1/financial/marketplace/payment-requests/by-order/cancel`.
+  Requiere `financial:purchase:cancel`, el cliente original y el mismo
+  `business_id` y `order_id`. Devuelve el estado definitivo
+  `CANCELLED`, `EXPIRED` o `PAID`. Si devuelve `PAID`, conserva la referencia
+  financiera original. Un 404 después de una preparación de resultado incierto
+  no acredita cancelación. E3 debe conservar la clave original y recuperar el
+  resultado antes de disponer de la reserva.
+- El detalle y PDF de comprobantes propios aceptan verificación opcional por
+  `folio` de caja y/o `reference` canónica. La consulta exige la sesión del
+  titular y que los identificadores coincidan con su comprobante.
+- Las transferencias consultan las interfaces internas de E1 para cuentas y
+  sesiones, y el directorio para los destinatarios. La consulta por matrícula
+  exige la acreditación de integridad de E1. La autorización de transferencias
+  y la delegación de comprobantes siguen pendientes de sus contratos.
+- Se validó en laboratorio un turno con recarga y retiro confirmados por el
+  alumno, folios estables, arqueo y una diferencia observada por el conciliador.
+  La corrida programada usa la cola `financial_queue_jobs` y la caché SQL
+  `financial_scheduler`. El proceso se prepara con el comando de diagnóstico
+  `financial:operations-check --require-schedule` y un worker dedicado
+  `financial:queue-work`. El horario y el calendario `DIARIO` se configuran
+  explícitamente. La expiración de retenciones y la entrega E2→E4 tienen
+  banderas separadas. Estas tareas siguen desactivadas en el alterno.
