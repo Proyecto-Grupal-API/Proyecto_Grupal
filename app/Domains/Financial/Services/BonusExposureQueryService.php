@@ -51,7 +51,7 @@ final class BonusExposureQueryService
         return [
             'observed_at' => $at->toISOString(), 'basis' => 'CURRENT_STORED_BALANCES',
             'filters' => ['type' => $type, 'currency' => $currency],
-            'funding_evidence' => 'NOT_RECORDED_IN_CURRENT_SCHEMA',
+            'funding_evidence' => 'NOT_CHECKED_BY_THIS_REPORT',
             'funding_certified' => false, 'money_moved' => false,
             'groups' => $rows->map(fn ($r) => [
                 'type' => $r->type, 'currency' => $r->currency, 'stored_status' => $r->status,

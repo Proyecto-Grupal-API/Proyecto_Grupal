@@ -286,6 +286,10 @@ if (count($bonusIds) !== count(array_unique($bonusIds))) {
     throw new InvalidArgumentException('Un bono no puede repetirse en la misma combinación.');
 }
 
+foreach (Bonus::whereIn('public_id', $bonusIds)->get() as $candidate) {
+    $this->assertUnfundedLifecycle($candidate);
+}
+
 foreach ($bonusIds as $bonusPublicId) {
     $this->expireIfNeeded(
         $bonusPublicId
@@ -570,6 +574,8 @@ public function expireIfNeeded(
                 );
             }
 
+            $this->assertUnfundedLifecycle($bonus);
+
             if (
                 $bonus->status === BonusStatus::CANCELADO
                 || $bonus->status === BonusStatus::AGOTADO
@@ -609,6 +615,15 @@ return $bonus->fresh();
         }
     );
 }
+private function assertUnfundedLifecycle(Bonus $bonus): void
+{
+    if ($bonus->getRawOriginal('institutional_budget_id') !== null) {
+        throw new \Symfony\Component\HttpKernel\Exception\ConflictHttpException(
+            'El ciclo de vida de este bono requiere integracion presupuestaria; no se permite la operacion heredada.'
+        );
+    }
+}
+
 private function validateRestrictions(
     Bonus $bonus,
     ?string $businessId,
@@ -695,6 +710,8 @@ public function addRestriction(
             'El bono solicitado no existe.'
         );
     }
+
+    $this->assertUnfundedLifecycle($bonus);
 
     $restrictionExists = BonusRestriction::where(
         'bonus_id',

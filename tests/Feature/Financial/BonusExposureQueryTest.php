@@ -61,7 +61,7 @@ test('bonus exposure separates currencies and reports anomalies instead of inven
     $report = app(BonusExposureQueryService::class)->report('BECA', 'XEB');
     expect(collect($report['groups'])->pluck('bucket')->sort()->values()->all())->toBe(['INVALID_RECORD', 'TERMINAL_WITH_BALANCE'])
         ->and(array_unique(array_column($report['groups'], 'currency')))->toBe(['XEB'])
-        ->and($report['funding_evidence'])->toBe('NOT_RECORDED_IN_CURRENT_SCHEMA');
+        ->and($report['funding_evidence'])->toBe('NOT_CHECKED_BY_THIS_REPORT');
     expect(app(BonusExposureQueryService::class)->report('BECA', 'XEC')['groups'][0]['bucket'])->toBe('OPEN_WITHOUT_BALANCE');
 });
 
