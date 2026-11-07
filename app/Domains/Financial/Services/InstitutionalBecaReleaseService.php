@@ -13,12 +13,12 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
-/** Release of untouched awards only. Consumption and merchant obligations remain disabled. */
+/** Release only the unused balance; preserve net consumed amounts and merchant obligations. */
 final class InstitutionalBecaReleaseService
 {
     public function __construct(private readonly InstitutionalBudgetAuthorization $authority,
         private readonly FinancialWebAuthorizer $access, private readonly InstitutionalBudgetService $budgets,
-        private readonly FinancialJobLock $locks) {}
+        private readonly FinancialJobLock $locks, private readonly InstitutionalBonusIntegrity $integrity) {}
 
     public function cancel(string $actor, string $budgetId, string $bonusId, int $version, string $reason, string $key): array
     {
@@ -54,21 +54,8 @@ final class InstitutionalBecaReleaseService
                 // Same order as issuance: budget before bonus. No external HTTP while holding these locks.
                 $budget = InstitutionalBonusBudget::where('public_id', $budgetId)->lockForUpdate()->first();
                 $bonus = Bonus::where('public_id', $bonusId)->lockForUpdate()->first();
-                $link = BonusBudgetCommitment::where('bonus_id', $bonusId)->first();
-                $issue = $link ? InstitutionalBudgetOperation::where('public_id', $link->issue_operation_id)->first() : null;
-                if (!$budget || !$bonus || !$link || !$issue || $issue->action !== 'ISSUE_BECA'
-                    || strtolower((string) $bonus->getRawOriginal('institutional_budget_id')) !== $budgetId
-                    || strtolower($link->budget_id) !== $budgetId || strtolower($issue->budget_id) !== $budgetId
-                    || strtolower((string) ($issue->after_data['bonus_id'] ?? '')) !== $bonusId
-                    || strtolower((string) ($issue->after_data['commitment_id'] ?? '')) !== strtolower($link->public_id)
-                    || ($issue->after_data['award_reference'] ?? null) !== $link->award_reference
-                    || ($issue->after_data['committed_delta_cents'] ?? null) !== $link->amount_cents
-                    || $bonus->type !== BonusType::BECA || $budget->bonus_type !== 'BECA'
-                    || $bonus->currency !== 'MXN' || $budget->currency !== 'MXN' || $link->currency !== 'MXN'
-                    || $link->status !== 'COMMITTED' || $link->amount_cents <= 0
-                    || $link->amount_cents !== $bonus->original_amount_cents) {
-                    throw new ConflictHttpException('La evidencia de emision requiere revision.');
-                }
+                if (!$budget || !$bonus) throw new ConflictHttpException('Bono o presupuesto no disponibles.');
+                $link = $this->integrity->assertState($budget,$bonus);
                 $existing = InstitutionalBudgetOperation::where('idempotency_key', $key)->first();
                 if ($existing) {
                     if (!hash_equals($existing->request_hash, $hash)) throw new ConflictHttpException('La llave pertenece a otra solicitud.');
@@ -77,14 +64,13 @@ final class InstitutionalBecaReleaseService
                     $entry = $entries->first();
                     if ($existing->action !== $action || strtolower($existing->budget_id) !== $budgetId
                         || strtolower((string) ($existing->after_data['bonus_id'] ?? '')) !== $bonusId
-                        || ($existing->after_data['released_amount_cents'] ?? null) !== $link->amount_cents
+                        || !is_int($existing->after_data['released_amount_cents'] ?? null)
+                        || $existing->after_data['released_amount_cents'] <= 0
                         || $bonus->status !== $target || $bonus->remaining_amount_cents !== 0
                         || $entries->count() !== 1 || !$entry || $entry->movement_type !== $movement
-                        || $entry->amount_cents !== -$link->amount_cents || $entry->remaining_after_cents !== 0
+                        || $entry->amount_cents !== -$existing->after_data['released_amount_cents'] || $entry->remaining_after_cents !== 0
                         || $entry->actor_id !== $actor || $entry->reason !== $reason
-                        || BonusLedgerEntry::where('bonus_id', $bonusId)->count() !== 2
-                        || BonusLedgerEntry::where('bonus_id', $bonusId)->where('movement_type', BonusMovementType::EMISION->value)
-                            ->where('amount_cents', $link->amount_cents)->where('remaining_after_cents', $link->amount_cents)->count() !== 1) {
+) {
                         throw new ConflictHttpException('La evidencia de liberacion requiere revision.');
                     }
                     return ['operation' => $existing, 'bonus_id' => $bonusId, 'replayed' => true];
@@ -95,17 +81,13 @@ final class InstitutionalBecaReleaseService
                     || ($expiry ? now()->lt($bonus->expires_at) : now()->gte($bonus->expires_at))) {
                     throw new ConflictHttpException('El estado o la vigencia no admiten esta liberacion.');
                 }
-                // No partial/legacy consumption is accepted until its budget and obligation lifecycle exists.
-                $entries = BonusLedgerEntry::where('bonus_id', $bonusId)->get(); $initial = $entries->first();
-                if ($bonus->remaining_amount_cents !== $link->amount_cents || $entries->count() !== 1 || !$initial
-                    || $initial->movement_type !== BonusMovementType::EMISION || $initial->amount_cents !== $link->amount_cents
-                    || $initial->remaining_after_cents !== $link->amount_cents
-                    || $budget->committed_amount_cents < $link->amount_cents) {
-                    throw new ConflictHttpException('El bono tiene consumo o evidencia inconsistente; requiere revision.');
+                $released = $bonus->remaining_amount_cents;
+                if ($released <= 0 || $budget->committed_amount_cents < $released) {
+                    throw new ConflictHttpException('Saldo presupuestario insuficiente o inconsistente.');
                 }
                 $before = [...$this->budgets->snapshot($budget), 'bonus_id' => $bonusId,
                     'bonus_status' => $bonus->status->value, 'bonus_remaining_cents' => $bonus->remaining_amount_cents];
-                $budget->committed_amount_cents -= $link->amount_cents; ++$budget->version; $budget->save();
+                $budget->committed_amount_cents -= $released; ++$budget->version; $budget->save();
                 $bonus->remaining_amount_cents = 0; $bonus->status = $target; $bonus->save();
                 $this->locks->assertOwned($lockKey, $token, 180);
                 $operation = InstitutionalBudgetOperation::create([
@@ -113,11 +95,12 @@ final class InstitutionalBecaReleaseService
                     'actor_id' => $actor, 'reason' => $reason, 'idempotency_key' => $key, 'request_hash' => $hash,
                     'before_data' => $before, 'after_data' => [...$this->budgets->snapshot($budget),
                         'bonus_id' => $bonusId, 'bonus_status' => $target->value, 'bonus_remaining_cents' => 0,
-                        'commitment_id' => strtolower($link->public_id), 'released_amount_cents' => $link->amount_cents], 'created_at' => now(),
+                        'commitment_id' => strtolower($link->public_id), 'released_amount_cents' => $released], 'created_at' => now(),
                 ]);
                 BonusLedgerEntry::create(['public_id' => (string) Str::uuid(), 'bonus_id' => $bonus->public_id,
-                    'movement_type' => $movement, 'amount_cents' => -$link->amount_cents, 'remaining_after_cents' => 0,
+                    'movement_type' => $movement, 'amount_cents' => -$released, 'remaining_after_cents' => 0,
                     'reference_type' => 'BUDGET_RELEASE', 'reference_id' => $operation->public_id, 'actor_id' => $actor, 'reason' => $reason]);
+                $this->integrity->assertState($budget,$bonus);
                 return ['operation' => $operation, 'bonus_id' => $bonusId, 'replayed' => false];
             });
         } catch (QueryException $e) {

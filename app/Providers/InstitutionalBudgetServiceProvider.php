@@ -10,6 +10,7 @@ final class InstitutionalBudgetServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(\App\Domains\Financial\Contracts\InstitutionalPurchaseAuthorization::class, \App\Domains\Financial\Adapters\PendingInstitutionalPurchaseAuthorization::class);
         $this->app->bind(InstitutionalBudgetAuthorization::class, PendingInstitutionalBudgetAuthorization::class);
     }
 }

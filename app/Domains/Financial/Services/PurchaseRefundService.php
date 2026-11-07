@@ -284,6 +284,11 @@ class PurchaseRefundService
         );
     }
 
+    if (\Illuminate\Support\Facades\Schema::connection('sqlsrv')->hasTable('institutional_bonus_obligations')
+        && \App\Domains\Financial\Models\InstitutionalBonusObligation::where('purchase_payment_id',$refundRequest->purchase_payment_id)->exists()) {
+        return app(InstitutionalBecaPurchaseService::class)->completeRefund($refundRequest,$idempotencyKey,$executedBy);
+    }
+
     return DB::connection('sqlsrv')->transaction(
         function () use ($refundRequest, $idempotencyKey, $executedBy) {
             $payment = PurchasePayment::where(
@@ -460,6 +465,9 @@ class PurchaseRefundService
             // Validar todos los bonos antes de modificar saldos.
             foreach ($allocations as $bonusId => $amount) {
                 $bonus = $bonuses->get($bonusId);
+                if ($bonus && $bonus->getRawOriginal('institutional_budget_id') !== null) {
+                    throw new \Symfony\Component\HttpKernel\Exception\ConflictHttpException('La devolucion requiere evidencia de obligacion institucional.');
+                }
 
                 if (
                     !$bonus ||
