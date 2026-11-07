@@ -2,7 +2,7 @@
 namespace App\Domains\Financial\Services;
 
 use App\Domains\Financial\Models\{Bonus, BonusBudgetCommitment, BonusLedgerEntry, InstitutionalBonusObligation,
-    InstitutionalBonusRefund, InstitutionalBonusBudget, InstitutionalBudgetOperation, PurchasePayment, PurchaseRefundRequest, FinancialTransaction, Wallet};
+    InstitutionalBonusRefund, InstitutionalBonusBudget, InstitutionalBudgetOperation, PurchasePayment, PurchaseRefundRequest, FinancialTransaction, Wallet, InstitutionalBonusSettlement};
 use App\Domains\Financial\Enums\{BonusType, BonusStatus, BonusMovementType, RefundRequestStatus, TransactionStatus};
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
@@ -33,6 +33,8 @@ final class InstitutionalBonusIntegrity
                 || !$op || $op->action !== 'CONSUME_BECA' || strtolower($op->budget_id) !== $budgetId
                 || strtolower($debt->budget_id) !== $budgetId || $debt->currency !== 'MXN' || $debt->status !== 'OPEN'
                 || $debt->amount_cents <= 0 || $debt->refunded_amount_cents < 0 || $debt->refunded_amount_cents > $debt->amount_cents
+                || !is_int($debt->settled_amount_cents) || $debt->settled_amount_cents < 0
+                || $debt->settled_amount_cents > $debt->amount_cents - $debt->refunded_amount_cents
                 || $debt->payer_reference !== $budget->payer_reference || $payment->business_id !== $debt->business_id
                 || strtolower((string)$payment->bonus_id) !== $id || $payment->currency !== 'MXN' || $payment->status !== 'COMPLETADO'
                 || $payment->total_amount_cents !== $debt->amount_cents || $payment->bonus_amount_cents !== $debt->amount_cents
@@ -65,6 +67,30 @@ final class InstitutionalBonusIntegrity
                 $expected['PURCHASE_REFUND:'.strtolower($r->public_id)] = [$line->amount_cents, BonusMovementType::DEVOLUCION];
             }
             if ($refunded !== $debt->refunded_amount_cents) $fail();
+            $settled = 0;
+            foreach (InstitutionalBonusSettlement::where('obligation_id',$debt->public_id)->get() as $paymentRecord) {
+                $sop = InstitutionalBudgetOperation::where('public_id',$paymentRecord->operation_id)->first();
+                $expectedKey = hash('sha256',json_encode([$paymentRecord->payment_provider,$paymentRecord->payment_reference],JSON_THROW_ON_ERROR));
+                if (!$sop || $sop->action !== 'SETTLE_BECA' || strtolower($sop->budget_id) !== $budgetId
+                    || strtolower($paymentRecord->budget_id) !== $budgetId || $paymentRecord->currency !== 'MXN'
+                    || $paymentRecord->amount_cents <= 0 || $paymentRecord->amount_cents > $debt->amount_cents - $refunded - $settled
+                    || !hash_equals($expectedKey,$paymentRecord->payment_key)
+                    || strtolower((string)($sop->after_data['obligation_id'] ?? '')) !== strtolower($debt->public_id)
+                    || strtolower((string)($sop->after_data['settlement_id'] ?? '')) !== strtolower($paymentRecord->public_id)
+                    || ($sop->after_data['settled_delta_cents'] ?? null) !== $paymentRecord->amount_cents
+                    || ($sop->after_data['payment_key'] ?? null) !== $paymentRecord->payment_key
+                    || ($sop->after_data['payment_provider'] ?? null) !== $paymentRecord->payment_provider
+                    || ($sop->after_data['payment_reference'] ?? null) !== $paymentRecord->payment_reference
+                    || ($sop->after_data['recipient_reference'] ?? null) !== $paymentRecord->recipient_reference
+                    || ($sop->after_data['paid_at'] ?? null) !== $paymentRecord->paid_at_utc
+                    || !preg_match('/\A[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z\z/',$paymentRecord->paid_at_utc)) $fail();
+                try { $date=\Carbon\CarbonImmutable::parse($paymentRecord->paid_at_utc); }
+                catch (\Throwable $e) { $fail(); }
+                if ($date->toISOString() !== $paymentRecord->paid_at_utc || $date->lt($payment->created_at) || $date->gt(now())) $fail();
+                $settled += $paymentRecord->amount_cents;
+            }
+            if ($settled !== $debt->settled_amount_cents) $fail();
+
         }
         $entries = BonusLedgerEntry::where('bonus_id', $id)->orderBy('id')->get();
         $balance = 0; $released = 0; $initial = true;

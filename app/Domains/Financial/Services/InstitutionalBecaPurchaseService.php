@@ -147,7 +147,7 @@ final class InstitutionalBecaPurchaseService
                 || $debt->status !== 'OPEN' || $budget->status !== 'ACTIVE' || now()->gte($budget->expires_at)
                 || now()->lt($budget->valid_from) || now()->gte($bonus->expires_at) || now()->lt($bonus->valid_from)
                 || !in_array($bonus->status,[BonusStatus::ACTIVO,BonusStatus::AGOTADO],true)
-                || $refund->total_amount_cents > $debt->amount_cents - $debt->refunded_amount_cents
+                || $refund->total_amount_cents > $debt->amount_cents - $debt->refunded_amount_cents - $debt->settled_amount_cents
                 || $refund->total_amount_cents > $budget->consumed_amount_cents || $budget->version === PHP_INT_MAX
                 || FinancialTransaction::where('idempotency_key',$key)->exists()) throw new ConflictHttpException('Devolucion institucional no disponible.');
             $reserved = (int)PurchaseRefundRequest::where('purchase_payment_id',$payment->public_id)

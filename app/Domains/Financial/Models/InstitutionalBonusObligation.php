@@ -3,13 +3,13 @@ namespace App\Domains\Financial\Models;
 use Illuminate\Database\Eloquent\Model;
 use LogicException;
 
-/** Outstanding institutional debt, not cash or a merchant wallet credit. Settlement is not implemented. */
+/** Outstanding institutional debt, not cash or a merchant wallet credit. External settlements are recorded separately. */
 final class InstitutionalBonusObligation extends Model
 {
     protected $connection = 'sqlsrv';
     protected $table = 'institutional_bonus_obligations';
     protected $guarded = ['id'];
-    protected $casts = ['amount_cents' => 'integer', 'refunded_amount_cents' => 'integer'];
+    protected $casts = ['amount_cents' => 'integer', 'refunded_amount_cents' => 'integer', 'settled_amount_cents' => 'integer'];
     protected static function booted(): void
     {
         static::updating(function ($row) {

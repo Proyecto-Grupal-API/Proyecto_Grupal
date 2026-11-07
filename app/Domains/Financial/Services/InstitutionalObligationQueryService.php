@@ -8,15 +8,15 @@ use InvalidArgumentException;
 /** Operator-only read model. Shared budget locks coordinate with the institutional writers. */
 final class InstitutionalObligationQueryService
 {
-    public function report(?string $budgetId = null, ?string $business = null, int $page = 1, int $perPage = 10, bool $details = false): array
+    public function report(?string $budgetId = null, ?string $business = null, int $page = 1, int $perPage = 10, bool $details = false, bool $settlements = false): array
     {
         if (($budgetId !== null && !Str::isUuid($budgetId)) || ($business !== null && ($budgetId === null
             || $business === '' || strlen($business) > 100 || preg_match('/[\x00-\x20\x7f]/',$business)))
-            || ($details && $budgetId === null) || $page < 1 || $page > 1000000 || $perPage < 1 || $perPage > 20) {
+            || (($details || $settlements) && $budgetId === null) || ($details && $settlements) || $page < 1 || $page > 1000000 || $perPage < 1 || $perPage > 20) {
             throw new InvalidArgumentException('Filtros no validos: UUID de presupuesto; negocio/detalle requieren presupuesto; pagina positiva y 1 a 20 registros.');
         }
         $budgetId = $budgetId === null ? null : strtolower($budgetId);
-        return DB::connection('sqlsrv')->transaction(function () use ($budgetId,$business,$page,$perPage,$details) {
+        return DB::connection('sqlsrv')->transaction(function () use ($budgetId,$business,$page,$perPage,$details,$settlements) {
             $db = DB::connection('sqlsrv');
             $selection = $db->table('institutional_bonus_budgets')->select('institutional_bonus_budgets.*')
                 ->selectRaw('CAST(CAST(approved_amount_cents AS decimal(38,0))-CAST(committed_amount_cents AS decimal(38,0))-CAST(consumed_amount_cents AS decimal(38,0)) AS varchar(40)) AS available_amount_cents')
@@ -33,18 +33,23 @@ final class InstitutionalObligationQueryService
                 $totals = $debts()->selectRaw("CAST(COUNT_BIG(*) AS varchar(40)) AS obligation_count,
                     CAST(COALESCE(SUM(CAST(amount_cents AS decimal(38,0))),0) AS varchar(40)) AS purchase_amount_cents,
                     CAST(COALESCE(SUM(CAST(refunded_amount_cents AS decimal(38,0))),0) AS varchar(40)) AS refunded_amount_cents,
-                    CAST(COALESCE(SUM(CAST(amount_cents AS decimal(38,0))-CAST(refunded_amount_cents AS decimal(38,0))),0) AS varchar(40)) AS pending_amount_cents")->first();
+                    CAST(COALESCE(SUM(CAST(amount_cents AS decimal(38,0))-CAST(refunded_amount_cents AS decimal(38,0))),0) AS varchar(40)) AS net_consumed_amount_cents,
+                    CAST(COALESCE(SUM(CAST(settled_amount_cents AS decimal(38,0))),0) AS varchar(40)) AS settled_amount_cents,
+                    CAST(COALESCE(SUM(CAST(amount_cents AS decimal(38,0))-CAST(refunded_amount_cents AS decimal(38,0))-CAST(settled_amount_cents AS decimal(38,0))),0) AS varchar(40)) AS pending_amount_cents")->first();
                 $journal = $db->table('bonus_ledger_entries as e')->whereIn('e.bonus_id',$scope()->select('b.public_id'));
                 $ledgerNet = (clone $journal)->selectRaw("CAST(COALESCE(SUM(CASE WHEN e.movement_type IN ('CONSUMO','DEVOLUCION')
                     THEN -CAST(e.amount_cents AS decimal(38,0)) ELSE CAST(0 AS decimal(38,0)) END),0) AS varchar(40)) AS amount")->value('amount');
                 $remaining = $scope()->selectRaw('CAST(COALESCE(SUM(CAST(b.remaining_amount_cents AS decimal(38,0))),0) AS varchar(40)) AS amount')->value('amount');
                 $actualRefunds = $db->table('institutional_bonus_refunds as r')->join('institutional_bonus_obligations as o','o.public_id','=','r.obligation_id')
                     ->where('o.budget_id',$id)->selectRaw('CAST(COALESCE(SUM(CAST(r.amount_cents AS decimal(38,0))),0) AS varchar(40)) AS amount')->value('amount');
+                $actualSettlements = $db->table('institutional_bonus_settlements as s')->join('institutional_bonus_obligations as o','o.public_id','=','s.obligation_id')
+                    ->where('o.budget_id',$id)->selectRaw('CAST(COALESCE(SUM(CAST(s.amount_cents AS decimal(38,0))),0) AS varchar(40)) AS amount')->value('amount');
                 $findings = [];
                 $storedConsumed = (string)$budget->consumed_amount_cents; $storedCommitted = (string)$budget->committed_amount_cents;
-                foreach ([['CONSUMED_VS_OBLIGATIONS',$storedConsumed,$totals->pending_amount_cents],
+                foreach ([['CONSUMED_VS_OBLIGATIONS',$storedConsumed,$totals->net_consumed_amount_cents],
                     ['CONSUMED_VS_LEDGER',$storedConsumed,$ledgerNet],['COMMITTED_VS_BONUS_BALANCES',$storedCommitted,$remaining],
-                    ['REFUND_COUNTER_VS_EVIDENCE',$totals->refunded_amount_cents,$actualRefunds]] as [$code,$a,$b]) {
+                    ['REFUND_COUNTER_VS_EVIDENCE',$totals->refunded_amount_cents,$actualRefunds],
+                    ['SETTLEMENT_COUNTER_VS_EVIDENCE',$totals->settled_amount_cents,$actualSettlements]] as [$code,$a,$b]) {
                     if ($a !== (string)$b) $findings[] = ['code'=>$code,'expected_cents'=>(string)$b,'stored_cents'=>$a];
                 }
                 // Scope includes either marker, issuance binding or obligation: a broken marker is not silently omitted.
@@ -73,6 +78,8 @@ final class InstitutionalObligationQueryService
                             ->orWhereColumn('p.business_id','<>','o.business_id')->orWhereNull('p.business_id')
                             ->orWhereColumn('p.total_amount_cents','<>','o.amount_cents')->orWhereColumn('p.bonus_amount_cents','<>','o.amount_cents')
                             ->orWhere('p.wallet_amount_cents','<>',0)->orWhere('p.status','<>','COMPLETADO')
+                            ->orWhereRaw('o.settled_amount_cents <> (SELECT COALESCE(SUM(CAST(s.amount_cents AS decimal(38,0))),0) FROM institutional_bonus_settlements s WHERE s.obligation_id=o.public_id)')
+                            ->orWhereRaw('o.settled_amount_cents > o.amount_cents - o.refunded_amount_cents')
                             ->orWhere('o.currency','<>','MXN')->orWhere('p.currency','<>','MXN')->orWhere('o.status','<>','OPEN')
                             ->orWhere('o.payer_reference','<>',$budget->payer_reference)->orWhere('op.action','<>','CONSUME_BECA')
                             ->orWhere('op.budget_id','<>',$id)
@@ -131,35 +138,73 @@ final class InstitutionalObligationQueryService
                     ->whereIn('f.purchase_payment_id',$db->table('purchase_payments as p')->whereIn('p.bonus_id',$scope()->select('b.public_id'))->select('p.public_id'))
                     ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('institutional_bonus_refunds as r')->whereColumn('r.refund_request_id','f.public_id'));
                 $this->finding($findings,'COMPLETED_REFUND_WITHOUT_EVIDENCE',$missingRefund,'f.public_id');
+                $badSettlement = $db->table('institutional_bonus_settlements as s')
+                    ->leftJoin('institutional_bonus_obligations as o','o.public_id','=','s.obligation_id')
+                    ->leftJoin('purchase_payments as p','p.public_id','=','o.purchase_payment_id')
+                    ->leftJoin('institutional_budget_operations as op','op.public_id','=','s.operation_id')
+                    ->where(fn ($q) => $q->where('s.budget_id',$id)->orWhere('o.budget_id',$id))
+                    ->where(function ($q) {
+                        $q->whereNull('o.public_id')->orWhereNull('op.public_id')->orWhereNull('p.public_id')
+                            ->orWhereColumn('s.budget_id','<>','o.budget_id')->orWhereColumn('op.budget_id','<>','o.budget_id')
+                            ->orWhere('op.action','<>','SETTLE_BECA')->orWhereColumn('s.currency','<>','o.currency')
+                            ->orWhereRaw("COALESCE(JSON_VALUE(CASE WHEN ISJSON(op.after_data)=1 THEN op.after_data ELSE '{}' END,'$.settlement_id'),'') <> LOWER(CONVERT(varchar(36),s.public_id))")
+                            ->orWhereRaw("COALESCE(JSON_VALUE(CASE WHEN ISJSON(op.after_data)=1 THEN op.after_data ELSE '{}' END,'$.obligation_id'),'') <> LOWER(CONVERT(varchar(36),s.obligation_id))")
+                            ->orWhereRaw("COALESCE(JSON_VALUE(CASE WHEN ISJSON(op.after_data)=1 THEN op.after_data ELSE '{}' END,'$.paid_at'),'') <> s.paid_at_utc")
+                            ->orWhereRaw("COALESCE(JSON_VALUE(CASE WHEN ISJSON(op.after_data)=1 THEN op.after_data ELSE '{}' END,'$.payment_key'),'') <> s.payment_key")
+                            ->orWhereRaw("COALESCE(JSON_VALUE(CASE WHEN ISJSON(op.after_data)=1 THEN op.after_data ELSE '{}' END,'$.recipient_reference'),'') <> s.recipient_reference")
+                            ->orWhereRaw("COALESCE(JSON_VALUE(CASE WHEN ISJSON(op.after_data)=1 THEN op.after_data ELSE '{}' END,'$.payment_provider'),'') <> s.payment_provider")
+                            ->orWhereRaw("COALESCE(JSON_VALUE(CASE WHEN ISJSON(op.after_data)=1 THEN op.after_data ELSE '{}' END,'$.payment_reference'),'') <> s.payment_reference")
+                            ->orWhereRaw("COALESCE(TRY_CONVERT(decimal(38,0),JSON_VALUE(CASE WHEN ISJSON(op.after_data)=1 THEN op.after_data ELSE '{}' END,'$.settled_delta_cents')),-1) <> CAST(s.amount_cents AS decimal(38,0))")
+                            ->orWhereRaw('TRY_CONVERT(datetimeoffset(6),s.paid_at_utc) IS NULL')
+                            ->orWhereRaw('TRY_CONVERT(datetimeoffset(6),s.paid_at_utc) < CAST(p.created_at AS datetimeoffset(6))')
+                            ->orWhereRaw('TRY_CONVERT(datetimeoffset(6),s.paid_at_utc) > TRY_CONVERT(datetimeoffset(6),?)',[now()->toISOString()]);
+                    });
+                $this->finding($findings,'SETTLEMENT_EVIDENCE',$badSettlement,'s.public_id');
+                $missingSettlement = $db->table('institutional_budget_operations as op')->where('op.budget_id',$id)->where('op.action','SETTLE_BECA')
+                    ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('institutional_bonus_settlements as s')->whereColumn('s.operation_id','op.public_id'));
+                $this->finding($findings,'SETTLEMENT_WITHOUT_RECORD',$missingSettlement,'op.public_id');
                 if ($budget->currency !== 'MXN' && $totals->obligation_count !== '0') $findings[] = ['code'=>'BUDGET_CURRENCY'];
                 $clean = $findings === []; $consistent = $consistent && $clean;
                 $rows[] = ['budget_id'=>$id,'currency'=>$budget->currency,'status'=>$budget->status,'version'=>(string)$budget->version,
                     'approved_amount_cents'=>(string)$budget->approved_amount_cents,'available_amount_cents'=>(string)$budget->available_amount_cents,'committed_amount_cents'=>$storedCommitted,
                     'consumed_amount_cents'=>$storedConsumed,'observed_bonus_balances_cents'=>(string)$remaining,
-                    'observed_ledger_consumed_cents'=>(string)$ledgerNet,'observed_refund_evidence_cents'=>(string)$actualRefunds,
+                    'observed_ledger_consumed_cents'=>(string)$ledgerNet,'observed_refund_evidence_cents'=>(string)$actualRefunds,'observed_settlement_evidence_cents'=>(string)$actualSettlements,
                     'obligations'=>(array)$totals,'consistent'=>$clean,'findings'=>$findings];
             }
             $entries = []; $more = false;
             if ($budgetId !== null && $rows !== []) {
+                if ($settlements) {
+                    $q = $db->table('institutional_bonus_settlements as s')->join('institutional_bonus_obligations as o','o.public_id','=','s.obligation_id')
+                        ->where('o.budget_id',$budgetId);
+                    if ($business !== null) $q->where('o.business_id',$business);
+                    $q->selectRaw("LOWER(CONVERT(varchar(36),s.public_id)) AS settlement_id, LOWER(CONVERT(varchar(36),s.obligation_id)) AS obligation_id,
+                        LOWER(CONVERT(varchar(36),s.operation_id)) AS operation_id, o.business_id,s.currency,
+                        CAST(s.amount_cents AS varchar(40)) AS amount_cents,s.payment_provider,s.payment_reference,s.paid_at_utc")->orderBy('s.id');
+                } else {
                 $q = $db->table('institutional_bonus_obligations')->where('budget_id',$budgetId);
                 if ($business !== null) $q->where('business_id',$business);
                 if ($details) $q->selectRaw("LOWER(CONVERT(varchar(36),public_id)) AS obligation_id, LOWER(CONVERT(varchar(36),purchase_payment_id)) AS purchase_payment_id,
                     LOWER(CONVERT(varchar(36),bonus_id)) AS bonus_id, business_id,currency,
                     CAST(amount_cents AS varchar(40)) AS purchase_amount_cents,CAST(refunded_amount_cents AS varchar(40)) AS refunded_amount_cents,
-                    CAST(CAST(amount_cents AS decimal(38,0))-CAST(refunded_amount_cents AS decimal(38,0)) AS varchar(40)) AS pending_amount_cents")->orderBy('id');
+                    CAST(CAST(amount_cents AS decimal(38,0))-CAST(refunded_amount_cents AS decimal(38,0)) AS varchar(40)) AS net_consumed_amount_cents,
+                    CAST(settled_amount_cents AS varchar(40)) AS settled_amount_cents,
+                    CAST(CAST(amount_cents AS decimal(38,0))-CAST(refunded_amount_cents AS decimal(38,0))-CAST(settled_amount_cents AS decimal(38,0)) AS varchar(40)) AS pending_amount_cents")->orderBy('id');
                 else $q->selectRaw("business_id,currency,CAST(COUNT_BIG(*) AS varchar(40)) AS obligation_count,
                     CAST(SUM(CAST(amount_cents AS decimal(38,0))) AS varchar(40)) AS purchase_amount_cents,
                     CAST(SUM(CAST(refunded_amount_cents AS decimal(38,0))) AS varchar(40)) AS refunded_amount_cents,
-                    CAST(SUM(CAST(amount_cents AS decimal(38,0))-CAST(refunded_amount_cents AS decimal(38,0))) AS varchar(40)) AS pending_amount_cents")
+                    CAST(SUM(CAST(amount_cents AS decimal(38,0))-CAST(refunded_amount_cents AS decimal(38,0))) AS varchar(40)) AS net_consumed_amount_cents,
+                    CAST(SUM(CAST(settled_amount_cents AS decimal(38,0))) AS varchar(40)) AS settled_amount_cents,
+                    CAST(SUM(CAST(amount_cents AS decimal(38,0))-CAST(refunded_amount_cents AS decimal(38,0))-CAST(settled_amount_cents AS decimal(38,0))) AS varchar(40)) AS pending_amount_cents")
                     ->groupBy('business_id','currency')->orderBy('business_id')->orderBy('currency');
+                }
                 $entries = $q->offset(($page-1)*$perPage)->limit($perPage+1)->get(); $more = $entries->count() > $perPage;
                 $entries = $entries->take($perPage)->map(fn ($r) => (array)$r)->all();
             }
             return ['observed_at'=>now()->toISOString(),'basis'=>'COORDINATED_CURRENT_READ','reconciliation_scope'=>'SELECTED_BUDGETS_ALL_BUSINESSES',
                 'business_filter_applies_to_entries_only'=>true,'budget_id'=>$budgetId,'business_id'=>$business,'money_moved'=>false,
-                'cash_backing_certified'=>false,'settlement_implemented'=>false,'status'=>$rows === [] ? 'NO_DATA' : ($consistent ? 'CONSISTENT' : 'DIFFERENCES'),
+                'cash_backing_certified'=>false,'settlement_implemented'=>true,'settlement_mode'=>'EXTERNAL_PAYMENT_RECORDS','status'=>$rows === [] ? 'NO_DATA' : ($consistent ? 'CONSISTENT' : 'DIFFERENCES'),
                 'consistent'=>$rows === [] ? null : $consistent,'budgets'=>$rows,
-                'entries_kind'=>$details?'OBLIGATIONS':'BUSINESSES','entries'=>$entries,
+                'entries_kind'=>$settlements?'SETTLEMENTS':($details?'OBLIGATIONS':'BUSINESSES'),'entries'=>$entries,
                 'page'=>$page,'per_page'=>$perPage,'has_more'=>$budgetId === null ? $moreBudgets : $more];
         });
     }

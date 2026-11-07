@@ -12,6 +12,7 @@ final class InspectInstitutionalObligations extends Command
         {--budget= : UUID del presupuesto; sin filtro lista presupuestos}
         {--business= : Negocio exacto; requiere budget}
         {--details : Listar obligaciones y compras; requiere budget}
+        {--settlements : Listar pagos externos registrados; requiere budget y excluye details}
         {--page=1 : Pagina positiva}
         {--per-page=10 : Registros por pagina, de 1 a 20}';
     protected $description = 'Consulta y concilia obligaciones BECA sin modificar saldos ni ejecutar pagos';
@@ -21,7 +22,7 @@ final class InspectInstitutionalObligations extends Command
         try {
             $page = (string)$this->option('page'); $size = (string)$this->option('per-page');
             if (!preg_match('/\A[1-9][0-9]{0,6}\z/',$page) || !preg_match('/\A[1-9][0-9]?\z/',$size)) throw new InvalidArgumentException('Paginacion no valida.');
-            $result = $service->report($this->option('budget'),$this->option('business'),(int)$page,(int)$size,(bool)$this->option('details'));
+            $result = $service->report($this->option('budget'),$this->option('business'),(int)$page,(int)$size,(bool)$this->option('details'),(bool)$this->option('settlements'));
             $this->line(json_encode($result,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));
             return $result['consistent'] === false ? 2 : self::SUCCESS;
         } catch (InvalidArgumentException $e) {
