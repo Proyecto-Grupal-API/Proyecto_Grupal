@@ -5,6 +5,7 @@ namespace App\Domains\Financial\Services;
 use App\Domains\Financial\Enums\MovementType;
 use App\Domains\Financial\Enums\TransactionStatus;
 use App\Domains\Financial\Enums\WalletStatus;
+use App\Domains\Financial\Enums\WalletType;
 use App\Domains\Financial\Models\FinancialTransaction;
 use App\Domains\Financial\Models\LedgerEntry;
 use App\Domains\Financial\Models\Wallet;
@@ -375,15 +376,17 @@ class LedgerService
     /** Monetary amount is the total-value change; deltas track its two buckets. */
     public function moveHeldFunds(
         Wallet $wallet, int $amountCents, string $idempotencyKey,
-        string $holdId, string $actorId, string $mode
+        string $holdId, string $actorId, string $mode, ?Wallet $recipient = null, int $chargedCents = 0
     ): FinancialTransaction {
         if ($amountCents <= 0 || trim($idempotencyKey) === '' || strlen($idempotencyKey) > 255
-            || trim($actorId) === '' || ! in_array($mode, ['RESERVE', 'RELEASE', 'CAPTURE'], true)) {
+            || trim($actorId) === '' || ! in_array($mode, ['RESERVE', 'RELEASE', 'CAPTURE', 'SETTLE'], true)
+            || ($mode === 'SETTLE' ? ! $recipient || $chargedCents <= 0 || $chargedCents > $amountCents
+                : $recipient !== null || $chargedCents !== 0)) {
             throw new InvalidArgumentException('Datos de movimiento retenido no válidos.');
         }
 
         return DB::connection('sqlsrv')->transaction(function () use (
-            $wallet, $amountCents, $idempotencyKey, $holdId, $actorId, $mode
+            $wallet, $amountCents, $idempotencyKey, $holdId, $actorId, $mode, $recipient, $chargedCents
         ) {
             $locked = Wallet::where('public_id', $wallet->public_id)->lockForUpdate()->firstOrFail();
             if ($locked->available_balance_cents < 0 || $locked->held_balance_cents < 0) {
@@ -397,7 +400,9 @@ class LedgerService
                     || $existing->status !== TransactionStatus::COMPLETADA
                     || strtolower((string) ($existing->metadata['wallet_id'] ?? '')) !== strtolower($locked->public_id)
                     || ($existing->metadata['amount_cents'] ?? null) !== $amountCents
-                    || ($existing->metadata['actor_id'] ?? null) !== $actorId) {
+                    || ($existing->metadata['actor_id'] ?? null) !== $actorId
+                    || ($recipient && (($existing->metadata['charged_cents'] ?? null) !== $chargedCents
+                        || ($existing->metadata['recipient_wallet_id'] ?? null) !== strtolower($recipient->public_id)))) {
                     throw new InvalidArgumentException('La clave de idempotencia pertenece a otra operación.');
                 }
 
@@ -410,16 +415,31 @@ class LedgerService
                 || ($mode !== 'RESERVE' && $locked->held_balance_cents < $amountCents)) {
                 throw new InvalidArgumentException('Saldo insuficiente para el movimiento retenido.');
             }
+            $metadata = ['amount_cents' => $amountCents, 'actor_id' => $actorId, 'wallet_id' => $locked->public_id];
+            $destination = null;
+            if ($recipient) {
+                $destination = Wallet::where('public_id', $recipient->public_id)->lockForUpdate()->first();
+                if (! $destination || $locked->type !== WalletType::USUARIO || $locked->owner_type !== 'USER'
+                    || $destination->type !== WalletType::ORGANIZACION || $destination->owner_type !== 'ORGANIZATION'
+                    || $destination->status !== WalletStatus::ACTIVA || $destination->currency !== $locked->currency
+                    || $destination->available_balance_cents < 0 || $destination->held_balance_cents < 0) {
+                    throw new InvalidArgumentException('La wallet receptora no está habilitada para liquidar la garantía.');
+                }
+                $metadata += ['recipient_wallet_id' => strtolower($destination->public_id),
+                    'charged_cents' => $chargedCents, 'released_cents' => $amountCents - $chargedCents];
+            }
+
             [$availableDelta, $heldDelta, $totalDelta, $movement] = match ($mode) {
                 'RESERVE' => [-$amountCents, $amountCents, 0, MovementType::RETENCION],
                 'RELEASE' => [$amountCents, -$amountCents, 0, MovementType::LIBERACION],
                 'CAPTURE' => [0, -$amountCents, -$amountCents, MovementType::PAGO],
+                'SETTLE' => [$amountCents - $chargedCents, -$amountCents, -$chargedCents, MovementType::PAGO],
             };
             $transaction = FinancialTransaction::create([
                 'public_id' => (string) Str::uuid(), 'idempotency_key' => $idempotencyKey,
                 'reference_type' => $reference, 'reference_id' => $holdId,
                 'status' => TransactionStatus::PENDIENTE,
-                'metadata' => ['amount_cents' => $amountCents, 'actor_id' => $actorId, 'wallet_id' => $locked->public_id],
+                'metadata' => $metadata,
             ]);
             $locked->available_balance_cents += $availableDelta;
             $locked->held_balance_cents += $heldDelta;
@@ -433,6 +453,18 @@ class LedgerService
                 'available_balance_after_cents' => $locked->available_balance_cents,
                 'held_balance_after_cents' => $locked->held_balance_cents,
             ]);
+            if ($destination) {
+                $destination->available_balance_cents += $chargedCents;
+                $destination->save();
+                LedgerEntry::create([
+                    'public_id' => (string) Str::uuid(), 'transaction_id' => $transaction->public_id,
+                    'wallet_id' => $destination->public_id, 'movement_type' => MovementType::COBRO_DEPOSITO,
+                    'amount_cents' => $chargedCents, 'available_delta_cents' => $chargedCents, 'held_delta_cents' => 0,
+                    'balance_after_cents' => $destination->available_balance_cents,
+                    'available_balance_after_cents' => $destination->available_balance_cents,
+                    'held_balance_after_cents' => $destination->held_balance_cents,
+                ]);
+            }
             $transaction->status = TransactionStatus::COMPLETADA;
             $transaction->save();
 

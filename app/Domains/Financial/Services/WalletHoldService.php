@@ -87,24 +87,39 @@ class WalletHoldService
         return $this->close($hold, $key, $actor, $reason, true);
     }
 
+    /** The caller must resolve the authorized institutional recipient and damage assessment. */
+    public function settleRentalDeposit(WalletHold $hold, Wallet $recipient, int $chargedCents, string $key, string $actor, string $reason): WalletHold
+    {
+        if ($chargedCents <= 0) {
+            throw new InvalidArgumentException('El cargo debe ser positivo. Usa la liberación para un depósito sin cargo.');
+        }
+
+        return $this->close($hold, $key, $actor, $reason, true, recipient: $recipient, chargedCents: $chargedCents);
+    }
+
     private function close(
         WalletHold $hold, string $key, string $actor, string $reason,
-        bool $capture, bool $expireOnly = false
+        bool $capture, bool $expireOnly = false, ?Wallet $recipient = null, int $chargedCents = 0
     ): WalletHold {
         $this->assertInput($key, $actor, $reason);
-        // Obtain the canonical wallet, then use the same wallet -> hold lock order everywhere.
+        // Lock the affected wallets in a stable order before locking the hold.
         $current = WalletHold::where('public_id', $hold->public_id)->firstOrFail();
         try {
             return DB::connection('sqlsrv')->transaction(function () use (
-                $current, $key, $actor, $reason, $capture, $expireOnly
+                $current, $key, $actor, $reason, $capture, $expireOnly, $recipient, $chargedCents
             ) {
-                $wallet = Wallet::where('public_id', $current->wallet_id)->lockForUpdate()->firstOrFail();
+                $ids = $recipient ? [$current->wallet_id, $recipient->public_id] : [$current->wallet_id];
+                $wallet = Wallet::whereIn('public_id', $ids)->orderBy('public_id')->lockForUpdate()->get()
+                    ->first(fn (Wallet $row) => strcasecmp($row->public_id, $current->wallet_id) === 0);
                 $locked = WalletHold::where('public_id', $current->public_id)->lockForUpdate()->firstOrFail();
-                if (strtolower($locked->wallet_id) !== strtolower($wallet->public_id)
+                if (! $wallet || strtolower($locked->wallet_id) !== strtolower($wallet->public_id)
                     || $locked->currency !== $wallet->currency) {
                     throw new InvalidArgumentException('La retención no corresponde a la wallet bloqueada.');
                 }
-                $mode = $capture ? 'CAPTURE' : 'RELEASE';
+                if ($recipient && ($locked->operation_type !== 'RENTAL_DEPOSIT' || $chargedCents > $locked->amount_cents)) {
+                    throw new InvalidArgumentException('El cargo no corresponde al depósito de renta.');
+                }
+                $mode = $recipient ? 'SETTLE' : ($capture ? 'CAPTURE' : 'RELEASE');
                 if ($locked->status !== WalletHoldStatus::ACTIVA) {
                     $transaction = FinancialTransaction::where('public_id', $locked->closing_transaction_id)->first();
                     if (! $transaction || $transaction->status !== TransactionStatus::COMPLETADA
@@ -112,6 +127,8 @@ class WalletHoldService
                         || $transaction->reference_type !== 'WALLET_HOLD_'.$mode
                         || strtolower((string) $transaction->reference_id) !== strtolower($locked->public_id)
                         || ($transaction->metadata['amount_cents'] ?? null) !== $locked->amount_cents
+                        || ($recipient && (($transaction->metadata['charged_cents'] ?? null) !== $chargedCents
+                            || ($transaction->metadata['recipient_wallet_id'] ?? null) !== strtolower($recipient->public_id)))
                         || $locked->closed_by !== $actor || $locked->closing_reason !== $reason) {
                         throw new InvalidArgumentException('La retención ya fue cerrada con otra operación o clave.');
                     }
@@ -123,7 +140,7 @@ class WalletHoldService
                     throw new InvalidArgumentException('La retención no está vigente para esta operación.');
                 }
                 $transaction = app(LedgerService::class)->moveHeldFunds(
-                    $wallet, $locked->amount_cents, $key, $locked->public_id, $actor, $mode
+                    $wallet, $locked->amount_cents, $key, $locked->public_id, $actor, $mode, $recipient, $chargedCents
                 );
                 $locked->status = $capture ? WalletHoldStatus::CAPTURADA
                     : ($expired ? WalletHoldStatus::EXPIRADA : WalletHoldStatus::LIBERADA);
