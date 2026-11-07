@@ -814,7 +814,7 @@ class ReconciliationService
 
                 $transactions = FinancialTransaction::query()
                     ->whereIn('idempotency_key', $keys)
-                    ->get(['public_id', 'idempotency_key'])
+                    ->get(['public_id', 'idempotency_key', 'status', 'reference_type', 'reference_id', 'metadata'])
                     ->keyBy('idempotency_key');
 
                 $ledgerSums = $this->ledgerSumsByTransaction(
@@ -861,13 +861,24 @@ class ReconciliationService
                         } else {
                             $actual = $ledgerSums[strtolower((string) $transaction->public_id)] ?? 0;
 
-                            if ($actual !== -$wallet) {
+                            $settled = isset($transaction->metadata['recipient_wallet_id']);
+                            $expected = $settled ? 0 : -$wallet;
+                            $valid = $actual === $expected;
+                            if ($settled && $valid) {
+                                try {
+                                    $payment->assertWalletCharge($transaction);
+                                } catch (\InvalidArgumentException) {
+                                    $valid = false;
+                                }
+                            }
+
+                            if (! $valid) {
                                 $this->addDifference(
                                     ReconciliationCheck::COMPRA_MONTO_WALLET_DIFERENTE,
                                     'PURCHASE_PAYMENT',
                                     $payment->public_id,
                                     $payment->wallet_id,
-                                    -$wallet,
+                                    $expected,
                                     $actual,
                                     ['transaction_id' => $transaction->public_id]
                                 );

@@ -39,8 +39,8 @@ Route::middleware(['web', 'auth', 'verified', 'session.active', 'device.track'])
         Route::get('/', [$admin, 'index'])->name('index');
         Route::get('/records', [$admin, 'listing'])->name('records');
         Route::get('/beneficiaries/{userId}', [$admin, 'beneficiary'])->where('userId', '[0-9a-fA-F]{24}')->name('beneficiary');
-        Route::post('/issue', [$admin, 'store'])->middleware(\App\Http\Middleware\RequireBonusAdministrativeSession::class)->name('issue');
-        Route::post('/{bonusId}/cancel', [$admin, 'cancel'])->whereUuid('bonusId')->middleware(\App\Http\Middleware\RequireBonusAdministrativeSession::class)->name('cancel');
+        Route::post('/issue', [$admin, 'store'])->withoutMiddleware('device.track')->middleware(\App\Http\Middleware\RequireBonusAdministrativeSession::class)->name('issue');
+        Route::post('/{bonusId}/cancel', [$admin, 'cancel'])->whereUuid('bonusId')->withoutMiddleware('device.track')->middleware(\App\Http\Middleware\RequireBonusAdministrativeSession::class)->name('cancel');
         Route::get('/{bonusId}/history', [$admin, 'history'])->whereUuid('bonusId')->name('history');
     });
 

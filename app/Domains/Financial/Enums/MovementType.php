@@ -6,6 +6,8 @@ enum MovementType: string
 {
     case RECARGA = 'RECARGA';
     case PAGO = 'PAGO';
+    case LIQUIDACION_COMPRA = 'LIQUIDACION_COMPRA';
+    case DEVOLUCION_COMERCIO = 'DEVOLUCION_COMERCIO';
     case RETIRO = 'RETIRO';
 
     case TRANSFERENCIA_SALIDA = 'TRANSFERENCIA_SALIDA';

@@ -22,7 +22,7 @@ class MarketplacePaymentRequestController extends Controller
     {
         abort_unless($s->enabled(), 503, 'La confirmacion de compras no esta habilitada.');
         abort_if($r->query() !== [], 422, 'No se admiten parametros de consulta al preparar.');
-        $allowed = ['buyer_id', 'order_id', 'business_id', 'amount_cents', 'currency', 'description', 'items'];
+        $allowed = ['buyer_id', 'order_id', 'business_id', 'amount_cents', 'currency', 'description', 'items', 'reservation_expires_at'];
         abort_if(array_diff(array_keys($r->all()), $allowed) !== [], 422, 'Campos no admitidos.');
         $d = $r->validate(['buyer_id' => 'required|string|regex:/^[a-fA-F0-9]{24}$/', 'order_id' => 'required|string|max:100',
             'business_id' => 'required|string|max:100', 'amount_cents' => ['required', function ($attribute, $value, $fail) {
@@ -30,7 +30,10 @@ class MarketplacePaymentRequestController extends Controller
                     $fail('Se requiere un importe entero positivo en centavos.');
                 }
             }],
-            'currency' => 'required|in:MXN', 'description' => 'sometimes|string|max:200', 'items' => 'sometimes|array|max:100']);
+            'currency' => 'required|in:MXN', 'description' => 'sometimes|string|max:200', 'items' => 'sometimes|array|max:100',
+            'reservation_expires_at' => ['sometimes', 'required', 'date',
+                'regex:/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})\z/'],
+        ]);
         $key = $r->header('Idempotency-Key');
         abort_unless(is_string($key) && trim($key) !== '' && strlen($key) <= 255, 422, 'Idempotency-Key obligatorio.');
         try {

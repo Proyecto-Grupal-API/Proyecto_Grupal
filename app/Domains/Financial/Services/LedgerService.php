@@ -218,7 +218,9 @@ class LedgerService
         string $idempotencyKey,
         ?string $referenceType = null,
         ?string $referenceId = null,
-        array $metadata = []
+        array $metadata = [],
+        MovementType $outgoing = MovementType::TRANSFERENCIA_SALIDA,
+        MovementType $incoming = MovementType::TRANSFERENCIA_ENTRADA
     ): FinancialTransaction {
         if ($amountCents <= 0) {
             throw new InvalidArgumentException(
@@ -249,7 +251,9 @@ class LedgerService
                 $idempotencyKey,
                 $referenceType,
                 $referenceId,
-                $metadata
+                $metadata,
+                $outgoing,
+                $incoming
             ) {
                 $existingTransaction = FinancialTransaction::where(
                     'idempotency_key',
@@ -340,7 +344,7 @@ class LedgerService
                     'public_id' => (string) Str::uuid(),
                     'transaction_id' => $transaction->public_id,
                     'wallet_id' => $lockedSource->public_id,
-                    'movement_type' => MovementType::TRANSFERENCIA_SALIDA,
+                    'movement_type' => $outgoing,
                     'amount_cents' => -$amountCents,
                     'balance_after_cents' => $lockedSource->available_balance_cents,
                     'available_balance_after_cents' => $lockedSource->available_balance_cents,
@@ -351,7 +355,7 @@ class LedgerService
                     'public_id' => (string) Str::uuid(),
                     'transaction_id' => $transaction->public_id,
                     'wallet_id' => $lockedDestination->public_id,
-                    'movement_type' => MovementType::TRANSFERENCIA_ENTRADA,
+                    'movement_type' => $incoming,
                     'amount_cents' => $amountCents,
                     'balance_after_cents' => $lockedDestination->available_balance_cents,
                     'available_balance_after_cents' => $lockedDestination->available_balance_cents,

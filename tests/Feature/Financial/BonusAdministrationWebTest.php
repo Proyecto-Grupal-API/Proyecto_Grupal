@@ -72,7 +72,7 @@ function bonusAdminEmit($test, User $recipient, ?array $payload = null): Bonus
 
 test('bonus administration endpoints require authentication and dedicated permissions', function () {
     $this->postJson('/finanzas/bonos/administracion/issue', [])->assertUnauthorized();
-    $user = bonusAdminUser(); $user->assignRole('admin');
+    $user = bonusAdminUser(); $user->assignRole('admin'); withConfirmedTestTwoFactor($user);
     bonusAdminSignIn($this, $user)->get('/finanzas/bonos/administracion')->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('Financial/BonusAdministration')->where('permissions.issue', false)->where('permissions.view', false));
     $this->getJson('/finanzas/bonos/administracion/records')->assertForbidden();
@@ -229,12 +229,14 @@ test('bonus writes reject missing malformed absent foreign and revoked session r
     $payload = bonusAdminPayload($recipient);
     $foreign = \App\Models\UserSession::create(['user_id' => (string) $recipient->getKey(), 'started_at' => now()]);
     $revoked = \App\Models\UserSession::create(['user_id' => (string) $operator->getKey(), 'revoked_at' => now()]);
-    foreach ([null, 'invalid', '000000000000000000000000', (string) $foreign->getKey(), (string) $revoked->getKey()] as $id) {
+    foreach ([null, 'invalid', '000000000000000000000000', (string) $foreign->getKey()] as $id) {
         $this->withSession(['cd_session_id' => $id]);
-        // The existing revocation middleware can log out the user; restore authentication for each attempt.
         $this->actingAs($operator)->postJson('/finanzas/bonos/administracion/issue', $payload,
             ['Idempotency-Key' => bonusAdminKey()])->assertForbidden();
     }
+    $this->withSession(['cd_session_id' => (string) $revoked->getKey()])
+        ->postJson('/finanzas/bonos/administracion/issue', $payload, ['Idempotency-Key' => bonusAdminKey()])
+        ->assertRedirect(route('login'));
     expect(Bonus::where('external_reference', $payload['external_reference'])->exists())->toBeFalse();
 });
 

@@ -34,6 +34,30 @@ use RuntimeException;
 class IdentityService
 {
     /** Resolve a presented NFC UID without changing the credential or its lifecycle. */
+    public function isEligibleFinancialAccount(string $id): bool
+    {
+        if (! preg_match('/\A[0-9a-fA-F]{24}\z/', $id)) {
+            return false;
+        }
+
+        $user = User::find(strtolower($id));
+
+        return $user && ! $user->deleted_at && ! $user->account_activation_pending
+            && ! $user->must_change_password && $user->hasVerifiedEmail();
+    }
+
+    public function hasActiveAccountSession(string $userId, mixed $sessionId): bool
+    {
+        if (! is_string($sessionId) || ! preg_match('/\A[0-9a-fA-F]{24}\z/', $sessionId)
+            || ! $this->isEligibleFinancialAccount($userId)) {
+            return false;
+        }
+
+        $session = UserSession::find(strtolower($sessionId));
+
+        return $session && ! $session->isRevoked() && strcasecmp((string) $session->user_id, $userId) === 0;
+    }
+
     public function validateNfcUid(string $uid, ?string $validatorLabel, ?string $ip): array
     {
         $canonicalUid = NfcUid::normalize($uid);

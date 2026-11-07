@@ -13,6 +13,6 @@ Route::middleware(['web', 'auth', 'verified', 'session.active', 'device.track', 
     ->prefix('finanzas/compras')->name('financial.marketplace.')->group(function () {
         Route::get('/', [MarketplaceCheckoutWebController::class, 'index'])->name('index');
         Route::get('/solicitudes/{paymentRequest}', [MarketplaceCheckoutWebController::class, 'show'])->whereUuid('paymentRequest')->name('show');
-        Route::post('/solicitudes/{paymentRequest}/confirmar', [MarketplaceCheckoutWebController::class, 'confirm'])->whereUuid('paymentRequest')->middleware('throttle:10,1')->name('confirm');
-        Route::post('/solicitudes/{paymentRequest}/cancelar', [MarketplaceCheckoutWebController::class, 'cancel'])->whereUuid('paymentRequest')->middleware('throttle:10,1')->name('cancel');
+        Route::post('/solicitudes/{paymentRequest}/confirmar', [MarketplaceCheckoutWebController::class, 'confirm'])->whereUuid('paymentRequest')->withoutMiddleware('device.track')->middleware('throttle:10,1')->name('confirm');
+        Route::post('/solicitudes/{paymentRequest}/cancelar', [MarketplaceCheckoutWebController::class, 'cancel'])->whereUuid('paymentRequest')->withoutMiddleware('device.track')->middleware('throttle:10,1')->name('cancel');
     });

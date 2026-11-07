@@ -73,3 +73,43 @@ no se provisionaron scopes/allowlists ni se habilitaron emisores. El laboratorio
 se detiene al terminar y conserva sus logs fuera de Git. Código/entorno temporal
 en `/tmp/campus-e2-evaluacion-20261026/`; evidencia copiada a
 `storage/logs/actualizacion-20261026/e2/`.
+
+## Corte de integración del 7 de noviembre
+
+Se incorporaron los cambios E2 `9b6bd2b` y `3973bd0` sobre bonos. Emitir o
+cancelar exige una sesión vigente ya registrada en Identidad, además de los
+permisos de Finanzas. Las operaciones administrativas conservan su evidencia
+de sesión y las emisiones a uno mismo se rechazan.
+
+El checkout Wallet usa una cuenta de negocio activa y explícita. En la
+configuración privada `FINANCIAL_MARKETPLACE_CLIENTS_JSON`, cada cliente conserva
+`name` y `businesses`. La nueva propiedad `recipient_wallets` mapea cada ID de
+negocio habilitado al UUID de su wallet MXN de tipo `WALLET_NEGOCIO` y titular
+`BUSINESS`. El UUID se liga al resumen que confirma el comprador. La
+preparación de pedidos con artículos físicos requiere
+`reservation_expires_at` con fecha ISO 8601 y zona. E3 debe obtenerla de la
+reserva correspondiente. La vigencia efectiva es el menor valor entre esa
+fecha y el TTL de Finanzas.
+
+La compra registra el cargo del comprador y el abono del negocio en una
+transacción SQL Server junto con la outbox. Las devoluciones parciales y
+totales referencian la compra original y usan el receptor que quedó registrado
+al cobrar. Si el receptor no tiene saldo para devolver, la solicitud permanece
+aprobada para revisión o reintento. El conciliador distingue las compras
+liquidadas de las compras históricas con un solo movimiento. La fase cubre
+pagos con Wallet y un negocio por pedido.
+
+Validación en un laboratorio sin puertos publicados, con SQL Server y MongoDB
+desechables. Se usó un perfil externo de pruebas financieras restringido a
+esas bases. La prueba HTTP crea una reserva firmada, prepara el pago por OAuth,
+confirma con una sesión de prueba, consulta la operación por pedido y entrega
+al receptor E4 el evento firmado almacenado en SQL Server. Repite el webhook y
+la confirmación de inventario. El laboratorio verifica además conciliación,
+devoluciones parciales y recuperación tras saldo insuficiente del comercio.
+
+Sigue pendiente conectar el coordinador de pedidos de E3 a estas rutas,
+consultar el estado real de la reserva antes de confirmar y acordar la
+cancelación entre E2 y E3 cuando se cruce con un cobro. Se debe ejecutar luego
+el flujo desde la tienda con los workers y el transporte del alterno. Las
+banderas del alterno siguen apagadas y este corte no provisiona wallets,
+clientes OAuth ni permisos institucionales.

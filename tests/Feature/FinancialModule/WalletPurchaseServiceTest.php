@@ -2,6 +2,7 @@
 
 use App\Domains\Financial\Enums\MovementType;
 use App\Domains\Financial\Exceptions\FinancialLimitExceededException;
+use App\Domains\Financial\Integrations\Team4\WebhookSigner;
 use App\Domains\Financial\Models\FinancialTransaction;
 use App\Domains\Financial\Models\LedgerEntry;
 use App\Domains\Financial\Models\PurchasePayment;
@@ -12,9 +13,17 @@ use App\Domains\Financial\Services\LedgerService;
 use App\Domains\Financial\Services\PersonalReceiptQueryService;
 use App\Domains\Financial\Services\PurchasePaymentService;
 use App\Domains\Financial\Services\PurchaseRefundService;
+use App\Domains\Financial\Services\ReconciliationService;
+use App\Models\InventoryModule\InventoryBusiness;
+use App\Models\ServiceClient;
+use App\Models\User;
+use App\Models\UserSession;
+use App\Services\OAuthTokenService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use MongoDB\BSON\ObjectId;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 beforeEach(function () {
@@ -163,4 +172,154 @@ test('wallet purchase enforces configured payment limits and preserves blocked a
     expect(fn () => app(PurchasePaymentService::class)->payWithWallet($w,101,$key))->toThrow(FinancialLimitExceededException::class);
     expect($w->fresh()->available_balance_cents)->toBe(10000)->and(PurchasePayment::where('idempotency_key',$key)->exists())->toBeFalse()
         ->and(TransactionAlert::where('wallet_id',$w->public_id)->where('reference_type','PURCHASE_WALLET_ATTEMPT')->exists())->toBeTrue();
+});
+
+test('settled wallet purchase and refunds balance both parties and replay once', function () {
+    $buyer = wpoWallet(0);
+    app(LedgerService::class)->credit($buyer, 10000, MovementType::RECARGA, 'wpo-open-'.Str::uuid(), 'FIXTURE');
+    $business = 'BUS-WPO';
+    $recipient = Wallet::create([
+        'public_id' => (string) Str::uuid(), 'owner_type' => 'BUSINESS', 'owner_id' => $business,
+        'type' => 'WALLET_NEGOCIO', 'currency' => 'MXN', 'status' => 'ACTIVA',
+        'available_balance_cents' => 0, 'held_balance_cents' => 0,
+    ]);
+    $key = 'wpo-'.Str::uuid();
+    $payments = app(PurchasePaymentService::class);
+    $context = wpoContext();
+    $paid = $payments->payWithWallet($buyer, 3000, $key, $business, null, $context, $recipient);
+    expect($payments->payWithWallet($buyer, 3000, $key, $business, null, $context, $recipient))->toBe($paid)
+        ->and($buyer->fresh()->available_balance_cents)->toBe(7000)
+        ->and($recipient->fresh()->available_balance_cents)->toBe(3000);
+    $original = FinancialTransaction::where('idempotency_key', $key)->sole();
+    expect(LedgerEntry::where('transaction_id', $original->public_id)->count())->toBe(2)
+        ->and((int) LedgerEntry::where('transaction_id', $original->public_id)->sum('amount_cents'))->toBe(0)
+        ->and(wpoEvent($paid['purchase_payment_id'], 1)['status'])->toBe('PAID');
+    expect(fn () => $payments->payWithWallet($buyer, 3000, $key, $business, null, $context))
+        ->toThrow(InvalidArgumentException::class);
+
+    $reconciliation = app(ReconciliationService::class)->run(
+        now(config('financial.business_timezone'))->toDateString(),
+        'test-operator',
+        [$buyer->public_id, $recipient->public_id]
+    );
+    expect($reconciliation->observedDifferences()->count())->toBe(0);
+
+    $refunds = app(PurchaseRefundService::class);
+    $purchase = PurchasePayment::where('public_id', $paid['purchase_payment_id'])->sole();
+    foreach ([1000, 2000] as $amount) {
+        $refund = $refunds->request($purchase, $amount, [], 'wpo-request-'.Str::uuid(), 'buyer');
+        $refunds->approve($refund, 'reviewer');
+        $refundKey = 'wpo-execute-'.Str::uuid();
+        if ($amount === 2000) {
+            $ledger = app(LedgerService::class);
+            $ledger->debit($recipient, 2000, MovementType::RETIRO, 'wpo-spend-'.Str::uuid(), 'FIXTURE');
+            expect(fn () => $refunds->complete($refund, $refundKey, 'executor'))->toThrow(InvalidArgumentException::class)
+                ->and($refund->fresh()->status->value)->toBe('APROBADA')
+                ->and($buyer->fresh()->available_balance_cents)->toBe(8000)
+                ->and(FinancialTransaction::where('idempotency_key', $refundKey)->exists())->toBeFalse();
+            $ledger->credit($recipient, 2000, MovementType::RECARGA, 'wpo-fund-'.Str::uuid(), 'FIXTURE');
+        }
+        $reversal = $refunds->complete($refund, $refundKey, 'executor');
+        expect(strtolower($refunds->complete($refund->fresh(), $refundKey, 'executor')->public_id))->toBe(strtolower($reversal->public_id))
+            ->and(LedgerEntry::where('transaction_id', $reversal->public_id)->count())->toBe(2)
+            ->and((int) LedgerEntry::where('transaction_id', $reversal->public_id)->sum('amount_cents'))->toBe(0);
+    }
+
+    expect($buyer->fresh()->available_balance_cents)->toBe(10000)
+        ->and($recipient->fresh()->available_balance_cents)->toBe(0)
+        ->and(wpoEvent($paid['purchase_payment_id'], 3)['status'])->toBe('REFUNDED');
+});
+
+test('wallet checkout settles both accounts and confirms the signed inventory reservation once', function () {
+    $buyer = User::factory()->create();
+    $wallet = wpoWallet();
+    $wallet->update(['owner_id' => (string) $buyer->getKey()]);
+    $recipient = Wallet::create([
+        'public_id' => (string) Str::uuid(), 'owner_type' => 'BUSINESS', 'owner_id' => 'BUS-WPO',
+        'type' => 'WALLET_NEGOCIO', 'currency' => 'MXN', 'status' => 'ACTIVA',
+    ]);
+    $clientId = 'test-finance-'.Str::uuid();
+    $scopes = ['financial:purchase:prepare', 'financial:purchase:read'];
+    ServiceClient::create([
+        'client_id' => $clientId, 'name' => 'Prueba Finanzas', 'active' => true, 'scopes' => $scopes,
+        'secret_hash' => Hash::make('fixture-finance-oauth'),
+    ]);
+    $token = app(OAuthTokenService::class)->issue($clientId, 'fixture-finance-oauth', $scopes)['access_token'];
+    $client = ['name' => 'Prueba', 'businesses' => ['BUS-WPO' => 'Negocio de prueba']];
+    config(['financial_marketplace.enabled' => true, 'financial_marketplace.clients' => [$clientId => $client]]);
+    $payload = wpoContext() + [
+        'buyer_id' => (string) $buyer->getKey(), 'amount_cents' => 3000, 'currency' => 'MXN',
+        'reservation_expires_at' => now()->addMinutes(3)->startOfSecond()->toISOString(),
+    ];
+    $inventory = DB::connection('inventory');
+    $product = (string) new ObjectId;
+    $location = (string) new ObjectId;
+    $item = ['product_id' => $product, 'location_id' => $location, 'variant_id' => null, 'quantity' => 2];
+    $payload['items'] = [$item];
+    $business = $payload['business_id'];
+    $stock = ['business_id' => $business, 'product_id' => $product, 'location_id' => $location, 'variant_id' => null];
+    InventoryBusiness::firstOrCreate(['business_id' => $business], ['name' => 'Negocio de prueba', 'active' => true]);
+    $inventory->getCollection('inventories')->insertOne($stock + ['on_hand' => 10, 'available' => 10, 'reserved' => 0]);
+    $team4 = '/api/equipo4/businesses/'.$business.'/integration/reservations';
+    $signer = app(WebhookSigner::class);
+    config([
+        'team4.integration.business_id' => $business, 'team4.integration.payment_events_enabled' => true,
+        'team4.integration.secrets.equipo2' => 'fixture-e2-signature', 'team4.integration.secrets.equipo3' => 'fixture-e3-signature',
+    ]);
+    $send = function (string $path, string $body, string $secret) use ($signer) {
+        return $this->call('POST', $path, [], [], [], $this->transformHeadersToServerVars(
+            $signer->headers($body, $path, time(), $secret)
+        ), $body);
+    };
+    $reservation = $send($team4, json_encode([
+        'order_id' => $payload['order_id'], 'items' => $payload['items'],
+        'expires_at' => $payload['reservation_expires_at'], 'idempotency_key' => 'wpo-reserve-'.Str::uuid(),
+    ], JSON_THROW_ON_ERROR), 'fixture-e3-signature')->assertCreated()->assertJsonPath('status', 'RESERVED')->json('reservation_id');
+
+    $requestHeaders = ['Authorization' => 'Bearer '.$token, 'Idempotency-Key' => 'wpo-'.Str::uuid()];
+    $url = '/api/v1/financial/marketplace/payment-requests';
+    $this->postJson($url, $payload, $requestHeaders)->assertStatus(503);
+    config(['financial_marketplace.clients' => [
+        $clientId => $client + ['recipient_wallets' => ['BUS-WPO' => (string) $recipient->public_id]],
+    ]]);
+    $expired = array_replace($payload, ['reservation_expires_at' => now()->subSecond()->toISOString()]);
+    $this->postJson($url, $expired, $requestHeaders)->assertConflict();
+    $prepared = $this->postJson($url, $payload, $requestHeaders)->assertCreated()->json('data');
+    $this->postJson($url, $payload, $requestHeaders)->assertOk()
+        ->assertJsonPath('data.payment_request_id', $prepared['payment_request_id'])
+        ->assertJsonPath('data.expires_at', $prepared['expires_at']);
+    expect($prepared['expires_at'])->toBe($payload['reservation_expires_at'])
+        ->and($recipient->fresh()->available_balance_cents)->toBe(0);
+    $session = UserSession::create(['user_id' => (string) $buyer->getKey(), 'started_at' => now()]);
+    $this->actingAs($buyer)->withSession([
+        'cd_session_id' => (string) $session->getKey(), 'auth.password_confirmed_at' => now()->timestamp,
+    ]);
+    $page = $this->get($prepared['confirmation_path'])->assertOk();
+    $reviewToken = $page->inertiaProps('reviewToken');
+    $this->withCookie(config('session.cookie'), session()->getId());
+    $this->post($prepared['confirmation_path'].'/confirmar', ['review_token' => $reviewToken, 'consent' => false])
+        ->assertSessionHasErrors('consent');
+    expect($wallet->fresh()->available_balance_cents)->toBe(10000);
+    $this->post($prepared['confirmation_path'].'/confirmar', ['review_token' => $reviewToken, 'consent' => true])->assertRedirect()->assertSessionHasNoErrors();
+    $lookup = $this->getJson($url.'/by-order?'.http_build_query([
+        'business_id' => $payload['business_id'], 'order_id' => $payload['order_id'],
+    ]), $requestHeaders)->assertOk()->assertJsonPath('data.status', 'PAID');
+    $paymentId = $lookup->json('data.payment_intent_id');
+    expect($paymentId)->not->toBeNull()
+        ->and($wallet->fresh()->available_balance_cents)->toBe(7000)
+        ->and($recipient->fresh()->available_balance_cents)->toBe(3000);
+
+    $confirmBody = json_encode([
+        'order_id' => $payload['order_id'], 'payment_intent_id' => $paymentId, 'idempotency_key' => 'wpo-confirm-'.Str::uuid(),
+    ], JSON_THROW_ON_ERROR);
+    $send($team4.'/'.$reservation.'/confirm', $confirmBody, 'fixture-e3-signature')->assertConflict();
+    $stream = DB::connection('sqlsrv')->table('financial_team4_streams')->where('payment_intent_id', $paymentId)->value('id');
+    $signedEvent = DB::connection('sqlsrv')->table('financial_team4_outbox')->where('stream_id', $stream)->value('body');
+    $paymentWebhook = '/api/equipo4/webhooks/payment-status';
+    $send($paymentWebhook, $signedEvent, 'fixture-e2-signature')->assertAccepted();
+    $send($paymentWebhook, $signedEvent, 'fixture-e2-signature')->assertAccepted()->assertJsonPath('idempotent', true);
+    $send($team4.'/'.$reservation.'/confirm', $confirmBody, 'fixture-e3-signature')->assertOk()->assertJsonPath('status', 'CONFIRMED');
+    $send($team4.'/'.$reservation.'/confirm', $confirmBody, 'fixture-e3-signature')->assertOk()->assertJsonPath('status', 'CONFIRMED');
+    $remaining = $inventory->getCollection('inventories')->findOne($stock);
+    expect((int) $remaining['on_hand'])->toBe(8)->and((int) $remaining['reserved'])->toBe(0);
 });

@@ -46,6 +46,14 @@ class OAuthTokenService
         ];
     }
 
+    public function activeClientHasScope(string $clientId, string $scope): bool
+    {
+        $client = ServiceClient::where('client_id', $clientId)->where('active', true)->first();
+        $scopes = $client?->scopes ?? [];
+
+        return $client && in_array($scope, is_array($scopes) ? $scopes : iterator_to_array($scopes), true);
+    }
+
     public function decode(string $token): object
     {
         return JWT::decode($token, new Key($this->key(), 'HS256'));

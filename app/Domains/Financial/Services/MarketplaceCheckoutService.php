@@ -2,13 +2,14 @@
 
 namespace App\Domains\Financial\Services;
 
+use App\Domains\Financial\Enums\WalletStatus;
 use App\Domains\Financial\Enums\WalletType;
 use App\Domains\Financial\Integrations\Team4\PaymentEventPayload;
 use App\Domains\Financial\Models\MarketplacePaymentRequest;
 use App\Domains\Financial\Models\Wallet;
-use App\Models\ServiceClient;
-use App\Models\User;
-use App\Models\UserSession;
+use App\Services\IdentityService;
+use App\Services\OAuthTokenService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -17,6 +18,8 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 /** Preparation by a configured merchant is not consent. Only a native browser confirmation can debit. */
 class MarketplaceCheckoutService
 {
+    public function __construct(private readonly IdentityService $identity, private readonly OAuthTokenService $oauth) {}
+
     public function enabled(): bool
     {
         return (bool) config('financial_marketplace.enabled', false);
@@ -35,10 +38,8 @@ class MarketplaceCheckoutService
         abort_unless(is_array($entry) && is_string($entry['name'] ?? null) && $entry['name'] !== ''
             && is_array($entry['businesses'] ?? null) && is_string($entry['businesses'][$business] ?? null)
             && $entry['businesses'][$business] !== '', 403, 'Cliente o negocio no habilitado para compras.');
-        $stored = ServiceClient::where('client_id', $client)->where('active', true)->first();
-        $scopes = $stored?->scopes ?? [];
-        $scopes = is_array($scopes) ? $scopes : iterator_to_array($scopes);
-        abort_unless($stored && in_array($scope, $scopes, true), 403, 'El cliente ya no tiene permiso para esta operacion.');
+        abort_unless($this->oauth->activeClientHasScope($client, $scope), 403,
+            'El cliente ya no tiene permiso para esta operación.');
 
         return ['client_name' => $entry['name'], 'business_name' => $entry['businesses'][$business]];
     }
@@ -63,11 +64,17 @@ class MarketplaceCheckoutService
         return hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
     }
 
-    private function account(string $id): ?User
+    private function recipient(string $client, string $business, bool $lock = false): Wallet
     {
-        $u = User::find($id);
+        $id = config('financial_marketplace.clients', [])[$client]['recipient_wallets'][$business] ?? null;
+        abort_unless(is_string($id) && Str::isUuid($id), 503, 'Este negocio no tiene cuenta receptora configurada.');
+        $wallet = Wallet::where('public_id', $id)->when($lock, fn ($query) => $query->lockForUpdate())->first();
+        abort_unless($wallet && $wallet->type === WalletType::NEGOCIO && $wallet->owner_type === 'BUSINESS'
+            && $wallet->owner_id === $business && $wallet->currency === 'MXN'
+            && $wallet->status === WalletStatus::ACTIVA,
+            503, 'La cuenta receptora no está habilitada.');
 
-        return $u && ! $u->deleted_at && ! $u->account_activation_pending && ! $u->must_change_password && $u->hasVerifiedEmail() ? $u : null;
+        return $wallet;
     }
 
     public function prepare(string $client, string $key, array $input): MarketplacePaymentRequest
@@ -75,9 +82,13 @@ class MarketplaceCheckoutService
         abort_unless(trim($key) !== '' && strlen($key) <= 255, 422, 'Clave de idempotencia no valida.');
         $d = $this->normalize($input);
         $this->merchant($client, $d['business_id']);
-        abort_unless($this->account($d['buyer_id']), 422, 'El comprador no es una cuenta habilitada en Finanzas.');
+        abort_unless($this->identity->isEligibleFinancialAccount($d['buyer_id']), 422, 'El comprador no es una cuenta habilitada en Finanzas.');
         $ttl = (int) config('financial_marketplace.ttl_seconds', 600);
         abort_unless($ttl >= 60 && $ttl <= 1800, 503, 'Vigencia de compras no valida.');
+        $d['recipient_wallet_id'] = strtolower($this->recipient($client, $d['business_id'])->public_id);
+        $reservationExpiry = $input['reservation_expires_at'] ?? null;
+        abort_if($d['items'] !== [] && $reservationExpiry === null, 422, 'Se requiere la vigencia de la reserva.');
+        $d['reservation_expires_at'] = $reservationExpiry === null ? null : CarbonImmutable::parse($reservationExpiry)->toISOString();
         $hash = $this->digest($d);
         $keyHash = hash('sha256', json_encode([$client, $key], JSON_THROW_ON_ERROR));
         $origin = hash('sha256', json_encode([$client, $d['business_id'], $d['order_id']], JSON_THROW_ON_ERROR));
@@ -90,12 +101,19 @@ class MarketplaceCheckoutService
                     throw new ConflictHttpException('El pedido o la clave ya tienen otros datos.');
                 }
 
-return $existing;
+                return $existing;
             }
+
+            $expiresAt = now()->addSeconds($ttl)->startOfSecond();
+            if ($d['reservation_expires_at'] !== null) {
+                $expiresAt = $expiresAt->min(CarbonImmutable::parse($d['reservation_expires_at'])->startOfSecond());
+            }
+            abort_if($expiresAt->lte(now()), 409, 'La reserva ya expiró.');
+
             $created = MarketplacePaymentRequest::create(['public_id' => (string) Str::uuid(), 'client_id' => $client,
                 'buyer_id' => $d['buyer_id'], 'business_id' => $d['business_id'], 'order_id' => $d['order_id'],
                 'origin_key' => $origin, 'key_hash' => $keyHash, 'request_hash' => $hash, 'payload' => $d,
-                'amount_cents' => $d['amount_cents'], 'currency' => 'MXN', 'expires_at' => now()->addSeconds($ttl), 'status' => 'PENDING']);
+                'amount_cents' => $d['amount_cents'], 'currency' => 'MXN', 'expires_at' => $expiresAt, 'status' => 'PENDING']);
             // Return the persisted SQL representation, including datetime precision, on first response and replays.
             $created->refresh();
             $created->wasRecentlyCreated = true;
@@ -126,12 +144,9 @@ return $existing;
     public function session(Request $request): void
     {
         $this->enabledOrFail();
-        $id = (string) $request->user()->getKey();
-        abort_unless($this->account($id), 403, 'La cuenta no esta habilitada.');
-        $sessionId = $request->session()->get('cd_session_id');
-        abort_unless(is_string($sessionId) && preg_match('/^[a-fA-F0-9]{24}$/', $sessionId), 403, 'Se requiere una sesion registrada en Identidad.');
-        $session = UserSession::find($sessionId);
-        abort_unless($session && ! $session->isRevoked() && (string) $session->user_id === $id, 403, 'La sesion ya no esta vigente.');
+        abort_unless($this->identity->hasActiveAccountSession(
+            (string) $request->user()->getKey(), $request->session()->get('cd_session_id')
+        ), 403, 'La cuenta o la sesión de Identidad no está vigente.');
     }
 
     public function passwordRecent(Request $request): bool
@@ -163,19 +178,23 @@ return $existing;
                 return $row;
             }
             abort_unless($this->status($row) === 'PENDING', 409, 'La solicitud ya no se puede pagar.');
-            $d = $this->normalize($row->payload);
+            $wallet = Wallet::where('owner_type', 'USER')->where('owner_id', (string) $request->user()->getKey())
+                ->where('type', WalletType::USUARIO->value)->where('currency', $row->currency)->lockForUpdate()->first();
+            abort_unless($wallet, 409, 'No tienes una wallet habilitada para esta moneda.');
+            $recipient = $this->recipient($row->client_id, $row->business_id, lock: true);
+            $d = $this->normalize($row->payload) + [
+                'recipient_wallet_id' => strtolower($recipient->public_id),
+                'reservation_expires_at' => $row->payload['reservation_expires_at'] ?? null,
+            ];
             abort_unless(hash_equals($row->request_hash, $this->digest($d)) && $d['buyer_id'] === $row->buyer_id
                 && $d['business_id'] === $row->business_id && $d['order_id'] === $row->order_id
                 && $d['amount_cents'] === $row->amount_cents && $d['currency'] === $row->currency, 409, 'Los datos de la solicitud requieren revision.');
-            $wallet = Wallet::where('owner_type', 'USER')->where('owner_id', (string) $request->user()->getKey())
-                ->where('type', WalletType::USUARIO->value)->where('currency', $d['currency'])->lockForUpdate()->first();
-            abort_unless($wallet, 409, 'No tienes una wallet habilitada para esta moneda.');
             // Revalidate after waiting for the wallet lock. SQL and Mongo do not share a distributed transaction.
             $this->session($request);
             $this->merchant($row->client_id, $row->business_id);
             abort_unless($this->status($row) === 'PENDING' && $this->passwordRecent($request), 409, 'La solicitud o la confirmacion de contrasena expiro.');
             $result = app(PurchasePaymentService::class)->payWithWallet($wallet, $d['amount_cents'], 'marketplace-confirm:'.strtolower($row->public_id),
-                $d['business_id'], null, ['order_id' => $d['order_id'], 'business_id' => $d['business_id'], 'items' => $d['items']]);
+                $d['business_id'], null, ['order_id' => $d['order_id'], 'business_id' => $d['business_id'], 'items' => $d['items']], $recipient);
             $row->status = 'PAID';
             $row->purchase_payment_id = $result['purchase_payment_id'];
             $row->confirmed_at = now();

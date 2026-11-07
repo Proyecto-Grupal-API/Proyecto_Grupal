@@ -3,15 +3,14 @@
 namespace App\Http\Controllers\Financial;
 
 use App\Domains\Financial\Contracts\FinancialWebAuthorizer;
-use App\Domains\Financial\Enums\BonusRestrictionType;
 use App\Domains\Financial\Enums\BonusType;
 use App\Domains\Financial\Models\Bonus;
 use App\Domains\Financial\Models\BonusAdministrativeOperation;
 use App\Domains\Financial\Services\BonusAdministrationService;
+use App\Domains\Financial\Support\BonusIssuanceInput;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use InvalidArgumentException;
 
@@ -62,7 +61,7 @@ class BonusAdministrationWebController extends Controller
     public function store(Request $request)
     {
         $this->authorizeAction($request, 'bonus.issue');
-        $data = \App\Domains\Financial\Support\BonusIssuanceInput::validate($request->all());
+        $data = BonusIssuanceInput::validate($request->all());
 
         return $this->run(fn () => app(BonusAdministrationService::class)->issue(
             (string) $request->user()->getKey(), $data, $this->key($request), $this->sessionAudit($request)));

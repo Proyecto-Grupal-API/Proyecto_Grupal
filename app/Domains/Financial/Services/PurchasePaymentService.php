@@ -4,13 +4,11 @@ namespace App\Domains\Financial\Services;
 
 use App\Domains\Financial\Enums\LimitAction;
 use App\Domains\Financial\Enums\MovementType;
-use App\Domains\Financial\Enums\TransactionStatus;
 use App\Domains\Financial\Enums\WalletStatus;
 use App\Domains\Financial\Enums\WalletType;
 use App\Domains\Financial\Exceptions\FinancialLimitExceededException;
 use App\Domains\Financial\Integrations\Team4\PurchasePaymentEvents;
 use App\Domains\Financial\Models\FinancialTransaction;
-use App\Domains\Financial\Models\LedgerEntry;
 use App\Domains\Financial\Models\PurchasePayment;
 use App\Domains\Financial\Models\PurchasePaymentBonus;
 use App\Domains\Financial\Models\Wallet;
@@ -381,7 +379,8 @@ class PurchasePaymentService
         string $idempotencyKey,
         ?string $businessId = null,
         ?string $categoryId = null,
-        ?array $marketplace = null
+        ?array $marketplace = null,
+        ?Wallet $recipient = null
     ): array {
         if ($totalAmountCents <= 0 || $totalAmountCents > 9007199254740991
             || trim($idempotencyKey) === '' || strlen($idempotencyKey) > 255) {
@@ -389,7 +388,7 @@ class PurchasePaymentService
         }
         try {
             return DB::connection('sqlsrv')->transaction(function () use (
-                $wallet, $totalAmountCents, $idempotencyKey, $businessId, $categoryId, $marketplace
+                $wallet, $totalAmountCents, $idempotencyKey, $businessId, $categoryId, $marketplace, $recipient
             ): array {
                 $lockedWallet = Wallet::where('public_id', $wallet->public_id)->lockForUpdate()->firstOrFail();
                 if ($lockedWallet->owner_type !== 'USER'
@@ -408,13 +407,8 @@ class PurchasePaymentService
                         throw new InvalidArgumentException('La clave ya pertenece a una compra diferente.');
                     }
                     $transaction = FinancialTransaction::where('idempotency_key', $idempotencyKey)->first();
-                    $entries = $transaction ? LedgerEntry::where('transaction_id', $transaction->public_id)->get() : collect();
-                    $entry = $entries->first();
-                    if (! $transaction || $transaction->status !== TransactionStatus::COMPLETADA
-                        || $transaction->reference_type !== 'PURCHASE' || strtolower((string) $transaction->reference_id) !== strtolower($payment->public_id)
-                        || $entries->count() !== 1 || ! $entry || strtolower($entry->wallet_id) !== strtolower($lockedWallet->public_id)
-                        || $entry->movement_type !== MovementType::PAGO || $entry->amount_cents !== -$totalAmountCents) {
-                        throw new InvalidArgumentException('La compra no tiene evidencia contable consistente.');
+                    if (! $transaction || $payment->assertWalletCharge($transaction) !== ($recipient ? strtolower($recipient->public_id) : null)) {
+                        throw new InvalidArgumentException('La compra no tiene evidencia contable consistente para este receptor.');
                     }
                     app(PurchasePaymentEvents::class)->paid($payment, $marketplace, true);
                 } else {
@@ -429,6 +423,14 @@ class PurchasePaymentService
                     if ($evaluation->isBlocked()) {
                         throw new FinancialLimitExceededException($evaluation);
                     }
+                    if ($recipient) {
+                        $recipient = Wallet::where('public_id', $recipient->public_id)->lockForUpdate()->firstOrFail();
+                        if ($recipient->type !== WalletType::NEGOCIO || $recipient->owner_type !== 'BUSINESS'
+                            || $recipient->owner_id !== $businessId || $recipient->status !== WalletStatus::ACTIVA
+                            || $recipient->currency !== $lockedWallet->currency) {
+                            throw new InvalidArgumentException('La cuenta receptora no está habilitada para este negocio y moneda.');
+                        }
+                    }
                     $payment = PurchasePayment::create([
                         'public_id' => (string) Str::uuid(), 'idempotency_key' => $idempotencyKey,
                         'wallet_id' => $lockedWallet->public_id, 'bonus_id' => null, 'requested_bonus_ids' => null,
@@ -436,12 +438,20 @@ class PurchasePaymentService
                         'total_amount_cents' => $totalAmountCents, 'bonus_amount_cents' => 0,
                         'wallet_amount_cents' => $totalAmountCents, 'status' => 'COMPLETADO',
                     ]);
-                    $this->ledgerService->debit(
-                        wallet: $lockedWallet, amountCents: $totalAmountCents, movementType: MovementType::PAGO,
-                        idempotencyKey: $idempotencyKey, referenceType: 'PURCHASE', referenceId: $payment->public_id,
-                        metadata: ['purchase_payment_id' => strtolower($payment->public_id), 'total_amount_cents' => $totalAmountCents,
-                            'bonus_amount_cents' => 0, 'wallet_amount_cents' => $totalAmountCents]
-                    );
+                    $metadata = [
+                        'purchase_payment_id' => strtolower($payment->public_id),
+                        'total_amount_cents' => $totalAmountCents,
+                        'bonus_amount_cents' => 0,
+                        'wallet_amount_cents' => $totalAmountCents,
+                    ];
+                    if ($recipient) {
+                        $this->ledgerService->transfer($lockedWallet, $recipient, $totalAmountCents, $idempotencyKey,
+                            'PURCHASE', $payment->public_id, [...$metadata, 'recipient_wallet_id' => strtolower($recipient->public_id)],
+                            outgoing: MovementType::PAGO, incoming: MovementType::LIQUIDACION_COMPRA);
+                    } else {
+                        $this->ledgerService->debit($lockedWallet, $totalAmountCents, MovementType::PAGO,
+                            $idempotencyKey, 'PURCHASE', $payment->public_id, $metadata);
+                    }
                     app(PurchasePaymentEvents::class)->paid($payment, $marketplace);
                 }
 

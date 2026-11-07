@@ -12,7 +12,6 @@ use App\Domains\Financial\Models\Bonus;
 use App\Domains\Financial\Models\BonusLedgerEntry;
 use App\Domains\Financial\Models\FinancialRefundRequest;
 use App\Domains\Financial\Models\FinancialTransaction;
-use App\Domains\Financial\Models\LedgerEntry;
 use App\Domains\Financial\Models\PurchasePayment;
 use App\Domains\Financial\Models\PurchaseRefundBonus;
 use App\Domains\Financial\Models\PurchaseRefundRequest;
@@ -142,28 +141,7 @@ class PurchaseRefundService
                         ->lockForUpdate()
                         ->firstOrFail();
 
-                    $entries = LedgerEntry::where(
-                        'transaction_id',
-                        $original->public_id
-                    )->get();
-
-                    $entry = $entries->first();
-
-                    if (
-                        $original->status !== TransactionStatus::COMPLETADA ||
-                        $original->reference_type !== 'PURCHASE' ||
-                        $entries->count() !== 1 ||
-                        ! $entry ||
-                        $entry->movement_type !== MovementType::PAGO ||
-                        $entry->amount_cents !==
-                            -$lockedPayment->wallet_amount_cents ||
-                        strtolower($entry->wallet_id) !==
-                            strtolower($lockedPayment->wallet_id)
-                    ) {
-                        throw new InvalidArgumentException(
-                            'El cargo de wallet no corresponde a la compra completada.'
-                        );
-                    }
+                    $lockedPayment->assertWalletCharge($original);
 
                     // Bloquear compras con devoluciones del flujo anterior.
                     $hasLegacyRefund = FinancialRefundRequest::where(
@@ -406,32 +384,17 @@ class PurchaseRefundService
 
                 // Si hubo cargo de wallet, debe seguir completado y sin
                 // devoluciones del flujo anterior.
+                $original = null;
+                $recipientId = null;
                 if ($payment->wallet_amount_cents > 0) {
                     $original = FinancialTransaction::where(
                         'idempotency_key',
                         $payment->idempotency_key
                     )->lockForUpdate()->firstOrFail();
 
-                    $entries = LedgerEntry::where(
-                        'transaction_id',
-                        $original->public_id
-                    )->get();
-
-                    $entry = $entries->first();
-
-                    if (
-                        $original->status !== TransactionStatus::COMPLETADA ||
-                        $original->reference_type !== 'PURCHASE' ||
-                        $entries->count() !== 1 ||
-                        ! $entry ||
-                        $entry->movement_type !== MovementType::PAGO ||
-                        $entry->amount_cents !== -$payment->wallet_amount_cents ||
-                        strtolower($entry->wallet_id) !== strtolower($payment->wallet_id) ||
-                        FinancialRefundRequest::where(
-                            'original_transaction_id',
-                            $original->public_id
-                        )->whereIn('status', $this->reservedStatuses())->exists()
-                    ) {
+                    $recipientId = $payment->assertWalletCharge($original);
+                    if (FinancialRefundRequest::where('original_transaction_id', $original->public_id)
+                        ->whereIn('status', $this->reservedStatuses())->exists()) {
                         throw new InvalidArgumentException(
                             'El cargo original no está disponible para esta devolución.'
                         );
@@ -515,7 +478,13 @@ class PurchaseRefundService
                     'reviewed_by' => $request->reviewed_by,
                 ];
 
-                if ($request->wallet_amount_cents > 0) {
+                if ($recipientId !== null && $request->wallet_amount_cents > 0) {
+                    $recipient = Wallet::where('public_id', $recipientId)->lockForUpdate()->firstOrFail();
+                    $transaction = app(LedgerService::class)->transfer($recipient, $wallet,
+                        $request->wallet_amount_cents, $idempotencyKey, 'PURCHASE_REFUND', $request->public_id,
+                        $metadata, outgoing: MovementType::DEVOLUCION_COMERCIO, incoming: MovementType::DEVOLUCION);
+                    $transaction->original_transaction_id = $original->public_id;
+                } elseif ($request->wallet_amount_cents > 0) {
                     $transaction = app(LedgerService::class)->credit(
                         wallet: $wallet,
                         amountCents: $request->wallet_amount_cents,
