@@ -38,17 +38,19 @@ it('returns the cost it actually stores and updates the pricing reference', func
     expect((float) $reference['last_cost'])->toBe(25.0)->and((float) $reference['suggested_margin'])->toBe(50.0);
 });
 
-it('serializes persisted reservation deadlines for E3 and E7 as ISO dates', function () {
+it('serializes deadlines for each consumer and rejects reservations from the other origin', function () {
     $deadline = now()->startOfSecond()->addMinutes(15);
-    DB::connection('inventory')->getCollection('team3_api_reservations')->insertOne([
-        'business_id' => 'advance-A', 'reservation_id' => 'ADVANCE-RESERVATION', 'order_id' => 'ADVANCE-ORDER',
-        'status' => 'RESERVED', 'origin_system' => 'E7', 'origin_reference' => 'ADVANCE-REWARD',
-        'items' => [], 'expires_at' => new UTCDateTime($deadline),
-    ]);
-    inventoryAdvanceRequest($this, 'GET', '/api/equipo4/integration/reservations/ADVANCE-RESERVATION')
+    $reservations = DB::connection('inventory')->getCollection('team3_api_reservations');
+    $base = ['business_id' => 'advance-A', 'order_id' => 'ADVANCE-ORDER',
+        'status' => 'RESERVED', 'items' => [], 'expires_at' => new UTCDateTime($deadline)];
+    $reservations->insertOne($base + ['reservation_id' => 'ADVANCE-E3']);
+    $reservations->insertOne($base + ['reservation_id' => 'ADVANCE-E7', 'origin_system' => 'E7']);
+    inventoryAdvanceRequest($this, 'GET', '/api/equipo4/integration/reservations/ADVANCE-E3')
         ->assertOk()->assertJsonPath('expires_at', $deadline->format(DATE_ATOM));
-    inventoryAdvanceRequest($this, 'GET', '/api/v1/inventory/reservations/ADVANCE-RESERVATION', [], 'equipo7')
+    inventoryAdvanceRequest($this, 'GET', '/api/v1/inventory/reservations/ADVANCE-E7', [], 'equipo7')
         ->assertOk()->assertJsonPath('expires_at', $deadline->format(DATE_ATOM));
+    inventoryAdvanceRequest($this, 'GET', '/api/equipo4/integration/reservations/ADVANCE-E7')->assertNotFound();
+    inventoryAdvanceRequest($this, 'GET', '/api/v1/inventory/reservations/ADVANCE-E3', [], 'equipo7')->assertNotFound();
 });
 
 it('uses the highest accepted payment version only within the reservation business and order', function () {

@@ -1,7 +1,10 @@
 # Inventarios E4 ↔ Plataforma E7: contrato adaptado en MERGE_COMPLETO
 
 Revisión: 30 de octubre de 2026. Fuente E4: `Modulo_4`, `a3ea96d702b4c5a46012be1634dd65c784426c97`.
-Implementación local: `InventoryModule` y `PlatformModule`. No se sustituyen los controladores de Identidad E1.
+Implementación local: `InventoryModule` y `PlatformModule`.
+
+La actualización del 7 de noviembre incorpora los ajustes compatibles de
+`Proyecto_Grupal-Modulo_4.q.rar` sobre el contrato HMAC de este documento.
 
 ## Estado de esta entrega
 
@@ -67,7 +70,12 @@ Acuses verificados por el publicador:
 202 para recepción nueva; 200 con `status: duplicate` para el mismo sobre.
 Mismo ID y negocio con contenido distinto: 409. Un 2xx genérico, un recibo de otro ID,
 un timeout o un rechazo no se consideran entrega confirmada.
-El worker conserva el claim de 30 segundos, límite de 100 eventos y espera de cinco minutos tras fallo.
+El worker conserva el claim de 30 segundos y el límite de 100 eventos por ejecución.
+Tras cada fallo reintenta a los 1, 2, 4, 8, 16, 32 y hasta 60 minutos.
+
+`inventario:expirar-reservas` libera el stock, actualiza la reserva y registra su aviso
+E7 dentro de una transacción de MongoDB. `e7:expire` ejecuta el mismo flujo para E7.
+Si falla la escritura del aviso, la reserva sigue disponible para el siguiente intento.
 
 El adaptador E7 conserva el sobre completo para comprobar privacidad y huella, deriva una UUIDv5
 estable por negocio/ID y reutiliza la ingesta analítica existente. Añade `source_event_id` al payload
@@ -90,13 +98,13 @@ Se conservan las rutas existentes bajo `/api/v1/inventory`, con firma de **E7**:
 No se registran nuevamente esas mismas rutas con el controlador E3: eso reemplazaría el contrato E7.
 Los requests requieren una firma HMAC válida para el consumidor y el negocio configurados.
 Sin firma válida: 401; integración no configurada: 503; negocio ajeno: 403.
-Las restricciones y garantías del motor de reservas existente se mantienen; esta adaptación de
-transporte no acredita concurrencia multiproceso ni el circuito completo de compensación.
+Cada consumidor opera únicamente las reservas de su propio origen.
+La confirmación y la liberación guardan stock, estado e idempotencia en una transacción.
 
 E3 conserva `/api/equipo4/integration/*` y las rutas con ámbito
 `/api/equipo4/businesses/{businessId}/integration/*`, firmadas con su propia clave.
 `availability` de E3 conserva POST y el formato `items` con identificadores de producto.
-`confirm` sigue exigiendo evidencia de E2; un prefijo `MANUAL-` no crea `PAID`.
+`confirm` exige evidencia `PAID` de E2 para la misma orden y negocio de la reserva.
 
 ## E7 → E4: inbox de notificaciones
 
@@ -137,8 +145,6 @@ solo dentro de la aplicación de testing.
 ## Pendientes funcionales
 
 - Emisión automática de todos los tipos declarados en el contrato.
-- Recuperación de una expiración cuya liberación de stock termine antes de guardar el outbox;
-  la fuente existente no hace ambas acciones atómicas. No se activa el transporte como circuito completo.
 - Vincular canje E7 ↔ reserva E4 con recuperación, concurrencia y compensación de puntos verificadas.
 - Confirmar con E7 los acuses y el vocabulario de las notificaciones de retorno.
 - Cierre financiero E2/E3/E4: autoridad, contraparte, consentimiento y evidencias de pago reales.

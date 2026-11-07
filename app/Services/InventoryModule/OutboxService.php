@@ -3,8 +3,8 @@
 namespace App\Services\InventoryModule;
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use MongoDB\BSON\ObjectId;
+use MongoDB\Driver\Session;
 
 /**
  * Outbox simple: guarda eventos de integracion para entrega posterior.
@@ -12,25 +12,22 @@ use MongoDB\BSON\ObjectId;
  */
 class OutboxService
 {
-    public function publish(string $topic, array $payload): string
+    public function publish(string $topic, array $payload, ?Session $session = null): string
     {
         $id = new ObjectId();
-        try {
-            DB::connection('inventory')->getCollection('integration_outbox')->insertOne([
-                '_id'           => $id,
-                'topic'         => $topic,
-                'business_id'   => app(BusinessContext::class)->id(),
-                'payload'       => $payload,
-                'status'        => 'PENDING',
-                'attempts'      => 0,
-                'last_error'    => null,
-                'created_at'    => new \MongoDB\BSON\UTCDateTime(now()),
-                'updated_at'    => new \MongoDB\BSON\UTCDateTime(now()),
-                'delivered_at'  => null,
-            ]);
-        } catch (\Throwable $e) {
-            Log::warning('OutboxService::publish failed', ['topic' => $topic, 'error' => $e->getMessage()]);
-        }
+        DB::connection('inventory')->getCollection('integration_outbox')->insertOne([
+            '_id'           => $id,
+            'topic'         => $topic,
+            'business_id'   => app(BusinessContext::class)->id(),
+            'payload'       => $payload,
+            'status'        => 'PENDING',
+            'attempts'      => 0,
+            'last_error'    => null,
+            'created_at'    => new \MongoDB\BSON\UTCDateTime(now()),
+            'updated_at'    => new \MongoDB\BSON\UTCDateTime(now()),
+            'delivered_at'  => null,
+        ], $session === null ? [] : ['session' => $session]);
+
         return (string) $id;
     }
 }

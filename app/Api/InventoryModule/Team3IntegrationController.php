@@ -73,18 +73,26 @@ class Team3IntegrationController extends Controller
 
         // 1. Verificar que la reserva exista ANTES de chequear el pago.
         // Si no existe -> 404 (contrato E4->E3). Si existe sin pago -> 409.
-        $reservationExists = DB::connection('inventory')
+        $reservation = DB::connection('inventory')
             ->getCollection('team3_api_reservations')
             ->findOne([
                 'reservation_id' => $id,
-                'business_id'    => app(\App\Services\InventoryModule\BusinessContext::class)->id(),
+                'business_id'    => $this->apiBusinessId(),
+                'origin_system'  => ['$ne' => 'E7'],
             ]);
 
-        if (!$reservationExists) {
+        if (!$reservation) {
             return response()->json([
                 'error'   => 'reservation_not_found',
                 'message' => 'La reserva no existe.',
             ], 404);
+        }
+
+        if (($reservation['order_id'] ?? null) !== $validated['order_id']) {
+            return response()->json([
+                'status' => 'REJECTED',
+                'reason' => 'La orden no corresponde a la reserva.',
+            ], 409);
         }
 
         // Verificación de pago contra payment_events
@@ -115,19 +123,11 @@ class Team3IntegrationController extends Controller
         }
 
         try {
-            $result = $this->api->confirm($id, $validated);
-
-            // Anotar el payment_intent en la reserva
-            DB::connection('inventory')
-                ->getCollection('team3_api_reservations')
-                ->updateOne(
-                    ['reservation_id' => $id],
-                    ['$set' => [
-                        'payment_intent_id' => $validated['payment_intent_id'],
-                        'payment_status'    => $payment['status'],
-                        'payment_amount'    => $payment['amount'] ?? null,
-                    ]]
-                );
+            $result = $this->api->confirm($id, $validated + ['payment' => [
+                'payment_intent_id' => $validated['payment_intent_id'],
+                'payment_status' => $payment['status'],
+                'payment_amount' => $payment['amount'] ?? null,
+            ]]);
 
             return response()->json($result, 200);
         } catch (\DomainException $e) {
@@ -174,7 +174,7 @@ class Team3IntegrationController extends Controller
         $id=(string)$request->route('id');
         $res = DB::connection('inventory')
             ->getCollection('team3_api_reservations')
-            ->findOne(['reservation_id' => $id, 'business_id' => app(\App\Services\InventoryModule\BusinessContext::class)->id()]);
+            ->findOne(['reservation_id' => $id, 'business_id' => $this->apiBusinessId(), 'origin_system' => ['$ne' => 'E7']]);
 
         if (!$res) {
             return response()->json(['message' => 'Reserva no encontrada'], 404);

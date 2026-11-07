@@ -122,12 +122,13 @@ it('rolls back stock when writing the return movement fails', function () {
     $line = paymentAdvanceInventory();
     paymentAdvanceSend($this, paymentAdvanceBody(['status' => 'REFUNDED', 'refund_id' => 'refund-db-failure', 'items' => [$line]]))->assertAccepted();
     $db = DB::connection('inventory');
-    $db->getDatabase()->command(['collMod' => 'stock_movements', 'validator' => ['type' => ['$ne' => 'RETURN']]])->toArray();
+    $db->getCollection('stock_movements')->drop();
+    $db->getDatabase()->createCollection('stock_movements', ['validator' => ['type' => ['$ne' => 'RETURN']]]);
     $this->artisan('inventario:procesar-devoluciones')->assertFailed();
     expect((int) $db->getCollection('inventories')->findOne(['variant_id' => 'variant-B'])['on_hand'])->toBe(10)
         ->and($db->getCollection('stock_movements')->countDocuments([]))->toBe(0)
         ->and($db->getCollection('payment_events')->findOne([])['return_status'])->toBe('FAILED');
-    $db->getDatabase()->command(['collMod' => 'stock_movements', 'validator' => (object) []])->toArray();
+    $db->getCollection('stock_movements')->drop();
     $this->travel(6)->minutes();
     $this->artisan('inventario:procesar-devoluciones')->assertSuccessful();
     expect((int) $db->getCollection('inventories')->findOne(['variant_id' => 'variant-B'])['on_hand'])->toBe(12);

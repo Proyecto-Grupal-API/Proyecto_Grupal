@@ -70,6 +70,9 @@ class Team7AdapterService
 
         $inner = $this->inner->reserve([
             'order_id'           => $data['origin_reference'] ?? ('E7-' . Str::ulid()),
+            'origin_system'      => 'E7',
+            'origin_type'        => $data['origin_type'] ?? 'REWARD',
+            'origin_reference'   => $data['origin_reference'] ?? '',
             'items'              => $items,
             'idempotency_key'    => $data['idempotency_key'],
             'source'             => $this->mapSource($data['origin_type'] ?? 'REWARD'),
@@ -77,15 +80,6 @@ class Team7AdapterService
             'expires_at'         => $data['expires_at'] ?? null,
             'actor_id'           => $data['actor_id'] ?? 'TEAM7',
         ]);
-
-        DB::connection('inventory')->getCollection($this->collection)->updateOne(
-            ['reservation_id' => $inner['reservation_id']],
-            ['$set' => [
-                'origin_system'    => 'E7',
-                'origin_type'      => $data['origin_type'] ?? 'REWARD',
-                'origin_reference' => $data['origin_reference'] ?? '',
-            ]]
-        );
 
         return [
             'reservation_id'   => $inner['reservation_id'],
@@ -100,6 +94,7 @@ class Team7AdapterService
     {
         $inner = $this->inner->confirm($reservationId, [
             'idempotency_key' => $data['idempotency_key'],
+            'origin_system'   => 'E7',
             'actor_id'        => $data['delivered_by'] ?? 'TEAM7',
         ]);
 
@@ -125,6 +120,7 @@ class Team7AdapterService
     {
         $this->inner->release($reservationId, [
             'idempotency_key' => $data['idempotency_key'],
+            'origin_system'   => 'E7',
             'reason'          => $data['reason'] ?? 'E7_RELEASE',
         ]);
 
@@ -138,7 +134,7 @@ class Team7AdapterService
     public function show(string $reservationId): ?array
     {
         $doc = DB::connection('inventory')->getCollection($this->collection)
-            ->findOne(['reservation_id' => $reservationId, 'business_id' => $this->businessId()]);
+            ->findOne(['reservation_id' => $reservationId, 'business_id' => $this->businessId(), 'origin_system' => 'E7']);
         if (!$doc) return null;
 
         $d = (array) $doc;

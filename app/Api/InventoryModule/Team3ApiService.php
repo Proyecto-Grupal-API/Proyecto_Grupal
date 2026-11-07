@@ -2,6 +2,7 @@
 
 namespace App\Api\InventoryModule;
 
+use App\Services\InventoryModule\OutboxService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Carbon;
@@ -83,7 +84,18 @@ class Team3ApiService
             $existing = $idemColl->findOne(['service' => $service, 'idempotency_key' => $idempotencyKey]);
             if ($existing === null) throw new \RuntimeException('No se pudo recuperar el estado de idempotencia.');
             $existing = (array) $existing;
-            if (($existing['status'] ?? '') === 'COMPLETED' && !empty($existing['result'])) return (array) $existing['result'];
+            if (($existing['status'] ?? '') === 'COMPLETED' && !empty($existing['result'])) {
+                $reservation = DB::connection('inventory')->getCollection($this->reservationsCollection)->findOne([
+                    'reservation_id' => $existing['result']['reservation_id'],
+                    'business_id' => $this->businessId(),
+                ]);
+                if (! $reservation || ($reservation['origin_system'] ?? null) !== ($data['origin_system'] ?? null)
+                    || $reservation['order_id'] !== ($data['order_id'] ?? '')) {
+                    throw new \DomainException('La clave de idempotencia corresponde a otra orden.');
+                }
+
+                return (array) $existing['result'];
+            }
             throw new \RuntimeException('La misma idempotency_key esta siendo procesada.');
         }
 
@@ -140,6 +152,9 @@ class Team3ApiService
                 'order_id' => (string) ($data['order_id'] ?? ''),
                 'business_id' => $this->businessId(),
                 'status' => 'RESERVED',
+                'origin_system' => $data['origin_system'] ?? null,
+                'origin_reference' => $data['origin_reference'] ?? null,
+                'origin_type' => $data['origin_type'] ?? null,
                 'source' => (string) ($data['source'] ?? 'CHECKOUT'),
                 'idempotency_key' => $idempotencyKey,
                 'items' => $applied,
@@ -183,182 +198,141 @@ class Team3ApiService
 
     public function confirm(string $reservationId, array $data): array
     {
-        $idempotencyKey = (string) ($data['idempotency_key'] ?? '');
-        if ($idempotencyKey === '') throw new \InvalidArgumentException('idempotency_key es requerido.');
-
-        $service = 'team3.confirm:'.$this->businessId();
-        $idemColl = DB::connection('inventory')->getCollection('integration_idempotency');
-
-        try {
-            $idemColl->insertOne([
-                '_id' => new ObjectId(), 'service' => $service, 'idempotency_key' => $idempotencyKey,
-                'status' => 'PROCESSING',
-                'unexpired_processing_at' => new UTCDateTime((time() + 900) * 1000),
-                'created_at' => new \MongoDB\BSON\UTCDateTime(now()), 'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-            ]);
-        } catch (BulkWriteException $e) {
-            if (!$this->isDuplicateKey($e)) throw $e;
-            $existing = (array) ($idemColl->findOne(['service' => $service, 'idempotency_key' => $idempotencyKey]) ?? []);
-            if (($existing['status'] ?? '') === 'COMPLETED' && !empty($existing['result'])) return (array) $existing['result'];
-            throw new \RuntimeException('Idempotency_key en proceso.');
-        }
-
-        $resColl = DB::connection('inventory')->getCollection($this->reservationsCollection);
-        $doc = $resColl->findOne(['reservation_id' => $reservationId, 'business_id' => $this->businessId()]);
-
-        if (!$doc) {
-            $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
-                ['$set' => ['status' => 'REJECTED', 'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
-            throw new \InvalidArgumentException('Reserva no encontrada.');
-        }
-        $reservation = (array) $doc;
-
-        if (($reservation['status'] ?? '') !== 'RESERVED') {
-            $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
-                ['$set' => ['status' => 'REJECTED', 'result' => ['error' => 'Estado ' . $reservation['status']],
-                            'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
-            throw new \DomainException('Solo se pueden confirmar reservas RESERVED.');
-        }
-
-        $items = $reservation['items'] ?? [];
-        $invColl = DB::connection('inventory')->getCollection('inventories');
-        $movColl = DB::connection('inventory')->getCollection('stock_movements');
-        $applied = [];
-        $movements = [];
-
-        try {
-            foreach ($items as $item) {
-                $productId = (string) $item['product_id'];
-                $variantId = $item['variant_id'] ?? null;
-                $locationId = (string) $item['location_id'];
-                $quantity = (int) $item['quantity'];
-
-                $updated = $invColl->findOneAndUpdate(
-                    ['business_id' => $this->businessId(), 'product_id' => $productId,
-                     'variant_id' => $variantId, 'location_id' => $locationId,
-                     '$expr' => ['$and' => [['$gte' => ['$on_hand', $quantity]], ['$gte' => ['$reserved', $quantity]]]]],
-                    ['$inc' => ['on_hand' => -$quantity, 'reserved' => -$quantity],
-                     '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())]],
-                    ['returnDocument' => FindOneAndUpdate::RETURN_DOCUMENT_AFTER]
-                );
-
-                if ($updated === null) throw new \DomainException("Inconsistencia al confirmar producto {$productId}.");
-
-                $movColl->insertOne([
-                    '_id' => new ObjectId(),
-                    'business_id' => $this->businessId(),
-                    'product_id' => $productId,
-                    'variant_id' => $variantId,
-                    'location_id' => $locationId,
-                    'type' => 'SALE',
-                    'quantity' => -$quantity,
-                    'reason' => 'Venta Team3 - Orden ' . ($reservation['order_id'] ?? ''),
-                    'external_reference' => (string) ($reservation['order_id'] ?? ''),
-                    'actor_id' => (string) ($data['actor_id'] ?? 'TEAM3'),
-                    'correlation_id' => (string) Str::uuid(),
-                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                ]);
-
-                $applied[] = $item;
-                $movements[] = ['product_id' => $productId, 'quantity' => -$quantity, 'type' => 'SALE'];
-            }
-        } catch (\Throwable $e) {
-            foreach ($applied as $a) {
-                try {
-                    $invColl->findOneAndUpdate(
-                        ['business_id' => $this->businessId(), 'product_id' => $a['product_id'],
-                         'variant_id' => $a['variant_id'] ?? null, 'location_id' => $a['location_id']],
-                        ['$inc' => ['on_hand' => (int) $a['quantity'], 'reserved' => (int) $a['quantity']],
-                         '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
-                    );
-                } catch (\Throwable $ex) {}
-            }
-            $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
-                ['$set' => ['status' => 'FAILED', 'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
-            throw $e;
-        }
-
-        $resColl->updateOne(['reservation_id' => $reservationId],
-            ['$set' => ['status' => 'CONFIRMED', 'confirmed_at' => new \MongoDB\BSON\UTCDateTime(now()), 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
-
-        $result = ['reservation_id' => $reservationId, 'status' => 'CONFIRMED', 'movements' => $movements];
-        $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
-            ['$set' => ['status' => 'COMPLETED', 'result' => $result,
-                        'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
-
-        return $result;
+        return $this->transition($reservationId, $data, 'confirm');
     }
 
     public function release(string $reservationId, array $data): array
     {
-        $idempotencyKey = (string) ($data['idempotency_key'] ?? '');
-        if ($idempotencyKey === '') throw new \InvalidArgumentException('idempotency_key es requerido.');
+        return $this->transition($reservationId, $data, 'release');
+    }
 
-        $service = 'team3.release:'.$this->businessId();
-        $idemColl = DB::connection('inventory')->getCollection('integration_idempotency');
+    public function expire(string $reservationId): bool
+    {
+        return $this->transition($reservationId, [], 'release', true) !== [];
+    }
 
-        try {
-            $idemColl->insertOne([
-                '_id' => new ObjectId(), 'service' => $service, 'idempotency_key' => $idempotencyKey,
-                'status' => 'PROCESSING',
-                'unexpired_processing_at' => new UTCDateTime((time() + 900) * 1000),
-                'created_at' => new \MongoDB\BSON\UTCDateTime(now()), 'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-            ]);
-        } catch (BulkWriteException $e) {
-            if (!$this->isDuplicateKey($e)) throw $e;
-            $existing = (array) ($idemColl->findOne(['service' => $service, 'idempotency_key' => $idempotencyKey]) ?? []);
-            if (($existing['status'] ?? '') === 'COMPLETED' && !empty($existing['result'])) return (array) $existing['result'];
-            throw new \RuntimeException('Idempotency_key en proceso.');
+    private function transition(string $reservationId, array $data, string $action, bool $expire = false): array
+    {
+        if (! $expire && empty($data['idempotency_key'])) {
+            throw new \InvalidArgumentException('idempotency_key es requerido.');
         }
 
-        $resColl = DB::connection('inventory')->getCollection($this->reservationsCollection);
-        $doc = $resColl->findOne(['reservation_id' => $reservationId, 'business_id' => $this->businessId()]);
+        $db = DB::connection('inventory');
+        $business = $this->businessId();
+        $session = $db->getMongoClient()->startSession();
+        $options = ['session' => $session];
+        $confirm = $action === 'confirm';
+        $key = $expire ? null : [
+            'service' => "team3.{$action}:{$business}",
+            'idempotency_key' => $data['idempotency_key'],
+        ];
+        $result = [];
 
-        if (!$doc) {
-            $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
-                ['$set' => ['status' => 'REJECTED', 'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
-            throw new \InvalidArgumentException('Reserva no encontrada.');
-        }
-        $reservation = (array) $doc;
+        \MongoDB\with_transaction($session, function () use ($db, $options, $business, $reservationId, $data, $key, $confirm, $expire, &$result): void {
+            $result = [];
+            $resColl = $db->getCollection($this->reservationsCollection);
+            $idemColl = $db->getCollection('integration_idempotency');
+            $scope = ['reservation_id' => $reservationId, 'business_id' => $business];
+            if (! $expire) {
+                $scope['origin_system'] = ($data['origin_system'] ?? null) === 'E7' ? 'E7' : ['$ne' => 'E7'];
+            }
 
-        if (($reservation['status'] ?? '') !== 'RESERVED') {
-            $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
-                ['$set' => ['status' => 'REJECTED', 'result' => ['error' => 'Estado ' . $reservation['status']],
-                            'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
-            throw new \DomainException('Solo se pueden liberar reservas RESERVED.');
-        }
+            $reservation = $resColl->findOne($scope, $options);
+            if (! $reservation) {
+                throw new \InvalidArgumentException('Reserva no encontrada.');
+            }
+            if (isset($data['order_id']) && $data['order_id'] !== ($reservation['order_id'] ?? null)) {
+                throw new \DomainException('La orden no corresponde a la reserva.');
+            }
 
-        $items = $reservation['items'] ?? [];
-        $invColl = DB::connection('inventory')->getCollection('inventories');
-        $itemsReleased = [];
+            $existing = $key === null ? null : $idemColl->findOne($key, $options);
+            if (($existing['status'] ?? null) === 'COMPLETED') {
+                if (($existing['result']['reservation_id'] ?? null) !== $reservationId
+                    || (isset($data['payment']) && ($reservation['payment_intent_id'] ?? null) !== $data['payment']['payment_intent_id'])) {
+                    throw new \DomainException('La clave de idempotencia corresponde a otra operación.');
+                }
+                $result = (array) $existing['result'];
 
-        foreach ($items as $item) {
-            $productId = (string) $item['product_id'];
-            $variantId = $item['variant_id'] ?? null;
-            $locationId = (string) $item['location_id'];
-            $quantity = (int) $item['quantity'];
+                return;
+            }
+            if (($existing['status'] ?? null) === 'PROCESSING') {
+                throw new \DomainException('La clave de idempotencia está en proceso.');
+            }
 
-            $invColl->findOneAndUpdate(
-                ['business_id' => $this->businessId(), 'product_id' => $productId,
-                 'variant_id' => $variantId, 'location_id' => $locationId,
-                 '$expr' => ['$gte' => ['$reserved', $quantity]]],
-                ['$inc' => ['reserved' => -$quantity, 'available' => $quantity],
-                 '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
-            );
+            $now = new UTCDateTime(now());
+            $expired = isset($reservation['expires_at']) && $reservation['expires_at'] < $now;
+            if ($reservation['status'] !== 'RESERVED' || ($expire && ! $expired) || ($confirm && $expired)) {
+                if ($expire) {
+                    return;
+                }
+                throw new \DomainException('La reserva ya no está disponible para esta operación.');
+            }
 
-            $itemsReleased[] = ['product_id' => $productId, 'variant_id' => $variantId, 'location_id' => $locationId, 'quantity' => $quantity];
-        }
+            $status = $confirm ? 'CONFIRMED' : 'RELEASED';
+            $reason = $expire ? 'EXPIRED' : ($data['reason'] ?? 'RELEASED');
+            $update = $confirm
+                ? ['confirmed_at' => $now] + ($data['payment'] ?? [])
+                : ['released_at' => $now, 'release_reason' => $reason];
+            $resColl->updateOne($scope, ['$set' => $update + ['status' => $status, 'updated_at' => $now]], $options);
 
-        $reason = (string) ($data['reason'] ?? 'RELEASED');
-        $resColl->updateOne(['reservation_id' => $reservationId],
-            ['$set' => ['status' => 'RELEASED', 'released_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                        'release_reason' => $reason, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
+            $invColl = $db->getCollection('inventories');
+            $movColl = $db->getCollection('stock_movements');
+            $lines = [];
+            foreach ($reservation['items'] as $item) {
+                $line = [
+                    'product_id' => (string) $item['product_id'],
+                    'variant_id' => $item['variant_id'] ?? null,
+                    'location_id' => (string) $item['location_id'],
+                ];
+                $quantity = (int) $item['quantity'];
+                $filter = $line + ['business_id' => $business, 'reserved' => ['$gte' => $quantity]];
+                if ($confirm) {
+                    $filter['on_hand'] = ['$gte' => $quantity];
+                }
 
-        $result = ['reservation_id' => $reservationId, 'status' => 'RELEASED', 'items_released' => $itemsReleased];
-        $idemColl->updateOne(['service' => $service, 'idempotency_key' => $idempotencyKey],
-            ['$set' => ['status' => 'COMPLETED', 'result' => $result,
-                        'unexpired_processing_at' => null, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
+                $change = $confirm ? ['on_hand' => -$quantity] : ['available' => $quantity];
+                $updated = $invColl->updateOne($filter, [
+                    '$inc' => $change + ['reserved' => -$quantity],
+                    '$set' => ['updated_at' => $now],
+                ], $options);
+                if ($updated->getMatchedCount() !== 1) {
+                    throw new \DomainException("Stock reservado inconsistente para el producto {$line['product_id']}.");
+                }
+
+                if ($confirm) {
+                    $movColl->insertOne($line + [
+                        'business_id' => $business,
+                        'type' => 'SALE',
+                        'quantity' => -$quantity,
+                        'reason' => 'Venta Team3 - Orden '.($reservation['order_id'] ?? ''),
+                        'external_reference' => (string) ($reservation['order_id'] ?? ''),
+                        'actor_id' => (string) ($data['actor_id'] ?? 'TEAM3'),
+                        'correlation_id' => (string) Str::uuid(),
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ], $options);
+                    $lines[] = ['product_id' => $line['product_id'], 'quantity' => -$quantity, 'type' => 'SALE'];
+                } else {
+                    $lines[] = $line + ['quantity' => $quantity];
+                }
+            }
+
+            if ($expire && ($reservation['origin_system'] ?? null) === 'E7') {
+                app(OutboxService::class)->publish('inventory.reservation.expired', [
+                    'reservation_id' => $reservationId,
+                    'origin_reference' => $reservation['origin_reference'] ?? ($reservation['external_reference'] ?? ''),
+                    'expired_at' => $now->toDateTime()->format(DATE_ATOM),
+                ], $options['session']);
+            }
+
+            $result = ['reservation_id' => $reservationId, 'status' => $status, ($confirm ? 'movements' : 'items_released') => $lines];
+            if ($key !== null) {
+                $idemColl->updateOne($key, [
+                    '$set' => ['status' => 'COMPLETED', 'result' => $result, 'unexpired_processing_at' => null, 'updated_at' => $now],
+                    '$setOnInsert' => ['created_at' => $now],
+                ], $options + ['upsert' => true]);
+            }
+        });
 
         return $result;
     }

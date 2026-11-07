@@ -124,7 +124,8 @@ class Team4Controller extends Controller
 
     public function products(Request $r)
     {
-        $q = trim((string) $r->query('q', ''));
+        $query = $r->query('q');
+        $q = is_string($query) ? trim($query) : '';
         $items = Product::where('business_id', $this->businessId())
             ->when($q !== '', function ($query) use ($q) {
                 $regex = '/' . preg_quote($q, '/') . '/i';

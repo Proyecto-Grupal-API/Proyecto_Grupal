@@ -364,3 +364,76 @@ it('retains the E7 reservation contract on the shared canonical path', function 
         'reason' => 'CANCELLED', 'idempotency_key' => 'e7-contract-release-1'], 'equipo7')->assertOk();
     expect(DB::connection('inventory')->getCollection('payment_events')->countDocuments())->toBe(0);
 });
+
+it('requires payment for the reservation order and binds a confirmation retry to its payment', function () {
+    config(['team4.integration.payment_events_enabled' => true]);
+    (require database_path('migrations/2026_10_17_000200_inventory_payment_events_v2.php'))->up();
+    $line = inventoryLine();
+    $path = '/api/equipo4/integration/reservations';
+    $id = inventorySigned($this, $path, [
+        'order_id' => 'ORDER-EXPECTED', 'items' => [$line], 'idempotency_key' => 'reserve-order-binding',
+    ])->assertCreated()->json('reservation_id');
+    $payment = [
+        'event_id' => 'evt-other-order', 'event_version' => 1, 'payment_intent_id' => 'PI-OTHER',
+        'business_id' => 'business-A', 'order_id' => 'ORDER-OTHER', 'status' => 'PAID',
+        'amount' => 50, 'currency' => 'MXN', 'occurred_at' => now()->toIso8601String(),
+    ];
+    inventorySigned($this, '/api/equipo4/webhooks/payment-status', $payment, 'equipo2')->assertAccepted();
+    $confirm = ['order_id' => 'ORDER-OTHER', 'payment_intent_id' => 'PI-OTHER', 'idempotency_key' => 'confirm-order-binding'];
+    inventorySigned($this, $path.'/'.$id.'/confirm', $confirm)->assertConflict();
+    inventorySigned($this, $path.'/'.$id.'/release', [
+        'order_id' => 'ORDER-OTHER', 'idempotency_key' => 'release-wrong-order',
+    ])->assertConflict();
+    $db = DB::connection('inventory');
+    $reservations = $db->getCollection('team3_api_reservations');
+    expect($reservations->findOne(['reservation_id' => $id])['status'])->toBe('RESERVED')
+        ->and($db->getCollection('stock_movements')->countDocuments(['type' => 'SALE']))->toBe(0);
+
+    inventorySigned($this, '/api/equipo4/webhooks/payment-status', array_replace($payment, [
+        'event_id' => 'evt-expected-order', 'payment_intent_id' => 'PI-EXPECTED', 'order_id' => 'ORDER-EXPECTED',
+    ]), 'equipo2')->assertAccepted();
+    $confirm = array_replace($confirm, ['order_id' => 'ORDER-EXPECTED', 'payment_intent_id' => 'PI-EXPECTED']);
+    inventorySigned($this, $path.'/'.$id.'/confirm', $confirm)->assertOk()->assertJsonPath('status', 'CONFIRMED');
+    inventorySigned($this, $path.'/'.$id.'/confirm', $confirm)->assertOk();
+    inventorySigned($this, '/api/equipo4/webhooks/payment-status', array_replace($payment, [
+        'event_id' => 'evt-second-intent', 'payment_intent_id' => 'PI-SECOND', 'order_id' => 'ORDER-EXPECTED',
+    ]), 'equipo2')->assertAccepted();
+    inventorySigned($this, $path.'/'.$id.'/confirm', array_replace($confirm, [
+        'payment_intent_id' => 'PI-SECOND',
+    ]))->assertConflict();
+    expect($db->getCollection('stock_movements')->countDocuments(['type' => 'SALE']))->toBe(1)
+        ->and($reservations->findOne(['reservation_id' => $id])['payment_intent_id'])->toBe('PI-EXPECTED');
+});
+
+it('rolls back an E7 expiry when its outbox write fails and queues it exactly once on retry', function () {
+    $line = inventoryLine();
+    $db = DB::connection('inventory');
+    $inventory = $db->getCollection('inventories');
+    $where = ['business_id' => 'business-A', 'product_id' => $line['product_id'], 'location_id' => $line['location_id']];
+    $before = $inventory->findOne($where);
+    $reserve = [
+        'origin_reference' => 'reward-outbox-failure', 'origin_type' => 'REWARD',
+        'product_reference' => $line['product_id'], 'quantity' => $line['quantity'], 'location_id' => $line['location_id'],
+        'idempotency_key' => 'reserve-outbox-failure',
+    ];
+    $id = inventorySigned($this, '/api/v1/inventory/reservations', $reserve, 'equipo7')->assertCreated()->json('reservation_id');
+    inventorySigned($this, '/api/equipo4/integration/reservations/'.$id.'/release', [
+        'order_id' => 'reward-outbox-failure', 'idempotency_key' => 'release-other-origin',
+    ])->assertNotFound();
+    $reservations = $db->getCollection('team3_api_reservations');
+    $reservations->updateOne(['reservation_id' => $id], ['$set' => ['expires_at' => new \MongoDB\BSON\UTCDateTime(now()->subMinute())]]);
+    $outboxService = \App\Services\InventoryModule\OutboxService::class;
+    $this->mock($outboxService)->shouldReceive('publish')->once()->andThrow(new RuntimeException('Synthetic outbox failure'));
+    $this->artisan('e7:expire')->assertFailed();
+    expect($reservations->findOne(['reservation_id' => $id])['status'])->toBe('RESERVED')
+        ->and((int) $inventory->findOne($where)['reserved'])->toBe((int) $before['reserved'] + $line['quantity'])
+        ->and($db->getCollection('integration_outbox')->countDocuments([]))->toBe(0);
+
+    $this->app->forgetInstance($outboxService);
+    $this->artisan('inventario:expirar-reservas')->assertSuccessful();
+    $this->artisan('e7:expire')->assertSuccessful();
+    $outbox = $db->getCollection('integration_outbox');
+    expect($reservations->findOne(['reservation_id' => $id])['status'])->toBe('RELEASED')
+        ->and((int) $inventory->findOne($where)['available'])->toBe((int) $before['available'])
+        ->and($outbox->countDocuments(['payload.reservation_id' => $id, 'status' => 'PENDING']))->toBe(1);
+});

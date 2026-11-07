@@ -22,18 +22,23 @@ it('keeps E7 transport inactive until explicitly configured', function () {
 
 it('retries a failed delivery with the same event identity and does not resend a success', function () {
     $id = app(OutboxService::class)->publish('inventory.reservation.expired', ['reservation_id' => 'expired-1']);
-    Http::fakeSequence()->push([], 503)->push(['status' => 'accepted', 'event_id' => 'evt_inv_'.$id], 202);
+    Http::fakeSequence()->push([], 503)->push([], 503)->push(['status' => 'accepted', 'event_id' => 'evt_inv_'.$id], 202);
     $this->artisan('team4:publish-outbox')->assertFailed();
     $this->artisan('team4:publish-outbox')->assertSuccessful();
     Http::assertSentCount(1);
-    $this->travel(6)->minutes();
-    $this->artisan('team4:publish-outbox')->assertSuccessful();
+    $this->travel(1)->minutes();
+    $this->artisan('team4:publish-outbox')->assertFailed();
+    $this->travel(1)->minutes();
     $this->artisan('team4:publish-outbox')->assertSuccessful();
     Http::assertSentCount(2);
+    $this->travel(1)->minutes();
+    $this->artisan('team4:publish-outbox')->assertSuccessful();
+    $this->artisan('team4:publish-outbox')->assertSuccessful();
+    Http::assertSentCount(3);
     expect(Http::recorded()->map(fn ($pair) => $pair[0]->body())->unique()->count())->toBe(1);
     Http::assertSent(fn ($r) => $r['event_id'] === 'evt_inv_'.$id && $r['payload']['business_id'] === 'outbox-business' && $r['payload']['reservation_id'] === 'expired-1');
     $event = DB::connection('inventory')->getCollection('integration_outbox')->findOne([]);
-    expect($event['status'])->toBe('SENT')->and((int) $event['attempts'])->toBe(2)->and($event['last_error'])->toBeNull();
+    expect($event['status'])->toBe('SENT')->and((int) $event['attempts'])->toBe(3)->and($event['last_error'])->toBeNull();
 });
 
 it('keeps connection failures retryable and refuses legacy events with no business', function () {

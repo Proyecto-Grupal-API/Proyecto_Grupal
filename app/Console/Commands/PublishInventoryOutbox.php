@@ -49,7 +49,8 @@ class PublishInventoryOutbox extends Command
                 $updates['delivered_at'] = new UTCDateTime(now());
             } else {
                 $failed++;
-                $updates['next_attempt_at'] = new UTCDateTime(now()->addMinutes(5));
+                $delay = min(60, 2 ** min(6, max(0, (int) ($event['attempts'] ?? 0))));
+                $updates['next_attempt_at'] = new UTCDateTime(now()->addMinutes($delay));
             }
             $coll->updateOne(['_id' => $event['_id'], 'claim_token' => $claim], [
                 '$set' => $updates, '$inc' => ['attempts' => 1], '$unset' => ['claim_token' => '', 'claim_expires_at' => ''],
