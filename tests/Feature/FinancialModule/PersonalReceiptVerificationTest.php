@@ -12,7 +12,7 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\TrackDeviceSession;
 use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Foundation\Testing\TestCase;
+use Tests\TestCase;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 /** Exercises the real receipt routes with in-memory identity and financial read fixtures. */

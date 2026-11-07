@@ -3,6 +3,7 @@
 use App\Domains\Financial\Enums\CashReconciliationStatus;
 use App\Domains\Financial\Enums\ReconciliationCheck;
 use App\Domains\Financial\Models\CashReceipt;
+use App\Domains\Financial\Models\FinancialTransaction;
 use App\Domains\Financial\Models\Wallet;
 use App\Domains\Financial\Services\CashOperationConfirmationService;
 use App\Domains\Financial\Services\CashSettlementService;
@@ -64,4 +65,12 @@ test('cash shift reconciles the confirmed top-up and withdrawal and reports the 
         ->and($difference->expected_cents)->toBe(12000)
         ->and($difference->actual_cents)->toBe(11900)
         ->and($difference->difference_cents)->toBe(-100);
+
+    $transactionId = strtolower(FinancialTransaction::where('idempotency_key', $key)->sole()->public_id);
+    $params = ['source' => 'transaction', 'operationId' => $transactionId, 'folio' => $settled->folio, 'reference' => $transactionId];
+    $this->actingAs($student)->get(route('financial.receipts.show', $params))->assertOk();
+    $pdf = $this->get(route('financial.receipts.pdf', $params))->assertOk()->assertHeader('Content-Type', 'application/pdf');
+    expect($pdf->getContent())->toStartWith('%PDF-');
+    $params['folio'] = 'INCORRECTO';
+    $this->getJson(route('financial.receipts.show', $params))->assertNotFound();
 });
