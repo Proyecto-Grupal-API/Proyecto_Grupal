@@ -79,6 +79,7 @@ class FinancialServiceProvider extends ServiceProvider
         FinancialTransaction::observe(FinancialTransactionObserver::class);
         $this->loadRoutesFrom(base_path('routes/financial.php'));
         $this->loadRoutesFrom(base_path('routes/financial_api.php'));
+        $this->loadRoutesFrom(base_path('routes/financial_library_fines.php'));
 
     }
 }

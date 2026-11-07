@@ -18,7 +18,11 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 /** Preparation by a configured merchant is not consent. Only a native browser confirmation can debit. */
 class MarketplaceCheckoutService
 {
-    public function __construct(private readonly IdentityService $identity, private readonly OAuthTokenService $oauth) {}
+    public function __construct(
+        private readonly IdentityService $identity,
+        private readonly OAuthTokenService $oauth,
+        private readonly WalletCheckoutConsent $consent,
+    ) {}
 
     public function enabled(): bool
     {
@@ -149,25 +153,17 @@ class MarketplaceCheckoutService
     public function session(Request $request): void
     {
         $this->enabledOrFail();
-        abort_unless($this->identity->hasActiveAccountSession(
-            (string) $request->user()->getKey(), $request->session()->get('cd_session_id')
-        ), 403, 'La cuenta o la sesión de Identidad no está vigente.');
+        $this->consent->ensureActiveSession($request);
     }
 
     public function passwordRecent(Request $request): bool
     {
-        $max = (int) config('financial_marketplace.password_max_age_seconds', 300);
-        abort_unless($max >= 60 && $max <= 900, 503, 'Configuracion de confirmacion no valida.');
-        $at = $request->session()->get('auth.password_confirmed_at');
-
-        return is_int($at) && $at <= now()->timestamp && $at >= now()->timestamp - $max;
+        return $this->consent->passwordRecent($request, (int) config('financial_marketplace.password_max_age_seconds', 300));
     }
 
     public function reviewToken(Request $request, MarketplacePaymentRequest $row): string
     {
-        abort_unless(is_string(config('app.key')) && strlen(config('app.key')) >= 32, 503, 'Clave de aplicacion no valida.');
-
-        return hash_hmac('sha256', strtolower($row->public_id).'|'.$row->request_hash.'|'.(string) $request->user()->getKey().'|'.$request->session()->getId().'|'.$request->session()->get('cd_session_id'), (string) config('app.key'));
+        return $this->consent->reviewToken($request, $row->public_id, $row->request_hash);
     }
 
     public function confirm(Request $request, string $id, string $token): MarketplacePaymentRequest

@@ -63,11 +63,9 @@ Contrato de avisos: [API y ejemplos](API_AVISOS_EQUIPO_5.md), [OpenAPI](comunida
   confirmado y coinciden el alumno, la multa, el concepto, el importe y la
   moneda. El ID de un pago verificado solo se puede asociar a una multa. El
   índice parcial deja fuera los registros históricos sin verificación.
-- El adaptador de Finanzas sigue pendiente. Para conectarlo hacen falta
-  las rutas HTTP, el alcance OAuth, la acreditación del operador y el
-  receptor institucional autorizado. La consulta de evidencias y la
-  liquidación de una garantía son operaciones distintas del cobro de una
-  multa con consentimiento del alumno.
+- El adaptador de E5 sigue pendiente. El [contrato de cobro de multas de E2](API_E2_MULTAS_BIBLIOTECA.md)
+  permite preparar, confirmar y consultar el cobro. La liquidación de garantías
+  requiere un adaptador y la acreditación del operador por separado.
 
 ## Datos y comprobación local
 
