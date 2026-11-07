@@ -107,6 +107,13 @@ al receptor E4 el evento firmado almacenado en SQL Server. Repite el webhook y
 la confirmación de inventario. El laboratorio verifica además conciliación,
 devoluciones parciales y recuperación tras saldo insuficiente del comercio.
 
+La conciliación diaria revisa las devoluciones completadas en la fecha de
+negocio. Verifica el abono al comprador y, para compras liquidadas, el débito
+al receptor original y su vínculo con el cargo. Registra una diferencia si
+falta evidencia o si el tipo, la cuenta o el importe del movimiento no
+corresponden. Las devoluciones históricas de un solo abono conservan su
+tratamiento.
+
 Sigue pendiente conectar el coordinador de pedidos de E3 a estas rutas,
 consultar el estado real de la reserva antes de confirmar y acordar la
 cancelación entre E2 y E3 cuando se cruce con un cobro. Se debe ejecutar luego

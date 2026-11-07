@@ -141,6 +141,10 @@ test('wallet purchase completes partial and full refunds with delta events and n
     $s->complete($refund2, 'wpo-execute-'.Str::uuid(), 'executor');
     $event = wpoEvent($r['purchase_payment_id'], 3);
     expect($w->fresh()->available_balance_cents)->toBe(10000)->and($event['status'])->toBe('REFUNDED')->and((float) $event['amount'])->toBe(20.0)->and($event['items'])->toBe([]);
+    $report = app(ReconciliationService::class)->run(
+        now(config('financial.business_timezone'))->toDateString(), 'test-operator', [$w->public_id]
+    );
+    expect($report->observedDifferences()->where('check_code', 'DEVOLUCION_COMPRA_DESCUADRADA')->exists())->toBeFalse();
 });
 test('wallet purchase receipt is listed once and reuses original accounting evidence', function () {
     $w = wpoWallet();
@@ -228,6 +232,20 @@ test('settled wallet purchase and refunds balance both parties and replay once',
     expect($buyer->fresh()->available_balance_cents)->toBe(10000)
         ->and($recipient->fresh()->available_balance_cents)->toBe(0)
         ->and(wpoEvent($paid['purchase_payment_id'], 3)['status'])->toBe('REFUNDED');
+
+    $date = now(config('financial.business_timezone'))->toDateString();
+    $scope = [$recipient->public_id];
+    $clean = app(ReconciliationService::class)->run($date, 'test-operator', $scope);
+    expect($clean->observedDifferences()->where('check_code', 'DEVOLUCION_COMPRA_DESCUADRADA')->exists())->toBeFalse();
+
+    // The wallet balances and total still reconcile, but the counter-entry no longer represents a refund.
+    LedgerEntry::where('transaction_id', $reversal->public_id)->where('wallet_id', $recipient->public_id)
+        ->update(['movement_type' => MovementType::AJUSTE_DEBITO->value]);
+    $report = app(ReconciliationService::class)->run($date, 'test-operator', $scope);
+    $difference = $report->observedDifferences()->where('check_code', 'DEVOLUCION_COMPRA_DESCUADRADA')->sole();
+    expect(strtolower($difference->entity_id))->toBe(strtolower($refund->public_id))
+        ->and($buyer->fresh()->available_balance_cents)->toBe(10000)
+        ->and($recipient->fresh()->available_balance_cents)->toBe(0);
 });
 
 test('wallet checkout settles both accounts and confirms the signed inventory reservation once', function () {

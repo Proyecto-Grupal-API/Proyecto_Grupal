@@ -11,6 +11,7 @@ use App\Domains\Financial\Enums\ReconciliationCheck;
 use App\Domains\Financial\Enums\ReconciliationScope;
 use App\Domains\Financial\Enums\ReconciliationStatus;
 use App\Domains\Financial\Enums\ReconciliationTrigger;
+use App\Domains\Financial\Enums\RefundRequestStatus;
 use App\Domains\Financial\Enums\TopUpStatus;
 use App\Domains\Financial\Enums\TransactionStatus;
 use App\Domains\Financial\Enums\WithdrawalStatus;
@@ -54,7 +55,7 @@ use Throwable;
  *  - transacciones pendientes o sin movimientos;
  *  - transferencias cuyo total no suma cero;
  *  - recargas/retiros completados sin movimiento o con monto distinto;
- *  - compras con totales descuadrados o sin el cargo a wallet esperado.
+ *  - compras y devoluciones con totales o movimientos de wallet inconsistentes.
  */
 class ReconciliationService
 {
@@ -330,6 +331,7 @@ class ReconciliationService
             $this->checkTopUps();
             $this->checkWithdrawals();
             $this->checkPurchases();
+            $this->checkPurchaseRefunds();
             $this->checkBonuses();
 
             $cashIntegrated = $this->cashSource->isIntegrated();
@@ -901,6 +903,78 @@ class ReconciliationService
                                 []
                             );
                         }
+                    }
+                }
+            });
+    }
+
+    private function checkPurchaseRefunds(): void
+    {
+        PurchaseRefundRequest::query()
+            ->where('status', RefundRequestStatus::COMPLETADA->value)
+            ->where('wallet_amount_cents', '>', 0)
+            ->where('completed_at', '>=', $this->windowStart)
+            ->where('completed_at', '<', $this->windowEnd)
+            ->with(['purchasePayment', 'completedTransaction'])
+            ->chunkById(self::CHUNK, function ($refunds) {
+                $originals = FinancialTransaction::whereIn(
+                    'idempotency_key', $refunds->pluck('purchasePayment.idempotency_key')->filter()->unique()->all()
+                )->get()->keyBy('idempotency_key');
+
+                $entries = LedgerEntry::whereIn(
+                    'transaction_id', $refunds->pluck('financial_transaction_id')->filter()->all()
+                )->get()->groupBy(fn (LedgerEntry $entry) => strtolower($entry->transaction_id));
+
+                foreach ($refunds as $refund) {
+                    $payment = $refund->purchasePayment;
+                    $original = $originals->get($payment?->idempotency_key);
+                    $recipient = $original?->metadata['recipient_wallet_id'] ?? null;
+                    $recipientId = is_string($recipient) ? strtolower($recipient) : null;
+                    $buyerId = strtolower($refund->wallet_id);
+
+                    if ($this->scopeWalletIds !== null
+                        && ! in_array($buyerId, $this->scopeWalletIds, true)
+                        && ! in_array($recipientId, $this->scopeWalletIds, true)) {
+                        continue;
+                    }
+
+                    $transaction = $refund->completedTransaction;
+                    $movements = $entries->get(strtolower((string) $refund->financial_transaction_id), collect());
+                    $buyer = $movements->first(fn (LedgerEntry $entry) => strtolower($entry->wallet_id) === $buyerId);
+                    $seller = $movements->first(fn (LedgerEntry $entry) => strtolower($entry->wallet_id) === $recipientId);
+                    $amount = $refund->wallet_amount_cents;
+                    $settled = $recipient !== null;
+
+                    $valid = $payment && strcasecmp($payment->wallet_id, $buyerId) === 0
+                        && $payment->currency === $refund->currency
+                        && $original?->reference_type === 'PURCHASE' && $original->status === TransactionStatus::COMPLETADA
+                        && $transaction?->reference_type === 'PURCHASE_REFUND'
+                        && $transaction->status === TransactionStatus::COMPLETADA
+                        && strcasecmp((string) $transaction->reference_id, $refund->public_id) === 0
+                        && $movements->count() === ($settled ? 2 : 1)
+                        && $buyer?->getRawOriginal('movement_type') === MovementType::DEVOLUCION->value && $buyer->amount_cents === $amount
+                        && ($settled
+                            ? $seller?->getRawOriginal('movement_type') === MovementType::DEVOLUCION_COMERCIO->value
+                                && $seller->amount_cents === -$amount
+                                && strcasecmp((string) $transaction->original_transaction_id, $original->public_id) === 0
+                            : $transaction->original_transaction_id === null);
+
+                    if (! $valid) {
+                        $this->addDifference(
+                            ReconciliationCheck::DEVOLUCION_COMPRA_DESCUADRADA,
+                            'PURCHASE_REFUND',
+                            $refund->public_id,
+                            $refund->wallet_id,
+                            $amount,
+                            $buyer?->amount_cents,
+                            [
+                                'transaction_id' => $refund->financial_transaction_id,
+                                'original_transaction_id' => $original?->public_id,
+                                'recipient_wallet_id' => $recipientId,
+                                'recipient_cents' => $seller?->amount_cents,
+                                'recipient_movement' => $seller?->getRawOriginal('movement_type'),
+                            ]
+                        );
                     }
                 }
             });
