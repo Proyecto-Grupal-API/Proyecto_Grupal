@@ -23,7 +23,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use MongoDB\BSON\ObjectId;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 beforeEach(function () {
@@ -250,10 +249,11 @@ test('settled wallet purchase and refunds balance both parties and replay once',
 
 test('wallet checkout settles both accounts and confirms the signed inventory reservation once', function () {
     $buyer = User::factory()->create();
-    $wallet = wpoWallet();
+    $wallet = wpoWallet(20000);
+    $business = 'BUS-CD-SOUV-001';
     $wallet->update(['owner_id' => (string) $buyer->getKey()]);
     $recipient = Wallet::create([
-        'public_id' => (string) Str::uuid(), 'owner_type' => 'BUSINESS', 'owner_id' => 'BUS-WPO',
+        'public_id' => (string) Str::uuid(), 'owner_type' => 'BUSINESS', 'owner_id' => $business,
         'type' => 'WALLET_NEGOCIO', 'currency' => 'MXN', 'status' => 'ACTIVA',
     ]);
     $clientId = 'test-finance-'.Str::uuid();
@@ -263,21 +263,23 @@ test('wallet checkout settles both accounts and confirms the signed inventory re
         'secret_hash' => Hash::make('fixture-finance-oauth'),
     ]);
     $token = app(OAuthTokenService::class)->issue($clientId, 'fixture-finance-oauth', $scopes)['access_token'];
-    $client = ['name' => 'Prueba', 'businesses' => ['BUS-WPO' => 'Negocio de prueba']];
+    $client = ['name' => 'Prueba', 'businesses' => [$business => 'Souvenirs del Campus']];
     config(['financial_marketplace.enabled' => true, 'financial_marketplace.clients' => [$clientId => $client]]);
-    $payload = wpoContext() + [
-        'buyer_id' => (string) $buyer->getKey(), 'amount_cents' => 3000, 'currency' => 'MXN',
+    $payload = [
+        'business_id' => $business, 'order_id' => 'ORDER-'.Str::uuid(),
+        'buyer_id' => (string) $buyer->getKey(), 'amount_cents' => 17800, 'currency' => 'MXN',
         'reservation_expires_at' => now()->addMinutes(3)->startOfSecond()->toISOString(),
     ];
     $inventory = DB::connection('inventory');
-    $product = (string) new ObjectId;
-    $location = (string) new ObjectId;
+    config(['team4.business_id' => $business]);
+    $this->artisan('inventario:demo')->assertSuccessful();
+    $product = (string) $inventory->getCollection('products')->findOne(['business_id' => $business, 'sku' => 'SOUV-TAZA-001'])['_id'];
+    $location = (string) $inventory->getCollection('locations')->findOne(['business_id' => $business, 'code' => 'A1-01'])['_id'];
     $item = ['product_id' => $product, 'location_id' => $location, 'variant_id' => null, 'quantity' => 2];
     $payload['items'] = [$item];
-    $business = $payload['business_id'];
     $stock = ['business_id' => $business, 'product_id' => $product, 'location_id' => $location, 'variant_id' => null];
     InventoryBusiness::firstOrCreate(['business_id' => $business], ['name' => 'Negocio de prueba', 'active' => true]);
-    $inventory->getCollection('inventories')->insertOne($stock + ['on_hand' => 10, 'available' => 10, 'reserved' => 0]);
+    expect((int) $inventory->getCollection('inventories')->findOne($stock)['available'])->toBe(80);
     $team4 = '/api/equipo4/businesses/'.$business.'/integration/reservations';
     $signer = app(WebhookSigner::class);
     config([
@@ -298,7 +300,7 @@ test('wallet checkout settles both accounts and confirms the signed inventory re
     $url = '/api/v1/financial/marketplace/payment-requests';
     $this->postJson($url, $payload, $requestHeaders)->assertStatus(503);
     config(['financial_marketplace.clients' => [
-        $clientId => $client + ['recipient_wallets' => ['BUS-WPO' => (string) $recipient->public_id]],
+        $clientId => $client + ['recipient_wallets' => [$business => (string) $recipient->public_id]],
     ]]);
     $expired = array_replace($payload, ['reservation_expires_at' => now()->subSecond()->toISOString()]);
     $this->postJson($url, $expired, $requestHeaders)->assertConflict();
@@ -317,15 +319,15 @@ test('wallet checkout settles both accounts and confirms the signed inventory re
     $this->withCookie(config('session.cookie'), session()->getId());
     $this->post($prepared['confirmation_path'].'/confirmar', ['review_token' => $reviewToken, 'consent' => false])
         ->assertSessionHasErrors('consent');
-    expect($wallet->fresh()->available_balance_cents)->toBe(10000);
+    expect($wallet->fresh()->available_balance_cents)->toBe(20000);
     $this->post($prepared['confirmation_path'].'/confirmar', ['review_token' => $reviewToken, 'consent' => true])->assertRedirect()->assertSessionHasNoErrors();
     $lookup = $this->getJson($url.'/by-order?'.http_build_query([
         'business_id' => $payload['business_id'], 'order_id' => $payload['order_id'],
     ]), $requestHeaders)->assertOk()->assertJsonPath('data.status', 'PAID');
     $paymentId = $lookup->json('data.payment_intent_id');
     expect($paymentId)->not->toBeNull()
-        ->and($wallet->fresh()->available_balance_cents)->toBe(7000)
-        ->and($recipient->fresh()->available_balance_cents)->toBe(3000);
+        ->and($wallet->fresh()->available_balance_cents)->toBe(2200)
+        ->and($recipient->fresh()->available_balance_cents)->toBe(17800);
 
     $confirmBody = json_encode([
         'order_id' => $payload['order_id'], 'payment_intent_id' => $paymentId, 'idempotency_key' => 'wpo-confirm-'.Str::uuid(),
@@ -339,5 +341,19 @@ test('wallet checkout settles both accounts and confirms the signed inventory re
     $send($team4.'/'.$reservation.'/confirm', $confirmBody, 'fixture-e3-signature')->assertOk()->assertJsonPath('status', 'CONFIRMED');
     $send($team4.'/'.$reservation.'/confirm', $confirmBody, 'fixture-e3-signature')->assertOk()->assertJsonPath('status', 'CONFIRMED');
     $remaining = $inventory->getCollection('inventories')->findOne($stock);
-    expect((int) $remaining['on_hand'])->toBe(8)->and((int) $remaining['reserved'])->toBe(0);
+    $movements = $inventory->getCollection('stock_movements');
+    expect((int) $remaining['on_hand'])->toBe(78)->and((int) $remaining['reserved'])->toBe(0)
+        ->and($movements->countDocuments(['business_id' => $business, 'type' => 'SALE', 'external_reference' => $payload['order_id']]))->toBe(1);
+
+    $otherOrder = 'ORDER-'.Str::uuid();
+    $otherReservation = $send($team4, json_encode([
+        'order_id' => $otherOrder, 'items' => [$item], 'expires_at' => $payload['reservation_expires_at'],
+        'idempotency_key' => 'wpo-reserve-'.Str::uuid(),
+    ], JSON_THROW_ON_ERROR), 'fixture-e3-signature')->assertCreated()->json('reservation_id');
+    expect((int) $inventory->getCollection('inventories')->findOne($stock)['available'])->toBe(76);
+    $send($team4.'/'.$otherReservation.'/release', json_encode([
+        'order_id' => $otherOrder, 'idempotency_key' => 'wpo-release-'.Str::uuid(),
+    ], JSON_THROW_ON_ERROR), 'fixture-e3-signature')->assertOk()->assertJsonPath('status', 'RELEASED');
+    expect((int) $inventory->getCollection('inventories')->findOne($stock)['available'])->toBe(78)
+        ->and($movements->countDocuments(['business_id' => $business, 'type' => 'SALE', 'external_reference' => $otherOrder]))->toBe(0);
 });

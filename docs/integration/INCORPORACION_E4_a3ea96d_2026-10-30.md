@@ -52,3 +52,9 @@ sus archivos previos sin seguimiento en `docs/solicitudes/`.
 No se encendieron emisores nuevos ni se cambiaron roles, scopes, fondos o credenciales privadas.
 El código se prepara localmente en MERGE_COMPLETO; publicarlo requiere el push correspondiente.
 El contrato distingue los ajustes propios del merge de las afirmaciones de la fuente E4.
+
+## Datos propuestos por E4 para la prueba E2–E3–E4
+
+Usar el negocio `BUS-CD-SOUV-001` y el producto `SOUV-TAZA-001` (Taza Campus Digital) en `A1-01` (Pasillo A1). El comando del merge `php artisan inventario:demo` parte de 80 unidades en esa ubicación. Resolver los `_id` de MongoDB del producto y la ubicación en el entorno de prueba y medir las existencias antes de reservar.
+
+Confirmar con el `payment_intent_id` emitido por Finanzas para el mismo `order_id` y comprobar que Inventarios tenga la evidencia `PAID`. Repetir con la misma `idempotency_key` y comprobar que se registró un solo movimiento `SALE` y un solo descuento de existencias. En una reserva separada, comprobar la liberación con `/reservations/{id}/release`. La prueba automatizada con SQL Server y MongoDB desechables confirmó que vender dos tazas deja 78 disponibles y un solo `SALE` incluso al repetir la confirmación. Liberar una segunda reserva restituyó la disponibilidad a 78 sin registrar otra venta. La prueba invoca el contrato firmado de E3. Queda pendiente repetir desde el checkout de la interfaz de Marketplace.
