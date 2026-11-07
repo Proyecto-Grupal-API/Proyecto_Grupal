@@ -392,53 +392,56 @@ class RentalService
         int $chargeCents,
         string $reason
     ): void {
+        $rental->refresh();
+        if ($rental->deposit_status === 'held' && $rental->deposit_settlement_reason === null) {
+            Rental::whereKey($rental->getKey())->where('deposit_status', 'held')
+                ->whereNull('deposit_settlement_reason')
+                ->update([
+                    'damage_charge_cents' => $rental->damage_charge_cents ?? $chargeCents,
+                    'deposit_settlement_reason' => $reason,
+                ]);
+            $rental->refresh();
+        }
+        if ($rental->deposit_settlement_reason !== null && $rental->deposit_settlement_reason !== $reason) {
+            throw new RuntimeException('Ya existe un cierre registrado con otra condición. Recupera la operación original.');
+        }
         if ($rental->deposit_status !== 'held') {
             return;
         }
 
-        /*
-         * El cargo se guarda antes de mover dinero: si un reintento llega
-         * con otro importe, se respeta el primero (la llave de idempotencia
-         * del cobro es una sola por renta).
-         */
-        if ($rental->damage_charge_cents !== null) {
-            $chargeCents = (int) $rental->damage_charge_cents;
-        } else {
-            $rental->update(['damage_charge_cents' => $chargeCents]);
-        }
-
         $hold = (string) $rental->deposit_hold_reference;
-
-        if ($chargeCents > 0) {
-            $this->payments->capture(
-                $hold,
-                $chargeCents,
-                $reason,
-                'rental:'.$rental->id.':deposit-capture'
-            );
+        $charged = (int) $rental->damage_charge_cents;
+        $released = (int) $rental->deposit_cents - $charged;
+        if ($hold === '' || $charged < 0 || $released < 0) {
+            throw new RuntimeException('Los datos de la garantía no corresponden a un cierre válido.');
+        }
+        $receipt = $this->payments->settleDeposit($hold, $charged, $reason, 'rental:'.$rental->id.':deposit-settle');
+        $reference = $receipt['transaction_id'] ?? null;
+        if (! is_string($reference) || trim($reference) === ''
+            || ($receipt['hold_id'] ?? null) !== $hold
+            || ($receipt['charged_cents'] ?? null) !== $charged || ($receipt['released_cents'] ?? null) !== $released) {
+            throw new RuntimeException('Finanzas no confirmó un cierre que coincida con la garantía.');
         }
 
-        if ($chargeCents < (int) $rental->deposit_cents) {
-            $this->payments->release(
-                $hold,
-                $reason,
-                'rental:'.$rental->id.':deposit-release'
-            );
-        }
-
-        $rental->update([
-            'deposit_status' => $chargeCents > 0 ? 'charged' : 'released',
-            'damage_charge_cents' => $chargeCents,
+        $updated = Rental::whereKey($rental->getKey())->where('deposit_status', 'held')->update([
+            'deposit_status' => $charged > 0 ? 'charged' : 'released',
+            'deposit_settlement_reference' => $reference,
+            'deposit_released_cents' => $released,
             'deposit_settled_at' => now(),
         ]);
+        $rental->refresh();
+        if ($updated === 0 && $rental->deposit_settlement_reference !== $reference) {
+            throw new RuntimeException('La renta ya tiene otro cierre registrado.');
+        }
 
-        if ($chargeCents > 0) {
+        if ($updated && $charged > 0) {
             $this->auditor->record(
                 'rental.deposit.charged',
                 'rental',
                 (string) $rental->id,
                 ['deposit_status' => 'held', 'deposit_cents' => (int) $rental->deposit_cents],
-                ['deposit_status' => 'charged', 'damage_charge_cents' => $chargeCents],
+                ['deposit_status' => 'charged', 'damage_charge_cents' => $charged,
+                    'settlement_reference' => $reference],
                 $reason
             );
         }

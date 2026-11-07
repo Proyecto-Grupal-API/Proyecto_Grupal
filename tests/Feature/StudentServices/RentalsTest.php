@@ -6,6 +6,8 @@ use App\Models\StudentServices\Rentals\Asset;
 use App\Models\StudentServices\Rentals\AssetCondition;
 use App\Models\StudentServices\Rentals\Rental;
 use App\Models\User;
+use App\Services\StudentServices\Payments\PaymentException;
+use App\Services\StudentServices\Payments\StudentPaymentGateway;
 use App\Services\StudentServices\Rentals\RentalService;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
@@ -112,21 +114,52 @@ test('a desk return in good condition releases the whole deposit', function () {
         ->and($rental->fresh()->deposit_status)->toBe('released')
         ->and($rental->fresh()->damage_charge_cents)->toBe(0)
         ->and($this->asset->fresh()->status)->toBe('available')
-        ->and(ServiceCharge::where('operation', 'release')->value('amount_cents'))->toBe(50000);
+        ->and($rental->fresh()->deposit_released_cents)->toBe(50000)
+        ->and($rental->fresh()->deposit_settlement_reference)->toBe(ServiceCharge::where('operation', 'settle')->value('reference'));
 });
 
 test('damage found at the desk is charged from the deposit and the rest is released', function () {
     $rental = rentAsset($this);
 
-    deskRental($this, 'return', ['condition' => 'damaged', 'damage_charge' => '120.50'])
+    deskRental($this, 'return', ['condition' => 'damaged', 'damage_charge' => '150.00'])
         ->assertSessionHas('access_result.granted', true);
 
     expect($rental->fresh()->deposit_status)->toBe('charged')
-        ->and($rental->fresh()->damage_charge_cents)->toBe(12050)
+        ->and($rental->fresh()->damage_charge_cents)->toBe(15000)
         ->and($this->asset->fresh()->status)->toBe('maintenance')
-        ->and(ServiceCharge::where('operation', 'capture')->value('amount_cents'))->toBe(12050)
-        ->and(ServiceCharge::where('operation', 'release')->value('amount_cents'))->toBe(37950)
-        ->and(ServiceAuditLog::where('action', 'rental.deposit.charged')->first()->after['damage_charge_cents'])->toBe(12050);
+        ->and(ServiceCharge::where('operation', 'settle')->where('amount_cents', 15000)->count())->toBe(1)
+        ->and($rental->fresh()->deposit_released_cents)->toBe(35000)
+        ->and($rental->fresh()->deposit_settlement_reference)->toBe(ServiceCharge::where('operation', 'settle')->value('reference'))
+        ->and(ServiceAuditLog::where('action', 'rental.deposit.charged')->first()->after['damage_charge_cents'])->toBe(15000);
+});
+
+test('a lost settlement response is recovered with the same deposit key and assessment', function () {
+    $rental = rentAsset($this);
+    $gateway = app(StudentPaymentGateway::class);
+    $calls = 0;
+    $this->mock(StudentPaymentGateway::class)->shouldReceive('settleDeposit')
+        ->with($rental->deposit_hold_reference, 15000, 'Devolución: damaged', 'rental:'.$rental->id.':deposit-settle')
+        ->twice()->andReturnUsing(function (...$arguments) use ($gateway, &$calls) {
+            $receipt = $gateway->settleDeposit(...$arguments);
+            if (++$calls === 1) {
+                throw new PaymentException('Se perdió la respuesta de Finanzas.');
+            }
+
+            return $receipt;
+        });
+
+    deskRental($this, 'return', ['condition' => 'damaged', 'damage_charge' => '150.00'])
+        ->assertSessionHas('access_result.granted', false);
+    expect($rental->fresh()->deposit_status)->toBe('held');
+
+    deskRental($this, 'return', ['condition' => 'good'])->assertSessionHas('access_result.granted', false);
+    deskRental($this, 'return', ['condition' => 'damaged', 'damage_charge' => '200.00'])
+        ->assertSessionHas('access_result.granted', true);
+
+    $closed = $rental->fresh();
+    expect($closed->damage_charge_cents)->toBe(15000)
+        ->and($closed->deposit_released_cents)->toBe(35000)
+        ->and($closed->deposit_settlement_reference)->toBe(ServiceCharge::where('operation', 'settle')->sole()->reference);
 });
 
 test('a damage charge above the deposit or on a good return is refused', function () {
@@ -137,7 +170,7 @@ test('a damage charge above the deposit or on a good return is refused', functio
 
     expect($rental->fresh()->status)->toBe('active')
         ->and($rental->fresh()->deposit_status)->toBe('held')
-        ->and(ServiceCharge::whereIn('operation', ['capture', 'release'])->count())->toBe(0);
+        ->and(ServiceCharge::where('operation', 'settle')->count())->toBe(0);
 });
 
 test('a lost asset charges the full deposit', function () {
@@ -146,8 +179,8 @@ test('a lost asset charges the full deposit', function () {
     deskRental($this, 'return', ['condition' => 'lost'])->assertSessionHas('access_result.granted', true);
 
     expect($rental->fresh()->damage_charge_cents)->toBe(50000)
-        ->and(ServiceCharge::where('operation', 'capture')->value('amount_cents'))->toBe(50000)
-        ->and(ServiceCharge::where('operation', 'release')->count())->toBe(0);
+        ->and(ServiceCharge::where('operation', 'settle')->value('amount_cents'))->toBe(50000)
+        ->and($rental->fresh()->deposit_released_cents)->toBe(0);
 });
 
 test('a return that failed after the deposit was settled can be retried without moving money again', function () {
@@ -158,7 +191,7 @@ test('a return that failed after the deposit was settled can be retried without 
 
     expect($rental->fresh()->status)->toBe('returned')
         ->and($rental->fresh()->damage_charge_cents)->toBe(10000)
-        ->and(ServiceCharge::whereIn('operation', ['capture', 'release'])->count())->toBe(0);
+        ->and(ServiceCharge::where('operation', 'settle')->count())->toBe(0);
 });
 
 test('a rental can be cancelled before pickup, releasing the deposit, but not after', function () {

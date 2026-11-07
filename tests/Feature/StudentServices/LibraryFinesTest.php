@@ -5,6 +5,7 @@ use App\Models\StudentServices\Library\BookCopy;
 use App\Models\StudentServices\Library\LibraryFine;
 use App\Models\StudentServices\Library\Loan;
 use App\Models\User;
+use App\Services\StudentServices\Payments\StudentPaymentGateway;
 use Inertia\Testing\AssertableInertia;
 
 beforeEach(function () {
@@ -49,7 +50,7 @@ test('registering a fine gives it a folio and the page lists it with its loan', 
             ->has('loans', 1));
 });
 
-test('a pending fine can be paid with a reference or waived', function () {
+test('a pending fine can be paid with confirmed evidence or waived', function () {
     $user = User::factory()->create();
 
     foreach (['late', 'damage'] as $type) {
@@ -62,6 +63,9 @@ test('a pending fine can be paid with a reference or waived', function () {
     }
 
     [$late, $damage] = [LibraryFine::where('type', 'late')->first(), LibraryFine::where('type', 'damage')->first()];
+
+    $this->mock(StudentPaymentGateway::class)->shouldReceive('lookupFinePayment')
+        ->with((string) $late->id, 'PAY-001')->once()->andReturn(studentServiceFinePayment($late, 'PAY-001'));
 
     $this->actingAs($user)
         ->patch("/servicios-estudiante/biblioteca/multas/{$late->id}/pagar", ['payment_reference_id' => 'PAY-001'])
@@ -91,4 +95,43 @@ test('fines created before folios existed get a readable fallback folio', functi
         ->get('/servicios-estudiante/biblioteca/multas')
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('fines.0.folio', 'MUL-'.strtoupper(substr((string) $fine->id, -6))));
+});
+
+
+test('a reference without confirmed financial evidence leaves the fine pending', function () {
+    $fine = LibraryFine::create([
+        'student_id' => 'student-1', 'loan_id' => $this->loan->id, 'type' => 'late',
+        'amount_cents' => 4500, 'reason' => 'Atraso', 'status' => 'pending', 'generated_at' => now(),
+    ]);
+    $this->actingAs(User::factory()->create())
+        ->patch("/servicios-estudiante/biblioteca/multas/{$fine->id}/pagar", ['payment_reference_id' => 'PAY-WITHOUT-EVIDENCE'])
+        ->assertSessionHasErrors('fine');
+    expect($fine->fresh()->status)->toBe('pending');
+});
+
+test('finance evidence is matched to the fine and a payment cannot settle two fines', function () {
+    $common = [
+        'student_id' => 'student-1', 'loan_id' => $this->loan->id,
+        'amount_cents' => 4500, 'reason' => 'Atraso', 'status' => 'pending', 'generated_at' => now(),
+    ];
+    $first = LibraryFine::create($common + ['type' => 'late']);
+    $second = LibraryFine::create($common + ['type' => 'damage']);
+    $ref = 'PAY-ONCE';
+    $gateway = $this->mock(StudentPaymentGateway::class);
+    $gateway->shouldReceive('lookupFinePayment')->with((string) $first->id, 'PAY-WRONG')->once()
+        ->andReturn(array_replace(studentServiceFinePayment($first, 'PAY-WRONG'), ['amount_cents' => 4400]));
+    $gateway->shouldReceive('lookupFinePayment')->with((string) $first->id, $ref)->once()
+        ->andReturn(studentServiceFinePayment($first, $ref));
+    $gateway->shouldReceive('lookupFinePayment')->with((string) $second->id, $ref)->once()
+        ->andReturn(studentServiceFinePayment($second, $ref));
+
+    $this->actingAs(User::factory()->create());
+    $firstUrl = "/servicios-estudiante/biblioteca/multas/{$first->id}/pagar";
+    $this->patch($firstUrl, ['payment_reference_id' => 'PAY-WRONG'])->assertSessionHasErrors('fine');
+    expect($first->fresh()->status)->toBe('pending');
+    $this->patch($firstUrl, ['payment_reference_id' => $ref])->assertSessionHasNoErrors();
+    $this->patch($firstUrl, ['payment_reference_id' => $ref])->assertSessionHasNoErrors();
+    $this->patch("/servicios-estudiante/biblioteca/multas/{$second->id}/pagar", ['payment_reference_id' => $ref])
+        ->assertSessionHasErrors(['fine' => 'El pago ya está asociado a otra multa.']);
+    expect($first->fresh()->verified_payment_id)->toBe($ref)->and($second->fresh()->status)->toBe('pending');
 });

@@ -102,6 +102,19 @@ function useStudentServicesTestDatabase(): void
     app()->bind(\App\Services\StudentServices\Payments\StudentPaymentGateway::class, \Tests\Fakes\StudentServices\LocalStudentPaymentGateway::class);
 }
 
+function studentServiceFinePayment(\App\Models\StudentServices\Library\LibraryFine $fine, string $paymentId): array
+{
+    return [
+        'payment_id' => $paymentId,
+        'student_id' => $fine->student_id,
+        'amount_cents' => $fine->amount_cents,
+        'currency' => 'MXN',
+        'source_reference' => (string) $fine->id,
+        'concept' => 'library_fine',
+        'status' => 'CONFIRMED',
+    ];
+}
+
 function studentServiceTestToken(string $token): string
 {
     $scopes = match ($token) {

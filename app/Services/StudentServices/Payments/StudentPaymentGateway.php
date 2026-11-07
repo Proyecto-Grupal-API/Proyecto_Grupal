@@ -2,35 +2,22 @@
 
 namespace App\Services\StudentServices\Payments;
 
-/**
- * Operaciones de dinero que el Equipo 5 necesita del Equipo 2 (wallet).
- * Hoy la implementación es local; cuando el Equipo 2 publique sus rutas de
- * retenciones (`/holds`, `/holds/{id}/capture`, `/holds/{id}/release`) basta
- * con otra implementación de esta interfaz.
- *
- * Todas las operaciones son idempotentes por `$idempotencyKey`: repetirlas
- * devuelve la misma referencia sin duplicar el movimiento.
- */
 interface StudentPaymentGateway
 {
-    /**
-     * Retiene un depósito del alumno. Devuelve la referencia de la retención.
-     *
-     * @throws PaymentException si no se pudo retener.
-     */
+    /** Returns the retention reference. Replays must preserve the original operation. */
     public function hold(string $studentId, int $amountCents, string $concept, string $sourceReference, string $idempotencyKey): string;
 
     /**
-     * Cobra parte o todo lo retenido. Devuelve la referencia del cobro.
+     * Closes a deposit in one operation, charging the assessed amount and releasing the remainder.
      *
-     * @throws PaymentException
+     * @return array{hold_id:string, transaction_id:string, charged_cents:int, released_cents:int}
      */
-    public function capture(string $holdReference, int $amountCents, string $reason, string $idempotencyKey): string;
+    public function settleDeposit(string $holdReference, int $amountCents, string $reason, string $idempotencyKey): array;
 
     /**
-     * Libera lo que quede retenido. Devuelve la referencia de la liberación.
+     * Reads financial evidence through the authorized Finance API.
      *
-     * @throws PaymentException
+     * @return array{payment_id:string, student_id:string, amount_cents:int, currency:string, source_reference:string, concept:string, status:string}
      */
-    public function release(string $holdReference, string $reason, string $idempotencyKey): string;
+    public function lookupFinePayment(string $fineId, string $paymentId): array;
 }

@@ -19,6 +19,9 @@ use MongoDB\Laravel\Eloquent\Model;
  * @property int|null $deposit_cents
  * @property string|null $deposit_status
  * @property string|null $deposit_hold_reference
+ * @property string|null $deposit_settlement_reference
+ * @property string|null $deposit_settlement_reason
+ * @property int|null $deposit_released_cents
  * @property int|null $damage_charge_cents
  * @property CarbonInterface|null $deposit_settled_at
  * @property CarbonInterface|null $picked_up_at
@@ -43,6 +46,9 @@ class Rental extends Model
         'deposit_cents',
         'deposit_status',
         'deposit_hold_reference',
+        'deposit_settlement_reference',
+        'deposit_settlement_reason',
+        'deposit_released_cents',
         'damage_charge_cents',
         'deposit_settled_at',
         'picked_up_at',
@@ -68,6 +74,7 @@ class Rental extends Model
             'picked_up_at' => 'datetime',
             'deposit_cents' => 'integer',
             'damage_charge_cents' => 'integer',
+            'deposit_released_cents' => 'integer',
         ];
     }
 

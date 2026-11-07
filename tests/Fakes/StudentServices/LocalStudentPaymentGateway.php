@@ -31,20 +31,22 @@ class LocalStudentPaymentGateway implements StudentPaymentGateway
         ]);
     }
 
-    public function capture(string $holdReference, int $amountCents, string $reason, string $idempotencyKey): string
+    public function settleDeposit(string $holdReference, int $amountCents, string $reason, string $idempotencyKey): array
     {
-        if ($existing = $this->existing($idempotencyKey)) {
-            return $existing;
+        $hold = ServiceCharge::where('reference', $holdReference)->where('operation', 'hold')->first();
+        $prior = ServiceCharge::where('idempotency_key', $idempotencyKey)->first();
+        if (! $hold || $amountCents < 0 || $amountCents > $hold->amount_cents) {
+            throw new PaymentException('La retención no existe o el cargo supera lo retenido.');
         }
-
-        $hold = $this->openHold($holdReference);
-
-        if ($amountCents <= 0 || $amountCents > $this->remainingCents($hold)) {
-            throw new PaymentException('El cobro debe ser mayor que cero y no puede superar lo retenido.');
+        if ($prior && ($prior->operation !== 'settle' || $prior->hold_reference !== $holdReference
+            || $prior->amount_cents !== $amountCents || $prior->reason !== $reason)) {
+            throw new PaymentException('La clave corresponde a otro cierre.');
         }
-
-        $reference = $this->record($idempotencyKey, [
-            'operation' => 'capture',
+        if (! $prior && $hold->status !== 'held') {
+            throw new PaymentException('La retención ya está cerrada.');
+        }
+        $reference = $prior?->reference ?? $this->record($idempotencyKey, [
+            'operation' => 'settle',
             'student_id' => $hold->student_id,
             'concept' => $hold->concept,
             'source_reference' => $hold->source_reference,
@@ -53,65 +55,19 @@ class LocalStudentPaymentGateway implements StudentPaymentGateway
             'reason' => $reason,
             'status' => 'completed',
         ]);
-
-        if ($this->remainingCents($hold) === 0) {
-            $hold->update(['status' => 'closed']);
-        }
-
-        return $reference;
-    }
-
-    public function release(string $holdReference, string $reason, string $idempotencyKey): string
-    {
-        if ($existing = $this->existing($idempotencyKey)) {
-            return $existing;
-        }
-
-        $hold = $this->openHold($holdReference);
-
-        $reference = $this->record($idempotencyKey, [
-            'operation' => 'release',
-            'student_id' => $hold->student_id,
-            'concept' => $hold->concept,
-            'source_reference' => $hold->source_reference,
-            'hold_reference' => $holdReference,
-            'amount_cents' => $this->remainingCents($hold),
-            'reason' => $reason,
-            'status' => 'completed',
-        ]);
-
         $hold->update(['status' => 'closed']);
 
-        return $reference;
+        return [
+            'hold_id' => $holdReference,
+            'transaction_id' => $reference,
+            'charged_cents' => $amountCents,
+            'released_cents' => $hold->amount_cents - $amountCents,
+        ];
     }
 
-    private function openHold(string $holdReference): ServiceCharge
+    public function lookupFinePayment(string $fineId, string $paymentId): array
     {
-        $hold = ServiceCharge::query()
-            ->where('reference', $holdReference)
-            ->where('operation', 'hold')
-            ->first();
-
-        if ($hold === null || $hold->status !== 'held') {
-            throw new PaymentException('La retención no existe o ya se cerró.');
-        }
-
-        return $hold;
-    }
-
-    /**
-     * Lee las capturas guardadas, así que cambia después de cada cobro.
-     *
-     * @phpstan-impure
-     */
-    private function remainingCents(ServiceCharge $hold): int
-    {
-        $captured = (int) ServiceCharge::query()
-            ->where('hold_reference', $hold->reference)
-            ->where('operation', 'capture')
-            ->sum('amount_cents');
-
-        return (int) $hold->amount_cents - $captured;
+        throw new PaymentException('Finanzas no confirmó el pago.');
     }
 
     private function existing(string $idempotencyKey): ?string

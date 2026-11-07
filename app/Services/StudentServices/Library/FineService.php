@@ -5,6 +5,9 @@ namespace App\Services\StudentServices\Library;
 use App\Models\StudentServices\Library\LibraryFine;
 use App\Models\StudentServices\Library\Loan;
 use App\Services\StudentServices\Audit\ServiceAuditor;
+use App\Services\StudentServices\Payments\StudentPaymentGateway;
+use Illuminate\Database\UniqueConstraintViolationException;
+use MongoDB\Driver\Exception\BulkWriteException;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use MongoDB\BSON\ObjectId;
@@ -18,6 +21,8 @@ class FineService
         'loss',
         'other',
     ];
+
+    public function __construct(private readonly StudentPaymentGateway $payments) {}
 
     public function createFine(
         Loan $loan,
@@ -87,47 +92,57 @@ class FineService
         LibraryFine $fine,
         string $paymentReferenceId
     ): LibraryFine {
-        if ($fine->status !== 'pending') {
-            throw new RuntimeException(
-                'Solo una multa pendiente puede registrarse como pagada.'
-            );
+        $reference = trim($paymentReferenceId);
+        $fine->refresh();
+        if ($reference !== '' && $fine->status === 'paid' && $fine->verified_payment_id === $reference) {
+            return $fine;
+        }
+        if ($reference === '' || $fine->status !== 'pending') {
+            throw new RuntimeException('Se requiere una multa pendiente y una referencia de pago.');
         }
 
-        $paymentReferenceId =
-            trim($paymentReferenceId);
-
-        if ($paymentReferenceId === '') {
-            throw new InvalidArgumentException(
-                'La referencia del pago es obligatoria.'
-            );
+        $payment = $this->payments->lookupFinePayment((string) $fine->id, $reference);
+        if (($payment['status'] ?? null) !== 'CONFIRMED' || ($payment['payment_id'] ?? null) !== $reference
+            || ($payment['student_id'] ?? null) !== $fine->student_id || ($payment['currency'] ?? null) !== 'MXN'
+            || ($payment['amount_cents'] ?? null) !== $fine->amount_cents || ($payment['concept'] ?? null) !== 'library_fine'
+            || ($payment['source_reference'] ?? null) !== (string) $fine->id) {
+            throw new RuntimeException('Finanzas no confirmó un pago que coincida con la multa.');
         }
 
-        $fine->update([
-            'status' => 'paid',
+        try {
+            $updated = LibraryFine::whereKey($fine->getKey())->where('status', 'pending')
+                ->where('student_id', $fine->student_id)->where('amount_cents', $fine->amount_cents)->update([
+                    'status' => 'paid',
+                    'payment_reference_id' => $reference,
+                    'verified_payment_id' => $reference,
+                    'paid_at' => now(),
+                ]);
+        } catch (UniqueConstraintViolationException|BulkWriteException $e) {
+            if ($e instanceof BulkWriteException && $e->getCode() !== 11000) {
+                throw $e;
+            }
+            throw new RuntimeException('El pago ya está asociado a otra multa.', 0, $e);
+        }
 
-            'payment_reference_id' => $paymentReferenceId,
+        $fine->refresh();
+        if ($updated === 0 && ($fine->status !== 'paid' || $fine->verified_payment_id !== $reference)) {
+            throw new RuntimeException('La multa cambió durante la verificación del pago.');
+        }
 
-            'paid_at' => now(),
-        ]);
-
-        return $fine->fresh();
+        return $fine;
     }
 
     public function waiveFine(
         LibraryFine $fine,
         ?string $notes = null
     ): LibraryFine {
-        if ($fine->status !== 'pending') {
-            throw new RuntimeException(
-                'Solo una multa pendiente puede ser condonada.'
-            );
-        }
-
-        $fine->update([
+        $updated = LibraryFine::whereKey($fine->getKey())->where('status', 'pending')->update([
             'status' => 'waived',
-
             'notes' => $notes ?? $fine->notes,
         ]);
+        if ($updated === 0) {
+            throw new RuntimeException('Solo una multa pendiente puede ser condonada.');
+        }
 
         app(ServiceAuditor::class)->record(
             'library.fine.waived',
@@ -145,17 +160,13 @@ class FineService
         LibraryFine $fine,
         ?string $notes = null
     ): LibraryFine {
-        if ($fine->status !== 'pending') {
-            throw new RuntimeException(
-                'Solo una multa pendiente puede ser cancelada.'
-            );
-        }
-
-        $fine->update([
+        $updated = LibraryFine::whereKey($fine->getKey())->where('status', 'pending')->update([
             'status' => 'cancelled',
-
             'notes' => $notes ?? $fine->notes,
         ]);
+        if ($updated === 0) {
+            throw new RuntimeException('Solo una multa pendiente puede ser cancelada.');
+        }
 
         app(ServiceAuditor::class)->record(
             'library.fine.cancelled',

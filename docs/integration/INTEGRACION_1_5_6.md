@@ -52,6 +52,23 @@ El scheduler ejecuta cada minuto `servicios:avisos` y `comunidad:entregar-benefi
 
 Contrato de avisos: [API y ejemplos](API_AVISOS_EQUIPO_5.md), [OpenAPI](comunidad-notificaciones.openapi.json). Contrato original de beneficios de E5: carpeta [equipo5](equipo5).
 
+## Preparación para REQ-M5-E2-001
+
+- El cierre de una garantía utiliza una sola llamada con la clave
+  `rental:{id}:deposit-settle`. E5 conserva la condición y el importe del
+  primer intento. Una respuesta válida identifica la retención y la
+  transacción y devuelve los centavos cobrados y liberados. E5 conserva la
+  referencia de la transacción antes de completar la devolución.
+- Una multa pasa a pagada cuando la consulta a Finanzas acredita el pago
+  confirmado y coinciden el alumno, la multa, el concepto, el importe y la
+  moneda. El ID de un pago verificado solo se puede asociar a una multa. El
+  índice parcial deja fuera los registros históricos sin verificación.
+- El adaptador de Finanzas sigue pendiente. Para conectarlo hacen falta
+  las rutas HTTP, el alcance OAuth, la acreditación del operador y el
+  receptor institucional autorizado. La consulta de evidencias y la
+  liquidación de una garantía son operaciones distintas del cobro de una
+  multa con consentimiento del alumno.
+
 ## Datos y comprobación local
 
 Usa las cuentas de demostración ya configuradas en el entorno alterno. El alumno `estudiante@campus.test` tiene un préstamo de Código limpio, su aviso en la bandeja y un saldo de 20 impresiones generado mediante la API real de E5. La asignación tiene referencia `demo-integracion-156-impresiones`; es un dato de prueba local. Existe también un aviso de verificación de concurrencia. No se incluyen credenciales en este documento.

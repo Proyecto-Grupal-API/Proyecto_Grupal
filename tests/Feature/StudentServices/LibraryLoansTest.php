@@ -6,6 +6,7 @@ use App\Models\StudentServices\Library\BookReservation;
 use App\Models\StudentServices\Library\LibraryFine;
 use App\Models\StudentServices\Library\Loan;
 use App\Models\User;
+use App\Services\StudentServices\Payments\StudentPaymentGateway;
 use Illuminate\Testing\TestResponse;
 
 beforeEach(function () {
@@ -55,6 +56,9 @@ test('a student with a pending fine cannot borrow until the fine is paid', funct
 
     expect(Loan::count())->toBe(0)
         ->and($this->copy->fresh()->status)->toBe('available');
+
+    $this->mock(StudentPaymentGateway::class)->shouldReceive('lookupFinePayment')
+        ->with((string) $fine->id, 'PAY-77')->once()->andReturn(studentServiceFinePayment($fine, 'PAY-77'));
 
     $this->actingAs($this->user)
         ->patch("/servicios-estudiante/biblioteca/multas/{$fine->id}/pagar", ['payment_reference_id' => 'PAY-77'])

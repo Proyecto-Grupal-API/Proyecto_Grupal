@@ -38,6 +38,7 @@ class LibraryFine extends Model
         'status',
         'generated_at',
         'payment_reference_id',
+        'verified_payment_id',
         'paid_at',
         'notes',
     ];
