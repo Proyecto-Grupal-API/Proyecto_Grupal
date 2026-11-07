@@ -8,6 +8,7 @@ use App\Domains\Financial\Services\ReceiptPdfService;
 use App\Domains\Financial\Services\WalletService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 
 class PersonalReceiptWebController extends Controller
@@ -41,12 +42,30 @@ class PersonalReceiptWebController extends Controller
             default => abort(404),
         };
 
+        // Verify only identifiers already exposed by the owner's canonical receipt.
+        $verification = Validator::make($request->query(), [
+            'folio' => 'sometimes|required|string|max:50',
+            'reference' => 'sometimes|required|uuid',
+        ]);
+        abort_if($verification->fails(), 404);
+
+        $identifiers = $verification->validated();
+        if (isset($identifiers['folio'])) {
+            abort_unless(in_array($identifiers['folio'], array_column($receipt['cash_receipts'], 'folio'), true), 404);
+        }
+        if (isset($identifiers['reference'])) {
+            abort_unless(strtolower($identifiers['reference']) === $receipt['id'], 404);
+        }
+
         return $receipt;
     }
 
     public function show(Request $request, string $source, string $operationId)
     {
-        return Inertia::render('Financial/PersonalReceipt', ['receipt' => $this->receipt($request, $source, $operationId)]);
+        return Inertia::render('Financial/PersonalReceipt', ['receipt' => $this->receipt($request, $source, $operationId)])
+            ->toResponse($request)
+            ->header('Cache-Control', 'private, no-store')
+            ->header('Referrer-Policy', 'no-referrer');
     }
 
     public function downloadPdf(Request $request, string $source, string $operationId, ReceiptPdfService $pdf)
