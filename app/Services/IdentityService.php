@@ -33,7 +33,6 @@ use RuntimeException;
  */
 class IdentityService
 {
-    /** Resolve a presented NFC UID without changing the credential or its lifecycle. */
     public function isEligibleFinancialAccount(string $id): bool
     {
         if (! preg_match('/\A[0-9a-fA-F]{24}\z/', $id)) {
@@ -48,16 +47,25 @@ class IdentityService
 
     public function hasActiveAccountSession(string $userId, mixed $sessionId): bool
     {
+        return $this->activeFinancialSession($userId, $sessionId) !== null;
+    }
+
+    public function activeFinancialSession(string $userId, mixed $sessionId): ?array
+    {
         if (! is_string($sessionId) || ! preg_match('/\A[0-9a-fA-F]{24}\z/', $sessionId)
             || ! $this->isEligibleFinancialAccount($userId)) {
-            return false;
+            return null;
         }
 
         $session = UserSession::find(strtolower($sessionId));
+        if (! $session || $session->isRevoked() || strcasecmp((string) $session->user_id, $userId) !== 0) {
+            return null;
+        }
 
-        return $session && ! $session->isRevoked() && strcasecmp((string) $session->user_id, $userId) === 0;
+        return ['session_id' => (string) $session->getKey(), 'device_id' => $session->device_id ? (string) $session->device_id : null];
     }
 
+    /** Resolve a presented NFC UID without changing the credential or its lifecycle. */
     public function validateNfcUid(string $uid, ?string $validatorLabel, ?string $ip): array
     {
         $canonicalUid = NfcUid::normalize($uid);

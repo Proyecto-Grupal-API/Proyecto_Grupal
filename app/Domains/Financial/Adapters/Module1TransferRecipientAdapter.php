@@ -5,19 +5,31 @@ namespace App\Domains\Financial\Adapters;
 use App\Domains\Financial\Contracts\IdentityProvider;
 use App\Domains\Financial\Contracts\TransferRecipientProvider;
 use App\Domains\Financial\Exceptions\FinancialDependencyUnavailableException;
-use App\Models\StudentProfile;
-use App\Models\User;
+use App\Domains\Financial\Contracts\TransferAccountProvider;
+use App\Exceptions\DirectoryFailure;
+use App\Services\Directory\DirectoryInput;
+use App\Services\Directory\IdentityDirectoryService;
 use InvalidArgumentException;
 use Throwable;
 
 class Module1TransferRecipientAdapter implements TransferRecipientProvider
 {
-    public function __construct(private readonly IdentityProvider $identity) {}
+    public function __construct(
+        private readonly IdentityProvider $identity,
+        private readonly IdentityDirectoryService $directory,
+        private readonly TransferAccountProvider $accounts,
+    ) {}
 
     public function resolve(string $method, string $value, string $actorId, ?string $ip): array
     {
         try {
             return $this->resolveAvailable($method, $value, $actorId, $ip);
+        } catch (DirectoryFailure $e) {
+            if ($e->status === 409) {
+                throw new InvalidArgumentException('No se pudo identificar un destinatario único.');
+            }
+
+            throw new FinancialDependencyUnavailableException('El directorio de Identidad no está disponible.');
         } catch (InvalidArgumentException|FinancialDependencyUnavailableException $e) {
             throw $e;
         } catch (Throwable $e) {
@@ -29,20 +41,21 @@ class Module1TransferRecipientAdapter implements TransferRecipientProvider
     {
         $value = trim($value);
         $id = null;
+        $projection = null;
+        $fields = ['projection' => ['identity'], 'include_enrollment' => true];
         if ($method === 'USER_ID') {
             if (! preg_match('/^[a-f0-9]{24}$/i', $value)) {
                 throw new InvalidArgumentException('Identificador de usuario no válido.');
             }
             $id = strtolower($value);
         } elseif ($method === 'ENROLLMENT') {
-            if ($value === '' || mb_strlen($value) > 100) {
+            $enrollment = DirectoryInput::enrollment($value);
+            if ($enrollment === null) {
                 throw new InvalidArgumentException('Matrícula no válida.');
             }
-            $matches = StudentProfile::where('enrollment_number', $value)->limit(2)->get();
-            if ($matches->count() !== 1) {
-                throw new InvalidArgumentException('No se pudo identificar un destinatario único.');
-            }
-            $id = (string) $matches->first()->user_id;
+            $result = $this->directory->resolve($fields + ['enrollment_number' => $enrollment]);
+            $projection = $result['identity'] ?? null;
+            $id = $projection['user_id'] ?? null;
         } elseif ($method === 'QR') {
             if ($value === '' || strlen($value) > 500) {
                 throw new InvalidArgumentException('Código QR no válido.');
@@ -67,16 +80,17 @@ class Module1TransferRecipientAdapter implements TransferRecipientProvider
         if (! preg_match('/^[a-f0-9]{24}$/i', (string) $id)) {
             throw new InvalidArgumentException('No se pudo identificar el destinatario.');
         }
-        $u = User::find(strtolower($id));
-        if (! $u || $u->account_activation_pending || ! $u->email_verified_at) {
-            throw new InvalidArgumentException('El destinatario no tiene una cuenta activa y verificada.');
+        $id = strtolower($id);
+        $this->accounts->assertActive($id);
+        if ($projection === null) {
+            $item = $this->directory->batch($fields + ['user_ids' => [$id]])['items'][0];
+            $projection = $item['identity'] ?? null;
         }
-        $profiles = StudentProfile::where('user_id', (string) $u->getKey())->limit(2)->get();
-        if ($profiles->count() > 1) {
-            throw new InvalidArgumentException('El destinatario tiene una identidad académica ambigua.');
+        if ($projection === null || $projection['user_id'] !== $id) {
+            throw new FinancialDependencyUnavailableException('Identidad no devolvió un destinatario inequívoco.');
         }
 
-        return ['user_id' => strtolower((string) $u->getKey()), 'name' => $u->name,
-            'enrollment_number' => $profiles->first()?->enrollment_number];
+        return ['user_id' => $id, 'name' => $projection['display_name'],
+            'enrollment_number' => $projection['enrollment_number']];
     }
 }
