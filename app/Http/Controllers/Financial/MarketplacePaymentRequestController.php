@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Financial;
 
-use App\Domains\Financial\Models\MarketplacePaymentRequest;
 use App\Domains\Financial\Services\MarketplaceCheckoutService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -45,6 +44,21 @@ class MarketplacePaymentRequestController extends Controller
         return response()->json(['data' => $s->partnerResult($row)], $row->wasRecentlyCreated ? 201 : 200);
     }
 
+    public function cancel(Request $r, MarketplaceCheckoutService $s)
+    {
+        abort_unless($s->enabled(), 503, 'La confirmacion de compras no esta habilitada.');
+        abort_if($r->query() !== [], 422, 'No se admiten parametros de consulta al cancelar.');
+        abort_if(array_diff(array_keys($r->all()), ['order_id', 'business_id']) !== [], 422, 'Campos no admitidos.');
+        $d = $r->validate(['order_id' => 'required|string|max:100', 'business_id' => 'required|string|max:100']);
+        try {
+            $row = $s->cancelByOrder($this->client($r), $d['business_id'], $d['order_id']);
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $s->partnerResult($row)]);
+    }
+
     public function lookup(Request $r, MarketplaceCheckoutService $s)
     {
         // Laravel getJson emits [] even when the GET has no input. Empty containers contain no selectors.
@@ -52,8 +66,7 @@ class MarketplacePaymentRequestController extends Controller
         abort_if(array_diff(array_keys($r->query()), ['order_id', 'business_id']) !== [], 422);
         $d = $r->validate(['order_id' => 'required|string|max:100', 'business_id' => 'required|string|max:100']);
         $client = $this->client($r);
-        $s->merchant($client, $d['business_id'], 'financial:purchase:read');
-        $row = MarketplacePaymentRequest::where('client_id', $client)->where('business_id', $d['business_id'])->where('order_id', $d['order_id'])->firstOrFail();
+        $row = $s->lookupByOrder($client, $d['business_id'], $d['order_id']);
 
         return response()->json(['data' => $s->partnerResult($row)]);
     }

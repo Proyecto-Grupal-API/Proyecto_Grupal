@@ -64,6 +64,11 @@ class MarketplaceCheckoutService
         return hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
     }
 
+    private function originKey(string $client, string $business, string $order): string
+    {
+        return hash('sha256', json_encode([$client, $business, $order], JSON_THROW_ON_ERROR));
+    }
+
     private function recipient(string $client, string $business, bool $lock = false): Wallet
     {
         $id = config('financial_marketplace.clients', [])[$client]['recipient_wallets'][$business] ?? null;
@@ -91,7 +96,7 @@ class MarketplaceCheckoutService
         $d['reservation_expires_at'] = $reservationExpiry === null ? null : CarbonImmutable::parse($reservationExpiry)->toISOString();
         $hash = $this->digest($d);
         $keyHash = hash('sha256', json_encode([$client, $key], JSON_THROW_ON_ERROR));
-        $origin = hash('sha256', json_encode([$client, $d['business_id'], $d['order_id']], JSON_THROW_ON_ERROR));
+        $origin = $this->originKey($client, $d['business_id'], $d['order_id']);
 
         return DB::connection('sqlsrv')->transaction(function () use ($d, $hash, $keyHash, $origin, $client, $ttl) {
             $existing = MarketplacePaymentRequest::where('key_hash', $keyHash)->first()
@@ -203,6 +208,32 @@ class MarketplaceCheckoutService
                 'native_session_hash' => hash('sha256', $request->session()->getId()), 'ip' => $request->ip(),
                 'password_confirmed_at' => $request->session()->get('auth.password_confirmed_at')];
             $row->save();
+
+            return $row;
+        });
+    }
+
+    public function lookupByOrder(string $client, string $business, string $order): MarketplacePaymentRequest
+    {
+        $this->merchant($client, $business, 'financial:purchase:read');
+
+        return MarketplacePaymentRequest::where('origin_key', $this->originKey($client, $business, $order))->firstOrFail();
+    }
+
+    public function cancelByOrder(string $client, string $business, string $order): MarketplacePaymentRequest
+    {
+        PaymentEventPayload::identifier($business);
+        PaymentEventPayload::identifier($order);
+        $this->merchant($client, $business, 'financial:purchase:cancel');
+        $origin = $this->originKey($client, $business, $order);
+
+        return DB::connection('sqlsrv')->transaction(function () use ($origin) {
+            // Serialize with buyer confirmation on the same request, using the exact original tuple.
+            $row = MarketplacePaymentRequest::where('origin_key', $origin)->lockForUpdate()->firstOrFail();
+            if ($row->status === 'PENDING') {
+                $row->status = $this->status($row) === 'EXPIRED' ? 'EXPIRED' : 'CANCELLED';
+                $row->save();
+            }
 
             return $row;
         });
