@@ -10,6 +10,7 @@ class RenderMarketplaceCheckoutFailures {
         catch(FinancialDependencyUnavailableException $e){report($e);$response=response()->json(['message'=>'No se pudo comprobar una dependencia de seguridad.'],503);}
         catch(\MongoDB\Driver\Exception\Exception $e){report($e);$response=response()->json(['message'=>'Identidad no esta disponible para comprobar la operacion.'],503);}
         catch(UniqueConstraintViolationException $e){$response=response()->json(['message'=>'Hay una operacion concurrente o un pedido ya vinculado. Consulta el mismo pedido antes de reintentar.'],409);}
+        catch(\Illuminate\Database\QueryException $e){$response=response()->json(['message'=>'La operacion financiera no esta disponible. Conserva la misma solicitud.'],503);}
         return $response->header('Cache-Control','private, no-store')->header('Referrer-Policy','same-origin');
     }
 }

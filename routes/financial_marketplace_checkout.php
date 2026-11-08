@@ -6,7 +6,7 @@ Route::middleware([RenderMarketplaceCheckoutFailures::class,'throttle:30,1'])->p
     Route::post('/payment-requests',[MarketplacePaymentRequestController::class,'prepare'])->middleware('oauth.service:financial:purchase:prepare');
     Route::get('/payment-requests/by-order',[MarketplacePaymentRequestController::class,'lookup'])->middleware('oauth.service:financial:purchase:read');
 });
-Route::middleware(['web','auth','verified','session.active','device.track',RenderMarketplaceCheckoutFailures::class])
+Route::middleware(['web','auth','verified',RenderMarketplaceCheckoutFailures::class,\App\Http\Middleware\RequireMarketplaceNativeSession::class,'session.active','device.track'])
     ->prefix('finanzas/compras')->name('financial.marketplace.')->group(function(){
         Route::get('/',[MarketplaceCheckoutWebController::class,'index'])->name('index');
         Route::get('/solicitudes/{paymentRequest}',[MarketplaceCheckoutWebController::class,'show'])->whereUuid('paymentRequest')->name('show');

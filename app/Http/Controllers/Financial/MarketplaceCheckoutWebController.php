@@ -21,12 +21,14 @@ class MarketplaceCheckoutWebController extends Controller {
         if(!$recent)$r->session()->put('url.intended',route('financial.marketplace.show',['paymentRequest'=>$row->public_id]));
         return Inertia::render('Financial/MarketplaceCheckout',['paymentRequest'=>$s->partnerResult($row)+$merchant+
             ['description'=>$row->payload['description']??'','items'=>$row->payload['items']??[]],
-            'reviewToken'=>$s->reviewToken($r,$row),'passwordRecent'=>$recent]);
+            'reviewToken'=>$s->reviewToken($r,$row),'passwordRecent'=>$recent,'becaEnabled'=>$s->becaEnabled(),'becaOptions'=>$s->becaOptions($r,$row)]);
     }
     public function confirm(Request $r,string $paymentRequest,MarketplaceCheckoutService $s){
-        abort_if(array_diff(array_keys($r->all()),['consent','review_token'])!==[],422,'Campos no admitidos.');
-        $d=$r->validate(['consent'=>'required|accepted','review_token'=>'required|string|size:64']);
-        try {$row=$s->confirm($r,$paymentRequest,$d['review_token']);}
+        abort_if(array_diff(array_keys($r->all()),['consent','review_token','payment_method','bonus_id','funding_review_token'])!==[],422,'Campos no admitidos.');
+        $d=$r->validate(['consent'=>'required|accepted','review_token'=>'required|string|size:64','payment_method'=>'sometimes|in:WALLET,BECA',
+            'bonus_id'=>'required_if:payment_method,BECA|prohibited_unless:payment_method,BECA|uuid',
+            'funding_review_token'=>'required_if:payment_method,BECA|prohibited_unless:payment_method,BECA|string|size:64']);
+        try {$row=$s->confirm($r,$paymentRequest,$d['review_token'],$d['bonus_id']??null,$d['funding_review_token']??null);}
         catch(InvalidArgumentException $e){return back()->withErrors(['payment'=>$e->getMessage()]);}
         catch(HttpExceptionInterface $e){if($e->getStatusCode()!==409)throw $e;return back()->withErrors(['payment'=>$e->getMessage()]);}
         return redirect()->route('financial.receipts.show',['source'=>'purchase','operationId'=>strtolower($row->purchase_payment_id)]);
