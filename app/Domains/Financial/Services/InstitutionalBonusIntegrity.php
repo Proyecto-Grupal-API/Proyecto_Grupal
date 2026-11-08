@@ -50,19 +50,32 @@ final class InstitutionalBonusIntegrity
                 $r = PurchaseRefundRequest::where('public_id', $line->refund_request_id)->first();
                 $rop = InstitutionalBudgetOperation::where('public_id', $line->operation_id)->first();
                 $tx = $r ? FinancialTransaction::where('public_id',$r->financial_transaction_id)->first() : null;
+                $closedRefund = $rop?->action === 'REFUND_CLOSED_BECA';
                 $allocations = $r ? $r->bonuses()->get() : collect(); $allocation = $allocations->first();
                 if (!$r || !$tx || $tx->status !== TransactionStatus::COMPLETADA || $tx->reference_type !== 'PURCHASE_REFUND'
                     || strtolower((string)$tx->reference_id) !== strtolower($r->public_id)
                     || $allocations->count() !== 1 || !$allocation || strtolower($allocation->bonus_id) !== $id || $allocation->amount_cents !== $line->amount_cents
-                    || !$rop || $rop->action !== 'REFUND_BECA' || strtolower($rop->budget_id) !== $budgetId
+                    || !$rop || !in_array($rop->action,['REFUND_BECA','REFUND_CLOSED_BECA'],true) || strtolower($rop->budget_id) !== $budgetId
                     || $r->status !== RefundRequestStatus::COMPLETADA || strtolower($r->purchase_payment_id) !== strtolower($payment->public_id)
                     || $line->amount_cents <= 0 || $line->amount_cents !== $r->total_amount_cents || $r->wallet_amount_cents !== 0
                     || $r->bonus_amount_cents !== $line->amount_cents || $r->currency !== 'MXN'
-                    || ($rop->after_data['restored_amount_cents'] ?? null) !== $line->amount_cents
+                    || ($rop->after_data['restored_amount_cents'] ?? null) !== ($closedRefund ? 0 : $line->amount_cents)
                     || strtolower((string)($rop->after_data['obligation_id'] ?? '')) !== strtolower($debt->public_id)
                     || strtolower((string)($rop->after_data['bonus_id'] ?? '')) !== $id
                     || strtolower((string)($rop->after_data['refund_request_id'] ?? '')) !== strtolower($r->public_id)
                     || $line->amount_cents > $debt->amount_cents - $refunded) $fail();
+                if ($closedRefund) {
+                    if ((!in_array($bonus->status,[BonusStatus::CANCELADO,BonusStatus::EXPIRADO],true)
+                            && !($bonus->status === BonusStatus::AGOTADO && $bonus->expires_at && now()->gte($bonus->expires_at)))
+                        || ($rop->after_data['refund_destination'] ?? null) !== 'BUDGET_AVAILABLE'
+                        || ($rop->after_data['released_refund_amount_cents'] ?? null) !== $line->amount_cents
+                        || ($rop->after_data['terminal_bonus_status'] ?? null) !== $bonus->status->value
+                        || ($tx->metadata['refund_destination'] ?? null) !== 'BUDGET_AVAILABLE'
+                        || ($tx->metadata['restored_bonus_amount_cents'] ?? null) !== 0
+                        || ($tx->metadata['released_budget_amount_cents'] ?? null) !== $line->amount_cents) $fail();
+                    $expected['BUDGET_REFUND_RELEASE:'.strtolower($r->public_id)] = [-$line->amount_cents,
+                        $bonus->status === BonusStatus::CANCELADO ? BonusMovementType::CANCELACION : BonusMovementType::EXPIRACION];
+                }
                 $refunded += $line->amount_cents;
                 $expected['PURCHASE_REFUND:'.strtolower($r->public_id)] = [$line->amount_cents, BonusMovementType::DEVOLUCION];
             }
@@ -93,7 +106,7 @@ final class InstitutionalBonusIntegrity
 
         }
         $entries = BonusLedgerEntry::where('bonus_id', $id)->orderBy('id')->get();
-        $balance = 0; $released = 0; $initial = true;
+        $balance = 0; $released = 0; $closedReleased = 0; $initial = true;
         foreach ($entries as $entry) {
             if ($initial) {
                 if ($entry->movement_type !== BonusMovementType::EMISION || $entry->amount_cents !== $original
@@ -112,6 +125,7 @@ final class InstitutionalBonusIntegrity
                 $k = $entry->reference_type.':'.strtolower((string)$entry->reference_id);
                 if (!isset($expected[$k]) || $expected[$k] !== [$entry->amount_cents, $entry->movement_type]) $fail();
                 unset($expected[$k]);
+                if ($entry->reference_type === 'BUDGET_REFUND_RELEASE') { $released -= $entry->amount_cents; $closedReleased -= $entry->amount_cents; }
             }
             if ($entry->amount_cents > 0 && $entry->amount_cents > $original - $balance) $fail();
             if ($entry->amount_cents < 0 && $entry->amount_cents < -$balance) $fail();
@@ -120,8 +134,8 @@ final class InstitutionalBonusIntegrity
         }
         if ($initial || $expected !== [] || $balance !== $bonus->remaining_amount_cents || $released > $original - $net
             || $balance !== $original - $net - $released
-            || (in_array($bonus->status, [BonusStatus::CANCELADO,BonusStatus::EXPIRADO], true) && ($balance !== 0 || $released <= 0))
-            || ($bonus->status === BonusStatus::AGOTADO && ($balance !== 0 || $released !== 0))
+            || (in_array($bonus->status, [BonusStatus::CANCELADO,BonusStatus::EXPIRADO], true) && ($balance !== 0 || $released - $closedReleased <= 0))
+            || ($bonus->status === BonusStatus::AGOTADO && ($balance !== 0 || $released !== $closedReleased))
             || (in_array($bonus->status, [BonusStatus::ACTIVO,BonusStatus::PENDIENTE], true) && ($balance <= 0 || $released !== 0))) $fail();
         return $link;
     }

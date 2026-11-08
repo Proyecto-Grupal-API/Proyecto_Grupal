@@ -42,6 +42,11 @@ final class InstitutionalObligationQueryService
                 $remaining = $scope()->selectRaw('CAST(COALESCE(SUM(CAST(b.remaining_amount_cents AS decimal(38,0))),0) AS varchar(40)) AS amount')->value('amount');
                 $actualRefunds = $db->table('institutional_bonus_refunds as r')->join('institutional_bonus_obligations as o','o.public_id','=','r.obligation_id')
                     ->where('o.budget_id',$id)->selectRaw('CAST(COALESCE(SUM(CAST(r.amount_cents AS decimal(38,0))),0) AS varchar(40)) AS amount')->value('amount');
+                $closedRefundTotal = $db->table('institutional_bonus_refunds as r')
+                    ->join('institutional_bonus_obligations as o','o.public_id','=','r.obligation_id')
+                    ->join('institutional_budget_operations as op','op.public_id','=','r.operation_id')
+                    ->where('o.budget_id',$id)->where('op.action','REFUND_CLOSED_BECA')
+                    ->selectRaw('CAST(COALESCE(SUM(CAST(r.amount_cents AS decimal(38,0))),0) AS varchar(40)) AS amount')->value('amount');
                 $actualSettlements = $db->table('institutional_bonus_settlements as s')->join('institutional_bonus_obligations as o','o.public_id','=','s.obligation_id')
                     ->where('o.budget_id',$id)->selectRaw('CAST(COALESCE(SUM(CAST(s.amount_cents AS decimal(38,0))),0) AS varchar(40)) AS amount')->value('amount');
                 $findings = [];
@@ -99,12 +104,34 @@ final class InstitutionalObligationQueryService
                             ->orWhereColumn('f.purchase_payment_id','<>','o.purchase_payment_id')->orWhere('f.status','<>','COMPLETADA')
                             ->orWhere('f.wallet_amount_cents','<>',0)->orWhereColumn('f.total_amount_cents','<>','r.amount_cents')
                             ->orWhereColumn('f.bonus_amount_cents','<>','r.amount_cents')->orWhere('f.currency','<>','MXN')
-                            ->orWhere('op.action','<>','REFUND_BECA')->orWhere('op.budget_id','<>',$id)
+                            ->orWhereNotIn('op.action',['REFUND_BECA','REFUND_CLOSED_BECA'])->orWhere('op.budget_id','<>',$id)
                             ->orWhere('t.status','<>','COMPLETADA')->orWhere('t.reference_type','<>','PURCHASE_REFUND')
                             ->orWhereColumn('t.reference_id','<>','r.refund_request_id')
                             ->orWhereRaw("(SELECT COUNT_BIG(*) FROM purchase_refund_bonuses a WHERE a.refund_request_id=f.public_id AND a.bonus_id=o.bonus_id AND a.amount_cents=r.amount_cents) <> 1");
                     });
                 $this->finding($findings,'REFUND_EVIDENCE',$badRefund,'r.public_id');
+                // Terminal refunds must have both the return and an immediate, fully evidenced
+                // release. Do not silently accept a counter without the second ledger movement.
+                $closedRefund = $db->table('institutional_bonus_refunds as r')
+                    ->join('institutional_bonus_obligations as o','o.public_id','=','r.obligation_id')
+                    ->join('institutional_budget_operations as op','op.public_id','=','r.operation_id')
+                    ->join('bonuses as b','b.public_id','=','o.bonus_id')
+                    ->join('purchase_refund_requests as f','f.public_id','=','r.refund_request_id')
+                    ->join('financial_transactions as t','t.public_id','=','f.financial_transaction_id')
+                    ->where('o.budget_id',$id)->where('op.action','REFUND_CLOSED_BECA')
+                    ->where(function ($q) {
+                        $q->whereNotIn('b.status',['CANCELADO','EXPIRADO','AGOTADO'])->orWhere('b.remaining_amount_cents','<>',0)
+                            ->orWhereRaw("(b.status='AGOTADO' AND (b.expires_at IS NULL OR b.expires_at > ?))",[now()])
+                            ->orWhereRaw("COALESCE(JSON_VALUE(CASE WHEN ISJSON(op.after_data)=1 THEN op.after_data ELSE '{}' END,'$.refund_destination'),'') <> 'BUDGET_AVAILABLE'")
+                            ->orWhereRaw("COALESCE(JSON_VALUE(CASE WHEN ISJSON(op.after_data)=1 THEN op.after_data ELSE '{}' END,'$.terminal_bonus_status'),'') <> b.status")
+                            ->orWhereRaw("COALESCE(TRY_CONVERT(decimal(38,0),JSON_VALUE(CASE WHEN ISJSON(op.after_data)=1 THEN op.after_data ELSE '{}' END,'$.restored_amount_cents')),-1) <> 0")
+                            ->orWhereRaw("COALESCE(TRY_CONVERT(decimal(38,0),JSON_VALUE(CASE WHEN ISJSON(op.after_data)=1 THEN op.after_data ELSE '{}' END,'$.released_refund_amount_cents')),-1) <> CAST(r.amount_cents AS decimal(38,0))")
+                            ->orWhereRaw("COALESCE(JSON_VALUE(CASE WHEN ISJSON(t.metadata)=1 THEN t.metadata ELSE '{}' END,'$.refund_destination'),'') <> 'BUDGET_AVAILABLE'")
+                            ->orWhereRaw("COALESCE(TRY_CONVERT(decimal(38,0),JSON_VALUE(CASE WHEN ISJSON(t.metadata)=1 THEN t.metadata ELSE '{}' END,'$.restored_bonus_amount_cents')),-1) <> 0")
+                            ->orWhereRaw("COALESCE(TRY_CONVERT(decimal(38,0),JSON_VALUE(CASE WHEN ISJSON(t.metadata)=1 THEN t.metadata ELSE '{}' END,'$.released_budget_amount_cents')),-1) <> CAST(r.amount_cents AS decimal(38,0))")
+                            ->orWhereRaw("(SELECT COUNT_BIG(*) FROM bonus_ledger_entries e WHERE e.bonus_id=o.bonus_id AND e.reference_type='BUDGET_REFUND_RELEASE' AND e.reference_id=r.refund_request_id AND e.movement_type=CASE WHEN b.status='CANCELADO' THEN 'CANCELACION' ELSE 'EXPIRACION' END AND CAST(e.amount_cents AS decimal(38,0))=-CAST(r.amount_cents AS decimal(38,0)) AND e.remaining_after_cents=0) <> 1");
+                    });
+                $this->finding($findings,'CLOSED_REFUND_RELEASE_EVIDENCE',$closedRefund,'r.public_id');
                 // Window arithmetic remains DECIMAL, including gross turnover larger than a PHP integer.
                 $running = (clone $journal)->join('bonuses as b','b.public_id','=','e.bonus_id')->select('e.public_id','e.amount_cents','e.remaining_after_cents','b.original_amount_cents')
                     ->selectRaw('SUM(CAST(e.amount_cents AS decimal(38,0))) OVER (PARTITION BY e.bonus_id ORDER BY e.id ROWS UNBOUNDED PRECEDING) AS running_balance');
@@ -130,6 +157,12 @@ final class InstitutionalObligationQueryService
                         (SELECT 1 FROM institutional_bonus_obligations o WHERE o.bonus_id=e.bonus_id AND o.purchase_payment_id=e.reference_id AND CAST(o.amount_cents AS decimal(38,0))=-CAST(e.amount_cents AS decimal(38,0))))
                     OR (e.movement_type='DEVOLUCION' AND e.reference_type='PURCHASE_REFUND' AND EXISTS
                         (SELECT 1 FROM institutional_bonus_refunds r JOIN institutional_bonus_obligations o ON o.public_id=r.obligation_id WHERE o.bonus_id=e.bonus_id AND r.refund_request_id=e.reference_id AND r.amount_cents=e.amount_cents))
+                    OR (e.movement_type IN ('CANCELACION','EXPIRACION') AND e.reference_type='BUDGET_REFUND_RELEASE' AND EXISTS
+                        (SELECT 1 FROM institutional_bonus_refunds r JOIN institutional_bonus_obligations o ON o.public_id=r.obligation_id
+                        JOIN institutional_budget_operations op ON op.public_id=r.operation_id JOIN bonuses b ON b.public_id=o.bonus_id
+                        WHERE o.bonus_id=e.bonus_id AND r.refund_request_id=e.reference_id AND op.action='REFUND_CLOSED_BECA'
+                        AND e.movement_type=CASE WHEN b.status='CANCELADO' THEN 'CANCELACION' WHEN b.status IN ('EXPIRADO','AGOTADO') THEN 'EXPIRACION' ELSE '' END
+                        AND CAST(e.amount_cents AS decimal(38,0))=-CAST(r.amount_cents AS decimal(38,0))))
                     OR (e.movement_type IN ('CANCELACION','EXPIRACION') AND e.reference_type='BUDGET_RELEASE' AND EXISTS
                         (SELECT 1 FROM institutional_budget_operations op WHERE op.public_id=e.reference_id AND op.budget_id=? AND op.action IN ('CANCEL_BECA','EXPIRE_BECA')))
                 ) OR e.reference_type IS NULL OR e.reference_id IS NULL)",[$id]);
@@ -168,7 +201,7 @@ final class InstitutionalObligationQueryService
                 $rows[] = ['budget_id'=>$id,'currency'=>$budget->currency,'status'=>$budget->status,'version'=>(string)$budget->version,
                     'approved_amount_cents'=>(string)$budget->approved_amount_cents,'available_amount_cents'=>(string)$budget->available_amount_cents,'committed_amount_cents'=>$storedCommitted,
                     'consumed_amount_cents'=>$storedConsumed,'observed_bonus_balances_cents'=>(string)$remaining,
-                    'observed_ledger_consumed_cents'=>(string)$ledgerNet,'observed_refund_evidence_cents'=>(string)$actualRefunds,'observed_settlement_evidence_cents'=>(string)$actualSettlements,
+                    'observed_ledger_consumed_cents'=>(string)$ledgerNet,'observed_refund_evidence_cents'=>(string)$actualRefunds,'observed_closed_refund_release_cents'=>(string)$closedRefundTotal,'observed_settlement_evidence_cents'=>(string)$actualSettlements,
                     'obligations'=>(array)$totals,'consistent'=>$clean,'findings'=>$findings];
             }
             $entries = []; $more = false;

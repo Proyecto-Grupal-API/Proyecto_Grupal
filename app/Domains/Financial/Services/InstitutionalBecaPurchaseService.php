@@ -110,12 +110,22 @@ final class InstitutionalBecaPurchaseService
     }
 
     /** Called by the existing approved purchase-refund flow. No cash refund is accepted. */
+    public function completeClosedRefund(PurchaseRefundRequest $input, string $key, string $actor): FinancialTransaction
+    {
+        return $this->refund($input, $key, $actor, true);
+    }
+
     public function completeRefund(PurchaseRefundRequest $input, string $key, string $actor): FinancialTransaction
+    {
+        return $this->refund($input, $key, $actor, false);
+    }
+
+    private function refund(PurchaseRefundRequest $input, string $key, string $actor, bool $closed): FinancialTransaction
     {
         $actor = $this->actor($actor); $key = $this->key($key);
         $probe = InstitutionalBonusObligation::where('purchase_payment_id',$input->purchase_payment_id)->first();
         if (!$probe) throw new ConflictHttpException('No existe obligacion institucional para esta compra.');
-        return $this->run($key, function ($lockKey,$token) use ($input,$probe,$key,$actor) {
+        return $this->run($key, function ($lockKey,$token) use ($input,$probe,$key,$actor,$closed) {
             $budget = InstitutionalBonusBudget::where('public_id',$probe->budget_id)->lockForUpdate()->firstOrFail();
             app(InstitutionalBudgetIntegrity::class)->assertState($budget);
             $bonus = Bonus::where('public_id',$probe->bonus_id)->lockForUpdate()->firstOrFail();
@@ -134,13 +144,19 @@ final class InstitutionalBecaPurchaseService
                 'bonus_id' => strtolower($bonus->public_id),'buyer_id' => strtolower($bonus->beneficiary_id),
                 'business_id' => $debt->business_id,'amount_cents' => $refund->total_amount_cents,'currency' => 'MXN',
                 'requested_by' => $refund->requested_by,'reviewed_by' => $refund->reviewed_by,'reason' => $refund->reason];
-            $this->authorize($actor,'purchase.refund',$context);
-            $hash = hash('sha256',json_encode([$actor,'REFUND_BECA',$context],JSON_THROW_ON_ERROR));
+            $action = $closed ? 'REFUND_CLOSED_BECA' : 'REFUND_BECA';
+            if ($closed) {
+                $context['refund_destination'] = 'BUDGET_AVAILABLE';
+                if (!app(\App\Domains\Financial\Contracts\InstitutionalBudgetAuthorization::class)
+                    ->allows($actor,'budget.refund.release',strtolower($budget->public_id))) throw new AuthorizationException();
+            }
+            $this->authorize($actor,$closed ? 'purchase.refund.closed' : 'purchase.refund',$context);
+            $hash = hash('sha256',json_encode([$actor,$action,$context],JSON_THROW_ON_ERROR));
             $existing = InstitutionalBudgetOperation::where('idempotency_key',$key)->first();
             if ($existing) {
                 $row = InstitutionalBonusRefund::where('operation_id',$existing->public_id)->first();
                 $tx = FinancialTransaction::where('public_id',$refund->financial_transaction_id)->first();
-                if (!hash_equals($existing->request_hash,$hash) || $existing->action !== 'REFUND_BECA' || !$row
+                if (!hash_equals($existing->request_hash,$hash) || $existing->action !== $action || !$row
                     || strtolower($row->refund_request_id) !== strtolower($refund->public_id) || !$tx
                     || $refund->status !== RefundRequestStatus::COMPLETADA || $tx->idempotency_key !== $key
                     || $tx->status !== TransactionStatus::COMPLETADA || $tx->reference_type !== 'PURCHASE_REFUND'
@@ -148,9 +164,14 @@ final class InstitutionalBecaPurchaseService
                 return $tx;
             }
             if ($refund->status !== RefundRequestStatus::APROBADA || !$this->text((string)$refund->reviewed_by,255)
-                || $debt->status !== 'OPEN' || $budget->status !== 'ACTIVE' || now()->gte($budget->expires_at)
-                || now()->lt($budget->valid_from) || now()->gte($bonus->expires_at) || now()->lt($bonus->valid_from)
-                || !in_array($bonus->status,[BonusStatus::ACTIVO,BonusStatus::AGOTADO],true)
+                || $debt->status !== 'OPEN'
+                || ($closed
+                    ? (!in_array($budget->status,['ACTIVE','SUSPENDED'],true) || $bonus->remaining_amount_cents !== 0
+                        || (!in_array($bonus->status,[BonusStatus::CANCELADO,BonusStatus::EXPIRADO],true)
+                            && !($bonus->status === BonusStatus::AGOTADO && $bonus->expires_at && now()->gte($bonus->expires_at))))
+                    : ($budget->status !== 'ACTIVE' || now()->gte($budget->expires_at) || now()->lt($budget->valid_from)
+                        || now()->gte($bonus->expires_at) || now()->lt($bonus->valid_from)
+                        || !in_array($bonus->status,[BonusStatus::ACTIVO,BonusStatus::AGOTADO],true)))
                 || $refund->total_amount_cents > $debt->amount_cents - $debt->refunded_amount_cents - $debt->settled_amount_cents
                 || $refund->total_amount_cents > $budget->consumed_amount_cents || $budget->version === PHP_INT_MAX
                 || FinancialTransaction::where('idempotency_key',$key)->exists()) throw new ConflictHttpException('Devolucion institucional no disponible.');
@@ -161,26 +182,37 @@ final class InstitutionalBecaPurchaseService
             if ($requestTx->status !== TransactionStatus::PENDIENTE || $requestTx->reference_type !== 'PURCHASE_REFUND_REQUEST'
                 || strtolower((string)$requestTx->reference_id) !== strtolower($payment->public_id)) throw new ConflictHttpException('Solicitud de devolucion inconsistente.');
             $before = $this->budgets->snapshot($budget); $amount = $refund->total_amount_cents;
-            $budget->consumed_amount_cents -= $amount; $budget->committed_amount_cents += $amount; ++$budget->version; $budget->save();
-            $bonus->remaining_amount_cents += $amount; $bonus->status = BonusStatus::ACTIVO; $bonus->save();
+            $budget->consumed_amount_cents -= $amount;
+            if (!$closed) $budget->committed_amount_cents += $amount;
+            ++$budget->version; $budget->save();
+            if (!$closed) { $bonus->remaining_amount_cents += $amount; $bonus->status = BonusStatus::ACTIVO; $bonus->save(); }
             $debt->refunded_amount_cents += $amount; $debt->save();
             $tx = FinancialTransaction::create(['public_id' => (string)Str::uuid(),'idempotency_key' => $key,
                 'status' => TransactionStatus::COMPLETADA,'reference_type' => 'PURCHASE_REFUND','reference_id' => $refund->public_id,
                 'metadata' => ['operation' => 'PURCHASE_REFUND','purchase_payment_id' => strtolower($payment->public_id),
-                    'wallet_amount_cents' => 0,'bonus_amount_cents' => $amount,'executed_by' => $actor,'institutional' => true]]);
+                    'wallet_amount_cents' => 0,'bonus_amount_cents' => $amount,'executed_by' => $actor,'institutional' => true,
+                    ...($closed ? ['refund_destination'=>'BUDGET_AVAILABLE','restored_bonus_amount_cents'=>0,'released_budget_amount_cents'=>$amount] : [])]]);
             $refund->status = RefundRequestStatus::COMPLETADA; $refund->financial_transaction_id = $tx->public_id; $refund->completed_at = now(); $refund->save();
             $requestTx->status = TransactionStatus::COMPLETADA; $requestTx->save();
             $this->locks->assertOwned($lockKey,$token,180);
             $op = InstitutionalBudgetOperation::create(['public_id' => (string)Str::uuid(),'budget_id' => $budget->public_id,
-                'action' => 'REFUND_BECA','actor_id' => $actor,'reason' => $refund->reason ?: 'Devolucion de compra institucional.',
+                'action' => $action,'actor_id' => $actor,'reason' => $refund->reason ?: 'Devolucion de compra institucional.',
                 'idempotency_key' => $key,'request_hash' => $hash,'before_data' => $before,
                 'after_data' => [...$this->budgets->snapshot($budget),'bonus_id' => strtolower($bonus->public_id),
-                    'refund_request_id' => strtolower($refund->public_id),'obligation_id' => strtolower($debt->public_id),'restored_amount_cents' => $amount], 'created_at' => now()]);
+                    'refund_request_id' => strtolower($refund->public_id),'obligation_id' => strtolower($debt->public_id),'restored_amount_cents' => $closed ? 0 : $amount,
+                    ...($closed ? ['refund_destination'=>'BUDGET_AVAILABLE','released_refund_amount_cents'=>$amount,
+                        'terminal_bonus_status'=>$bonus->status->value] : [])], 'created_at' => now()]);
             InstitutionalBonusRefund::create(['public_id' => (string)Str::uuid(),'obligation_id' => $debt->public_id,
                 'refund_request_id' => $refund->public_id,'operation_id' => $op->public_id,'amount_cents' => $amount,'created_at' => now()]);
             BonusLedgerEntry::create(['public_id' => (string)Str::uuid(),'bonus_id' => $bonus->public_id,
-                'movement_type' => BonusMovementType::DEVOLUCION,'amount_cents' => $amount,'remaining_after_cents' => $bonus->remaining_amount_cents,
+                'movement_type' => BonusMovementType::DEVOLUCION,'amount_cents' => $amount,'remaining_after_cents' => $closed ? $amount : $bonus->remaining_amount_cents,
                 'reference_type' => 'PURCHASE_REFUND','reference_id' => $refund->public_id,'actor_id' => $actor,'reason' => $refund->reason]);
+            if ($closed) {
+                BonusLedgerEntry::create(['public_id'=>(string)Str::uuid(),'bonus_id'=>$bonus->public_id,
+                    'movement_type'=>$bonus->status === BonusStatus::CANCELADO ? BonusMovementType::CANCELACION : BonusMovementType::EXPIRACION,
+                    'amount_cents'=>-$amount,'remaining_after_cents'=>0,'reference_type'=>'BUDGET_REFUND_RELEASE',
+                    'reference_id'=>$refund->public_id,'actor_id'=>$actor,'reason'=>$refund->reason]);
+            }
             $this->integrity->assertState($budget,$bonus);
             app(InstitutionalBudgetIntegrity::class)->assertState($budget);
             $this->locks->assertOwned($lockKey,$token,180);
