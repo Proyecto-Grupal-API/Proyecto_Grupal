@@ -20,6 +20,7 @@ const cancel = () => cancellation.post(route('financial.marketplace.cancel', { p
         <template #header><h2 class="text-2xl font-bold text-[#00338D]">Revisa tu compra</h2></template>
         <main class="max-w-2xl mx-auto p-6 space-y-5">
             <Link :href="route('financial.marketplace.index')" class="text-blue-800 underline">Volver a mis compras</Link>
+            <Link :href="route('marketplace.orders')" class="ml-4 text-blue-800 underline">Volver a mis pedidos</Link>
             <section class="rounded-xl border bg-white p-6 space-y-4">
                 <p class="text-sm text-slate-500">Solicitud recibida de {{ paymentRequest.client_name }}</p>
                 <h3 class="text-xl font-bold">{{ paymentRequest.business_name }}</h3>

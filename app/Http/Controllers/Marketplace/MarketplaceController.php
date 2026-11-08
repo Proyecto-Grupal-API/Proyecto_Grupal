@@ -11,6 +11,7 @@ use App\Models\Marketplace\ReturnRequest;
 use App\Models\Marketplace\Storefront;
 use App\Services\Marketplace\MarketplaceIntegration;
 use App\Services\Marketplace\MarketplaceOrders;
+use App\Services\Marketplace\MarketplaceWallet;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -106,7 +107,50 @@ class MarketplaceController extends Controller
         $orders = Order::where('buyer_id', (string) $request->user()->getKey())
             ->latest()->paginate(10);
 
+        $enabled = app(MarketplaceWallet::class)->enabled();
+        $orders->through(function (Order $order) use ($enabled) {
+            $order->can_pay_wallet = $enabled && $order->payment_method === 'wallet' && $order->status === 'awaiting_payment'
+                && $order->payment_status === 'pending' && empty($order->wallet_checkout['close_as']) && $order->hold_expires_at?->isFuture();
+            $order->can_sync_wallet = $enabled && $order->wallet_checkout && in_array($order->status, ['awaiting_payment', 'payment_reconciliation'], true);
+
+            return $order;
+        });
+
         return Inertia::render('Marketplace/Orders', ['orders' => $orders, 'isAdmin' => false]);
+    }
+
+    public function payWallet(Request $request, string $orderId, MarketplaceOrders $orders)
+    {
+        $order = $this->walletOrder($request, $orderId);
+        try {
+            $path = $orders->startWalletPayment($order);
+        } catch (HttpException $e) {
+            if (! in_array($e->getStatusCode(), [409, 503], true)) {
+                throw $e;
+            }
+
+            return to_route('marketplace.orders')->withErrors(['payment' => $e->getMessage()]);
+        }
+
+        return $path ? Inertia::location(url($path)) : to_route('marketplace.orders');
+    }
+
+    public function syncWallet(Request $request, string $orderId, MarketplaceOrders $orders)
+    {
+        $order = $this->walletOrder($request, $orderId);
+        abort_unless($order->wallet_checkout, 404);
+        $orders->reconcile($order);
+
+        return to_route('marketplace.orders');
+    }
+
+    private function walletOrder(Request $request, string $orderId): Order
+    {
+        abort_if($request->all() !== [], 422);
+        abort_unless(app(MarketplaceWallet::class)->enabled(), 404);
+
+        return Order::whereKey($orderId)->where('buyer_id', (string) $request->user()->getKey())
+            ->where('payment_method', 'wallet')->firstOrFail();
     }
 
     public function catalog(Request $request)
@@ -254,7 +298,7 @@ class MarketplaceController extends Controller
         $data = $request->validate(['payment_method' => ['required', 'in:wallet,bonus,points,spei,openpay,mixed'], 'delivery_point' => ['nullable', 'string', 'max:180'],
             'notes' => ['nullable', 'string', 'max:500'], 'idempotency_key' => ['required', 'string', 'min:8', 'max:120'], 'cart_id' => ['required', 'string', 'max:100'], 'cart_version' => ['required', 'integer', 'min:1']]);
         $order = $orders->checkout((string) $request->user()->getKey(), $data);
-        $message = match ($order->status) {
+        $message = $order->payment_status === 'paid' ? "Finanzas confirmó el pago del pedido {$order->folio}." : match ($order->status) {
             'stock_unavailable' => "Pedido {$order->folio}: no se pudo reservar por falta de existencias. No se realizó ningún cobro.",
             'pending_inventory','inventory_review' => "Pedido {$order->folio}: la reserva aún no está confirmada. No se realizó ningún cobro.",
             default => "Pedido {$order->folio} registrado. El pago está pendiente; no se ha realizado ningún cobro.",

@@ -11,18 +11,23 @@ class ReconcileMarketplaceOrders extends Command
 {
     protected $signature = 'marketplace:reconciliar';
 
-    protected $description = 'Revisa reservas pendientes y libera pedidos vencidos o cancelados, sin realizar cobros.';
+    protected $description = 'Consulta cobros y concilia pedidos y reservas de Marketplace.';
 
     public function handle(MarketplaceOrders $flow): int
     {
-        $orders = Order::where('payment_status', 'pending')->where(function ($q) {
-            $q->whereIn('inventory_state', ['new', 'unknown', 'release_pending'])
-                ->orWhere(function ($q) {
-                    $q->whereIn('status', ['awaiting_payment', 'pending_inventory'])->where('hold_expires_at', '<=', now());
-                })
-                ->orWhere(function ($q) {
-                    $q->whereIn('status', ['cancelled', 'expired'])->where('inventory_state', 'reserved');
-                });
+        $orders = Order::where(function ($query) {
+            $query->where('payment_status', 'pending')->whereNotNull('wallet_checkout')
+                ->whereNotIn('status', ['cancelled', 'expired']);
+        })->orWhere('status', 'payment_reconciliation')->orWhere(function ($query) {
+            $query->where('payment_status', 'pending')->where(function ($q) {
+                $q->whereIn('inventory_state', ['new', 'unknown', 'release_pending'])
+                    ->orWhere(function ($q) {
+                        $q->whereIn('status', ['awaiting_payment', 'pending_inventory'])->where('hold_expires_at', '<=', now());
+                    })
+                    ->orWhere(function ($q) {
+                        $q->whereIn('status', ['cancelled', 'expired'])->where('inventory_state', 'reserved');
+                    });
+            });
         })->orderBy('updated_at')->limit(100)->get();
         foreach ($orders as $order) {
             try {

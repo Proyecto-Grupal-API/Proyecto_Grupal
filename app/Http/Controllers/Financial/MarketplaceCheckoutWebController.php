@@ -32,7 +32,7 @@ class MarketplaceCheckoutWebController extends Controller
         $merchant = $s->merchant($row->client_id, $row->business_id);
         $recent = $s->passwordRecent($r);
         if (! $recent) {
-            $r->session()->put('url.intended', route('financial.marketplace.show', ['paymentRequest' => $row->public_id]));
+            $r->session()->put('url.intended', route('financial.marketplace.show', ['paymentRequest' => strtolower($row->public_id)]));
         }
 
         return Inertia::render('Financial/MarketplaceCheckout', ['paymentRequest' => $s->partnerResult($row) + $merchant +

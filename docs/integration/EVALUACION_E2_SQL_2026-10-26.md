@@ -114,12 +114,15 @@ falta evidencia o si el tipo, la cuenta o el importe del movimiento no
 corresponden. Las devoluciones históricas de un solo abono conservan su
 tratamiento.
 
-Sigue pendiente conectar el coordinador de pedidos de E3 a estas rutas,
-consultar el estado real de la reserva antes de confirmar y acordar la
-cancelación entre E2 y E3 cuando se cruce con un cobro. Se debe ejecutar luego
-el flujo desde la tienda con los workers y el transporte del alterno. Las
-banderas del alterno siguen apagadas y este corte no provisiona wallets,
-clientes OAuth ni permisos institucionales.
+### Checkout de Marketplace
+
+E3 ofrece **Pagar con wallet** y **Consultar pago** en Mis pedidos. Al preparar, consulta la reserva de E4 y fija la fecha límite en la menor vigencia de E3 y E4. Guarda el cliente y la vigencia en el pedido antes de llamar a E2 con la clave `marketplace-wallet:{order_id}`. Finanzas controla la sesión, la confirmación de contraseña y el cargo. El reconciliador de E3 consulta la operación por negocio y pedido y registra la referencia de pago.
+
+Inventarios exige el evento firmado que entrega `financial:team4-deliver`. Mientras falta esa evidencia, el pedido queda en `payment_reconciliation`. E3 usa la clave `marketplace-confirm:{order_id}` y concilia nuevamente si pierde la respuesta de Inventarios. Si E4 ya liberó la reserva o confirma que venció, el pedido conserva el pago y pasa a `refund_review` para su resolución autorizada.
+
+Una cancelación de E3 conserva la reserva hasta obtener `CANCELLED` o `EXPIRED` de E2. Cuando una consulta detecta un vencimiento, E3 usa la cancelación de E2 para verificar el resultado con el bloqueo de la fila financiera y resolver un cargo en curso. Si el cargo ganó, se conserva la referencia `PAID` y se concilia Inventarios. Un 404 tras una preparación incierta conserva el pedido para revisión, ya que esa respuesta por sí sola no acredita que se canceló. Se respeta el vencimiento que administra Inventarios.
+
+La integración se controla con `MARKETPLACE_WALLET_CHECKOUT_ENABLED` y usa `MARKETPLACE_FINANZAS_URL`, `MARKETPLACE_FINANZAS_CLIENT_ID` y `MARKETPLACE_FINANZAS_CLIENT_SECRET`. Para activarla se requiere el cliente E3 aprobado con `financial:purchase:prepare`, `financial:purchase:read` y `financial:purchase:cancel`, la cuenta receptora aprobada para cada negocio y la configuración firmada E2–E4. El coordinador usa el comando programado `marketplace:reconciliar`. La devolución monetaria requiere su autorización y circuito propios.
 
 ## Garantías, caja y operaciones programadas
 

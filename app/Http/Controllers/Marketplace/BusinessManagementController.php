@@ -300,9 +300,21 @@ class BusinessManagementController extends Controller
                 $order->update(['status' => $data['status'], 'history' => array_merge($order->history ?? [], [['status' => $data['status'], 'actor_id' => $this->userId($request), 'at' => now()->toISOString()]])]);
             });
         }
-        $this->audit($request, 'order_status_changed', 'order', $orderId, $order->business_id, ['status' => $data['status']]);
+        $order->refresh();
+        $this->audit($request, 'order_status_changed', 'order', $orderId, $order->business_id, [
+            'requested_status' => $data['status'], 'status' => $order->status,
+        ]);
 
-        return back()->with('success', 'Pedido actualizado. Las liberaciones pendientes se volverán a consultar automáticamente.');
+        $message = 'Pedido actualizado. Las liberaciones pendientes se volverán a consultar automáticamente.';
+        if ($data['status'] === 'cancelled' && $order->wallet_checkout) {
+            $message = match (true) {
+                $order->payment_status === 'paid' => 'Finanzas confirmó el cobro. El pedido conserva su pago.',
+                ! in_array($order->status, ['cancelled', 'expired'], true) => 'Cancelación solicitada. Esperamos la confirmación de Finanzas.',
+                default => $message,
+            };
+        }
+
+        return back()->with('success', $message);
     }
 
     public function requestReturn(Request $request, string $orderId)

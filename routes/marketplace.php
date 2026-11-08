@@ -28,6 +28,10 @@ Route::middleware(['auth', 'session.active', 'device.track', \App\Http\Middlewar
     Route::delete('/tienda/carrito', [MarketplaceController::class, 'clearCart'])->name('marketplace.cart.clear');
     Route::post('/tienda/checkout', [MarketplaceController::class, 'checkout'])->name('marketplace.checkout');
     Route::get('/tienda/pedidos', [MarketplaceController::class, 'orders'])->name('marketplace.orders');
+    Route::post('/tienda/pedidos/{orderId}/pagar-wallet', [MarketplaceController::class, 'payWallet'])
+        ->where('orderId', '[a-f0-9]{24}')->middleware('throttle:12,1')->name('marketplace.wallet.pay');
+    Route::post('/tienda/pedidos/{orderId}/consultar-wallet', [MarketplaceController::class, 'syncWallet'])
+        ->where('orderId', '[a-f0-9]{24}')->middleware('throttle:12,1')->name('marketplace.wallet.sync');
     Route::get('/tienda/vendedor', [BusinessManagementController::class, 'sellerDashboard'])->name('marketplace.seller.dashboard');
     Route::get('/tienda/vendedor/pedidos', [BusinessManagementController::class, 'sellerOrders'])->name('marketplace.seller.orders');
     Route::post('/tienda/pedidos/{orderId}/estado', [BusinessManagementController::class, 'transitionOrder'])->name('marketplace.orders.transition');

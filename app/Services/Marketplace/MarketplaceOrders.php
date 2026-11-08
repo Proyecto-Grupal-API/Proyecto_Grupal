@@ -18,7 +18,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class MarketplaceOrders
 {
-    public function __construct(private MarketplaceIntegration $integration) {}
+    public function __construct(private MarketplaceIntegration $integration, private MarketplaceWallet $wallet) {}
 
     public static function cents($value): int
     {
@@ -115,6 +115,15 @@ class MarketplaceOrders
         });
     }
 
+    public function startWalletPayment(Order $order): ?string
+    {
+        return self::locked('order:'.$order->getKey(), function () use ($order) {
+            $order->refresh();
+
+            return $this->wallet->start($order);
+        });
+    }
+
     public function cancel(Order $order, string $actor, string $reason = ''): void
     {
         self::locked('order:'.$order->getKey(), function () use ($order, $actor, $reason) {
@@ -123,6 +132,14 @@ class MarketplaceOrders
                 return;
             }
             abort_unless(in_array($order->status, ['pending_inventory', 'awaiting_payment', 'inventory_review'], true) && $order->payment_status === 'pending', 422, 'Este pedido no admite cancelación antes del pago.');
+            if ($order->wallet_checkout) {
+                $order->update([
+                    'wallet_checkout' => $order->wallet_checkout + ['close_as' => 'cancelled'],
+                    'cancellation_reason' => $reason,
+                ]);
+
+                return;
+            }
             $order->update(['status' => 'cancelled', 'cancellation_reason' => $reason, 'history' => array_merge($order->history ?? [], [['status' => 'cancelled', 'actor_id' => $actor, 'at' => now()->toISOString(), 'reason' => $reason]])]);
             PaymentIntent::where('order_id', (string) $order->getKey())->update(['status' => 'cancelled']);
         });
@@ -134,6 +151,18 @@ class MarketplaceOrders
         self::locked('order:'.$order->getKey(), function () use ($order) {
             $order->refresh();
             $order->touch(); // Rotate the bounded scheduler batch so unknown results cannot starve later orders.
+            $closed = in_array($order->status, ['cancelled', 'expired'], true);
+            if ($order->wallet_checkout && ! $closed
+                && ($order->payment_status === 'pending' || $order->status === 'payment_reconciliation')) {
+                try {
+                    $this->wallet->recover($order);
+                } catch (HttpException $e) {
+                    Log::warning('marketplace.wallet.pending', ['order_id' => (string) $order->getKey(), 'http_status' => $e->getStatusCode()]);
+                }
+                if (! in_array($order->status, ['cancelled', 'expired'], true)) {
+                    return;
+                }
+            }
             if ($order->payment_status !== 'pending') {
                 return;
             }

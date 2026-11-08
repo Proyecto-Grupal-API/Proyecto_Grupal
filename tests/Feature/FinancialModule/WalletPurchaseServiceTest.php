@@ -312,11 +312,12 @@ test('wallet checkout settles both accounts and confirms the signed inventory re
         ->and($recipient->fresh()->available_balance_cents)->toBe(0);
     $session = UserSession::create(['user_id' => (string) $buyer->getKey(), 'started_at' => now()]);
     $this->actingAs($buyer)->withSession([
-        'cd_session_id' => (string) $session->getKey(), 'auth.password_confirmed_at' => now()->timestamp,
+        'cd_session_id' => (string) $session->getKey(),
     ]);
     $page = $this->get($prepared['confirmation_path'])->assertOk();
     $reviewToken = $page->inertiaProps('reviewToken');
     $this->withCookie(config('session.cookie'), session()->getId());
+    $this->post(route('password.confirm'), ['password' => 'password'])->assertRedirect($prepared['confirmation_path']);
     $this->post($prepared['confirmation_path'].'/confirmar', ['review_token' => $reviewToken, 'consent' => false])
         ->assertSessionHasErrors('consent');
     expect($wallet->fresh()->available_balance_cents)->toBe(20000);
