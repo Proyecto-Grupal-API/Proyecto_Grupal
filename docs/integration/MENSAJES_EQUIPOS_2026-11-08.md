@@ -1,47 +1,39 @@
-# Mensajes para coordinar la integración de Campus Digital
+# Mensajes de coordinación de Campus Digital
 
-Borradores del Equipo 6 para copiar por separado. Los resultados corresponden a pruebas con datos desechables en el merge local. Los cambios de checkout y multas están en los commits locales `251e48e` y `9d34ba0`.
+Borradores para copiar por separado. Hasta el miércoles estamos trabajando en Finanzas (E2) y Comunidad (E6). Las decisiones técnicas de ambos módulos las coordinamos directamente. Los importes y existencias mencionados corresponden a pruebas con datos desechables. Los cobros siguen desactivados en el alterno.
 
 ## E1 · Identidad
 
-Hola, equipo 1. Ya probamos dos flujos de autorización de un cargo propio, la compra de Marketplace y el pago de multas de Biblioteca. El alumno inicia sesión, confirma su contraseña y acepta el cargo específico dentro de Finanzas.
+Hola, equipo 1. Hasta el miércoles estamos trabajando tanto en Finanzas como en Comunidad. Ya probamos en el merge local que el alumno puede autorizar su propio cargo de Marketplace o Biblioteca mediante una sesión vigente, confirmación reciente de contraseña y aceptación del importe en Finanzas. Planeamos reutilizar ese flujo para el pago de eventos de Comunidad.
 
-¿Les parece suficiente la sesión vigente y la confirmación reciente de contraseña para el piloto de esos dos cargos, o requieren algún paso adicional?
-
-También necesitamos su propuesta para acreditar dos autoridades diferentes: el operador de E5 que ordena un cargo por daños sobre una garantía, y quien aprueba una devolución financiera. ¿Qué rol o capacidad, ámbito y evidencia puede verificar Finanzas en cada caso? E5 registra el daño y el importe. Finanzas ejecuta y registra el movimiento.
-
-## E2 · Finanzas
-
-Hola, equipo 2. Probamos de punta a punta la compra por $178.00 de dos tazas y el pago de una multa de Biblioteca por $15.00. En la compra hubo un solo cargo, un abono y un movimiento de venta. En Biblioteca recuperamos el comprobante por API después de salir de la pantalla de pago y se levantó el bloqueo de la multa. Los cobros están desactivados en el alterno.
-
-Para preparar el piloto necesitamos acordar con ustedes:
-
-- **Marketplace.** El cliente de E3, la wallet receptora autorizada de `BUS-CD-SOUV-001` y quién solicita, aprueba y ejecuta una devolución si el cargo se completó y la reserva se perdió.
-- **Biblioteca.** El cliente de E5 y el identificador de la cuenta institucional de Servicios al Estudiante. Para garantías de renta, también necesitamos cerrar el contrato HTTP y quién acredita al operador que ordena el cargo por daños.
-- **Comunidad.** El mecanismo para registrar y verificar el receptor financiero de cada organización, incluido el Consejo Estudiantil. Para becas, ¿qué referencia de financiamiento o presupuesto esperan y quién puede autorizar su uso?
-
-¿Nos pueden confirmar un responsable técnico y qué puntos ya podemos dar por acordados? Los identificadores se pueden compartir en el grupo. Las credenciales se coordinan por privado.
+¿Nos confirman si Identidad requiere una verificación adicional para esos cargos propios en el piloto? Para las operaciones administrativas, necesitamos saber qué capacidad y ámbito puede acreditar E1 para quien ordena un cargo por daños desde E5 y para quien aprueba una devolución. Con eso podemos definir y aplicar las reglas financieras en E2.
 
 ## E3 · Marketplace
 
-Hola, equipo 3. Ya conectamos Mis pedidos con el checkout de wallet de Finanzas en el merge local. Probamos dos tazas por $178.00 con `BUS-CD-SOUV-001`. Repetir la confirmación devolvió el mismo comprobante y E4 registró un solo `SALE`. Un segundo pedido se canceló sin cargo.
+Hola, equipo 3. Ya quedó conectado el checkout de wallet en el merge local. Probamos con `BUS-CD-SOUV-001`: dos tazas por $178.00, un solo comprobante y un solo movimiento `SALE` aunque se repitió la confirmación. También probamos que cancelar un pedido pendiente libera la reserva sin cambiar el saldo.
 
-¿Nos confirman quién puede validar el piloto con nosotros y si `BUS-CD-SOUV-001` sigue siendo el negocio para la demostración? También queremos acordar qué verá el comprador y quién tomará el caso cuando Finanzas confirme un cargo y la reserva ya no esté disponible. Ese caso queda registrado para revisión de devolución.
+¿Confirman que ese negocio sigue siendo el de la demostración y quién de E3 puede revisar el flujo con nosotros? Para un cargo confirmado cuya reserva se perdió, ¿quién recibe el caso en Marketplace y qué mensaje quieren mostrarle al comprador? Nosotros nos encargamos de preparar en Finanzas el cliente del piloto y el vínculo con la wallet del negocio.
 
 ## E4 · Inventarios
 
-Hola, equipo 4. Gracias por los datos de la taza. Probamos `SOUV-TAZA-001` en `A1-01` con los IDs de MongoDB. Finanzas envió el `PAID` firmado para el mismo pedido, confirmar dos veces dejó un solo `SALE` y el inventario pasó de 80 a 78. La segunda reserva se canceló y liberó correctamente.
+Hola, equipo 4. Usamos `SOUV-TAZA-001` en `A1-01`, con los IDs de MongoDB del producto y la ubicación. El `PAID` firmado correspondió al mismo pedido. Confirmar dos veces dejó un solo `SALE` y el inventario pasó de 80 a 78. En otra reserva probamos la liberación tras cancelar el cobro.
 
-¿Pueden confirmar la URL del entorno compartido que recibirá `/api/equipo4/webhooks/payment-status` y quién de su equipo puede revisar la recepción y el `SALE` cuando hagamos el piloto? Para auditorías hacia E7, también necesitamos confirmar qué eventos quieren validar primero.
+Para repetirlo en el entorno compartido, ¿nos confirman la URL base que recibirá `POST /api/equipo4/webhooks/payment-status` y con quién verificamos el acuse y el movimiento de stock? Podemos preparar el emisor del lado de Finanzas. Para E7, ya probamos por HTTP la entrega de un evento de vencimiento con deduplicación. ¿Qué otros eventos de E4 quieren incluir en el piloto?
 
 ## E5 · Servicios al Estudiante
 
-Hola, equipo 5. Ya conectamos Biblioteca con Finanzas en el merge local. El alumno puede abrir el cobro desde su multa y volver a consultar el pago. Con una multa de prueba de $15.00 recuperamos el comprobante y se levantó el bloqueo. Si el pago se confirma al mismo tiempo que una cancelación o condonación, Biblioteca conserva el estado pagado.
+Hola, equipo 5. La multa de Biblioteca de $15.00 funcionó en la prueba del merge local. El alumno autorizó el cargo, volvió a Biblioteca y pudo recuperar el comprobante para levantar el bloqueo. Si la cancelación o condonación coincide con un cargo confirmado, Biblioteca conserva el pago.
 
-¿Nos confirman si mantenemos la propuesta de una sola cuenta institucional de Servicios al Estudiante y quién la validará con E2? Para garantías, necesitamos confirmar quién registra el daño, quién puede ordenar el cargo y qué alcance institucional tiene ese operador. Podemos usar su caso de $500.00 de garantía, $150.00 de daño y $350.00 de liberación para la siguiente prueba.
+¿Confirman el nombre y el identificador que usan para **Servicios al Estudiante**, y si una sola cuenta institucional debe recibir las multas y los cargos por daños? Con ese dato podemos preparar el vínculo financiero. Para las garantías, confirmen qué operador registra el daño, quién puede ordenar el cargo y si su alcance es por sede o por servicio. Retomaremos el caso de $500.00 retenidos, $150.00 de cargo y $350.00 liberados para validar el flujo.
 
 ## E7 · Plataforma y Auditoría
 
-Hola, equipo 7. Queremos coordinar la recepción de auditorías de Servicios al Estudiante y una prueba separada de eventos de Inventarios. En el merge local, la auditoría se recibe por `POST /api/v1/plataforma/auditoria`, con firma HMAC, origen autenticado y deduplicación por `event_id`. Para E5 proponemos comenzar con condonación y cancelación de multas y con cargos por daños sobre garantías. Compartiríamos únicamente IDs, acción, tipo de entidad y fecha, conservando los detalles sensibles en E5.
+Hola, equipo 7. En el merge local probamos por HTTP la recepción de una auditoría de E5 y un evento de vencimiento de E4. Repetir ambos envíos dejó un solo registro por evento. Para la auditoría de E5, el piloto propone condonaciones, cancelaciones de multas y cargos por daños. El sobre comparte IDs, acción, entidad y fecha. Los detalles sensibles se conservan en E5.
 
-¿Nos confirman si ese contrato y el dominio `services` sirven para su entorno compartido? También queremos acordar cuáles acciones de E5 les interesa recibir primero, si el piloto debe incluir registros históricos y quién puede revisar la deduplicación de una auditoría repetida. Con E4 coordinaremos por separado el catálogo de eventos de Inventarios.
+¿Confirman si el entorno compartido usará `POST /api/v1/plataforma/auditoria` con firma HMAC y el dominio `services`? También necesitamos acordar qué acciones recibir primero, desde qué fecha y quién valida los acuses con nosotros. Con E4 coordinaremos aparte el catálogo de eventos de Inventarios.
+
+## E2 · Traspaso del miércoles
+
+Hola, equipo de Finanzas. Como acordamos, hasta el miércoles estamos avanzando en E2 y E6. En el merge local ya quedaron probados el checkout de Marketplace y la recuperación de pagos de multas de Biblioteca. Les dejaremos las referencias de commits, los contratos, las pruebas y los pasos de configuración de lo que alcancemos a cerrar.
+
+La prioridad conjunta E2–E6 es preparar el cobro de eventos con reserva de 15 minutos, autorización del alumno y recuperación por referencia, además de definir el vínculo entre organizaciones y cuentas receptoras. Para becas documentaremos el presupuesto o fuente de fondos y la autoridad institucional que debe acreditarlo. En el traspaso distinguiremos lo probado en laboratorio, lo habilitado y lo pendiente.
