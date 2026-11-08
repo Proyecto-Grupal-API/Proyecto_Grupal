@@ -38,7 +38,9 @@ inscripciones **Vencidas** y muestra su plazo. Horarios en Ciudad de México.
 El pago todavía no está disponible en esta integración. Reservar no cobra,
 no crea saldo adeudado ni habilita acceso para un evento con costo. Los pagos,
 respuestas tardías, reembolsos y confirmaciones financieras requieren el contrato
-y la operación reales de E2. Este incremento no implementa NFC de identidad.
+y la operación reales de E2. La siguiente fase está descrita en el
+[contrato propuesto de pago de eventos](CONTRATO_PAGO_EVENTOS_E2_E6.md).
+Este incremento no implementa NFC de identidad.
 
 ## API de sesión e intentos
 

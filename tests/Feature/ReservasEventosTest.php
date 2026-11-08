@@ -97,6 +97,26 @@ class ReservasEventosTest extends TestCase
         $this->assertSame(0, AuditoriaComunidad::where('accion', 'evento_reserva_vencida')->count());
     }
 
+    public function test_cancelling_a_paid_reservation_requires_financial_resolution_and_preserves_the_queue(): void
+    {
+        $evento = $this->evento();
+        $titular = $this->reservar($evento, $this->alumno);
+        $espera = $this->reservar($evento, $this->andrea, 'espera');
+
+        // Model the E6 state after an accepted receipt without calling a financial API.
+        $titular->update(['estado_pago' => 'pagado']);
+        $this->actingAs($this->alumno)->deleteJson('/api/eventos/'.$evento->id.'/inscripcion')
+            ->assertUnprocessable()->assertJsonValidationErrors('evento');
+
+        $this->travel(15)->minutes();
+        $this->artisan('comunidad:expirar-reservas-eventos')->assertExitCode(0);
+        $this->getJson('/api/eventos/'.$evento->id.'/boleto')
+            ->assertJsonPath('estado', 'confirmada')->assertJsonPath('qr_habilitado', true);
+        $this->actingAs($this->andrea)->getJson('/api/eventos/'.$evento->id.'/boleto')
+            ->assertJsonPath('estado', 'espera')->assertJsonPath('qr_habilitado', false);
+        $this->assertNull($espera->fresh()->reserva_hasta);
+    }
+
     public function test_promoted_waiter_gets_a_deadline_capped_at_event_start_after_registration_closes(): void
     {
         $local = fn ($d) => $d->timezone('America/Mexico_City')->format('Y-m-d\TH:i');
