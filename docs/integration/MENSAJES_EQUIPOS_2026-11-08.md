@@ -1,10 +1,10 @@
 # Mensajes de coordinación de Campus Digital
 
-Borradores para copiar por separado. Hasta el miércoles estamos trabajando en Finanzas (E2) y Comunidad (E6). Las decisiones técnicas de ambos módulos las coordinamos directamente. Los importes y existencias mencionados corresponden a pruebas con datos desechables. Los cobros siguen desactivados en el alterno.
+Borradores para copiar por separado. Los importes y existencias mencionados corresponden a pruebas con datos desechables. Los cobros siguen desactivados en el alterno.
 
 ## E1 · Identidad
 
-Hola, equipo 1. Hasta el miércoles estamos trabajando tanto en Finanzas como en Comunidad. Ya probamos en el merge local que el alumno puede autorizar su propio cargo de Marketplace o Biblioteca mediante una sesión vigente, confirmación reciente de contraseña y aceptación del importe en Finanzas. Planeamos reutilizar ese flujo para el pago de eventos de Comunidad.
+Hola, equipo 1. Ya probamos en el merge local que el alumno puede autorizar su propio cargo de Marketplace o Biblioteca mediante una sesión vigente, confirmación reciente de contraseña y aceptación del importe en Finanzas. Planeamos reutilizar ese flujo para el pago de eventos de Comunidad.
 
 ¿Nos confirman si Identidad requiere una verificación adicional para esos cargos propios en el piloto? Para las operaciones administrativas, necesitamos saber qué capacidad y ámbito puede acreditar E1 para quien ordena un cargo por daños desde E5 y para quien aprueba una devolución. Con eso podemos definir y aplicar las reglas financieras en E2.
 
@@ -34,6 +34,6 @@ Hola, equipo 7. En el merge local probamos por HTTP la recepción de una auditor
 
 ## E2 · Traspaso del miércoles
 
-Hola, equipo de Finanzas. Como acordamos, hasta el miércoles estamos avanzando en E2 y E6. En el merge local ya quedaron probados el checkout de Marketplace y la recuperación de pagos de multas de Biblioteca. Les dejaremos las referencias de commits, los contratos, las pruebas y los pasos de configuración de lo que alcancemos a cerrar.
+Hola, equipo de Finanzas. En el merge local ya quedaron probados el checkout de Marketplace y la recuperación de pagos de multas de Biblioteca. Les dejaremos las referencias de commits, los contratos, las pruebas y los pasos de configuración de lo que alcancemos a cerrar.
 
 La prioridad conjunta E2–E6 es preparar el cobro de eventos con reserva de 15 minutos, autorización del alumno y recuperación por referencia, además de definir el vínculo entre organizaciones y cuentas receptoras. Para becas documentaremos el presupuesto o fuente de fondos y la autoridad institucional que debe acreditarlo. En el traspaso distinguiremos lo probado en laboratorio, lo habilitado y lo pendiente.
