@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
 
 defineProps({
+    canReadInstitutionalBudgets: { type: Boolean, default: false },
     wallet: {
         type: Object,
         default: null,
@@ -57,6 +58,7 @@ const formatDate = (date) => {
         >
             <div class="mx-auto max-w-7xl">
                 <div class="mb-5 flex flex-wrap justify-end gap-3">
+                    <Link v-if="canReadInstitutionalBudgets" :href="route('financial.institutional.index')" class="rounded-xl border border-[#00338D] px-5 py-3 text-sm font-semibold text-[#00338D]">Presupuestos institucionales</Link>
                     <Link :href="route('financial.marketplace.index')" class="rounded-xl border border-[#00338D] px-5 py-3 text-sm font-semibold text-[#00338D]">Compras por confirmar</Link>
                     <Link :href="route('financial.receipts.index')" class="rounded-xl border border-[#00338D] px-5 py-3 text-sm font-semibold text-[#00338D]">Mis comprobantes</Link>
                     <Link :href="route('financial.transfers.index')" class="rounded-xl border border-[#00338D] px-5 py-3 text-sm font-semibold text-[#00338D] hover:bg-blue-50">Transferencias y regalos</Link>
