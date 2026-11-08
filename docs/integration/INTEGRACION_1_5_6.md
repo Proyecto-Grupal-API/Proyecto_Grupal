@@ -45,7 +45,7 @@ El scheduler ejecuta cada minuto `servicios:avisos` y `comunidad:entregar-benefi
 - Alumnos: sus préstamos, multas, lockers, solicitudes, órdenes, tickets y reservas; solo acciones personales autorizadas. Los catálogos generales son consultables.
 - Operaciones administrativas: el rol **admin** vigente de Identidad. Se aplica su 2FA requerido. El catálogo final de E1 aún no tiene un rol de operador de biblioteca/servicios; esta integración no inventa ni asigna ese rol. `student_manager` no se convierte en operador de E5.
 - La creación/edición de catálogos, multas, promoción de listas, entrega física, reglas, bloqueos y gestión de tickets están protegidas. Las preferencias y mensajes solo pertenecen a su usuario.
-- Wallet E2: pago de multas, lockers, órdenes y depósitos todavía no conectado. La integración bloquea confirmaciones manuales de cobro y usa `PendingStudentPaymentGateway`; no genera movimientos financieros simulados. Las órdenes y solicitudes pueden quedar pendientes; los servicios becados no requieren un cobro ficticio.
+- Wallet E2: las multas tienen un adaptador HTTP con consentimiento del alumno, deshabilitado por defecto. Lockers, órdenes y depósitos siguen pendientes. Las órdenes y solicitudes pueden quedar pendientes y los servicios becados conservan su flujo propio.
 - Inventario E4 y auditoría central E7 no forman parte de esta fase. Se mantienen los registros propios de Servicios sin anunciarlos como integración con esos equipos.
 - El módulo 6 heredado aún tiene adaptadores de permisos/existencia de usuarios señalados como pendientes en `COMUNIDAD-EQUIPO-1.md`. Esta primera integración no certifica que todo el código previo de Comunidad ya cumpla la regla de APIs exclusivamente.
 - Esta rama no se ha publicado ni fusionado en `Testings` o `main`.
@@ -63,9 +63,7 @@ Contrato de avisos: [API y ejemplos](API_AVISOS_EQUIPO_5.md), [OpenAPI](comunida
   confirmado y coinciden el alumno, la multa, el concepto, el importe y la
   moneda. El ID de un pago verificado solo se puede asociar a una multa. El
   índice parcial deja fuera los registros históricos sin verificación.
-- El adaptador de E5 sigue pendiente. El [contrato de cobro de multas de E2](API_E2_MULTAS_BIBLIOTECA.md)
-  permite preparar, confirmar y consultar el cobro. La liquidación de garantías
-  requiere un adaptador y la acreditación del operador por separado.
+- El [contrato de cobro de multas de E2](API_E2_MULTAS_BIBLIOTECA.md) describe la conexión de Biblioteca, las consultas de pago y las condiciones de activación. La liquidación de garantías requiere un adaptador y la acreditación del operador por separado.
 
 ## Datos y comprobación local
 

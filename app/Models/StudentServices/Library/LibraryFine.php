@@ -16,6 +16,7 @@ use MongoDB\Laravel\Eloquent\Model;
  * @property string $reason
  * @property string $status
  * @property CarbonInterface|null $generated_at
+ * @property bool|null $finance_requested
  * @property string|null $payment_reference_id
  * @property CarbonInterface|null $paid_at
  * @property string|null $notes
@@ -47,6 +48,7 @@ class LibraryFine extends Model
     {
         return [
             'amount_cents' => 'integer',
+            'finance_requested' => 'boolean',
             'generated_at' => 'datetime',
             'paid_at' => 'datetime',
         ];

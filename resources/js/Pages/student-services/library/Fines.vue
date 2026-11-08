@@ -20,6 +20,8 @@ interface LibraryFine {
     amount_cents: number;
     reason: string;
     status: FineStatus;
+    can_start_payment: boolean;
+    can_reconcile_payment: boolean;
     generated_at: string | null;
     payment_reference_id: string | null;
     paid_at: string | null;
@@ -221,9 +223,8 @@ function createFine() {
 
 function runAction(
     fine: LibraryFine,
-    action: 'pagar' | 'condonar' | 'cancelar',
+    action: 'condonar' | 'cancelar',
     payload: Record<string, string | null>,
-    successMessage: string,
 ) {
     processingFineId.value = fine.id;
 
@@ -232,9 +233,6 @@ function runAction(
         payload,
         {
             preserveScroll: true,
-            onSuccess: () => {
-                window.alert(successMessage);
-            },
             onError: (errors) => {
                 window.alert(
                     errors.fine ??
@@ -249,22 +247,12 @@ function runAction(
     );
 }
 
-function markAsPaid(fine: LibraryFine) {
-    const paymentReference = window.prompt(
-        `Referencia de pago para ${fine.folio} (${formatMoney(fine.amount_cents)}):`,
-        `PAY-${Date.now()}`,
-    );
-
-    if (!paymentReference?.trim()) {
-        return;
-    }
-
-    runAction(
-        fine,
-        'pagar',
-        { payment_reference_id: paymentReference.trim() },
-        'Pago registrado correctamente.',
-    );
+function financeAction(fine: LibraryFine, action: 'iniciar-pago' | 'consultar-pago') {
+    processingFineId.value = fine.id;
+    router.post(`/servicios-estudiante/biblioteca/multas/${fine.id}/${action}`, {}, {
+        preserveScroll: true,
+        onFinish: () => { processingFineId.value = null; },
+    });
 }
 
 function waiveFine(fine: LibraryFine) {
@@ -281,7 +269,6 @@ function waiveFine(fine: LibraryFine) {
         fine,
         'condonar',
         { notes: notes.trim() || null },
-        'Multa condonada correctamente.',
     );
 }
 
@@ -298,7 +285,6 @@ function cancelFine(fine: LibraryFine) {
         fine,
         'cancelar',
         { notes: null },
-        'Multa cancelada correctamente.',
     );
 }
 
@@ -653,14 +639,23 @@ function viewDetails(fine: LibraryFine) {
 
                                     <template v-if="fine.status === 'pending'">
                                         <button
+                                            v-if="fine.can_start_payment"
                                             type="button"
                                             class="action-button pay"
-                                            :disabled="
-                                                processingFineId === fine.id
-                                            "
-                                            disabled title="Pendiente de conexión con cartera"
+                                            :disabled="processingFineId !== null"
+                                            @click="financeAction(fine, 'iniciar-pago')"
                                         >
-                                            Pago pendiente de cartera
+                                            Pagar multa
+                                        </button>
+
+                                        <button
+                                            v-if="fine.can_reconcile_payment"
+                                            type="button"
+                                            class="action-button details"
+                                            :disabled="processingFineId !== null"
+                                            @click="financeAction(fine, 'consultar-pago')"
+                                        >
+                                            Consultar pago
                                         </button>
 
                                         <button v-if="isStaff()"

@@ -12,7 +12,10 @@ use App\Models\StudentServices\Library\BookCopy;
 use App\Models\StudentServices\Library\LibraryFine;
 use App\Models\StudentServices\Library\Loan;
 use App\Services\StudentServices\Library\FineService;
+use App\Services\StudentServices\ServiceAuthority;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -26,7 +29,7 @@ class LibraryFineController extends Controller
 
     public function index(): Response
     {
-        $fines = app(\App\Services\StudentServices\ServiceAuthority::class)->propias(LibraryFine::query())
+        $fines = app(ServiceAuthority::class)->propias(LibraryFine::query())
             ->orderBy(
                 'generated_at',
                 'desc'
@@ -39,7 +42,7 @@ class LibraryFineController extends Controller
             )
             ->values();
 
-        $loans = Loan::query()
+        $loans = app(ServiceAuthority::class)->propias(Loan::query())
             ->orderBy(
                 'borrowed_at',
                 'desc'
@@ -107,6 +110,46 @@ class LibraryFineController extends Controller
         }
     }
 
+    public function startPayment(Request $request, string $fineId): HttpResponse
+    {
+        $fine = $this->payableFine($request, $fineId);
+        try {
+            $path = $this->fineService->startFinancePayment($fine);
+        } catch (RuntimeException $e) {
+            return back()->withErrors(['fine' => $e->getMessage()]);
+        }
+
+        if ($path === null) {
+            return to_route('module5.library.fines.index')->with('success', 'Pago confirmado por Finanzas.');
+        }
+
+        return Inertia::location(url($path));
+    }
+
+    public function reconcilePayment(Request $request, string $fineId): RedirectResponse
+    {
+        $fine = $this->payableFine($request, $fineId);
+        try {
+            $paid = $this->fineService->reconcileFinancePayment($fine);
+        } catch (RuntimeException $e) {
+            return back()->withErrors(['fine' => $e->getMessage()]);
+        }
+
+        if ($paid) {
+            return to_route('module5.library.fines.index')->with('success', 'Pago confirmado por Finanzas.');
+        }
+
+        return to_route('module5.library.fines.index')->withErrors(['fine' => 'Finanzas aún no reporta un pago confirmado para esta multa.']);
+    }
+
+    private function payableFine(Request $request, string $fineId): LibraryFine
+    {
+        abort_unless($this->fineService->financeEnabled(), 404);
+        abort_if($request->all() !== [], 422);
+
+        return LibraryFine::whereKey($fineId)->where('student_id', (string) $request->user()->getKey())->firstOrFail();
+    }
+
     public function pay(
         PayLibraryFineRequest $request,
         string $fineId
@@ -163,7 +206,7 @@ class LibraryFineController extends Controller
                     $fineId
                 );
 
-            $this->fineService
+            $result = $this->fineService
                 ->waiveFine(
                     $fine,
                     $data['notes'] ?? null
@@ -171,7 +214,9 @@ class LibraryFineController extends Controller
 
             return back()->with(
                 'success',
-                'Multa condonada correctamente.'
+                $result->status === 'paid'
+                    ? 'Finanzas ya había confirmado el pago. Se registró el comprobante.'
+                    : 'Multa condonada correctamente.'
             );
         } catch (
             RuntimeException $exception
@@ -204,7 +249,7 @@ class LibraryFineController extends Controller
                     $fineId
                 );
 
-            $this->fineService
+            $result = $this->fineService
                 ->cancelFine(
                     $fine,
                     $data['notes'] ?? null
@@ -212,7 +257,9 @@ class LibraryFineController extends Controller
 
             return back()->with(
                 'success',
-                'Multa cancelada correctamente.'
+                $result->status === 'paid'
+                    ? 'Finanzas ya había confirmado el pago. Se registró el comprobante.'
+                    : 'Multa cancelada correctamente.'
             );
         } catch (
             RuntimeException $exception
@@ -303,6 +350,15 @@ class LibraryFineController extends Controller
             'reason' => $fine->reason,
 
             'status' => $fine->status,
+
+            'can_start_payment' => $this->fineService->financeEnabled()
+                && $fine->status === 'pending'
+                && $fine->student_id === (string) request()->user()->getKey(),
+
+            'can_reconcile_payment' => $this->fineService->financeEnabled()
+                && $fine->status === 'pending'
+                && $fine->finance_requested
+                && $fine->student_id === (string) request()->user()->getKey(),
 
             'generated_at' => $fine->generated_at
                 ?->toISOString(),

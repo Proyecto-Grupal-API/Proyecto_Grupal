@@ -421,6 +421,12 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\AutorizarServicios::
             [LibraryFineController::class, 'store']
         )->name('library.fines.store');
 
+        Route::post('/biblioteca/multas/{fineId}/iniciar-pago', [LibraryFineController::class, 'startPayment'])
+            ->where('fineId', '[a-f0-9]{24}')->middleware('throttle:12,1')->name('library.fines.start-payment');
+
+        Route::post('/biblioteca/multas/{fineId}/consultar-pago', [LibraryFineController::class, 'reconcilePayment'])
+            ->where('fineId', '[a-f0-9]{24}')->middleware('throttle:12,1')->name('library.fines.reconcile-payment');
+
         Route::patch(
             '/biblioteca/multas/{fineId}/pagar',
             [LibraryFineController::class, 'pay']

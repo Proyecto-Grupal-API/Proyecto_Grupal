@@ -11,6 +11,10 @@ class AutorizarServicios
     {
         $name = str_replace('module5.', '', $r->route()->getName());
         if (is_string($r->input('student_id')) && preg_match('/^[a-f0-9]{24}$/i', $r->input('student_id'))) { $r->merge(['student_id' => strtolower($r->input('student_id'))]); }
+        if (in_array($name, ['library.fines.start-payment', 'library.fines.reconcile-payment'], true)) {
+            // Both actions check exact ownership in the controller, including for staff accounts.
+            return $next($r);
+        }
         $staff = app(ServiceAuthority::class)->staff($r->user());
         $payment = in_array($name, ['library.fines.pay', 'lockers.requests.pay', 'services.pay'], true);
         if ($payment) {

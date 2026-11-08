@@ -24,4 +24,14 @@ E2 toma la cuenta institucional de su configuración. El ID de la multa es la cl
 
 `FINANCIAL_LIBRARY_FINES_ENABLED` es falso por defecto. Para habilitarlo se requiere aprobar el cliente E5 y sus tres alcances, así como la cuenta receptora mediante `FINANCIAL_LIBRARY_FINES_CLIENT_ID`, `FINANCIAL_LIBRARY_FINES_RECIPIENT_ORGANIZATION_ID` y `FINANCIAL_LIBRARY_FINES_RECIPIENT_WALLET_ID`.
 
-El adaptador E5 debe usar los datos de la multa pendiente y conciliar por referencia. Antes de cancelar o condonar una multa, E5 debe obtener `CANCELLED` de E2 y después actualizar su registro en MongoDB. Si E2 devuelve `CONFIRMED`, E5 debe recuperar el pago y tratar cualquier devolución por separado. E5 debe poder reanudar la transición si se interrumpe después de cancelar en E2. Quedan pendientes el enlace desde la pantalla de E5, este manejo de cancelación y condonación, la conciliación en E5 y la aprobación de la cuenta institucional. El piloto usa wallet en MXN y el mecanismo de confirmación de contraseña de E1.
+E5 habilita el enlace con `SERVICIOS_FINANZAS_MULTAS_ENABLED`, falso por defecto. Su cliente usa `SERVICIOS_FINANZAS_API_URL`, `SERVICIOS_FINANZAS_MULTAS_CLIENT_ID` y `SERVICIOS_FINANZAS_MULTAS_CLIENT_SECRET`. El ID del cliente coincide con el configurado en E2. Las credenciales se mantienen en la configuración privada del entorno.
+
+En **Biblioteca → Multas**, el titular puede usar **Pagar multa**. E5 toma el importe de su registro y guarda el inicio del intento en MongoDB antes de llamar a E2. Después de pagar, el comprobante enlaza de regreso a **Mis multas**. **Consultar pago** recupera el resultado aunque se haya cerrado la pestaña. Biblioteca quita el adeudo cuando Finanzas acredita el pago y coinciden la referencia, el titular, el importe, la moneda y el concepto. Si existen otras multas pendientes, sus bloqueos siguen vigentes.
+
+Una multa sin intento se cierra localmente. Cuando existe un intento, E5 pide a E2 que lo cancele antes de condonar o cancelar. Si Finanzas devuelve `CONFIRMED`, E5 registra el comprobante y conserva el estado pagado. Si Finanzas devuelve `CANCELLED`, E5 puede cerrar la multa localmente. Reintentar el cierre tras un fallo de red o de escritura reutiliza la misma referencia. Si se deshabilita la conexión con intentos pendientes, estos conservan la marca de intento y requieren restablecer la consulta financiera para cerrarse.
+
+El piloto requiere aprobar la cuenta de Servicios al Estudiante y los alcances del cliente antes de habilitar ambos módulos. Las devoluciones se gestionan por separado.
+
+## Verificación en entorno desechable
+
+Se inició sesión, se abrió la solicitud desde Biblioteca, se confirmó la contraseña y se autorizó una multa de $15.00 MXN. Se salió del flujo antes de abrir el comprobante. De regreso a Biblioteca, la consulta por ID registró la referencia y levantó el bloqueo. Repetir la consulta conservó la misma referencia. El débito y el crédito sumaron cero y se pudo abrir el comprobante de la cuenta titular.
