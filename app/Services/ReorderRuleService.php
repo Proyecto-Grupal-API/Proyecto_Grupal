@@ -6,6 +6,7 @@ use App\Models\ReorderRule;
 use App\Models\Product;
 use App\Models\Location;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use MongoDB\BSON\ObjectId;
 
 class ReorderRuleService
@@ -95,7 +96,11 @@ class ReorderRuleService
                 $alerts->syncOne($productId, (string) $loc->_id);
             }
         } catch (\Throwable $e) {
-            // no-op
+            Log::warning('No se pudieron sincronizar alertas después de actualizar las reglas de reorden.', [
+                'business_id' => $this->businessId,
+                'product_id' => $productId,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

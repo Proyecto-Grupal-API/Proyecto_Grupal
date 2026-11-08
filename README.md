@@ -89,8 +89,11 @@ Hay además scripts de MongoDB en `database/mongo/` (opcionales):
 ```bash
 mongosh "mongodb://127.0.0.1:27017/campus_digital" database/mongo/team4_init.js
 mongosh "mongodb://127.0.0.1:27017/campus_digital" database/mongo/team4_seed.js
+mongosh "mongodb://127.0.0.1:27017/campus_digital" --file database/mongo/migrations/001_team4_inventory_indexes.js
+mongosh "mongodb://127.0.0.1:27017/campus_digital" --file database/mongo/migrations/002_team4_alerts_and_approvals.js
 ```
 Con Docker se ejecutan dentro del contenedor `campus-eq4-mongo` (copia primero la carpeta con `docker cp`).
+Las migraciones son versionadas e idempotentes. `TEAM4_ALERT_EMAIL` configura el correo de respaldo para alertas; si el registro del negocio tiene `inventory_responsible_email` o `responsible_email`, ese destinatario tiene prioridad. `TEAM4_INACTIVE_PRODUCT_DAYS` define el umbral (90 días por defecto). La tarea `team4:generate-alerts` corre cada 15 minutos y procesa todos los negocios con productos.
 
 ---
 

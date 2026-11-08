@@ -99,6 +99,10 @@ Response 200:
 { "reservation_id": "01JXXXX...", "status": "RELEASED", "released_at": "..." }
 ```
 
+Liberar una reserva devuelve las cantidades a `available`. La reserva se reclama antes de aplicar el cambio, por lo que confirmación y cancelación concurrentes no pueden consumir/liberar dos veces el mismo stock. Repetir la solicitud con la misma `idempotency_key` devuelve el resultado ya procesado.
+
+Las reservas vencidas se liberan automáticamente cada cinco minutos con `team3:expire-reservations`. Si una confirmación llega después de `expires_at`, Eq.4 libera primero el stock y responde `409`; la reserva queda `RELEASED` con `release_reason: EXPIRED`. Este proceso excluye las reservas de Equipo 7 (`origin_system: E7`), que conserva su propio flujo de expiración.
+
 ### 5. GET /reservations/{id}
 
 Response 200:
@@ -114,7 +118,7 @@ Response 200:
 
 ### 6. POST /returns
 
-Request (cuerpo plano, un solo item):
+Request (cuerpo plano, un solo item; `items` tambien se acepta para envios bulk):
 ```json
 {
   "order_id": "ORD-2026-ABC",
@@ -123,8 +127,6 @@ Request (cuerpo plano, un solo item):
   "idempotency_key": "return-ORD-2026-ABC-1"
 }
 ```
-
-Tambien acepta `items: [...]` (bulk) para multiples productos.
 
 Response 201:
 ```json
@@ -173,7 +175,9 @@ Tambien acepta `items: [...]` (bulk) para multiples productos.
 
 ## Idempotencia
 
-Todos los POST aceptan `idempotency_key`. Eq.4 guarda el resultado en `integration_idempotency` con indice unico `(service, idempotency_key)`. Misma key -> mismo resultado, sin efectos duplicados.
+Las operaciones POST mutables aceptan `idempotency_key`. Eq.4 guarda el resultado en `integration_idempotency` con indice unico `(service, idempotency_key)`. Misma key -> mismo resultado, sin efectos duplicados.
+
+Para validar que la confirmación descuenta stock una sola vez, repitan el mismo `POST /reservations/{id}/confirm` con la misma clave. El inventario debe reflejar una única venta. Una nueva clave no permite volver a confirmar la misma reserva: solo se confirma cuando su estado es `RESERVED`.
 
 ## Pendiente con Eq.3
 

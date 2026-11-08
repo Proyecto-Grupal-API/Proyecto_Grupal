@@ -40,7 +40,9 @@ const isEditing = ref(false)
 const selectedProduct = ref(null)
 
 const form = useForm({
-  sizesString: '', colorsString: '', seasonsString: '', sizes: [], colors: [], seasons: [],
+  sizesString: '', colorsString: '', seasonsString: '', collectionsString: '', packagesString: '',
+  sizes: [], colors: [], seasons: [], collections: [], packages: [],
+  preorder: { enabled: false, available_at: '', limit: null }, official: false,
   sku: '', name: '', description: '', category: 'souvenirs',
   stock_min: 0, stock_max: 0, active: true
 })
@@ -66,6 +68,27 @@ const openEditModal = (row) => {
   form.stock_min = row.stock_min
   form.stock_max = row.stock_max
   form.active = row.active
+  form.sizes = row.sizes || []
+  form.colors = row.colors || []
+  form.seasons = row.seasons || []
+  form.collections = row.collections || []
+  form.packages = row.packages || []
+  form.sizesString = form.sizes.join(', ')
+  form.colorsString = form.colors.join(', ')
+  form.seasonsString = form.seasons.join(', ')
+  form.collectionsString = form.collections.join(', ')
+  form.packagesString = form.packages.join(', ')
+  const preorderAvailableAt = row.preorder?.available_at
+    ? new Date(row.preorder.available_at)
+    : null
+  form.preorder = {
+    enabled: Boolean(row.preorder?.enabled),
+    available_at: preorderAvailableAt && !Number.isNaN(preorderAvailableAt.getTime())
+      ? preorderAvailableAt.toISOString().slice(0, 10)
+      : '',
+    limit: row.preorder?.limit || null
+  }
+  form.official = Boolean(row.official)
   showModal.value = true
 }
 
@@ -175,6 +198,36 @@ const deleteProduct = () => {
               <div>
                 <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Temporadas</label>
                 <input v-model="form.seasonsString" @input="form.seasons = form.seasonsString.split(',').map(s => s.trim()).filter(Boolean)" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300" placeholder="Ej. Verano 2026" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Colecciones</label>
+                <input v-model="form.collectionsString" @input="form.collections = form.collectionsString.split(',').map(s => s.trim()).filter(Boolean)" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300" placeholder="Ej. Generación 2026" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Paquetes</label>
+                <input v-model="form.packagesString" @input="form.packages = form.packagesString.split(',').map(s => s.trim()).filter(Boolean)" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300" placeholder="Ej. Kit de bienvenida" />
+              </div>
+            </div>
+            <label class="mt-4 flex items-center gap-2 text-sm text-slate-700">
+              <input v-model="form.official" type="checkbox" class="rounded border-slate-300 text-[#00338D]" />
+              Producto oficial de Campus Digital
+            </label>
+            <div class="mt-4 rounded-lg border border-slate-200 p-3 space-y-3">
+              <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <input v-model="form.preorder.enabled" type="checkbox" class="rounded border-slate-300 text-[#00338D]" />
+                Habilitar preventa
+              </label>
+              <div v-if="form.preorder.enabled" class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Disponible desde</label>
+                  <input v-model="form.preorder.available_at" type="date" required class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
+                  <p v-if="form.errors['preorder.available_at']" class="mt-1 text-xs text-rose-600">{{ form.errors['preorder.available_at'] }}</p>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Límite de preventa</label>
+                  <input v-model.number="form.preorder.limit" type="number" min="1" required class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300" />
+                  <p v-if="form.errors['preorder.limit']" class="mt-1 text-xs text-rose-600">{{ form.errors['preorder.limit'] }}</p>
+                </div>
               </div>
             </div>
           </div>

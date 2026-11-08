@@ -41,7 +41,7 @@ const columns = ['Folio', 'Proveedor', 'Estado', 'Total estimado', 'Artículos',
 
 const statusLabels = {
   BORRADOR: 'Borrador', SOLICITADA: 'Solicitada', AUTORIZADA: 'Autorizada',
-  RECIBIDA_TOTAL: 'Recibida', CANCELADA: 'Cancelada'
+  RECIBIDA_PARCIAL: 'Recibida parcialmente', RECIBIDA_TOTAL: 'Recibida', CANCELADA: 'Cancelada'
 }
 
 const formattedOrders = computed(() => {
@@ -173,9 +173,9 @@ const toggleHistory = () => {
             <button v-if="canAuthorize" @click="authorizeOrder(row)" class="px-2 py-1 text-xs font-medium rounded bg-[#10B981] text-white hover:bg-emerald-700 transition">Autorizar</button>
             <button v-if="canCancel" @click="cancelOrder(row)" class="px-2 py-1 text-xs font-medium rounded bg-amber-600 text-white hover:bg-amber-700 transition">Cancelar</button>
           </template>
-          <template v-else-if="row.status === 'AUTORIZADA'">
+          <template v-else-if="row.status === 'AUTORIZADA' || row.status === 'RECIBIDA_PARCIAL'">
             <a v-if="canReceive" href="/equipo4/recepciones" class="px-2 py-1 text-xs font-medium rounded bg-[#00338D] text-white hover:bg-[#0284C7] transition">Recibir</a>
-            <button v-if="canCancel" @click="cancelOrder(row)" class="px-2 py-1 text-xs font-medium rounded bg-amber-600 text-white hover:bg-amber-700 transition">Cancelar</button>
+            <button v-if="canCancel && row.status === 'AUTORIZADA'" @click="cancelOrder(row)" class="px-2 py-1 text-xs font-medium rounded bg-amber-600 text-white hover:bg-amber-700 transition">Cancelar</button>
           </template>
           <template v-else>
             <span class="text-xs text-slate-400 italic">Sin acciones</span>

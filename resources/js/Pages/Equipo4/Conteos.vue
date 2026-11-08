@@ -17,15 +17,16 @@ const { can } = usePermissions()
 const canCreate = computed(() => can('conteos.create'))
 const canCapture = computed(() => can('conteos.capture'))
 const canClose = computed(() => can('conteos.close'))
+const canApprove = computed(() => can('conteos.approve'))
 const canDelete = computed(() => can('conteos.delete'))
-const hasAnyAction = computed(() => canCapture.value || canDelete.value || canClose.value)
+const hasAnyAction = computed(() => canCapture.value || canDelete.value || canClose.value || canApprove.value)
 
 const columns = computed(() => {
   const base = ['Folio', 'Almacén', 'Estado', 'Responsable', 'Diferencias', 'Notas']
   return hasAnyAction.value ? [...base, 'Acciones'] : base
 })
 
-const statusLabels = { DRAFT: 'Borrador', CLOSED: 'Cerrado' }
+const statusLabels = { DRAFT: 'Borrador', PENDING_APPROVAL: 'Pendiente de aprobación', CLOSED: 'Cerrado' }
 
 const formattedCounts = computed(() => {
   return props.counts.map(c => ({
@@ -89,13 +90,19 @@ const saveCapture = () => {
 const closeCount = () => {
   if (!selectedCount.value || !canClose.value) return
   const alerts = captureItems.value.filter(i => hasAlert(i) !== null).length
-  let msg = `¿Cerrar el conteo ${selectedCount.value.folio} y aplicar los ajustes?`
+  let msg = `¿Enviar el conteo ${selectedCount.value.folio} para aprobación? Los ajustes no se aplicarán todavía.`
   if (alerts > 0) msg = `⚠️ Hay ${alerts} diferencia(s) sospechosa(s). ¿Seguro que quieres cerrar?`
   if (!confirm(msg)) return
   router.post(`/equipo4/conteos/${selectedCount.value._id}/close`, {}, {
     preserveScroll: true,
     onFinish: () => { showCaptureModal.value = false; selectedCount.value = null }
   })
+}
+
+const approveCount = (row) => {
+  if (!canApprove.value) return
+  if (!confirm(`¿Aprobar las diferencias del conteo ${row.folio} y aplicar los ajustes?`)) return
+  router.post(`/equipo4/conteos/${row._id}/approve`, {}, { preserveScroll: true })
 }
 
 const confirmDelete = (row) => {
@@ -172,6 +179,10 @@ const alertText = (item) => {
           <template v-if="row.status === 'DRAFT'">
             <button v-if="canCapture" @click="openCaptureModal(row)" class="px-3 py-1 text-xs font-medium rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition">Capturar</button>
             <button v-if="canDelete" @click="confirmDelete(row)" class="px-3 py-1 text-xs font-medium rounded bg-rose-600 text-white hover:bg-rose-700 transition">Eliminar</button>
+          </template>
+          <template v-else-if="row.status === 'PENDING_APPROVAL'">
+            <button v-if="canApprove" @click="approveCount(row)" class="px-3 py-1 text-xs font-medium rounded bg-[#00338D] text-white hover:bg-[#0284C7] transition">Aprobar ajustes</button>
+            <span v-else class="text-xs text-slate-400 italic">Pendiente de autorización</span>
           </template>
           <template v-else>
             <span class="text-xs text-slate-400 italic">Cerrado</span>
@@ -259,7 +270,7 @@ const alertText = (item) => {
           <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
             <button type="button" @click="showCaptureModal = false" class="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition">Cancelar</button>
             <button v-if="canCapture" type="button" @click="saveCapture" class="px-4 py-2 text-sm font-semibold rounded-lg border border-[#0284C7] text-[#0284C7] bg-white hover:bg-slate-50 transition">Guardar captura</button>
-            <button v-if="canClose" type="button" @click="closeCount" class="px-4 py-2 text-sm font-semibold rounded-lg bg-[#00338D] text-white hover:bg-[#0284C7] transition">Cerrar y aplicar</button>
+            <button v-if="canClose" type="button" @click="closeCount" class="px-4 py-2 text-sm font-semibold rounded-lg bg-[#00338D] text-white hover:bg-[#0284C7] transition">Enviar para aprobación</button>
           </div>
         </div>
       </div>

@@ -8,6 +8,8 @@ class StockCountItem extends Team4Document
         'business_id',
         'stock_count_id',
         'product_id',
+        'variant_id',
+        'location_id',
         'product_sku',
         'product_name',
         'expected_qty',
@@ -15,11 +17,13 @@ class StockCountItem extends Team4Document
         'difference',
         'unit_cost',
         'notes',
+        'captured',
     ];
     protected $casts = [
         'expected_qty' => 'integer',
         'counted_qty' => 'integer',
         'difference' => 'integer',
         'unit_cost' => 'float',
+        'captured' => 'boolean',
     ];
 }

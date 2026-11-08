@@ -17,6 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->validateCsrfTokens(except: [
+            'api/v1/inventory/*',
+            'api/equipo4/integration/*',
+            'api/v1/integrations/*',
+        ]);
+
         $middleware->append(\App\Http\Middleware\ForceJsonResponse::class);
         $middleware->web(append: [
             \App\Http\Middleware\CsrfBypassForWebhook::class,HandleInertiaRequests::class]);

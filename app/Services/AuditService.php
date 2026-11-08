@@ -27,7 +27,13 @@ class AuditService
                 'created_at'     => new \MongoDB\BSON\UTCDateTime(now()),
             ]);
         } catch (\Throwable $e) {
-            Log::warning('AuditService::log failed', ['event' => $event, 'error' => $e->getMessage()]);
+            Log::error('AuditService::log failed', [
+                'event' => $event,
+                'business_id' => $payload['business_id'] ?? config('team4.business_id'),
+                'entity_id' => $payload['entity_id'] ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            throw new \RuntimeException('No se pudo registrar la auditoría de la operación.', 0, $e);
         }
     }
 }

@@ -26,7 +26,7 @@ class UpdatePurchaseOrderRequest extends FormRequest
             }],
             'expected_at' => 'required|date',
             'notes' => 'nullable|string|max:1000',
-            'status' => 'required|string|in:BORRADOR,SOLICITADA,AUTORIZADA,CANCELADA',
+            'status' => 'required|string|in:BORRADOR,SOLICITADA',
             'items' => 'required|array|min:1|max:100',
             'items.*.product_id' => ['required', 'string', function ($attribute, $value, $fail) {
                 if (!Product::where('_id', $value)->where('business_id', config('team4.business_id'))->exists()) {

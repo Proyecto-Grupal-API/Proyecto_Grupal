@@ -28,7 +28,7 @@ class CostService
         $source = (string) ($data['source'] ?? 'MANUAL');
         $reference = isset($data['reference']) ? (string) $data['reference'] : '';
         $notes = isset($data['notes']) ? (string) $data['notes'] : '';
-        $actorId = (string) ($data['actor_id'] ?? 'USR-ADMIN-001');
+        $actorId = (string) ($data['actor_id'] ?? app(IdentityService::class)->resolveCurrentUserId());
         $suggestedPrice = isset($data['suggested_price']) && $data['suggested_price'] !== null
             ? (float) $data['suggested_price']
             : null;

@@ -69,7 +69,9 @@ const loadOrderDetails = async () => {
 
     orderDetails.value = data
     const quantities = {}
-    data.items.forEach(item => { quantities[item.purchase_order_item_id] = item.quantity })
+    data.items.forEach(item => {
+      quantities[item.purchase_order_item_id] = item.remaining_quantity ?? item.quantity
+    })
     receiptQuantities.value = quantities
   } catch (e) {
     console.error(e)
@@ -172,7 +174,7 @@ const submitReceipt = () => {
                   </td>
                   <td class="px-3 py-2 text-slate-700">{{ item.quantity }}</td>
                   <td class="px-3 py-2">
-                    <input v-model.number="receiptQuantities[item.purchase_order_item_id]" type="number" min="0" :max="item.quantity" class="w-full px-2 py-1 text-xs rounded border border-slate-300" />
+                    <input v-model.number="receiptQuantities[item.purchase_order_item_id]" type="number" min="0" :max="item.remaining_quantity ?? item.quantity" class="w-full px-2 py-1 text-xs rounded border border-slate-300" />
                   </td>
                   <td class="px-3 py-2 text-slate-700">${{ item.unit_cost.toFixed(2) }}</td>
                 </tr>

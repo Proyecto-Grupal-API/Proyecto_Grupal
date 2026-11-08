@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Services\AuditService;
 use MongoDB\BSON\ObjectId;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Driver\Exception\BulkWriteException;
@@ -62,29 +63,68 @@ class InventoryAdjustmentController extends Controller
 
         $current = $inv->findOne($filter);
         $currentQty = $current ? (int)((array)$current)['on_hand'] : 0;
+        $reservedQty = $current ? (int)(((array)$current)['reserved'] ?? 0) : 0;
 
         $newQty = isset($v['new_quantity']) ? (int)$v['new_quantity'] : ($currentQty + (int)$v['delta']);
         $actualDelta = $newQty - $currentQty;
+        if ($newQty < $reservedQty) {
+            $idem->updateOne(['service'=>$service,'idempotency_key'=>$v['idempotency_key']],
+                ['$set'=>['status'=>'REJECTED','result'=>['error'=>'La existencia no puede quedar por debajo de lo reservado.'],
+                          'unexpired_processing_at'=>null,'updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]]);
+            return response()->json(['message'=>'La existencia no puede quedar por debajo de lo reservado.'], 409);
+        }
 
         try {
-            $inv->updateOne(
-                $filter,
-                ['$set'=>['on_hand'=>$newQty, 'available'=>$newQty, 'updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]],
-                ['upsert'=>true]
+            $writeFilter = $filter;
+            if ($current) {
+                $writeFilter['on_hand'] = $currentQty;
+                $writeFilter['reserved'] = $reservedQty;
+            }
+            $write = $inv->updateOne(
+                $writeFilter,
+                ['$set'=>[
+                    'on_hand'=>$newQty,
+                    'reserved'=>$reservedQty,
+                    'available'=>$newQty - $reservedQty,
+                    'status'=>($newQty - $reservedQty) > 0 ? 'AVAILABLE' : 'OUT_OF_STOCK',
+                    'updated_at'=>new \MongoDB\BSON\UTCDateTime(now()),
+                ]],
+                ['upsert'=>!$current]
             );
-            $mov->insertOne([
-                '_id'=>new ObjectId(), 'business_id'=>$this->businessId,
-                'product_id'=>(string)$v['product_id'], 'variant_id'=>$v['variant_id'] ?? null,
-                'location_id'=>(string)$v['location_id'], 'type'=>'ADJUSTMENT',
-                'quantity'=>$actualDelta, 'reason'=>$v['reason'],
-                'actor_id'=>$v['actor_id'] ?? auth()->id() ?? 'system', 'correlation_id'=>(string) Str::uuid(),
-                'created_at'=>new \MongoDB\BSON\UTCDateTime(now()),
-            ]);
+            if ($current && $write->getMatchedCount() !== 1) {
+                throw new \DomainException('El inventario cambió durante el ajuste; vuelve a consultar y reintenta.');
+            }
+
+            if ($actualDelta !== 0) {
+                $mov->insertOne([
+                    '_id'=>new ObjectId(), 'business_id'=>$this->businessId,
+                    'product_id'=>(string)$v['product_id'], 'variant_id'=>$v['variant_id'] ?? null,
+                    'location_id'=>(string)$v['location_id'], 'type'=>'ADJUSTMENT',
+                    'quantity'=>$actualDelta, 'reason'=>$v['reason'],
+                    'actor_id'=>$v['actor_id'] ?? auth()->id() ?? 'system', 'correlation_id'=>(string) Str::uuid(),
+                    'external_reference'=>$v['idempotency_key'],
+                    'created_at'=>new \MongoDB\BSON\UTCDateTime(now()),
+                ]);
+            }
         } catch (\Throwable $e) {
+            if ($current) {
+                $inv->updateOne(
+                    [...$filter, 'on_hand' => $newQty, 'reserved' => $reservedQty],
+                    ['$set'=>[
+                        'on_hand'=>$currentQty,
+                        'reserved'=>$reservedQty,
+                        'available'=>$currentQty - $reservedQty,
+                        'status'=>($currentQty - $reservedQty) > 0 ? 'AVAILABLE' : 'OUT_OF_STOCK',
+                        'updated_at'=>new \MongoDB\BSON\UTCDateTime(now()),
+                    ]]
+                );
+            } else {
+                $inv->deleteOne([...$filter, 'on_hand' => $newQty]);
+            }
             Log::error('Team4 adjustment failed', ['error'=>$e->getMessage()]);
             $idem->updateOne(['service'=>$service,'idempotency_key'=>$v['idempotency_key']],
                 ['$set'=>['status'=>'FAILED','unexpired_processing_at'=>null,'updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]]);
-            return response()->json(['message'=>'Error al ajustar inventario.'], 500);
+            return response()->json(['message'=>$e instanceof \DomainException ? $e->getMessage() : 'Error al ajustar inventario.'], $e instanceof \DomainException ? 409 : 500);
         }
 
         $res = ['product_id'=>$v['product_id'], 'location_id'=>$v['location_id'],
@@ -92,6 +132,15 @@ class InventoryAdjustmentController extends Controller
                 'reason'=>$v['reason'], 'processed_at'=>now()->toIso8601String()];
         $idem->updateOne(['service'=>$service,'idempotency_key'=>$v['idempotency_key']],
             ['$set'=>['status'=>'COMPLETED','result'=>$res,'unexpired_processing_at'=>null,'updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]]);
+        app(AuditService::class)->log('inventory.adjusted', [
+            'actor_id' => $v['actor_id'] ?? auth()->id() ?? 'system',
+            'business_id' => $this->businessId,
+            'entity_type' => 'Inventory',
+            'entity_id' => (string) ($current['_id'] ?? $v['product_id'] . ':' . $v['location_id']),
+            'action' => 'adjusted',
+            'before' => ['on_hand' => $currentQty, 'reserved' => $reservedQty],
+            'after' => $res,
+        ]);
         return response()->json($res, 201);
     }
 }

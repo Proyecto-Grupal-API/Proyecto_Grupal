@@ -55,7 +55,7 @@ class GoodsReceiptController extends Controller
             }
 
             return [
-                '_id' => (string) ($c->_id ?? $w->_id ?? $s->_id ?? $p->_id ?? $i->_id ?? $r->_id ?? $a->_id ?? $o->_id ?? $u->_id ?? ''),
+                '_id' => (string) $r->_id,
                 'folio' => (string) ($attrs['folio'] ?? ''),
                 'purchase_order_id' => (string) ($attrs['purchase_order_id'] ?? ''),
                 'purchase_order_folio' => $order ? (string) $order->folio : 'Desconocida',
@@ -67,7 +67,7 @@ class GoodsReceiptController extends Controller
         })->values()->all();
 
         $receivableOrders = PurchaseOrder::where('business_id', $this->businessId)
-            ->where('status', 'AUTORIZADA')
+            ->whereIn('status', ['AUTORIZADA', 'RECIBIDA_PARCIAL'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(fn($o) => [
@@ -84,7 +84,7 @@ class GoodsReceiptController extends Controller
         $totalReceipts = GoodsReceipt::where('business_id', $this->businessId)->count();
         $receiptsMonth = GoodsReceipt::where('business_id', $this->businessId)->where('created_at', '>=', $monthStart)->count();
         $receiptsWeek = GoodsReceipt::where('business_id', $this->businessId)->where('created_at', '>=', $weekAgo)->count();
-        $pendingOrders = PurchaseOrder::where('business_id', $this->businessId)->where('status', 'AUTORIZADA')->count();
+        $pendingOrders = PurchaseOrder::where('business_id', $this->businessId)->whereIn('status', ['AUTORIZADA', 'RECIBIDA_PARCIAL'])->count();
 
         $kpis = [
             ['label' => 'Total recepciones', 'value' => $totalReceipts],
@@ -148,7 +148,50 @@ class GoodsReceiptController extends Controller
             ->first();
 
         if (!$order) return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'Orden de compra no encontrada.']);
-        if ($order->status !== 'AUTORIZADA') return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'Solo se pueden recibir OCs en estado AUTORIZADA.']);
+        if (!in_array($order->status, ['AUTORIZADA', 'RECIBIDA_PARCIAL'], true)) return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'Solo se pueden recibir OCs autorizadas o parcialmente recibidas.']);
+
+        $orderItems = PurchaseOrderItem::where('business_id', $this->businessId)
+            ->where('purchase_order_id', (string) $order->_id)
+            ->get()
+            ->keyBy(fn($item) => (string) $item->_id);
+        if ($orderItems->isEmpty()) return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'La OC no tiene partidas para recibir.']);
+
+        $receiptIds = GoodsReceipt::where('business_id', $this->businessId)
+            ->where('purchase_order_id', (string) $order->_id)
+            ->get()
+            ->map(fn($receipt) => (string) $receipt->_id)
+            ->all();
+        $receivedByLine = [];
+        if ($receiptIds !== []) {
+            foreach (\App\Models\GoodsReceiptItem::where('business_id', $this->businessId)
+                ->whereIn('goods_receipt_id', $receiptIds)
+                ->get() as $receiptItem) {
+                $itemId = (string) $receiptItem->purchase_order_item_id;
+                $receivedByLine[$itemId] = ($receivedByLine[$itemId] ?? 0) + (int) $receiptItem->quantity;
+            }
+        }
+
+        $receiptLines = [];
+        $submittedIds = [];
+        foreach ($validated['items'] as $item) {
+            $itemId = (string) $item['purchase_order_item_id'];
+            $orderItem = $orderItems->get($itemId);
+            if (!$orderItem || isset($submittedIds[$itemId])) {
+                return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'Una o más partidas no pertenecen a la OC o están duplicadas.']);
+            }
+
+            $submittedIds[$itemId] = true;
+            $quantity = (int) $item['quantity'];
+            $remaining = max(0, (int) $orderItem->quantity - ($receivedByLine[$itemId] ?? 0));
+            if ($quantity > $remaining) {
+                return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors([
+                    'error' => "La cantidad a recibir excede el pendiente de la partida {$orderItem->product_sku} ({$remaining}).",
+                ]);
+            }
+
+            $receiptLines[] = ['order_item' => $orderItem, 'quantity' => $quantity];
+            $receivedByLine[$itemId] = ($receivedByLine[$itemId] ?? 0) + $quantity;
+        }
 
         $defaultLocationId = $this->getDefaultLocationId();
         if (empty($defaultLocationId)) return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'No hay ubicaciones configuradas.']);
@@ -166,27 +209,23 @@ class GoodsReceiptController extends Controller
                 'business_id' => $this->businessId,
                 'purchase_order_id' => (string) $order->_id,
                 'folio' => $folio,
-                'received_by' => 'USR-ADMIN-001',
+                'received_by' => app(\App\Services\IdentityService::class)->resolveCurrentUserId(),
                 'status' => 'COMPLETADA',
                 'notes' => $validated['notes'] ?? '',
                 'received_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]);
             $receipt->save();
 
-            foreach ($validated['items'] as $item) {
-                $orderItem = PurchaseOrderItem::where('_id', $item['purchase_order_item_id'])
-                    ->where('purchase_order_id', (string) $order->_id)
-                    ->first();
-
-                if (!$orderItem) continue;
-
-                $qty = (int) $item['quantity'];
+            foreach ($receiptLines as $line) {
+                $orderItem = $line['order_item'];
+                $qty = $line['quantity'];
 
                 $receiptItem = new GoodsReceiptItem();
                 $receiptItem->_id = new ObjectId();
                 $receiptItem->fill([
                     'business_id' => $this->businessId,
                     'goods_receipt_id' => (string) $receipt->_id,
+                    'purchase_order_id' => (string) $order->_id,
                     'purchase_order_item_id' => (string) $orderItem->_id,
                     'product_id' => (string) $orderItem->product_id,
                     'product_sku' => (string) $orderItem->product_sku,
@@ -205,7 +244,7 @@ class GoodsReceiptController extends Controller
                     'type' => 'RECEIPT',
                     'reason' => 'Recepcion OC ' . $order->folio,
                     'external_reference' => $folio,
-                    'actor_id' => 'USR-ADMIN-001',
+                    'actor_id' => app(\App\Services\IdentityService::class)->resolveCurrentUserId(),
                 ]);
 
                 // Auto-registrar costo
@@ -217,7 +256,7 @@ class GoodsReceiptController extends Controller
                         'reference' => $folio,
                         'notes' => 'Recepcion OC ' . $order->folio,
                         'suggested_price' => null,
-                        'actor_id' => 'USR-ADMIN-001',
+                        'actor_id' => app(\App\Services\IdentityService::class)->resolveCurrentUserId(),
                     ]);
                 } catch (\Throwable $costEx) {
                     Log::warning('No se pudo registrar el costo automatico.', ['error' => $costEx->getMessage()]);
@@ -226,7 +265,10 @@ class GoodsReceiptController extends Controller
                 $stockMovementsDone[] = ['product_id' => (string) $orderItem->product_id, 'quantity' => $qty];
             }
 
-            $order->status = 'RECIBIDA_TOTAL';
+            $allItemsReceived = $orderItems->every(
+                fn($item, $itemId) => ($receivedByLine[(string) $itemId] ?? 0) >= (int) $item->quantity
+            );
+            $order->status = $allItemsReceived ? 'RECIBIDA_TOTAL' : 'RECIBIDA_PARCIAL';
             $order->save();
 
         } catch (\Throwable $e) {

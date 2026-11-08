@@ -19,6 +19,20 @@ class DemoSeed extends Command
         $this->bid = (string) config('team4.business_id', 'BUS-CD-SOUV-001');
         $db = DB::connection('mongodb');
 
+        $db->getCollection('businesses')->updateOne(
+            ['business_id' => $this->bid],
+            ['$setOnInsert' => [
+                '_id' => new ObjectId(),
+                'business_id' => $this->bid,
+                'code' => $this->bid === 'BUS-CD-SOUV-001' ? 'CD-SOUV' : Str::slug($this->bid),
+                'name' => 'Tienda Campus Digital',
+                'type' => 'MIXED',
+                'active' => true,
+                'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+            ]],
+            ['upsert' => true]
+        );
+
         // ------------------------------------------------------------
         // 1. Categorias
         // ------------------------------------------------------------

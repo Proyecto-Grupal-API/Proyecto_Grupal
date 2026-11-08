@@ -7,6 +7,7 @@ class GoodsReceiptItem extends Team4Document
     protected $fillable = [
         'business_id',
         'goods_receipt_id',
+        'purchase_order_id',
         'purchase_order_item_id',
         'product_id',
         'product_sku',

@@ -154,7 +154,7 @@ class CostController extends Controller
                 'reference' => $validated['reference'] ?? '',
                 'notes' => $validated['notes'] ?? '',
                 'suggested_price' => $validated['suggested_price'] ?? null,
-                'actor_id' => 'USR-ADMIN-001',
+                'actor_id' => app(\App\Services\IdentityService::class)->resolveCurrentUserId(),
             ]);
         } catch (\Throwable $e) {
             Log::error('Fallo al registrar costo.', ['error' => $e->getMessage()]);

@@ -62,4 +62,12 @@ class PermissionMatrixTest extends TestCase
         $this->assertNotNull($user);
         $this->assertSame('global', $user['role_scope']);
     }
+
+    /** @test */
+    public function test_solo_administracion_puede_aprobar_ajustes_de_conteos(): void
+    {
+        $this->assertTrue($this->svc->userCan('USR-ADMIN-001', 'conteos.approve'));
+        $this->assertFalse($this->svc->userCan('USR-INV-001', 'conteos.approve'));
+        $this->assertFalse($this->svc->userCan('USR-BUY-001', 'conteos.approve'));
+    }
 }

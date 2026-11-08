@@ -6,6 +6,11 @@ class Product extends Team4Document
     protected $fillable = ['business_id','sku','name','description','category',
         'sizes',
         'colors',
-        'seasons','stock_min','stock_max','active'];
-    protected $casts = ['active'=>'boolean','stock_min'=>'integer','stock_max'=>'integer'];
+        'seasons',
+        'collections',
+        'packages',
+        'preorder',
+        'official',
+        'stock_min','stock_max','active'];
+    protected $casts = ['active'=>'boolean','official'=>'boolean','stock_min'=>'integer','stock_max'=>'integer'];
 }

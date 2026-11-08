@@ -96,11 +96,7 @@ class Team4Controller extends Controller
                 'business_id' => $bid,
                 'created_at' => ['$gte' => new \MongoDB\BSON\UTCDateTime(strtotime('today') * 1000)],
             ]),
-            'movements_today' => $movements->countDocuments([
-            'business_id' => $bid,
-            'created_at' => ['$gte' => date('Y-m-d')],
-        ]),
-        'movements_week' => $movements->countDocuments([
+            'movements_week' => $movements->countDocuments([
                 'business_id' => $bid,
                 'created_at' => ['$gte' => $weekAgo],
             ]),
@@ -134,7 +130,8 @@ class Team4Controller extends Controller
     public function products(Request $r)
     {
         $q = trim((string) $r->query('q', ''));
-        $items = Product::query()
+        $items = Product::where('business_id', $this->businessId)
+            ->where('active', true)
             ->when($q !== '', function ($query) use ($q) {
                 $regex = '/' . preg_quote($q, '/') . '/i';
                 $query->where(function ($subQuery) use ($regex) {
@@ -145,17 +142,37 @@ class Team4Controller extends Controller
             ->limit(100)
             ->get();
 
+        $variantsByProduct = [];
+        $productIds = $items->map(fn ($item) => (string) $item->_id)->all();
+        foreach (DB::connection('mongodb')->getCollection('product_variants')->find([
+            'business_id' => $this->businessId,
+            'active' => true,
+            'product_id' => ['$in' => $productIds],
+        ]) as $variant) {
+            $document = (array) $variant;
+            $productId = (string) ($document['product_id'] ?? '');
+            $variantsByProduct[$productId][] = [
+                'variant_id' => (string) ($document['variant_id'] ?? ''),
+                'sku' => (string) ($document['sku'] ?? ''),
+                'size' => $document['size'] ?? null,
+                'color' => $document['color'] ?? null,
+            ];
+        }
+        foreach ($items as $item) {
+            $item->setAttribute('variants', $variantsByProduct[(string) $item->_id] ?? []);
+        }
+
         return response()->json($items);
     }
 
     public function warehouses()
     {
-        return response()->json(Warehouse::limit(100)->get());
+        return response()->json(Warehouse::where('business_id', $this->businessId)->limit(100)->get());
     }
 
     public function locations()
     {
-        return response()->json(Location::limit(200)->get());
+        return response()->json(Location::where('business_id', $this->businessId)->limit(200)->get());
     }
 
     public function inventory()

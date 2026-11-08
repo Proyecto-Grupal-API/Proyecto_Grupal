@@ -140,6 +140,61 @@ ps.forEach((p, i) => {
   );
 });
 
+const team7TestProductData = {
+  business_id: BUSINESS_ID,
+  sku: "SOUV-TAZA-001",
+  name: "Taza de prueba Equipo 7",
+  description: "Producto de prueba para validar la integración de reservas del Equipo 7.",
+  category: "souvenirs",
+  active: true,
+  stock_min: 1,
+  stock_max: 100
+};
+
+d.products.updateOne(
+  { business_id: BUSINESS_ID, sku: team7TestProductData.sku },
+  {
+    $set: { ...team7TestProductData, updated_at: now },
+    $setOnInsert: { created_at: now }
+  },
+  { upsert: true }
+);
+
+const team7TestProduct = d.products.findOne({
+  business_id: BUSINESS_ID,
+  sku: team7TestProductData.sku
+});
+const team7TestLocation = d.locations.findOne({
+  business_id: BUSINESS_ID,
+  active: true
+});
+
+if (team7TestProduct && team7TestLocation) {
+  d.inventories.updateOne(
+    {
+      business_id: BUSINESS_ID,
+      product_id: String(team7TestProduct._id),
+      variant_id: null,
+      location_id: String(team7TestLocation._id)
+    },
+    {
+      $setOnInsert: {
+        business_id: BUSINESS_ID,
+        product_id: String(team7TestProduct._id),
+        variant_id: null,
+        location_id: String(team7TestLocation._id),
+        on_hand: 35,
+        reserved: 0,
+        available: 35,
+        status: "AVAILABLE",
+        created_at: now,
+        updated_at: now
+      }
+    },
+    { upsert: true }
+  );
+}
+
 const firstProduct = d.products.findOne({ business_id: BUSINESS_ID, sku: "PR-001" });
 const firstLocation = d.locations.findOne({ business_id: BUSINESS_ID });
 

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\StockReservation;
 use App\Models\Inventory;
 use App\Models\Product;
+use App\Services\AuditService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -61,11 +62,11 @@ class ReservationService
         if ($updated === null) {
             throw new \DomainException('Existencia insuficiente para reservar.');
         }
-
         $reservationId = (string) Str::ulid();
         $reservationObjectId = new ObjectId();
 
         try {
+            app(InventoryStatusService::class)->sync($this->businessId, $productId, $variantId, $locationId);
             DB::connection('mongodb')->getCollection('stock_reservations')->insertOne([
                 '_id' => $reservationObjectId,
                 'reservation_id' => $reservationId,
@@ -78,7 +79,7 @@ class ReservationService
                 'source' => $source,
                 'external_reference' => $externalReference,
                 'expires_at' => new \MongoDB\BSON\UTCDateTime(\Illuminate\Support\Carbon::parse($expiresAt)),
-                'created_by' => ActorResolver::resolve('USR-ADMIN-001'),
+                'created_by' => ActorResolver::resolve(),
                 'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]);
@@ -97,6 +98,7 @@ class ReservationService
                         '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())],
                     ]
                 );
+                app(InventoryStatusService::class)->sync($this->businessId, $productId, $variantId, $locationId);
             } catch (\Throwable $compEx) {
                 Log::critical('Fallo compensacion de reserva.', ['error' => $compEx->getMessage()]);
             }
@@ -107,8 +109,28 @@ class ReservationService
         try {
             app(AlertGeneratorService::class)->syncOne($productId, $locationId);
         } catch (\Throwable $alertEx) {
-            // no-op
+            Log::warning('No se pudieron sincronizar alertas después de reservar existencias.', [
+                'business_id' => $this->businessId,
+                'product_id' => $productId,
+                'location_id' => $locationId,
+                'error' => $alertEx->getMessage(),
+            ]);
         }
+
+        app(AuditService::class)->log('stock_reservation.created', [
+            'actor_id' => ActorResolver::resolve(),
+            'business_id' => $this->businessId,
+            'entity_type' => 'StockReservation',
+            'entity_id' => (string) $reservationObjectId,
+            'action' => 'created',
+            'after' => [
+                'reservation_id' => $reservationId,
+                'product_id' => $productId,
+                'location_id' => $locationId,
+                'quantity' => $quantity,
+                'expires_at' => $expiresAt,
+            ],
+        ]);
 
         return StockReservation::where('_id', (string) $reservationObjectId)->firstOrFail();
     }
@@ -160,38 +182,114 @@ class ReservationService
             throw new \DomainException('Solo se pueden liberar reservas activas. Estado actual: ' . $status);
         }
 
-        // 3) Devolver stock: reserved - qty, available + qty
-        DB::connection('mongodb')->getCollection('inventories')->findOneAndUpdate(
-            [
-                'business_id' => $this->businessId,
-                'product_id' => $productId,
-                'variant_id' => $variantId,
-                'location_id' => $locationId,
-                '$expr' => ['$gte' => ['$reserved', $quantity]],
-            ],
-            [
-                '$inc' => ['reserved' => -$quantity, 'available' => $quantity],
-                '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())],
-            ]
+        $claimed = $collection->updateOne(
+            ['_id' => $docId, 'business_id' => $this->businessId, 'status' => 'RESERVED'],
+            ['$set' => ['status' => 'RELEASING', 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
         );
+        if ($claimed->getMatchedCount() !== 1) {
+            throw new \DomainException('La reserva ya está siendo procesada o cambió de estado.');
+        }
 
-        // 4) Marcar la reserva como RELEASED
-        $collection->updateOne(
-            ['_id' => $docId],
-            ['$set' => [
-                'status' => 'RELEASED',
-                'released_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                'release_reason' => $reason,
-                'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-            ]]
-        );
+        $inventoryCollection = DB::connection('mongodb')->getCollection('inventories');
+        $inventoryUpdated = null;
+        try {
+            $inventoryUpdated = $inventoryCollection->findOneAndUpdate(
+                [
+                    'business_id' => $this->businessId,
+                    'product_id' => $productId,
+                    'variant_id' => $variantId,
+                    'location_id' => $locationId,
+                    '$expr' => ['$gte' => ['$reserved', $quantity]],
+                ],
+                [
+                    '$inc' => ['reserved' => -$quantity, 'available' => $quantity],
+                    '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())],
+                ]
+            );
+            if ($inventoryUpdated === null) {
+                throw new \DomainException('No fue posible liberar la existencia reservada.');
+            }
+            app(InventoryStatusService::class)->sync(
+                $this->businessId,
+                $productId,
+                $variantId === null ? null : (string) $variantId,
+                $locationId
+            );
+
+            $released = $collection->updateOne(
+                ['_id' => $docId, 'business_id' => $this->businessId, 'status' => 'RELEASING'],
+                ['$set' => [
+                    'status' => 'RELEASED',
+                    'released_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                    'release_reason' => $reason,
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                ]]
+            );
+            if ($released->getMatchedCount() !== 1) {
+                throw new \RuntimeException('No fue posible confirmar la liberación de la reserva.');
+            }
+        } catch (\Throwable $exception) {
+            $compensated = true;
+            if ($inventoryUpdated !== null) {
+                try {
+                    $inventoryCollection->findOneAndUpdate(
+                        [
+                            'business_id' => $this->businessId,
+                            'product_id' => $productId,
+                            'variant_id' => $variantId,
+                            'location_id' => $locationId,
+                        ],
+                        [
+                            '$inc' => ['reserved' => $quantity, 'available' => -$quantity],
+                            '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())],
+                        ]
+                    );
+                    app(InventoryStatusService::class)->sync(
+                        $this->businessId,
+                        $productId,
+                        $variantId === null ? null : (string) $variantId,
+                        $locationId
+                    );
+                } catch (\Throwable $compensationException) {
+                    $compensated = false;
+                    Log::critical('Falló la compensación de liberación de reserva.', [
+                        'reservation_id' => $identifier,
+                        'error' => $compensationException->getMessage(),
+                    ]);
+                }
+            }
+
+            $collection->updateOne(
+                ['_id' => $docId, 'business_id' => $this->businessId, 'status' => 'RELEASING'],
+                ['$set' => [
+                    'status' => $compensated ? 'RESERVED' : 'RELEASE_FAILED',
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                ]]
+            );
+            throw $exception;
+        }
 
         // 5) Sincronizar alertas
         try {
             app(AlertGeneratorService::class)->syncOne($productId, $locationId);
         } catch (\Throwable $e) {
-            // no-op
+            Log::warning('No se pudieron sincronizar alertas después de liberar una reserva.', [
+                'business_id' => $this->businessId,
+                'product_id' => $productId,
+                'location_id' => $locationId,
+                'error' => $e->getMessage(),
+            ]);
         }
+
+        app(AuditService::class)->log('stock_reservation.released', [
+            'actor_id' => ActorResolver::resolve(),
+            'business_id' => $this->businessId,
+            'entity_type' => 'StockReservation',
+            'entity_id' => (string) $docId,
+            'action' => 'released',
+            'before' => ['status' => 'RESERVED'],
+            'after' => ['status' => 'RELEASED', 'release_reason' => $reason, 'quantity' => $quantity],
+        ]);
     }
 
     public function expireOverdue(): int

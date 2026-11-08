@@ -91,6 +91,7 @@ class InventoryController extends Controller
                 'product_id' => $pid,
                 'sku' => $product['sku'] ?? '(desconocido)',
                 'product_name' => $product['name'] ?? '(desconocido)',
+                'variant_id' => isset($inv['variant_id']) ? (string) $inv['variant_id'] : null,
                 'warehouse_name' => $whName,
                 'location_name' => $location['name'] ?? '—',
                 'location_id' => $lid,
@@ -168,7 +169,7 @@ class InventoryController extends Controller
                 'type' => 'ADJUSTMENT',
                 'reason' => 'Ajuste manual: ' . $validated['reason'],
                 'external_reference' => null,
-                'actor_id' => 'USR-ADMIN-001',
+                'actor_id' => app(\App\Services\IdentityService::class)->resolveCurrentUserId(),
             ]);
         } catch (\Throwable $e) {
             Log::error('Fallo al ajustar inventario.', ['error' => $e->getMessage()]);

@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Services\AlertGeneratorService;
+use App\Services\AuditService;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use MongoDB\BSON\ObjectId;
 
 class AlertController extends Controller
@@ -22,12 +24,17 @@ class AlertController extends Controller
 
     public function index(Request $request): Response
     {
-        $cacheKey = 'equipo4_alerts_last_generate';
+        $cacheKey = 'equipo4_alerts_last_generate:' . $this->businessId;
         if (!Cache::has($cacheKey)) {
             try {
                 app(AlertGeneratorService::class)->generate();
                 Cache::put($cacheKey, now()->timestamp, 5);
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+                Log::warning('No se pudieron recalcular alertas al abrir el módulo.', [
+                    'business_id' => $this->businessId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         $q = trim((string) $request->query('q', ''));
@@ -65,6 +72,7 @@ class AlertController extends Controller
 
             $alertsData[] = [
                 '_id' => (string) ($doc['_id'] ?? ''),
+                'type' => (string) ($doc['type'] ?? ''),
                 'product_sku' => $p['sku'] ?? '—',
                 'product_name' => $p['name'] ?? '—',
                 'location_name' => $locationsMap[$lid] ?? '—',
@@ -146,8 +154,14 @@ class AlertController extends Controller
     {
         try {
             $stats = $generator->generate();
-            Cache::forget('equipo4_alerts_last_generate');
-            $msg = sprintf('Alertas recalculadas. Creadas: %d, Actualizadas: %d, Resueltas: %d', $stats['created'], $stats['updated'], $stats['resolved']);
+            Cache::forget('equipo4_alerts_last_generate:' . $this->businessId);
+            $msg = sprintf(
+                'Alertas recalculadas. Creadas: %d, Actualizadas: %d, Resueltas: %d, Notificadas: %d',
+                $stats['created'],
+                $stats['updated'],
+                $stats['resolved'],
+                $stats['notifications'] ?? 0
+            );
             return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', $msg);
         } catch (\Throwable $e) {
             return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'Error: ' . $e->getMessage()]);
@@ -166,16 +180,31 @@ class AlertController extends Controller
         ]);
         if (!$alertDoc) return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'Alerta no encontrada.']);
 
-        DB::connection('mongodb')->getCollection('stock_alerts')->updateOne(
-            ['_id' => new ObjectId($id)],
+        $before = (array) $alertDoc;
+        $updated = DB::connection('mongodb')->getCollection('stock_alerts')->updateOne(
+            ['_id' => new ObjectId($id), 'business_id' => $this->businessId, 'status' => 'ACTIVE'],
             ['$set' => [
                 'status' => 'DISMISSED',
                 'resolution_reason' => $validated['reason'],
-                'dismissed_by' => 'USR-ADMIN-001',
+                'dismissed_by' => app(\App\Services\IdentityService::class)->resolveCurrentUserId(),
                 'dismissed_at' => new \MongoDB\BSON\UTCDateTime(now()),
                 'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]]
         );
+        if ($updated->getModifiedCount() !== 1) {
+            return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))
+                ->withErrors(['error' => 'La alerta ya no está activa y no se pudo descartar.']);
+        }
+
+        app(AuditService::class)->log('stock_alert.dismissed', [
+            'actor_id' => app(\App\Services\IdentityService::class)->resolveCurrentUserId(),
+            'business_id' => $this->businessId,
+            'entity_type' => 'StockAlert',
+            'entity_id' => $id,
+            'action' => 'dismissed',
+            'before' => ['status' => $before['status'] ?? null],
+            'after' => ['status' => 'DISMISSED', 'reason' => $validated['reason']],
+        ]);
 
         return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Alerta descartada.');
     }

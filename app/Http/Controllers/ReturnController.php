@@ -62,7 +62,7 @@ class ReturnController extends Controller
             $attrs = $r->getAttributes();
             $supplier = $suppliersMap->get((string) ($attrs['supplier_id'] ?? ''));
             $all->push([
-                '_id' => (string) ($c->_id ?? $w->_id ?? $s->_id ?? $p->_id ?? $i->_id ?? $r->_id ?? $a->_id ?? $o->_id ?? $u->_id ?? ''),
+                '_id' => (string) $r->_id,
                 'folio' => (string) ($attrs['folio'] ?? ''),
                 'type' => 'A proveedor',
                 'reference' => (string) ($attrs['source_reference'] ?? ''),
@@ -76,7 +76,7 @@ class ReturnController extends Controller
         foreach ($customerReturns as $r) {
             $attrs = $r->getAttributes();
             $all->push([
-                '_id' => (string) ($c->_id ?? $w->_id ?? $s->_id ?? $p->_id ?? $i->_id ?? $r->_id ?? $a->_id ?? $o->_id ?? $u->_id ?? ''),
+                '_id' => (string) $r->_id,
                 'folio' => (string) ($attrs['folio'] ?? ''),
                 'type' => 'De cliente',
                 'reference' => (string) ($attrs['sale_reference'] ?? ''),
@@ -183,7 +183,7 @@ class ReturnController extends Controller
                 'reason' => $validated['reason'],
                 'supplier_id' => $validated['supplier_id'] ?? null,
                 'reference' => $validated['reference'] ?? null,
-                'actor_id' => 'USR-ADMIN-001',
+                'actor_id' => app(\App\Services\IdentityService::class)->resolveCurrentUserId(),
             ]);
         } catch (\Throwable $e) {
             Log::error('Fallo al registrar devolucion a proveedor.', ['error' => $e->getMessage()]);
@@ -216,7 +216,7 @@ class ReturnController extends Controller
                 'customer_id' => null,
                 'customer_type' => 'ALUMNO',
                 'reference' => $validated['reference'] ?? null,
-                'actor_id' => 'USR-ADMIN-001',
+                'actor_id' => app(\App\Services\IdentityService::class)->resolveCurrentUserId(),
             ]);
         } catch (\Throwable $e) {
             Log::error('Fallo al registrar devolucion de cliente.', ['error' => $e->getMessage()]);

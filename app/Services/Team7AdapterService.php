@@ -73,6 +73,7 @@ class Team7AdapterService
             'order_id'           => $data['origin_reference'] ?? ('E7-' . Str::ulid()),
             'items'              => $items,
             'idempotency_key'    => $data['idempotency_key'],
+            'origin_system'      => 'E7',
             'source'             => $this->mapSource($data['origin_type'] ?? 'REWARD'),
             'external_reference' => $data['origin_reference'] ?? '',
             'expires_at'         => $data['expires_at'] ?? null,

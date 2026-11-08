@@ -254,7 +254,10 @@ class ReturnService
             );
         }
 
-        return (array) $updated;
+        $inventory = (array) $updated;
+        app(InventoryStatusService::class)->sync($businessId, $productId, $variantId, $locationId);
+
+        return $inventory;
     }
 
     private function applyQuarantineDelta(
@@ -292,7 +295,10 @@ class ReturnService
             ]
         );
 
-        return (array) $updated;
+        $inventory = (array) $updated;
+        app(InventoryStatusService::class)->sync($businessId, $productId, $variantId, $locationId);
+
+        return $inventory;
     }
 
     private function compensateInventory(
@@ -323,6 +329,7 @@ class ReturnService
                     ],
                 ]
             );
+            $this->syncInventoryStatusById($inventoryId);
         } catch (\Throwable $compensationException) {
             Log::critical('Falló la compensación de devolución.', [
                 'kind' => $kind,
@@ -367,6 +374,7 @@ class ReturnService
                     ],
                 ]
             );
+            $this->syncInventoryStatusById($inventoryId);
         } catch (\Throwable $compensationException) {
             Log::critical('Falló compensación de devolución de cliente.', [
                 'inventory_id' => (string) $inventoryId,
@@ -382,5 +390,21 @@ class ReturnService
                 $compensationException
             );
         }
+    }
+
+    private function syncInventoryStatusById($inventoryId): void
+    {
+        $document = DB::connection('mongodb')->getCollection('inventories')->findOne(['_id' => $inventoryId]);
+        if (!$document) {
+            return;
+        }
+
+        $inventory = (array) $document;
+        app(InventoryStatusService::class)->sync(
+            (string) ($inventory['business_id'] ?? ''),
+            (string) ($inventory['product_id'] ?? ''),
+            isset($inventory['variant_id']) ? (string) $inventory['variant_id'] : null,
+            (string) ($inventory['location_id'] ?? '')
+        );
     }
 }

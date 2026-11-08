@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Services\IdentityService;
+use App\Services\BusinessService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,7 +17,10 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class EnsureTeam4Role
 {
-    public function __construct(protected IdentityService $identity) {}
+    public function __construct(
+        protected IdentityService $identity,
+        protected BusinessService $businesses
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -41,22 +45,32 @@ class EnsureTeam4Role
         // Validar scope si es por negocio
         $scope           = $user['role_scope'] ?? 'global';
         $roleBusinessId  = $user['role_business_id'] ?? null;
-        $currentBusiness = (string) config('team4.business_id', 'BUS-CD-SOUV-001');
+        $defaultBusiness = (string) config('team4.default_business_id', 'BUS-CD-SOUV-001');
 
         if ($scope === 'business') {
             if ($roleBusinessId === null) {
                 return redirect()->route('equipo4.not-authorized', ['reason' => 'business_scope_missing']);
             }
-            if ($roleBusinessId !== $currentBusiness) {
-                return redirect()->route('equipo4.not-authorized', ['reason' => 'business_mismatch']);
-            }
+        }
+
+        $currentBusiness = $scope === 'business' ? (string) $roleBusinessId : $defaultBusiness;
+        $request->attributes->set('team4_business_id', $currentBusiness);
+        try {
+            $this->businesses->validate($currentBusiness);
+        } catch (\InvalidArgumentException|\DomainException) {
+            return redirect()->route('equipo4.not-authorized', ['reason' => 'business_invalid']);
+        }
+
+        config(['team4.business_id' => $currentBusiness]);
+        $controller = $request->route()?->getController();
+        if ($controller instanceof \App\Http\Controllers\Controller) {
+            $controller->setBusinessContext($currentBusiness);
         }
 
         $request->attributes->set('team4_user_id', $userId);
         $request->attributes->set('team4_user_roles', $roles);
         $request->attributes->set('team4_user_role', $user['role'] ?? '');
         $request->attributes->set('team4_user_scope', $scope);
-
         return $next($request);
     }
 }

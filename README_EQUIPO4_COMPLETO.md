@@ -38,9 +38,27 @@ Datos:
 
 `mongosh "mongodb://127.0.0.1:27017" database/mongo/team4_seed.js`
 
+Fixtures adicionales para probar aislamiento multi-negocio y merchandising:
+
+`mongosh "mongodb://127.0.0.1:27017" --file database/mongo/team4_specialized_demo.js`
+
+El script es idempotente y no reemplaza existencias existentes. Crea el negocio
+de prueba `BUS-CD-SOUV-DEMO-002` con el SKU `SOUV-MULTI-TEST-001`, y agrega al
+negocio principal `BUS-CD-SOUV-001` el souvenir oficial
+`SOUV-EDICION-OFICIAL-2026`, con cuatro variantes en `LOC-DEMO-OFICIAL`,
+colección, temporada, paquete y preventa limitada. Estos datos sirven para
+demostrar alcance por negocio y administración de merchandising sin depender
+de las credenciales de los equipos externos.
+
+Migraciones versionadas de MongoDB (ejecutar en orden; se pueden repetir):
+
+`mongosh "mongodb://127.0.0.1:27017/campus_digital" --file database/mongo/migrations/001_team4_inventory_indexes.js`
+
+`mongosh "mongodb://127.0.0.1:27017/campus_digital" --file database/mongo/migrations/002_team4_alerts_and_approvals.js`
+
 ## Integración
 
-Las APIs de integración están preparadas para Equipo 3 y Equipo 7, y para futuros contratos con Equipo 6/2. Las credenciales reales y secretos deben estar en `.env`, nunca en GitHub.
+Las APIs de Equipo 3 y Equipo 7 tienen contratos y pruebas locales. La activación real de Equipo 1 requiere credenciales; Equipo 2 y 3 dependen del emisor/cliente real de sus equipos; Equipo 6 requiere que se acuerde y publique su contrato de abastecimiento. Las credenciales y secretos deben estar en `.env`, nunca en GitHub. Las alertas necesitan `TEAM4_ALERT_EMAIL` o un correo responsable en el documento del negocio.
 
 ## Nota académica
 

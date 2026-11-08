@@ -141,7 +141,6 @@ Route::prefix('equipo4')->middleware([EnsureTeam4Role::class])->group(function (
         ->middleware('team4.permission:compras.update')
         ->name('equipo4.compras.update');
     Route::patch('/compras/{id}/status', [PurchaseOrderController::class, 'changeStatus'])
-        ->middleware('team4.permission:compras.authorize')
         ->name('equipo4.compras.status');
     Route::delete('/compras/{id}', [PurchaseOrderController::class, 'destroy'])
         ->middleware('team4.permission:compras.cancel')
@@ -245,6 +244,9 @@ Route::prefix('equipo4')->middleware([EnsureTeam4Role::class])->group(function (
     Route::post('/conteos/{id}/close', [StockCountController::class, 'close'])
         ->middleware('team4.permission:conteos.close')
         ->name('equipo4.conteos.close');
+    Route::post('/conteos/{id}/approve', [StockCountController::class, 'approve'])
+        ->middleware('team4.permission:conteos.approve')
+        ->name('equipo4.conteos.approve');
     Route::delete('/conteos/{id}', [StockCountController::class, 'destroy'])
         ->middleware('team4.permission:conteos.delete')
         ->name('equipo4.conteos.destroy');

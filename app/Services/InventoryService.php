@@ -63,22 +63,27 @@ class InventoryService
 
         $collection = DB::connection('mongodb')->getCollection('inventories');
 
+        $nextAvailable = [
+            '$add' => [
+                ['$ifNull' => ['$available', 0]],
+                $qty,
+            ],
+        ];
+
         $updated = $collection->findOneAndUpdate(
             $filter,
-            [
-                '$inc' => [
-                    'on_hand' => $qty,
-                    'available' => $qty,
-                ],
-                '$set' => [
-                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                    'status' => ((int) ($updatedArray['available'] ?? 0)) > 0 ? 'AVAILABLE' : 'OUT_OF_STOCK',
-                ],
-                '$setOnInsert' => [
-                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                    'reserved' => 0,
-                ],
-            ],
+            [[ '$set' => [
+                'on_hand' => ['$add' => [['$ifNull' => ['$on_hand', 0]], $qty]],
+                'reserved' => ['$ifNull' => ['$reserved', 0]],
+                'available' => $nextAvailable,
+                'status' => ['$cond' => [
+                    ['$gt' => [$nextAvailable, 0]],
+                    'AVAILABLE',
+                    'OUT_OF_STOCK',
+                ]],
+                'created_at' => ['$ifNull' => ['$created_at', new \MongoDB\BSON\UTCDateTime(now())]],
+                'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
+            ]]],
             [
                 'returnDocument' => FindOneAndUpdate::RETURN_DOCUMENT_AFTER,
                 'upsert' => $qty > 0,
@@ -126,6 +131,7 @@ class InventoryService
                         ],
                     ]
                 );
+                app(InventoryStatusService::class)->sync($businessId, $productId, $variantId, $locationId);
             } catch (\Throwable $compensationException) {
                 Log::critical('Falló la compensación de inventario después de un error de Kardex.', [
                     'inventory_id' => (string) $inventoryId,

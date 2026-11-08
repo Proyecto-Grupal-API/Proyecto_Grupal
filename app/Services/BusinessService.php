@@ -2,39 +2,34 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class BusinessService
 {
     public function validate(string $businessId): bool
     {
-        if (empty($businessId)) {
-            throw new \InvalidArgumentException('business_id no puede estar vacío.');
+        if (!preg_match('/^BUS-[A-Z0-9]+(?:-[A-Z0-9]+)*$/', $businessId)) {
+            throw new \InvalidArgumentException('business_id inválido. Formato esperado: BUS-XXXXX.');
         }
 
-        if (app()->environment(['local', 'development', 'testing'])) {
-            // En dev, solo validamos formato.
-            if (!str_starts_with($businessId, 'BUS-') || strlen($businessId) < 10) {
-                throw new \InvalidArgumentException(
-                    'business_id inválido. Formato esperado: BUS-XXXXX.'
-                );
+        if (!app()->runningInConsole()) {
+            $scopedBusinessId = request()->attributes->get('team4_business_id');
+            if (is_string($scopedBusinessId) && $scopedBusinessId !== ''
+                && !hash_equals($scopedBusinessId, $businessId)) {
+                throw new \DomainException('El movimiento no pertenece al negocio autorizado para esta solicitud.');
             }
-            return true;
         }
 
-        // En producción: consumir API del Eq. 3.
-        // PENDIENTE: cuando el Eq. 3 exponga el endpoint de validación
-        // de negocios, implementar aquí:
-        // $response = Http::withHeaders([...])->get(env('TEAM3_API_URL') . '/businesses/' . $businessId);
-        // return $response->successful() && $response->json('active') === true;
+        $business = DB::connection('mongodb')
+            ->getCollection('businesses')
+            ->findOne(['business_id' => $businessId]);
 
-        Log::warning('BusinessService::validate en producción sin API del Eq. 3 configurada.', [
-            'business_id' => $businessId,
-        ]);
+        if ($business === null) {
+            throw new \DomainException('El negocio indicado no está registrado.');
+        }
 
-        // Validación temporal: mismo formato que en dev.
-        if (!str_starts_with($businessId, 'BUS-') || strlen($businessId) < 10) {
-            throw new \InvalidArgumentException('business_id inválido.');
+        if (($business['active'] ?? false) !== true) {
+            throw new \DomainException('El negocio indicado está inactivo.');
         }
 
         return true;

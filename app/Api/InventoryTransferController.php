@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Services\AuditService;
+use App\Services\InventoryStatusService;
 use MongoDB\BSON\ObjectId;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Driver\Exception\BulkWriteException;
@@ -26,6 +28,7 @@ class InventoryTransferController extends Controller
             'to_location_id'      => 'required|string|different:from_location_id',
             'reason'              => 'nullable|string|max:200',
             'idempotency_key'     => 'required|string|min:8|max:128',
+            'actor_id'            => 'nullable|string|max:100',
             'items'               => 'required|array|min:1|max:100',
             'items.*.product_id'  => 'required|string',
             'items.*.variant_id'  => 'nullable|string',
@@ -70,6 +73,17 @@ class InventoryTransferController extends Controller
                     ['returnDocument'=>\MongoDB\Operation\FindOneAndUpdate::RETURN_DOCUMENT_AFTER]
                 );
                 if ($upd === null) throw new \DomainException("Stock insuficiente en origen para producto {$pid}.");
+                $entry = [
+                    'product_id' => $pid,
+                    'variant_id' => $vid,
+                    'quantity' => $qty,
+                    'source_location_id' => (string) $v['from_location_id'],
+                    'destination_location_id' => (string) $v['to_location_id'],
+                    'destination_incremented' => false,
+                    'movement_ids' => [],
+                ];
+                $applied[] = $entry;
+                app(InventoryStatusService::class)->sync($this->businessId, $pid, $vid, (string) $v['from_location_id']);
 
                 // Incrementar destino (upsert)
                 $inv->updateOne(
@@ -78,31 +92,89 @@ class InventoryTransferController extends Controller
                     ['$inc'=>['on_hand'=>$qty, 'available'=>$qty], '$set'=>['updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]],
                     ['upsert'=>true]
                 );
+                $applied[count($applied) - 1]['destination_incremented'] = true;
+                app(InventoryStatusService::class)->sync($this->businessId, $pid, $vid, (string) $v['to_location_id']);
 
                 // Dos movimientos
+                $movementIds = [new ObjectId(), new ObjectId()];
+                $applied[count($applied) - 1]['movement_ids'] = $movementIds;
                 $mov->insertMany([
-                    ['_id'=>new ObjectId(), 'business_id'=>$this->businessId, 'product_id'=>$pid,
+                    ['_id'=>$movementIds[0], 'business_id'=>$this->businessId, 'product_id'=>$pid,
                      'variant_id'=>$vid, 'location_id'=>(string)$v['from_location_id'],
                      'type'=>'TRANSFER_OUT', 'quantity'=>-$qty, 'reason'=>$v['reason'] ?? 'INTERNAL_TRANSFER',
+                     'actor_id'=>$v['actor_id'] ?? 'TEAM3', 'external_reference'=>$v['idempotency_key'],
                      'correlation_id'=>$corr, 'created_at'=>new \MongoDB\BSON\UTCDateTime(now())],
-                    ['_id'=>new ObjectId(), 'business_id'=>$this->businessId, 'product_id'=>$pid,
+                    ['_id'=>$movementIds[1], 'business_id'=>$this->businessId, 'product_id'=>$pid,
                      'variant_id'=>$vid, 'location_id'=>(string)$v['to_location_id'],
                      'type'=>'TRANSFER_IN', 'quantity'=>$qty, 'reason'=>$v['reason'] ?? 'INTERNAL_TRANSFER',
+                     'actor_id'=>$v['actor_id'] ?? 'TEAM3', 'external_reference'=>$v['idempotency_key'],
                      'correlation_id'=>$corr, 'created_at'=>new \MongoDB\BSON\UTCDateTime(now())],
                 ]);
-                $applied[] = ['product_id'=>$pid, 'variant_id'=>$vid, 'quantity'=>$qty];
             }
         } catch (\Throwable $e) {
+            foreach (array_reverse($applied) as $entry) {
+                try {
+                    if ($entry['destination_incremented']) {
+                        $inv->updateOne(
+                            ['business_id' => $this->businessId, 'product_id' => $entry['product_id'],
+                             'variant_id' => $entry['variant_id'], 'location_id' => $entry['destination_location_id'],
+                             '$expr' => ['$and' => [
+                                 ['$gte' => ['$on_hand', $entry['quantity']]],
+                                 ['$gte' => ['$available', $entry['quantity']]],
+                             ]]],
+                            ['$inc' => ['on_hand' => -$entry['quantity'], 'available' => -$entry['quantity']],
+                             '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
+                        );
+                        app(InventoryStatusService::class)->sync(
+                            $this->businessId, $entry['product_id'], $entry['variant_id'], $entry['destination_location_id']
+                        );
+                    }
+                    $inv->updateOne(
+                        ['business_id' => $this->businessId, 'product_id' => $entry['product_id'],
+                         'variant_id' => $entry['variant_id'], 'location_id' => $entry['source_location_id']],
+                        ['$inc' => ['on_hand' => $entry['quantity'], 'available' => $entry['quantity']],
+                         '$set' => ['updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
+                    );
+                    app(InventoryStatusService::class)->sync(
+                        $this->businessId, $entry['product_id'], $entry['variant_id'], $entry['source_location_id']
+                    );
+                } catch (\Throwable $compensationException) {
+                    Log::critical('Team4 transfer compensation failed', [
+                        'item' => $entry,
+                        'error' => $compensationException->getMessage(),
+                    ]);
+                }
+                if ($entry['movement_ids']) {
+                    $mov->deleteMany(['_id' => ['$in' => $entry['movement_ids']]]);
+                }
+            }
             Log::error('Team4 transfer failed', ['error'=>$e->getMessage()]);
             $idem->updateOne(['service'=>$service,'idempotency_key'=>$v['idempotency_key']],
                 ['$set'=>['status'=>'FAILED','unexpired_processing_at'=>null,'updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]]);
             return response()->json(['status'=>'REJECTED','reason'=>$e->getMessage()], 409);
         }
 
-        $res = ['from_location_id'=>$v['from_location_id'], 'to_location_id'=>$v['to_location_id'],
-                'status'=>'TRANSFERRED', 'items'=>$applied, 'processed_at'=>now()->toIso8601String()];
+        $res = [
+            'from_location_id' => $v['from_location_id'],
+            'to_location_id' => $v['to_location_id'],
+            'status' => 'TRANSFERRED',
+            'items' => array_map(fn ($item) => [
+                'product_id' => $item['product_id'],
+                'variant_id' => $item['variant_id'],
+                'quantity' => $item['quantity'],
+            ], $applied),
+            'processed_at' => now()->toIso8601String(),
+        ];
         $idem->updateOne(['service'=>$service,'idempotency_key'=>$v['idempotency_key']],
             ['$set'=>['status'=>'COMPLETED','result'=>$res,'unexpired_processing_at'=>null,'updated_at'=>new \MongoDB\BSON\UTCDateTime(now())]]);
+        app(AuditService::class)->log('inventory.transferred', [
+            'actor_id' => $v['actor_id'] ?? 'TEAM3',
+            'business_id' => $this->businessId,
+            'entity_type' => 'InventoryTransfer',
+            'entity_id' => $v['idempotency_key'],
+            'action' => 'transferred',
+            'after' => $res,
+        ]);
         return response()->json($res, 201);
     }
 }

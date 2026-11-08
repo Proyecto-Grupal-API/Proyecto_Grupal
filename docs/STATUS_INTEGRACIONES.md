@@ -1,6 +1,6 @@
 ﻿# Estado de Integraciones — Equipo 4
 
-**Ultima actualizacion**: 2026-10-11
+**Ultima actualizacion**: 2026-11-08
 **Business ID**: BUS-CD-SOUV-001
 **Contrato comun**: HMAC-SHA256
 
@@ -11,6 +11,7 @@
 | Eq.1 (Identidad) | Adaptado a OAuth2 INT-1B.5 + Opcion B multi-rol | API publicada | Cerrado (falta client_id/secret) |
 | Eq.2 (Wallet) | Webhook receptor + auto-return | Sin emisor | Bloqueado en ellos |
 | Eq.3 (Marketplace) | 8 endpoints + validacion PI | Solo mocks | Bloqueado en ellos |
+| Eq.6 (Abasto asociaciones) | Inventario con negocio/ubicacion y recepciones | Sin contrato/API documentado | Pendiente de contrato de Eq.6 |
 | Eq.7 (Rewards) | 5 endpoints + expiry + outbox | Cero integracion | Bloqueado en ellos |
 
 ## Hallazgos de auditoria — atendidos
@@ -33,6 +34,9 @@
 - Eq.2: esperar que implementen el emisor del webhook
 - Eq.3: esperar que reemplacen MockTeam4InventoryGateway por cliente HTTP real
 - Eq.7: definir webhook vs polling para inventory.reservation.expired
+- Eq.6: acordar contrato de abastecimiento (proveedor, orden, partidas, recepcion e idempotencia) antes de habilitar una integracion real
+
+Las operaciones web resuelven el negocio desde el scope de Equipo 1; los procesos programados recorren los negocios presentes en el catalogo de productos. Las notificaciones de alertas requieren `TEAM4_ALERT_EMAIL` o un correo `inventory_responsible_email`/`responsible_email` en el documento del negocio.
 
 ## Documentacion
 

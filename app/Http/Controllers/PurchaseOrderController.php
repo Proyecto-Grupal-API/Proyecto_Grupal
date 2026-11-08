@@ -7,6 +7,8 @@ use App\Http\Requests\UpdatePurchaseOrderRequest;
 use App\Models\Product;
 use App\Models\GoodsReceipt;
 use App\Services\InventoryService;
+use App\Services\AuditService;
+use App\Services\IdentityService;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\RedirectResponse;
@@ -39,7 +41,7 @@ class PurchaseOrderController extends Controller
 
         $filter = ['business_id' => $this->businessId];
         if (!$showHistory) {
-            $filter['status'] = ['$in' => ['BORRADOR', 'SOLICITADA', 'AUTORIZADA']];
+            $filter['status'] = ['$in' => ['BORRADOR', 'SOLICITADA', 'AUTORIZADA', 'RECIBIDA_PARCIAL']];
         }
         if ($q !== '') {
             $filter['folio'] = ['$regex' => $q, '$options' => 'i'];
@@ -108,7 +110,7 @@ class PurchaseOrderController extends Controller
 
         // KPIs
         $baseFilter = ['business_id' => $this->businessId];
-        $totalActive = DB::connection('mongodb')->getCollection('purchase_orders')->countDocuments(array_merge($baseFilter, ['status' => ['$in' => ['BORRADOR', 'SOLICITADA', 'AUTORIZADA']]]));
+        $totalActive = DB::connection('mongodb')->getCollection('purchase_orders')->countDocuments(array_merge($baseFilter, ['status' => ['$in' => ['BORRADOR', 'SOLICITADA', 'AUTORIZADA', 'RECIBIDA_PARCIAL']]]));
         $borradores = DB::connection('mongodb')->getCollection('purchase_orders')->countDocuments(array_merge($baseFilter, ['status' => 'BORRADOR']));
         $solicitadas = DB::connection('mongodb')->getCollection('purchase_orders')->countDocuments(array_merge($baseFilter, ['status' => 'SOLICITADA']));
         $autorizadas = DB::connection('mongodb')->getCollection('purchase_orders')->countDocuments(array_merge($baseFilter, ['status' => 'AUTORIZADA']));
@@ -157,7 +159,7 @@ class PurchaseOrderController extends Controller
                 'supplier_id' => (string) ($validated['supplier_id'] ?? ''),
                 'folio' => $folio,
                 'status' => (string) ($validated['status'] ?? 'SOLICITADA'),
-                'requested_by' => 'USR-ADMIN-001',
+                'requested_by' => app(IdentityService::class)->resolveCurrentUserId(),
                 'authorized_by' => null,
                 'expected_at' => new \MongoDB\BSON\UTCDateTime(\Illuminate\Support\Carbon::parse($validated['expected_at'])),
                 'notes' => (string) ($validated['notes'] ?? ''),
@@ -168,7 +170,10 @@ class PurchaseOrderController extends Controller
             ]);
 
             foreach ($items as $index => $item) {
-                $pDoc = DB::connection('mongodb')->getCollection('products')->findOne(['_id' => new ObjectId($item['product_id'])]);
+                $pDoc = DB::connection('mongodb')->getCollection('products')->findOne([
+                    '_id' => new ObjectId($item['product_id']),
+                    'business_id' => $this->businessId,
+                ]);
                 $p = $pDoc ? (array) $pDoc : [];
                 DB::connection('mongodb')->getCollection('purchase_order_items')->insertOne([
                     '_id' => new ObjectId(),
@@ -192,6 +197,13 @@ class PurchaseOrderController extends Controller
             return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'No se pudo crear: ' . $e->getMessage()]);
         }
 
+        $this->auditPurchaseOrder('created', (string) $orderId, [
+            'folio' => $folio,
+            'status' => (string) ($validated['status'] ?? 'SOLICITADA'),
+            'supplier_id' => (string) ($validated['supplier_id'] ?? ''),
+            'items_count' => count($items),
+        ]);
+
         return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'OC ' . $folio . ' creada.');
     }
 
@@ -203,18 +215,22 @@ class PurchaseOrderController extends Controller
         ]);
         if (!$orderDoc) return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'OC no encontrada.']);
         $o = (array) $orderDoc;
-        if (in_array($o['status'] ?? '', ['CANCELADA', 'RECIBIDA_TOTAL'])) {
-            return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'No se puede editar en estado ' . $o['status'] . '.']);
+        $currentStatus = (string) ($o['status'] ?? '');
+        if (!in_array($currentStatus, ['BORRADOR', 'SOLICITADA'], true)) {
+            return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'No se puede editar en estado ' . $currentStatus . '.']);
         }
 
         $validated = $request->validated();
+        if ($validated['status'] !== $currentStatus) {
+            return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'El estado solo puede cambiarse mediante las acciones de autorización o cancelación.']);
+        }
         $items = $validated['items'];
         unset($validated['items']);
         $total = collect($items)->sum(fn($i) => $i['quantity'] * $i['unit_cost']);
 
         try {
             DB::connection('mongodb')->getCollection('purchase_orders')->updateOne(
-                ['_id' => new ObjectId($id)],
+                ['_id' => new ObjectId($id), 'business_id' => $this->businessId],
                 ['$set' => [
                     'supplier_id' => (string) $validated['supplier_id'],
                     'expected_at' => new \MongoDB\BSON\UTCDateTime(\Illuminate\Support\Carbon::parse($validated['expected_at'])),
@@ -226,10 +242,16 @@ class PurchaseOrderController extends Controller
                 ]]
             );
 
-            DB::connection('mongodb')->getCollection('purchase_order_items')->deleteMany(['purchase_order_id' => $id]);
+            DB::connection('mongodb')->getCollection('purchase_order_items')->deleteMany([
+                'purchase_order_id' => $id,
+                'business_id' => $this->businessId,
+            ]);
 
             foreach ($items as $index => $item) {
-                $pDoc = DB::connection('mongodb')->getCollection('products')->findOne(['_id' => new ObjectId($item['product_id'])]);
+                $pDoc = DB::connection('mongodb')->getCollection('products')->findOne([
+                    '_id' => new ObjectId($item['product_id']),
+                    'business_id' => $this->businessId,
+                ]);
                 $p = $pDoc ? (array) $pDoc : [];
                 DB::connection('mongodb')->getCollection('purchase_order_items')->insertOne([
                     '_id' => new ObjectId(),
@@ -251,12 +273,25 @@ class PurchaseOrderController extends Controller
             return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'No se pudo actualizar: ' . $e->getMessage()]);
         }
 
+        $this->auditPurchaseOrder('updated', $id, [
+            'folio' => (string) ($o['folio'] ?? ''),
+            'status' => $currentStatus,
+            'supplier_id' => (string) $validated['supplier_id'],
+            'items_count' => count($items),
+        ], $o);
+
         return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'OC actualizada.');
     }
 
     public function changeStatus(Request $request, string $id): RedirectResponse
     {
         $validated = $request->validate(['action' => 'required|string|in:autorizar,cancelar']);
+        $userId = (string) $request->attributes->get('team4_user_id')
+            ?: app(IdentityService::class)->resolveCurrentUserId();
+        $requiredPermission = $validated['action'] === 'autorizar'
+            ? 'compras.authorize'
+            : 'compras.cancel';
+        abort_unless(app(IdentityService::class)->userCan($userId, $requiredPermission), 403);
 
         $orderDoc = DB::connection('mongodb')->getCollection('purchase_orders')->findOne([
             '_id' => new ObjectId($id),
@@ -276,10 +311,12 @@ class PurchaseOrderController extends Controller
             if (!in_array($currentStatus, ['BORRADOR', 'SOLICITADA'])) {
                 return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'Solo se autorizan OCs en Borrador o Solicitada.']);
             }
+            $actorId = app(IdentityService::class)->resolveCurrentUserId();
             DB::connection('mongodb')->getCollection('purchase_orders')->updateOne(
-                ['_id' => new ObjectId($id)],
-                ['$set' => ['status' => 'AUTORIZADA', 'authorized_by' => 'USR-ADMIN-001', 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
+                ['_id' => new ObjectId($id), 'business_id' => $this->businessId],
+                ['$set' => ['status' => 'AUTORIZADA', 'authorized_by' => $actorId, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
             );
+            $this->auditPurchaseOrder('authorized', $id, ['status' => 'AUTORIZADA'], $o);
             return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'OC autorizada.');
         }
 
@@ -289,9 +326,10 @@ class PurchaseOrderController extends Controller
                 return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'No se puede cancelar: tiene recepciones.']);
             }
             DB::connection('mongodb')->getCollection('purchase_orders')->updateOne(
-                ['_id' => new ObjectId($id)],
+                ['_id' => new ObjectId($id), 'business_id' => $this->businessId],
                 ['$set' => ['status' => 'CANCELADA', 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
             );
+            $this->auditPurchaseOrder('cancelled', $id, ['status' => 'CANCELADA'], $o);
             return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'OC cancelada.');
         }
 
@@ -308,14 +346,42 @@ class PurchaseOrderController extends Controller
         $o = (array) $orderDoc;
 
         $items = [];
-        foreach (DB::connection('mongodb')->getCollection('purchase_order_items')->find(['purchase_order_id' => $id], ['sort' => ['line' => 1]]) as $i) {
+        $receiptIds = [];
+        foreach (DB::connection('mongodb')->getCollection('goods_receipts')->find([
+            'purchase_order_id' => $id,
+            'business_id' => $this->businessId,
+        ], ['projection' => ['_id' => 1]]) as $receipt) {
+            $receiptIds[] = (string) ((array) $receipt)['_id'];
+        }
+
+        $receivedByLine = [];
+        if ($receiptIds !== []) {
+            foreach (DB::connection('mongodb')->getCollection('goods_receipt_items')->find([
+                'goods_receipt_id' => ['$in' => $receiptIds],
+                'business_id' => $this->businessId,
+            ]) as $receiptItem) {
+                $received = (array) $receiptItem;
+                $itemId = (string) ($received['purchase_order_item_id'] ?? '');
+                $receivedByLine[$itemId] = ($receivedByLine[$itemId] ?? 0) + (int) ($received['quantity'] ?? 0);
+            }
+        }
+
+        foreach (DB::connection('mongodb')->getCollection('purchase_order_items')->find([
+            'purchase_order_id' => $id,
+            'business_id' => $this->businessId,
+        ], ['sort' => ['line' => 1]]) as $i) {
             $doc = (array) $i;
+            $itemId = (string) ($doc['_id'] ?? '');
+            $ordered = (int) ($doc['quantity'] ?? 0);
+            $received = $receivedByLine[$itemId] ?? 0;
             $items[] = [
-                'purchase_order_item_id' => (string) ($doc['_id'] ?? ''),
+                'purchase_order_item_id' => $itemId,
                 'product_id' => (string) ($doc['product_id'] ?? ''),
                 'product_sku' => (string) ($doc['product_sku'] ?? ''),
                 'product_name' => (string) ($doc['product_name'] ?? ''),
-                'quantity' => (int) ($doc['quantity'] ?? 0),
+                'quantity' => $ordered,
+                'received_quantity' => $received,
+                'remaining_quantity' => max(0, $ordered - $received),
                 'unit_cost' => (float) ($doc['unit_cost'] ?? 0),
                 'subtotal' => (float) ($doc['subtotal'] ?? 0),
             ];
@@ -352,9 +418,29 @@ class PurchaseOrderController extends Controller
             return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'No se puede eliminar: tiene recepciones.']);
         }
 
-        DB::connection('mongodb')->getCollection('purchase_order_items')->deleteMany(['purchase_order_id' => $id]);
-        DB::connection('mongodb')->getCollection('purchase_orders')->deleteOne(['_id' => new ObjectId($id)]);
+        DB::connection('mongodb')->getCollection('purchase_order_items')->deleteMany([
+            'purchase_order_id' => $id,
+            'business_id' => $this->businessId,
+        ]);
+        DB::connection('mongodb')->getCollection('purchase_orders')->deleteOne([
+            '_id' => new ObjectId($id),
+            'business_id' => $this->businessId,
+        ]);
+        $this->auditPurchaseOrder('deleted', $id, null, (array) $orderDoc);
 
         return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'OC eliminada.');
+    }
+
+    private function auditPurchaseOrder(string $action, string $id, ?array $after, ?array $before = null): void
+    {
+        app(AuditService::class)->log('purchase_order.' . $action, [
+            'actor_id' => app(IdentityService::class)->resolveCurrentUserId(),
+            'business_id' => $this->businessId,
+            'entity_type' => 'PurchaseOrder',
+            'entity_id' => $id,
+            'action' => $action,
+            'before' => $before,
+            'after' => $after,
+        ]);
     }
 }

@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateProductRequest;
 use App\Models\Product;
 use App\Models\Category;
 use App\Services\ReorderRuleService;
+use App\Services\ProductVariantService;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\RedirectResponse;
@@ -54,12 +55,27 @@ class ProductController extends Controller
         $products = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         $productsData = collect($products->items())->map(function ($product) {
+            $preorder = (array) ($product->preorder ?? []);
+            $availableAt = $preorder['available_at'] ?? null;
+            if ($availableAt instanceof \MongoDB\BSON\UTCDateTime) {
+                $preorder['available_at'] = $availableAt->toDateTime()->format(DATE_ATOM);
+            } elseif ($availableAt instanceof \DateTimeInterface) {
+                $preorder['available_at'] = $availableAt->format(DATE_ATOM);
+            }
+
             return [
                 '_id' => (string) $product->_id,
                 'sku' => (string) $product->sku,
                 'name' => (string) $product->name,
                 'description' => (string) ($product->description ?? ''),
                 'category' => (string) $product->category,
+                'sizes' => (array) ($product->sizes ?? []),
+                'colors' => (array) ($product->colors ?? []),
+                'seasons' => (array) ($product->seasons ?? []),
+                'collections' => (array) ($product->collections ?? []),
+                'packages' => (array) ($product->packages ?? []),
+                'preorder' => $preorder,
+                'official' => (bool) ($product->official ?? false),
                 'stock_min' => (int) $product->stock_min,
                 'stock_max' => (int) $product->stock_max,
                 'active' => (bool) $product->active,
@@ -129,23 +145,29 @@ class ProductController extends Controller
         ]);
     }
 
-    public function store(StoreProductRequest $request, ReorderRuleService $reorderService): RedirectResponse
+    public function store(
+        StoreProductRequest $request,
+        ReorderRuleService $reorderService,
+        ProductVariantService $variantService
+    ): RedirectResponse
     {
         $validated = $request->validated();
         $validated['business_id'] = $this->businessId;
 
         $product = Product::create($validated);
 
-        try {
-            $reorderService->syncForProduct((string) $product->_id);
-        } catch (\Throwable $e) {
-            // no-op
-        }
+        $variantService->sync($product);
+        $reorderService->syncForProduct((string) $product->_id);
 
         return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Producto creado exitosamente.');
     }
 
-    public function update(UpdateProductRequest $request, string $id, ReorderRuleService $reorderService): RedirectResponse
+    public function update(
+        UpdateProductRequest $request,
+        string $id,
+        ReorderRuleService $reorderService,
+        ProductVariantService $variantService
+    ): RedirectResponse
     {
         $product = Product::where('_id', $id)
             ->where('business_id', $this->businessId)
@@ -155,11 +177,8 @@ class ProductController extends Controller
 
         $product->update($request->validated());
 
-        try {
-            $reorderService->syncForProduct($id);
-        } catch (\Throwable $e) {
-            // no-op
-        }
+        $variantService->sync($product);
+        $reorderService->syncForProduct($id);
 
         return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Producto actualizado exitosamente.');
     }
@@ -172,16 +191,20 @@ class ProductController extends Controller
 
         if (!$product) abort(404, 'Producto no encontrado.');
 
-        try {
-            $alerts = app(\App\Services\AlertGeneratorService::class);
-            $rules = \App\Models\ReorderRule::where('product_id', $id)->get();
-            foreach ($rules as $rule) {
-                $alerts->resolveFor((string) $rule->product_id, (string) $rule->location_id);
-            }
-            \App\Models\ReorderRule::where('product_id', $id)->delete();
-        } catch (\Throwable $e) {
-            // no-op
+        $alerts = app(\App\Services\AlertGeneratorService::class);
+        $rules = \App\Models\ReorderRule::where('business_id', $this->businessId)
+            ->where('product_id', $id)
+            ->get();
+        foreach ($rules as $rule) {
+            $alerts->resolveFor((string) $rule->product_id, (string) $rule->location_id);
         }
+        \App\Models\ReorderRule::where('business_id', $this->businessId)
+            ->where('product_id', $id)
+            ->delete();
+        DB::connection('mongodb')->getCollection('product_variants')->updateMany(
+            ['business_id' => $this->businessId, 'product_id' => $id],
+            ['$set' => ['active' => false, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
+        );
 
         $product->delete();
 
