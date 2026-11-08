@@ -40,7 +40,8 @@ class BonusAdministrationWebController extends Controller
             'id' => strtolower($bonus->public_id), 'beneficiary_id' => $bonus->beneficiary_id,
             'type' => $bonus->type->value, 'status' => $bonus->status->value, 'currency' => $bonus->currency,
             'remaining_amount_cents' => $bonus->remaining_amount_cents, 'expires_at' => $bonus->expires_at?->toISOString(),
-            'can_cancel' => in_array($bonus->status->value, ['ACTIVO', 'PENDIENTE'], true)
+            'institutional_budget_id' => $bonus->getRawOriginal('institutional_budget_id') ? strtolower($bonus->getRawOriginal('institutional_budget_id')) : null,
+            'can_cancel' => $bonus->getRawOriginal('institutional_budget_id') === null && in_array($bonus->status->value, ['ACTIVO', 'PENDIENTE'], true)
                 && $bonus->remaining_amount_cents > 0 && $bonus->expires_at?->gt(now())
                 && $this->allowed($request, 'bonus.cancel') && ($this->isIssuer($request, $bonus)
                 || $this->allowed($request, 'bonus.cancel.all')),
@@ -55,6 +56,8 @@ class BonusAdministrationWebController extends Controller
     }
     public function store(Request $request)
     {
+        if ($request->input('type') === 'BECA') return app(InstitutionalBecaWebController::class)->issue($request);
+        $request->validate(['budget_id'=>['prohibited'],'budget_version'=>['prohibited'],'award_reference'=>['prohibited'],'confirm_institutional'=>['prohibited']]);
         $this->authorizeAction($request, 'bonus.issue');
         $data = \App\Domains\Financial\Support\BonusIssuanceInput::validate($request->all());
         return $this->run(fn () => app(BonusAdministrationService::class)->issue(

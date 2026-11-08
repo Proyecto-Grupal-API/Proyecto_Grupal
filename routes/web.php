@@ -47,7 +47,9 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\RequireBonusAdminist
         Route::get('/', [$admin, 'index'])->name('index');
         Route::get('/records', [$admin, 'listing'])->name('records');
         Route::get('/beneficiaries/{userId}', [$admin, 'beneficiary'])->where('userId', '[0-9a-fA-F]{24}')->name('beneficiary');
-        Route::post('/issue', [$admin, 'store'])->name('issue');
+        Route::post('/issue', [$admin, 'store'])->middleware('throttle:15,1')->name('issue');
+        Route::get('/beca/budgets/{budgetId}', [\App\Http\Controllers\Financial\InstitutionalBecaWebController::class, 'review'])->whereUuid('budgetId')->middleware('throttle:30,1')->name('beca.budget');
+        Route::post('/beca/issue', [\App\Http\Controllers\Financial\InstitutionalBecaWebController::class, 'issue'])->middleware('throttle:15,1')->name('beca.issue');
         Route::post('/{bonusId}/cancel', [$admin, 'cancel'])->whereUuid('bonusId')->name('cancel');
         Route::get('/{bonusId}/history', [$admin, 'history'])->whereUuid('bonusId')->name('history');
     });

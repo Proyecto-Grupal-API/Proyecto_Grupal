@@ -2,10 +2,18 @@
 import { ref, onMounted } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import axios from 'axios';
+import { formatInstitutionalMoney } from '@/Support/institutionalMoney.js';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 const props = defineProps({ permissions: Object, types: Array, userId: String, timezone: String });
 const labels = { BECA: 'Beca', CAMPANIA: 'Campaña', BENEFICIO: 'Beneficio', NEGOCIO: 'Negocio', CATEGORIA: 'Categoría', ISSUE: 'Emisión', CANCEL: 'Cancelación' };
 const form = ref({ beneficiary_id: '', type: 'BENEFICIO', amount: '', valid_from: '', expires_at: '', combinable: false, allows_partial_use: false, external_reference: '', reason: '', restrictions: [] });
+const budgetId = ref(''); const budget = ref(null); const budgetBusy = ref(false); const awardReference = ref(''); const institutionalConsent = ref(false); const issueDone = ref(false);
+async function reviewBudget() {
+    if (budgetBusy.value) return; budgetBusy.value = true; budget.value = null; institutionalConsent.value = false; error.value = '';
+    const id = budgetId.value.trim().toLowerCase();
+    try { const r = await axios.get(route('financial.bonuses.admin.beca.budget', id)); if (budgetId.value.trim().toLowerCase() === id) budget.value = r.data.data; }
+    catch (e) { error.value = errorText(e); } finally { budgetBusy.value = false; }
+}
 const captureZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const recipient = ref(null); const issueAttempt = ref(null); const issueBusy = ref(false);
 const message = ref(''); const error = ref(''); const records = ref([]); const meta = ref(null); const listBusy = ref(false);
@@ -33,22 +41,30 @@ async function load(page = 1) {
     finally { listBusy.value = false; }
 }
 async function issue() {
-    if (issueBusy.value) return; error.value = ''; message.value = '';
+    if (issueBusy.value || issueDone.value) return; error.value = ''; message.value = '';
     try {
         if (!issueAttempt.value) {
             if (!recipient.value || recipient.value.id !== form.value.beneficiary_id.trim().toLowerCase()) throw new Error('Comprueba la cuenta beneficiaria antes de emitir.');
             if (!form.value.valid_from || !form.value.expires_at) throw new Error('Completa las fechas de vigencia.');
             const payload = { ...form.value, beneficiary_id: recipient.value.id, amount_cents: cents(form.value.amount), valid_from: new Date(form.value.valid_from).toISOString(), expires_at: new Date(form.value.expires_at).toISOString(), restrictions: form.value.restrictions.map(row => ({ ...row })) };
-            delete payload.amount; issueAttempt.value = { key: crypto.randomUUID(), payload };
+            delete payload.amount;
+            const institutional = payload.type === 'BECA';
+            if (institutional) {
+                if (!budget.value || budget.value.budget_id !== budgetId.value.trim().toLowerCase()) throw new Error('Comprueba el presupuesto antes de emitir la BECA.');
+                if (!awardReference.value.trim() || !institutionalConsent.value) throw new Error('Indica la referencia de otorgamiento y confirma la emision presupuestada.');
+                Object.assign(payload, { combinable: false, budget_id: budget.value.budget_id, budget_version: budget.value.version, award_reference: awardReference.value.trim(), confirm_institutional: true });
+            }
+            issueAttempt.value = { key: crypto.randomUUID(), payload, institutional };
         }
         issueBusy.value = true;
-        const r = await axios.post(route('financial.bonuses.admin.issue'), issueAttempt.value.payload, { headers: { 'Idempotency-Key': issueAttempt.value.key } });
+        const r = await axios.post(route(issueAttempt.value.institutional ? 'financial.bonuses.admin.beca.issue' : 'financial.bonuses.admin.issue'), issueAttempt.value.payload, { headers: { 'Idempotency-Key': issueAttempt.value.key } });
         message.value = `Emisión registrada${r.data.replayed ? ' (solicitud ya procesada)' : ''}. Bono: ${r.data.data.bonus_id}.`;
+        issueDone.value = true; if (issueAttempt.value.institutional) { budget.value = null; institutionalConsent.value = false; }
         await load();
     } catch (e) { error.value = e.response || axios.isAxiosError(e) ? errorText(e) : e.message; }
     finally { issueBusy.value = false; }
 }
-function newIssue() { issueAttempt.value = null; message.value = ''; error.value = ''; }
+function newIssue() { issueAttempt.value = null; issueDone.value = false; budget.value = null; institutionalConsent.value = false; awardReference.value = ''; message.value = ''; error.value = ''; }
 async function showAudit(bonus, page = 1) {
     if (selected.value?.id !== bonus.id) { cancelAttempt.value = null; cancelReason.value = ''; }
     selected.value = bonus; audit.value = []; auditMeta.value = null; auditBusy.value = true;
@@ -88,12 +104,22 @@ onMounted(() => load());
                 <form v-else @submit.prevent="issue" class="mt-5 space-y-4">
                     <fieldset :disabled="issueBusy || !!issueAttempt" class="grid gap-4 sm:grid-cols-2 disabled:opacity-70">
                         <label class="text-sm text-slate-600">Identificador de cuenta beneficiaria<input v-model="form.beneficiary_id" @input="recipient = null" required maxlength="24" class="mt-1 w-full rounded-lg border-slate-300" /><button type="button" @click="lookup" class="mt-2 text-sm font-semibold text-[#00338D]">Comprobar cuenta</button><span v-if="recipient" class="ml-3 font-semibold text-emerald-700">{{ recipient.name }}</span></label>
-                        <label class="text-sm text-slate-600">Tipo<select v-model="form.type" class="mt-1 w-full rounded-lg border-slate-300"><option v-for="value in types" :key="value" :value="value">{{ labels[value] }}</option></select></label>
+                        <label class="text-sm text-slate-600">Tipo<select v-model="form.type" @change="budget = null; institutionalConsent = false" class="mt-1 w-full rounded-lg border-slate-300"><option v-for="value in types" :key="value" :value="value">{{ labels[value] }}</option></select></label>
+                        <div v-if="form.type === 'BECA'" class="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4 sm:col-span-2">
+                            <h3 class="font-bold text-[#00338D]">Emisión con presupuesto institucional aprobado</h3>
+                            <p class="text-sm text-slate-600">Este registro asigna una BECA ya aprobada. No presenta una solicitud al instituto ni crea un presupuesto.</p>
+                            <label class="block text-sm">Identificador del presupuesto aprobado<input v-model.trim="budgetId" @input="budget = null; institutionalConsent = false" required maxlength="36" placeholder="UUID del presupuesto" class="mt-1 w-full rounded-lg border-slate-300" /></label>
+                            <button type="button" :disabled="budgetBusy" @click="reviewBudget" class="text-sm font-semibold text-[#00338D]">{{ budgetBusy ? 'Comprobando…' : 'Comprobar presupuesto' }}</button>
+                            <div v-if="budget" role="status" class="rounded-lg bg-white p-3 text-sm"><p class="font-semibold">{{ budget.purpose }}</p><p>Disponible: {{ formatInstitutionalMoney(budget.available_amount_cents, budget.currency) }}</p><p>Vigencia: {{ date(budget.valid_from) }} — {{ date(budget.expires_at) }}</p><p class="text-xs text-slate-500">La disponibilidad se comprueba nuevamente al emitir.</p></div>
+                            <label class="block text-sm">Referencia del otorgamiento aprobado<input v-model.trim="awardReference" required maxlength="150" class="mt-1 w-full rounded-lg border-slate-300" /></label>
+                            <p class="text-xs text-slate-600">La referencia identifica el otorgamiento; no sustituye la verificación de autoridad. El consumo institucional actual utiliza una sola BECA por compra.</p>
+                            <label class="block text-sm"><input v-model="institutionalConsent" required type="checkbox" class="mr-2 rounded" />Confirmo la emisión al beneficiario indicado con cargo al presupuesto revisado.</label>
+                        </div>
                         <label class="text-sm text-slate-600">Importe en pesos (MXN)<input v-model="form.amount" required inputmode="decimal" placeholder="Ejemplo: 100.00" class="mt-1 w-full rounded-lg border-slate-300" /></label>
                         <label class="text-sm text-slate-600">Referencia externa (opcional)<input v-model="form.external_reference" maxlength="255" class="mt-1 w-full rounded-lg border-slate-300" /></label>
                         <label class="text-sm text-slate-600">Inicio de vigencia<input v-model="form.valid_from" required type="datetime-local" class="mt-1 w-full rounded-lg border-slate-300" /></label><label class="text-sm text-slate-600">Vencimiento<input v-model="form.expires_at" required type="datetime-local" class="mt-1 w-full rounded-lg border-slate-300" /></label>
                         <p class="text-xs text-slate-500 sm:col-span-2">Zona horaria de captura: {{ captureZone }}. Revisa las fechas antes de emitir.</p>
-                        <label class="text-sm"><input v-model="form.combinable" type="checkbox" class="mr-2 rounded" />Puede combinarse con otros bonos</label><label class="text-sm"><input v-model="form.allows_partial_use" type="checkbox" class="mr-2 rounded" />Permite uso parcial</label>
+                        <label v-if="form.type !== 'BECA'" class="text-sm"><input v-model="form.combinable" type="checkbox" class="mr-2 rounded" />Puede combinarse con otros bonos</label><label class="text-sm"><input v-model="form.allows_partial_use" type="checkbox" class="mr-2 rounded" />Permite uso parcial</label>
                         <label class="text-sm text-slate-600 sm:col-span-2">Motivo de emisión<textarea v-model="form.reason" required maxlength="1000" class="mt-1 w-full rounded-lg border-slate-300" /></label>
                         <div class="sm:col-span-2"><h3 class="font-semibold text-[#00338D]">Restricciones iniciales</h3><p class="mt-1 text-xs text-slate-500">Negocio y Categoría requieren al menos una restricción del mismo tipo. Usa los identificadores registrados en el sistema correspondiente.</p>
                             <div v-for="(restriction, index) in form.restrictions" :key="index" class="mt-3 flex flex-wrap gap-2"><select v-model="restriction.type" class="rounded-lg border-slate-300 text-sm"><option value="NEGOCIO">Negocio</option><option value="CATEGORIA">Categoría</option></select><input v-model="restriction.target_id" required maxlength="255" placeholder="Identificador del destino" class="flex-1 rounded-lg border-slate-300 text-sm" /><button type="button" @click="form.restrictions.splice(index, 1)" class="text-sm text-red-700">Quitar</button></div>
@@ -101,12 +127,12 @@ onMounted(() => load());
                         </div>
                     </fieldset>
                     <p v-if="issueAttempt" class="text-xs text-slate-500">Esta solicitud conserva los datos originales. Reintentar no emite un segundo bono. «Nueva solicitud» inicia una emisión distinta.</p>
-                    <div class="flex flex-wrap gap-3"><button :disabled="issueBusy" class="rounded-lg bg-[#00338D] px-5 py-3 text-sm font-bold text-white disabled:opacity-50">{{ issueBusy ? 'Procesando…' : issueAttempt ? 'Reintentar la misma solicitud' : 'Emitir bono' }}</button><button v-if="issueAttempt" type="button" :disabled="issueBusy" @click="newIssue" class="rounded-lg border border-slate-300 px-4 py-2 text-sm">Nueva solicitud</button></div>
+                    <div class="flex flex-wrap gap-3"><button :disabled="issueBusy || issueDone" class="rounded-lg bg-[#00338D] px-5 py-3 text-sm font-bold text-white disabled:opacity-50">{{ issueBusy ? 'Procesando…' : issueDone ? 'Emision registrada' : issueAttempt ? 'Reintentar la misma solicitud' : 'Emitir bono' }}</button><button v-if="issueAttempt" type="button" :disabled="issueBusy" @click="newIssue" class="rounded-lg border border-slate-300 px-4 py-2 text-sm">Nueva solicitud</button></div>
                 </form>
             </section>
             <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><h2 class="text-xl font-bold text-[#00338D]">Bonos y auditoría</h2><p v-if="!permissions.view" class="mt-4 text-sm text-slate-500">No tienes permiso para consultar registros administrativos.</p>
                 <template v-else><form @submit.prevent="load(1)" class="mt-4 flex flex-wrap gap-3"><label class="text-sm text-slate-600">Filtrar por cuenta beneficiaria<input v-model="beneficiaryFilter" maxlength="24" class="ml-2 rounded-lg border-slate-300 text-sm" /></label><button :disabled="listBusy" class="rounded-lg border border-[#00338D] px-4 py-2 text-sm font-semibold text-[#00338D]">Buscar</button></form><p v-if="listBusy" role="status" class="mt-4 text-sm text-slate-500">Cargando…</p>
-                    <div v-for="bonus in records" :key="bonus.id" class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4"><div><p class="font-bold text-[#00338D]">{{ labels[bonus.type] }} · {{ money(bonus.remaining_amount_cents, bonus.currency) }}</p><p class="mt-1 break-all text-xs text-slate-500">{{ bonus.status }} · Cuenta {{ bonus.beneficiary_id }}</p><p class="mt-1 text-xs text-slate-500">Vence: {{ date(bonus.expires_at) }}</p></div><button :disabled="cancelBusy || auditBusy" @click="showAudit(bonus)" class="rounded-lg border border-[#00338D] px-4 py-2 text-sm font-semibold text-[#00338D]">Ver auditoría y acciones</button></div>
+                    <div v-for="bonus in records" :key="bonus.id" class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4"><div><p class="font-bold text-[#00338D]">{{ labels[bonus.type] }} · {{ money(bonus.remaining_amount_cents, bonus.currency) }}</p><p class="mt-1 break-all text-xs text-slate-500">{{ bonus.status }} · Cuenta {{ bonus.beneficiary_id }}</p><p class="mt-1 text-xs text-slate-500">Vence: {{ date(bonus.expires_at) }}</p><p v-if="bonus.institutional_budget_id" class="mt-1 text-xs text-slate-500">BECA presupuestada. La cancelación requiere el procedimiento institucional.</p></div><button :disabled="cancelBusy || auditBusy" @click="showAudit(bonus)" class="rounded-lg border border-[#00338D] px-4 py-2 text-sm font-semibold text-[#00338D]">Ver auditoría y acciones</button></div>
                     <p v-if="!records.length && !listBusy" class="mt-5 text-sm text-slate-500">No hay bonos en tu ámbito autorizado.</p><nav v-if="meta && meta.last_page > 1" class="mt-5 flex justify-center gap-4"><button :disabled="listBusy || meta.current_page <= 1" @click="load(meta.current_page - 1)" class="text-sm text-[#00338D] disabled:opacity-40">Anterior</button><span class="text-sm">{{ meta.current_page }} / {{ meta.last_page }}</span><button :disabled="listBusy || meta.current_page >= meta.last_page" @click="load(meta.current_page + 1)" class="text-sm text-[#00338D] disabled:opacity-40">Siguiente</button></nav>
                 </template>
             </section>
