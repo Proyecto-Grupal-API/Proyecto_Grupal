@@ -79,11 +79,19 @@ class Role extends Model
         'bonus_negocio_business_issuer', 'bonus_beca_issuer', 'bonus_beca_program_issuer', 'bonus_campania_issuer',
     ];
 
-    public const AUTHORIZATION_ROLES = [...self::FOUNDATION_ROLES, ...self::FINANCIAL_ROLES];
+    // Pilot definitions only: no seeder, legacy writer or productive grant authority.
+    public const PILOT_ROLE_SCOPES = [
+        'financial_refund_reviewer' => 'wallet',
+        'financial_refund_executor' => 'wallet',
+        'operador_servicios' => null,
+    ];
+
+    public const AUTHORIZATION_ROLES = [...self::FOUNDATION_ROLES, ...self::FINANCIAL_ROLES,
+        'financial_refund_reviewer', 'financial_refund_executor', 'operador_servicios'];
 
     public const REWARDS_ROLE_SCOPES = [];
 
-    public const FOUNDATION_SCOPE_TYPES = [...self::VALID_SCOPE_TYPES, 'campus', 'academic_program', 'department'];
+    public const FOUNDATION_SCOPE_TYPES = [...self::VALID_SCOPE_TYPES, 'campus', 'academic_program', 'department', 'wallet'];
 
     public const FOUNDATION_ROLE_SCOPES = [
         'business_owner' => 'business', 'business_manager' => 'business', 'cashier' => 'business',
@@ -93,7 +101,7 @@ class Role extends Model
         'department_head' => 'department',
     ];
 
-    public const AUTHORIZATION_ROLE_SCOPES = [...self::FOUNDATION_ROLE_SCOPES, ...self::FINANCIAL_ROLE_SCOPES];
+    public const AUTHORIZATION_ROLE_SCOPES = [...self::FOUNDATION_ROLE_SCOPES, ...self::FINANCIAL_ROLE_SCOPES, ...self::PILOT_ROLE_SCOPES];
 
     /**
      * Roles que, además de "admin", pueden gestionar el perfil y

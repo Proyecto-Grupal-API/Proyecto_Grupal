@@ -9,15 +9,15 @@ use App\Services\FinancialAuthorizationService;
 use App\Services\RewardsAuthorizationService;
 
 test('technical definitions preserve foundation catalogs and isolate financial policy from rewards', function () {
-    expect(Permission::DOMAINS)->toBe(['business', 'institutional', 'financial', 'rewards'])
+    expect(Permission::DOMAINS)->toBe(['business', 'institutional', 'financial', 'rewards', 'student_services'])
         ->and(Permission::CATALOG)->toHaveCount(8)
-        ->and(Permission::TECHNICAL_CATALOG)->toHaveCount(11)
-        ->and(Permission::definitions())->toHaveCount(19)
+        ->and(Permission::TECHNICAL_CATALOG)->toHaveCount(14)
+        ->and(Permission::definitions())->toHaveCount(22)
         ->and(Role::VALID_ROLES)->toHaveCount(6)
         ->and(Role::FOUNDATION_ROLES)->toHaveCount(16)
         ->and(Role::BUSINESS_ROLES)->toBe(['business_owner', 'business_manager', 'cashier', 'inventory_manager', 'buyer'])
         ->and(array_keys(Role::FINANCIAL_ROLE_SCOPES))->toBe(Role::FINANCIAL_ROLES)
-        ->and(Role::AUTHORIZATION_ROLES)->toHaveCount(23)->and(Role::REWARDS_ROLE_SCOPES)->toBe([])
+        ->and(Role::AUTHORIZATION_ROLES)->toHaveCount(26)->and(Role::REWARDS_ROLE_SCOPES)->toBe([])
         ->and(array_keys(RolePermission::FINANCIAL_MAPPINGS))->toBe(Role::FINANCIAL_ROLES)->and(RolePermission::REWARDS_MAPPINGS)->toBe([])
         ->and(array_sum(array_map('count', RolePermission::MAPPINGS)))->toBe(13);
 });

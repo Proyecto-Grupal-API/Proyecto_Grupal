@@ -33,6 +33,38 @@ use RuntimeException;
  */
 class IdentityService
 {
+    public function isEligibleFinancialAccount(string $id): bool
+    {
+        if (! preg_match('/\A[0-9a-fA-F]{24}\z/', $id)) {
+            return false;
+        }
+
+        $user = User::find(strtolower($id));
+
+        return $user && ! $user->deleted_at && ! $user->account_activation_pending
+            && ! $user->must_change_password && $user->hasVerifiedEmail();
+    }
+
+    public function hasActiveAccountSession(string $userId, mixed $sessionId): bool
+    {
+        return $this->activeFinancialSession($userId, $sessionId) !== null;
+    }
+
+    public function activeFinancialSession(string $userId, mixed $sessionId): ?array
+    {
+        if (! is_string($sessionId) || ! preg_match('/\A[0-9a-fA-F]{24}\z/', $sessionId)
+            || ! $this->isEligibleFinancialAccount($userId)) {
+            return null;
+        }
+
+        $session = UserSession::find(strtolower($sessionId));
+        if (! $session || $session->isRevoked() || strcasecmp((string) $session->user_id, $userId) !== 0) {
+            return null;
+        }
+
+        return ['session_id' => (string) $session->getKey(), 'device_id' => $session->device_id ? (string) $session->device_id : null];
+    }
+
     /** Resolve a presented NFC UID without changing the credential or its lifecycle. */
     public function validateNfcUid(string $uid, ?string $validatorLabel, ?string $ip): array
     {
@@ -704,7 +736,7 @@ class IdentityService
     {
         abort_unless($session->user_id === (string) $user->_id, 403);
 
-        $session->update(['revoked_at' => now(), 'revoked_reason' => $reason]);
+        $session->forceFill(['revoked_at' => now(), 'revoked_reason' => $reason, 'recent_two_factor' => null])->save();
 
         SecurityEvent::log([
             'user_id' => (string) $user->_id,

@@ -30,11 +30,14 @@ class Permission extends Model
         'academic.department.manage' => ['Gestionar departamento académico', 'institutional'],
     ];
 
-    public const DOMAINS = ['business', 'institutional', 'financial', 'rewards'];
+    public const DOMAINS = ['business', 'institutional', 'financial', 'rewards', 'student_services'];
 
     // Definitions only, deliberately excluded from the existing foundation seeder.
     // A definition is neither a role mapping nor a grant to a user.
     public const TECHNICAL_CATALOG = [
+        'refunds.review' => ['Revisar devoluciones de una wallet', 'financial'],
+        'refunds.execute' => ['Ejecutar devoluciones de una wallet', 'financial'],
+        'student_services.rentals.damage.charge' => ['Ordenar cargo por daños de renta', 'student_services'],
         'bonuses.beca.issue' => ['Emitir bono BECA', 'financial'],
         'bonuses.campania.issue' => ['Emitir bono CAMPANIA', 'financial'],
         'bonuses.beneficio.issue' => ['Emitir bono BENEFICIO', 'financial'],

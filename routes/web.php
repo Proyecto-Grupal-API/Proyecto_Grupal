@@ -104,6 +104,10 @@ Route::middleware(['auth', 'verified', 'device.track'])->group(function () {
         Route::get('/latido', [SecurityDeviceController::class, 'heartbeat'])
             ->name('heartbeat');
 
+        Route::post('/confirmar-segundo-factor', \App\Http\Controllers\Auth\RecentTwoFactorController::class)
+            ->middleware('throttle:5,1')
+            ->name('two-factor.confirm');
+
         Route::post('/reautenticar', [AuthController::class, 'reauthenticate'])
             ->middleware('throttle:10,1')
             ->name('reauth');
