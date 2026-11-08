@@ -93,7 +93,30 @@ async function cancelar(b) {
         ocupado.value = false;
     }
 }
+async function pago(b, consultar = false) {
+    ocupado.value = true;
+    aviso.value = "";
+    error.value = "";
+    try {
+        const { data } = await axios.post(
+            `/api/eventos/${b.evento_id}/pago${consultar ? "/consultar" : ""}`,
+            { generacion: b.generacion },
+        );
+        if (data.confirmation_path) {
+            window.location.assign(data.confirmation_path);
+            return;
+        }
+        aviso.value = data.estado === "aplicado" ? "Pago confirmado." : "Consulta de pago actualizada.";
+        await cargar();
+    } catch (e) {
+        error.value = e.response?.data?.message || "No se pudo consultar el pago.";
+    } finally {
+        ocupado.value = false;
+    }
+}
 function estado(b) {
+    if (b.pago_estado === "devolucion_pendiente") return "Pago en revisión para devolución";
+    if (b.pago_estado === "cancelacion_pendiente" && b.estado === "confirmada") return "Cancelación pendiente de Finanzas";
     if (b.estado === "cancelada") return "Inscripción cancelada";
     if (b.estado === "vencida") return "Reserva vencida";
     if (b.estado_asistencia === "asistio") return "Asistencia registrada";
@@ -241,17 +264,23 @@ function estado(b) {
                                     { style: "currency", currency: "MXN" },
                                 )
                             }}
-                            pendientes. El pago aún no está disponible. No se han realizado cobros y el QR permanece bloqueado.
+                            pendientes. El QR se habilita cuando Comunidad verifica el pago y el lugar sigue vigente.
                         </p>
                         <p v-if="b.estado === 'confirmada' && b.estado_pago === 'pendiente' && b.reserva_hasta" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Tu lugar se liberará si no se confirma el pago antes de {{ fecha(b.reserva_hasta) }} (Ciudad de México).</p>
                         <p v-if="b.estado === 'espera' && b.estado_pago === 'pendiente'" class="text-sm text-gray-600">El plazo de hasta 15 minutos empezará cuando obtengas un lugar, con límite al inicio del evento.</p>
-                        <div v-if="b.estado === 'vencida'" class="rounded-lg bg-red-50 p-3 space-y-2 text-sm text-red-800"><p>Se liberó tu lugar al vencer el plazo. Esta reserva no permite el acceso y no generó un cobro.</p><Link href="/modulo6/eventos" class="font-semibold underline">Consultar disponibilidad para otra reserva</Link></div>
+                        <div v-if="b.estado === 'vencida'" class="rounded-lg bg-red-50 p-3 space-y-2 text-sm text-red-800"><p>Se liberó tu lugar al vencer el plazo. Si ya autorizaste el pago, puedes consultar su estado.</p><Link href="/modulo6/eventos" class="font-semibold underline">Consultar disponibilidad para otra reserva</Link></div>
                         <p
                             v-if="b.motivo_cancelacion"
                             class="text-sm text-red-700"
                         >
                             Motivo: {{ b.motivo_cancelacion }}
                         </p>
+                        <button v-if="b.puede_pagar" type="button" :disabled="ocupado" class="rounded bg-blue-800 px-4 py-2 font-semibold text-white disabled:opacity-50" @click="pago(b)">
+                            Pagar con wallet
+                        </button>
+                        <button v-if="b.puede_consultar_pago" type="button" :disabled="ocupado" class="rounded border border-blue-700 px-4 py-2 font-semibold text-blue-800 disabled:opacity-50" @click="pago(b, true)">
+                            Consultar pago
+                        </button>
                         <button
                             v-if="b.puede_cancelar"
                             @click="cancelar(b)"

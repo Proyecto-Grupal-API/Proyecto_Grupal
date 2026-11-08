@@ -62,6 +62,8 @@ Route::prefix('eventos/{id}')->where(['id' => '[a-fA-F0-9]{24}'])->group(functio
     Route::post('/cancelar', [EventoController::class, 'cancelarEvento']);
     Route::post('/inscripcion', [EventoController::class, 'inscribir'])->middleware('throttle:30,1');
     Route::delete('/inscripcion', [EventoController::class, 'cancelarInscripcion']);
+    Route::post('/pago', [\App\Http\Controllers\PagoEventoController::class, 'iniciar'])->middleware('throttle:12,1');
+    Route::post('/pago/consultar', [\App\Http\Controllers\PagoEventoController::class, 'consultar'])->middleware('throttle:12,1');
     Route::get('/inscritos', [EventoController::class, 'inscritos']);
     Route::get('/boleto', [EventoController::class, 'miBoleto']);
 });

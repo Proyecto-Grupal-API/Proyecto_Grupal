@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AuditoriaComunidad;
 use App\Models\Evento;
 use App\Models\Organizacion;
+use App\Models\PagoReservaEvento;
 use App\Models\RegistroEvento;
 use App\Models\SolicitudReservaEvento;
 use App\Models\User;
@@ -34,7 +35,7 @@ class InscripcionesEvento
             throw ValidationException::withMessages(['evento' => 'Se agotaron los lugares y no hay lista de espera.']);
         }
         $antes = $reg->exists ? $reg->toArray() : null;
-        $reg->fill(['generacion' => $reg->exists ? max(1, (int) $reg->generacion) + 1 : 1, 'reserva_hasta' => $estado === 'confirmada' && $evento->costo > 0 ? $this->limite($evento) : null, 'vencido_en' => null, 'estado' => $estado, 'estado_pago' => $evento->costo > 0 ? 'pendiente' : 'exento', 'monto_centavos' => (int) round($evento->costo * 100), 'moneda' => 'MXN', 'token_qr' => Str::random(64), 'estado_asistencia' => 'pendiente', 'registrado_en' => now(), 'cancelado_en' => null, 'confirmado_en' => $estado === 'confirmada' ? now() : null, 'asistio_en' => null, 'asistencia_por' => null])->save();
+        $reg->fill(['generacion' => $reg->exists ? max(1, (int) $reg->generacion) + 1 : 1, 'reserva_hasta' => $estado === 'confirmada' && $evento->costo > 0 ? $this->limite($evento) : null, 'vencido_en' => null, 'pago_estado' => null, 'estado' => $estado, 'estado_pago' => $evento->costo > 0 ? 'pendiente' : 'exento', 'monto_centavos' => (int) round($evento->costo * 100), 'moneda' => 'MXN', 'token_qr' => Str::random(64), 'estado_asistencia' => 'pendiente', 'registrado_en' => now(), 'cancelado_en' => null, 'confirmado_en' => $estado === 'confirmada' ? now() : null, 'asistio_en' => null, 'asistencia_por' => null])->save();
         $this->auditar($evento, $user, 'evento_inscripcion', $reg->id, $antes, $reg->toArray());
 
         return $reg;
@@ -58,8 +59,25 @@ class InscripcionesEvento
         if ($reg->estado_pago === 'pagado') {
             throw ValidationException::withMessages(['evento' => 'Esta reserva requiere gestionar su devolución con el equipo de pagos.']);
         }
+        $pago = $reg->pago_estado ? PagoReservaEvento::where('registro_id', (string) $reg->id)
+            ->where('generacion', max(1, (int) $reg->generacion))->where('estado', 'pendiente')->first() : null;
+        if ($pago) {
+            if (! $pago->cierre_solicitado_en) {
+                $pago->update(['cierre_solicitado_en' => now()]);
+                $reg->update(['pago_estado' => 'cancelacion_pendiente']);
+                $this->auditar($evento, $user, 'evento_pago_cancelacion_solicitada', (string) $pago->id, null, ['generacion' => $pago->generacion]);
+            }
+
+            return;
+        }
+
+        $this->cerrarReserva($evento, $reg, $user);
+    }
+
+    public function cerrarReserva(Evento $evento, RegistroEvento $reg, ?User $user = null): void
+    {
         $antes = $reg->toArray();
-        $reg->update(['estado' => 'cancelada', 'cancelado_en' => now(), 'token_qr' => Str::random(64)]);
+        $reg->update(['estado' => 'cancelada', 'pago_estado' => null, 'cancelado_en' => now(), 'token_qr' => Str::random(64)]);
         $this->auditar($evento, $user, 'evento_inscripcion_cancelada', $reg->id, $antes, $reg->toArray());
         $this->promover($evento, $user);
     }

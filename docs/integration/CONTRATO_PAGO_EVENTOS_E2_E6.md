@@ -1,6 +1,6 @@
-# Contrato propuesto para el pago de eventos E2–E6
+# Contrato del piloto de pago de eventos E2–E6
 
-Corte del 8 de noviembre de 2026. La primera entrega cubre el pago en MXN con la wallet del alumno en un entorno de pruebas. El contrato y la matriz de aceptación quedan preparados para la implementación.
+Corte del 8 de noviembre de 2026. La primera entrega cubre el pago en MXN con la wallet del alumno en un entorno de pruebas. El flujo está implementado y probado con cuentas desechables. La habilitación del alterno se controla por separado.
 
 ## Responsabilidades y datos
 
@@ -17,9 +17,9 @@ La identidad estable del pago es `event-reservation:{registro_id}:{generacion}`.
 
 ## API del piloto
 
-Se propone un recurso por inscripción y generación. La ruta base es `/api/v1/financial/community/event-reservations/{registroId}/generations/{generation}/payment`.
+La API usa un recurso por inscripción y generación. La ruta base es `/api/v1/financial/community/event-reservations/{registroId}/generations/{generation}/payment`.
 
-| Operación | Alcance OAuth propuesto | Resultado |
+| Operación | Alcance OAuth | Resultado |
 | --- | --- | --- |
 | `POST` a la ruta base | `financial:event-payment:prepare` | Prepara la solicitud. Devuelve 201 al crearla y 200 en un reintento idéntico. |
 | `GET` a la ruta base | `financial:event-payment:read` | Devuelve el estado y la evidencia guardada. Devuelve 404 si la referencia es desconocida para ese cliente. |
@@ -52,7 +52,7 @@ Una consulta que infiere el vencimiento por reloj sirve para bloquear la pantall
 
 ## Matriz de aceptación
 
-Los casos de Comunidad se ejecutan hoy sobre su base de prueba. Los casos E2–E6 son criterios para implementar y probar posteriormente con SQL Server y MongoDB desechables.
+Los casos de Comunidad se ejecutan hoy sobre su base de prueba. Los casos E2–E6 definen la aceptación del piloto con SQL Server y MongoDB desechables.
 
 | Caso | Evidencia esperada | Alcance |
 | --- | --- | --- |
@@ -70,6 +70,10 @@ Los casos de Comunidad se ejecutan hoy sobre su base de prueba. Los casos E2–E
 
 Para activar con cuentas reales queda acreditar la cuenta de cada organización, el cliente OAuth de E6 y su habilitación en E2, además de la autoridad para aprobar devoluciones.
 
-## Evidencia del corte
+## Habilitación y evidencia
 
-Se ejecutaron `ReservasEventosTest`, `IntentosReservasEventosTest`, `EventosTest` y `StaffEventosTest` en MongoDB desechable. Pasaron **35 pruebas con 626 aserciones**. C04 usa un registro de Comunidad con estado pagado como dato de prueba. P01–P07 quedan pendientes de la implementación y de la prueba conjunta con SQL Server.
+- E2 usa `FINANCIAL_EVENT_PAYMENTS_ENABLED`, `FINANCIAL_EVENT_PAYMENTS_CLIENT_ID` y `FINANCIAL_EVENT_RECIPIENTS_JSON`. El mapa de receptores usa el ID de organización como clave y contiene `wallet_id` y `name`. El receptor es una wallet de organización activa en MXN cuyo titular coincide con la organización.
+- E6 usa `COMUNIDAD_EVENTOS_PAGOS_ENABLED`, `COMUNIDAD_FINANZAS_URL`, `COMUNIDAD_FINANZAS_CLIENT_ID` y `COMUNIDAD_FINANZAS_CLIENT_SECRET`. Las dos banderas son falsas por defecto. El reconciliador `comunidad:conciliar-pagos-eventos` recupera estados una vez por minuto cuando se habilita E6.
+- Desde **Mis boletos**, el titular puede usar **Pagar con wallet** o **Consultar pago**. El acceso conserva las condiciones de Staff. Si la reserva se pierde, el registro financiero de esa generación queda en `devolucion_pendiente`, con su comprobante.
+- La prueba HTTP desechable autorizó **$25.00 MXN**, obtuvo un comprobante y habilitó el QR tras la conciliación. Repetir la confirmación conservó un cargo y dos movimientos que se balancean. Una segunda reserva se canceló antes del pago y se liberó con el saldo intacto.
+- Pasaron **101 pruebas de Finanzas, Eventos y Staff, con 1,640 aserciones**. Las pruebas enfocadas cubren vencimiento exacto, cierre previo a preparar, evidencia alterada y pago de una generación anterior. La resolución automática de devoluciones sigue fuera del piloto.

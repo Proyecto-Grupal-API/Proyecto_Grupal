@@ -17,6 +17,7 @@ class RegistroEvento extends Documento
         'evento_id',
         'usuario_id',
         'estado_pago',
+        'pago_estado',
         'token_qr',
         'estado_asistencia',
         'registrado_en',

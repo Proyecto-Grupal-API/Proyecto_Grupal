@@ -35,12 +35,10 @@ reserva anterior terminó y todavía hay disponibilidad/inscripción abierta.
 actualización periódica de 20 segundos. La lista administrativa filtra
 inscripciones **Vencidas** y muestra su plazo. Horarios en Ciudad de México.
 
-El pago todavía no está disponible en esta integración. Reservar no cobra,
-no crea saldo adeudado ni habilita acceso para un evento con costo. Los pagos,
-respuestas tardías, reembolsos y confirmaciones financieras requieren el contrato
-y la operación reales de E2. La siguiente fase está descrita en el
-[contrato propuesto de pago de eventos](CONTRATO_PAGO_EVENTOS_E2_E6.md).
-Este incremento no implementa NFC de identidad.
+La reserva de un evento con costo mantiene bloqueado el QR mientras Comunidad
+verifica el pago. El [piloto de pago de eventos](CONTRATO_PAGO_EVENTOS_E2_E6.md)
+permite autorizar un cargo con wallet y consultar el comprobante cuando ambos
+módulos están habilitados.
 
 ## API de sesión e intentos
 

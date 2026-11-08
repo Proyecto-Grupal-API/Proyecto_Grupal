@@ -427,7 +427,7 @@ function cerrar() {
                         <p v-if="e.mi_registro?.estado === 'vencida'" class="text-sm text-red-700">Tu reserva anterior venció. Puedes solicitar otro lugar si hay disponibilidad.</p>
                         <p v-if="e.mi_registro?.estado === 'confirmada' && e.mi_registro.estado_pago === 'pendiente' && e.mi_registro.reserva_hasta" class="text-xs text-amber-800">Lugar reservado hasta {{ fecha(e.mi_registro.reserva_hasta) }}.</p>
                         <p v-if="e.costo > 0" class="text-xs text-amber-800">
-                            El lugar se reserva hasta por 15 minutos al obtener cupo. El pago aún no está disponible; no se realizan cobros ni se habilita el acceso.
+                            El lugar se reserva hasta por 15 minutos al obtener cupo. Consulta tu plazo y las opciones de pago en Mis boletos.
                         </p>
                     </div>
                 </article>

@@ -5,9 +5,12 @@ namespace Tests\Feature;
 use App\Models\AuditoriaComunidad;
 use App\Models\Campana;
 use App\Models\Evento;
+use App\Models\PagoReservaEvento;
 use App\Models\RegistroEvento;
 use App\Models\User;
 use App\Services\AudienciaCampana;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Tests\Concerns\RefreshMongoDatabase;
 use Tests\TestCase;
 
@@ -154,6 +157,101 @@ class ReservasEventosTest extends TestCase
         $this->getJson('/api/eventos/'.$e->id.'/inscritos?estado=vencida')->assertJsonCount(1, 'registros')->assertJsonPath('registros.0.estado', 'vencida');
         $campana = new Campana(['organizacion_id' => $e->organizacion_id, 'audiencia' => 'evento_confirmados', 'referencia_id' => (string) $e->id]);
         $this->assertSame([], app(AudienciaCampana::class)->ids($campana));
+    }
+
+    public function test_event_payment_applies_only_matching_evidence_and_recovers_idempotently(): void
+    {
+        $evento = $this->evento();
+        $reg = $this->reservar($evento, $this->alumno);
+        $url = '/api/eventos/'.$evento->id.'/pago';
+        $finanzas = $this->finanzas($reg);
+        $this->postJson($url, ['generacion' => 1, 'amount_cents' => 1])->assertUnprocessable();
+        $this->postJson($url, ['generacion' => 1])->assertOk()->assertJsonPath('confirmation_path', $finanzas->path);
+        $this->postJson($url, ['generacion' => 1])->assertOk()->assertJsonPath('confirmation_path', $finanzas->path);
+        $this->assertSame(1, $finanzas->prepared);
+
+        $finanzas->status = 'CONFIRMED';
+        $finanzas->importe = 2400;
+        $this->postJson($url.'/consultar', ['generacion' => 1])->assertServiceUnavailable();
+        $this->getJson('/api/eventos/'.$evento->id.'/boleto')->assertJsonPath('qr_habilitado', false);
+        $finanzas->importe = 2500;
+        $this->artisan('comunidad:conciliar-pagos-eventos')->assertSuccessful();
+        $this->postJson($url.'/consultar', ['generacion' => 1])->assertOk()->assertJsonPath('estado', 'aplicado');
+        $this->getJson('/api/eventos/'.$evento->id.'/boleto')->assertJsonPath('qr_habilitado', true);
+        $this->assertSame($finanzas->payment, PagoReservaEvento::firstOrFail()->comprobante);
+        $this->assertSame(1, AuditoriaComunidad::where('accion', 'evento_pago_aplicado')->count());
+    }
+
+    public function test_old_confirmed_payment_enters_refund_review_without_unlocking_the_new_generation(): void
+    {
+        $evento = $this->evento();
+        $reg = $this->reservar($evento, $this->alumno);
+        $url = '/api/eventos/'.$evento->id;
+        $finanzas = $this->finanzas($reg);
+        $this->postJson($url.'/pago', ['generacion' => 1])->assertOk();
+        $this->travel(15)->minutes();
+        $this->artisan('comunidad:expirar-reservas-eventos')->assertSuccessful();
+        $this->postJson($url.'/inscripcion', ['generacion' => 1, 'clave_solicitud' => (string) Str::uuid()])
+            ->assertOk()->assertJsonPath('registro.generacion', 2);
+        $finanzas->status = 'CONFIRMED';
+        $this->postJson($url.'/pago/consultar', ['generacion' => 1])->assertOk()->assertJsonPath('estado', 'devolucion_pendiente');
+        $this->getJson($url.'/boleto')->assertJsonPath('generacion', 2)->assertJsonPath('qr_habilitado', false)
+            ->assertJsonPath('estado_pago', 'pendiente');
+        $this->assertSame($finanzas->payment, PagoReservaEvento::firstOrFail()->comprobante);
+    }
+
+    public function test_finance_must_close_the_payment_before_cancellation_releases_an_active_seat(): void
+    {
+        $evento = $this->evento();
+        $reg = $this->reservar($evento, $this->alumno);
+        $espera = $this->reservar($evento, $this->andrea, 'espera');
+        $url = '/api/eventos/'.$evento->id;
+        $finanzas = $this->finanzas($reg);
+        $this->actingAs($this->alumno)->postJson($url.'/pago', ['generacion' => 1])->assertOk();
+        $this->deleteJson($url.'/inscripcion')->assertOk()->assertJsonPath('registro.pago_estado', 'cancelacion_pendiente');
+        $this->assertSame('espera', $espera->fresh()->estado);
+        $finanzas->status = 'CANCELLED';
+        $this->artisan('comunidad:conciliar-pagos-eventos')->assertSuccessful();
+        $this->assertSame('cancelada', $reg->fresh()->estado);
+        $this->assertSame('confirmada', $espera->fresh()->estado);
+    }
+
+    private function finanzas(RegistroEvento $reg): object
+    {
+        config(['comunidad.eventos_pagos' => ['enabled' => true, 'url' => 'http://finanzas.test',
+            'client_id' => 'comunidad-fixture', 'client_secret' => 'fixture-secret']]);
+        $id = (string) Str::uuid();
+        $fixture = (object) ['prepared' => 0, 'status' => 'PENDING', 'importe' => $reg->monto_centavos,
+            'path' => '/finanzas/eventos/solicitudes/'.$id, 'payment' => (string) Str::uuid(),
+            'confirmado' => now()->utc()->format('Y-m-d\TH:i:s.v\Z')];
+        Http::preventStrayRequests();
+        Http::fake([
+            'http://finanzas.test/api/oauth/token' => Http::response(['access_token' => 'fixture-token', 'expires_in' => 120]),
+            'http://finanzas.test/api/v1/financial/community/*' => function ($request) use ($reg, $id, $fixture) {
+                $ref = 'event-reservation:'.$reg->id.':1';
+                if ($request->method() === 'GET' && $fixture->prepared === 0) {
+                    return Http::response([], 404);
+                }
+                if ($request->method() === 'POST' && ! str_ends_with($request->url(), '/cancel')) {
+                    $fixture->prepared++;
+                    $this->assertSame([$ref], $request->header('Idempotency-Key'));
+                    $this->assertSame($reg->monto_centavos, $request['amount_cents']);
+                    $this->assertSame(1, PagoReservaEvento::count());
+                }
+
+                return Http::response(['data' => [
+                    'source_reference' => $ref, 'request_id' => $id, 'status' => $fixture->status,
+                    'student_id' => $reg->usuario_id, 'event_id' => $reg->evento_id, 'organization_id' => (string) Evento::find($reg->evento_id)->organizacion_id,
+                    'amount_cents' => $fixture->importe, 'currency' => 'MXN',
+                    'reservation_expires_at' => $reg->reserva_hasta->copy()->utc()->format('Y-m-d\TH:i:s.v\Z'),
+                    'payment_id' => $fixture->status === 'CONFIRMED' ? $fixture->payment : null,
+                    'confirmed_at' => $fixture->status === 'CONFIRMED' ? $fixture->confirmado : null,
+                    'confirmation_path' => $fixture->path,
+                ]]);
+            },
+        ]);
+
+        return $fixture;
     }
 
     public function test_audit_failure_rolls_back_the_booking(): void

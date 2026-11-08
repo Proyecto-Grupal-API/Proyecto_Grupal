@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\GuardarEventoRequest;
 use App\Models\Evento;
 use App\Models\Organizacion;
+use App\Models\PagoReservaEvento;
 use App\Models\RegistroEvento;
 use App\Models\User;
 use App\Services\InscripcionesEvento;
@@ -117,6 +118,9 @@ class EventoController extends Controller
                 if (RegistroEvento::where('evento_id', (string) $e->id)->where('estado_pago', 'pagado')->where('estado', 'confirmada')->exists()) {
                     throw ValidationException::withMessages(['evento' => 'Hay pagos confirmados; primero coordina su devolución.']);
                 }
+                if (PagoReservaEvento::where('evento_id', (string) $e->id)->where('estado', 'pendiente')->where('vence_en', '>', now())->exists()) {
+                    throw ValidationException::withMessages(['evento' => 'Hay solicitudes de pago vigentes. Espera a que Finanzas resuelva esas reservas.']);
+                }
                 $antes = $e->toArray();
                 $e->update(['estado' => 'cancelado', 'motivo_cancelacion' => $data['motivo'], 'cancelado_en' => now()]);
                 $this->inscripciones->auditar($e, $request->user(), 'evento_cancelado', $e->id, $antes, $e->toArray());
@@ -139,7 +143,9 @@ class EventoController extends Controller
                 $resultado['repetida'] => 'Solicitud ya procesada. Se muestra tu inscripción actual.',
                 $reg->estado_efectivo === 'vencida' => 'La reserva venció. Actualiza para solicitar un nuevo lugar.',
                 $reg->estado === 'espera' => 'Estás en lista de espera.',
-                $reg->estado_pago === 'pendiente' => 'Lugar reservado durante un máximo de 15 minutos. El pago aún no está disponible.',
+                $reg->estado_pago === 'pendiente' => config('comunidad.eventos_pagos.enabled') === true
+                    ? 'Lugar reservado durante un máximo de 15 minutos. Abre Mis boletos para pagar.'
+                    : 'Lugar reservado durante un máximo de 15 minutos. El pago aún no está disponible.',
                 default => 'Inscripción confirmada.',
             };
 
@@ -153,7 +159,12 @@ class EventoController extends Controller
 
         return $this->conEvento($request, $id, false, function ($e) use ($request, $datos) {
             $resultado = $this->inscripciones->solicitar($e, $request->user(), 'cancelar', $datos);
-            $mensaje = $resultado['repetida'] ? 'Solicitud ya procesada. Se muestra tu inscripción actual.' : ($resultado['registro']->estado_efectivo === 'vencida' ? 'La reserva ya había vencido.' : 'Inscripción cancelada.');
+            $mensaje = match (true) {
+                $resultado['repetida'] => 'Solicitud ya procesada. Se muestra tu inscripción actual.',
+                $resultado['registro']->pago_estado === 'cancelacion_pendiente' => 'Cancelación solicitada. Falta la confirmación de Finanzas.',
+                $resultado['registro']->estado_efectivo === 'vencida' => 'La reserva ya había vencido.',
+                default => 'Inscripción cancelada.',
+            };
 
             return response()->json([...$resultado, 'registro' => $this->resumen($resultado['registro']), 'message' => $mensaje])->header('Cache-Control', 'private, no-store');
         });
@@ -268,7 +279,7 @@ class EventoController extends Controller
 
     private function resumen(RegistroEvento $reg): array
     {
-        return [...$reg->only(['id', 'evento_id', 'usuario_id', 'reserva_hasta', 'vencido_en', 'estado_pago', 'monto_centavos', 'moneda', 'estado_asistencia', 'registrado_en', 'asistio_en']), 'estado' => $reg->estado_efectivo, 'generacion' => max(1, (int) $reg->generacion)];
+        return [...$reg->only(['id', 'evento_id', 'usuario_id', 'reserva_hasta', 'vencido_en', 'estado_pago', 'pago_estado', 'monto_centavos', 'moneda', 'estado_asistencia', 'registrado_en', 'asistio_en']), 'estado' => $reg->estado_efectivo, 'generacion' => max(1, (int) $reg->generacion)];
     }
 
     private function boleto(RegistroEvento $reg, ?Evento $e): array
@@ -283,7 +294,10 @@ class EventoController extends Controller
             $posicion = $idx === false ? null : $idx + 1;
         }
 
-        return [...$this->resumen($reg), 'estado' => $estado, 'titulo' => $e?->titulo ?? 'Evento no disponible', 'ubicacion' => $e?->ubicacion, 'fecha_hora_inicio' => $e?->fecha_hora_inicio, 'fecha_hora_fin' => $e?->fecha_hora_fin, 'motivo_cancelacion' => $e?->motivo_cancelacion, 'evento_estado' => $e?->estado, 'posicion_espera' => $posicion, 'organizacion_activa' => (bool) $organizacionActiva, 'qr_habilitado' => $habilitado, 'token_qr' => $habilitado ? $reg->token_qr : null, 'puede_cancelar' => $e && now()->lt($e->fecha_hora_inicio) && in_array($estado, ['confirmada', 'espera'], true) && $reg->estado_asistencia !== 'asistio' && $reg->estado_pago !== 'pagado', 'zona_horaria' => config('comunidad.eventos_timezone')];
+        return [...$this->resumen($reg), 'estado' => $estado, 'titulo' => $e?->titulo ?? 'Evento no disponible', 'ubicacion' => $e?->ubicacion, 'fecha_hora_inicio' => $e?->fecha_hora_inicio, 'fecha_hora_fin' => $e?->fecha_hora_fin, 'motivo_cancelacion' => $e?->motivo_cancelacion, 'evento_estado' => $e?->estado, 'posicion_espera' => $posicion, 'organizacion_activa' => (bool) $organizacionActiva, 'qr_habilitado' => $habilitado, 'token_qr' => $habilitado ? $reg->token_qr : null, 'puede_pagar' => config('comunidad.eventos_pagos.enabled') === true && $vigente && $estado === 'confirmada'
+            && $reg->estado_pago === 'pendiente' && $reg->reserva_hasta?->isFuture() && $reg->monto_centavos > 0
+            && ! in_array($reg->pago_estado, ['cancelacion_pendiente', 'devolucion_pendiente'], true),
+            'puede_consultar_pago' => config('comunidad.eventos_pagos.enabled') === true && in_array($reg->pago_estado, ['pendiente', 'cancelacion_pendiente'], true), 'puede_cancelar' => $e && now()->lt($e->fecha_hora_inicio) && in_array($estado, ['confirmada', 'espera'], true) && $reg->estado_asistencia !== 'asistio' && $reg->estado_pago !== 'pagado', 'zona_horaria' => config('comunidad.eventos_timezone')];
     }
 
     private function editable(Evento $e): void

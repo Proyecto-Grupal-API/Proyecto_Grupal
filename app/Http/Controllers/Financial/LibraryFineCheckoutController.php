@@ -53,7 +53,7 @@ class LibraryFineCheckoutController
             $request->session()->put('url.intended', route('financial.library-fines.show', $paymentRequest));
         }
 
-        return Inertia::render('Financial/LibraryFineCheckout', $review);
+        return Inertia::render('Financial/InstitutionalWalletCheckout', $review);
     }
 
     public function confirm(Request $request, string $paymentRequest, LibraryFineCheckoutService $service)
