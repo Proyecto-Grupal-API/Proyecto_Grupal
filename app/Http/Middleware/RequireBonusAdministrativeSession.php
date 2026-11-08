@@ -13,7 +13,7 @@ final class RequireBonusAdministrativeSession
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (!$request->routeIs('financial.bonuses.admin.issue', 'financial.bonuses.admin.cancel', 'financial.bonuses.admin.beca.issue', 'financial.bonuses.admin.beca.budget')) {
+        if (!$request->routeIs('financial.bonuses.admin.issue', 'financial.bonuses.admin.cancel', 'financial.bonuses.admin.beca.issue', 'financial.bonuses.admin.beca.budget', 'financial.bonuses.admin.beca.cancel.review', 'financial.bonuses.admin.beca.cancel')) {
             return $next($request);
         }
         $id = (string) $request->user()?->getKey();

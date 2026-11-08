@@ -20,17 +20,22 @@ final class InstitutionalBecaReleaseService
         private readonly FinancialWebAuthorizer $access, private readonly InstitutionalBudgetService $budgets,
         private readonly FinancialJobLock $locks, private readonly InstitutionalBonusIntegrity $integrity) {}
 
-    public function cancel(string $actor, string $budgetId, string $bonusId, int $version, string $reason, string $key): array
+    public function cancel(string $actor, string $budgetId, string $bonusId, int $version, string $reason, string $key, ?array $audit = null): array
     {
-        return $this->release($actor, $budgetId, $bonusId, $version, $reason, $key, false);
+        if ($audit !== null && (array_diff(array_keys($audit),['identity_session_id','native_session_hash'])
+            || !is_string($audit['identity_session_id'] ?? null) || !preg_match('/\A[0-9a-f]{24}\z/i',$audit['identity_session_id'])
+            || !is_string($audit['native_session_hash'] ?? null) || !preg_match('/\A[0-9a-f]{64}\z/',$audit['native_session_hash']))) {
+            throw new InvalidArgumentException('Auditoria web de cancelacion no valida.');
+        }
+        return $this->release($actor, $budgetId, $bonusId, $version, $reason, $key, false, $audit);
     }
 
     public function expire(string $actor, string $budgetId, string $bonusId, int $version, string $reason, string $key): array
     {
-        return $this->release($actor, $budgetId, $bonusId, $version, $reason, $key, true);
+        return $this->release($actor, $budgetId, $bonusId, $version, $reason, $key, true, null);
     }
 
-    private function release(string $actor, string $budgetId, string $bonusId, int $version, string $reason, string $key, bool $expiry): array
+    private function release(string $actor, string $budgetId, string $bonusId, int $version, string $reason, string $key, bool $expiry, ?array $audit): array
     {
         if (!preg_match('/\A[0-9a-f]{24}\z/i', $actor)) throw new AuthorizationException();
         if (!Str::isUuid($budgetId) || !Str::isUuid($bonusId) || $version < 1
@@ -50,7 +55,7 @@ final class InstitutionalBecaReleaseService
         if (!$token) throw new ConflictHttpException('Solicitud presupuestaria en curso.');
         try {
             return DB::connection('sqlsrv')->transaction(function () use ($actor, $budgetId, $bonusId, $version, $reason,
-                $key, $hash, $action, $target, $movement, $expiry, $lockKey, $token) {
+                $key, $hash, $action, $target, $movement, $expiry, $lockKey, $token, $audit) {
                 // Same order as issuance: budget before bonus. No external HTTP while holding these locks.
                 $budget = InstitutionalBonusBudget::where('public_id', $budgetId)->lockForUpdate()->first();
                 if (!$budget) throw new ConflictHttpException('Presupuesto no disponible.');
@@ -97,7 +102,8 @@ final class InstitutionalBecaReleaseService
                     'actor_id' => $actor, 'reason' => $reason, 'idempotency_key' => $key, 'request_hash' => $hash,
                     'before_data' => $before, 'after_data' => [...$this->budgets->snapshot($budget),
                         'bonus_id' => $bonusId, 'bonus_status' => $target->value, 'bonus_remaining_cents' => 0,
-                        'commitment_id' => strtolower($link->public_id), 'released_amount_cents' => $released], 'created_at' => now(),
+                        'commitment_id' => strtolower($link->public_id), 'released_amount_cents' => $released,
+                        ...($audit === null ? [] : ['web_audit' => ['channel'=>'WEB',...$audit]])], 'created_at' => now(),
                 ]);
                 BonusLedgerEntry::create(['public_id' => (string) Str::uuid(), 'bonus_id' => $bonus->public_id,
                     'movement_type' => $movement, 'amount_cents' => -$released, 'remaining_after_cents' => 0,

@@ -18,6 +18,8 @@ const captureZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const recipient = ref(null); const issueAttempt = ref(null); const issueBusy = ref(false);
 const message = ref(''); const error = ref(''); const records = ref([]); const meta = ref(null); const listBusy = ref(false);
 const beneficiaryFilter = ref(''); const selected = ref(null); const cancelReason = ref(''); const cancelAttempt = ref(null); const cancelBusy = ref(false);
+const institutionalReview = ref(null); const institutionalReviewBusy = ref(false); const institutionalCancelBusy = ref(false);
+const institutionalCancelAttempt = ref(null); const institutionalReason = ref(''); const institutionalCancelConsent = ref(false); const institutionalCancelDone = ref(false);
 const audit = ref([]); const auditMeta = ref(null); const auditBusy = ref(false);
 const money = (cents, currency = 'MXN') => new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(cents / 100);
 const date = (value) => value ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short', timeZone: props.timezone }).format(new Date(value)) : '—';
@@ -66,7 +68,7 @@ async function issue() {
 }
 function newIssue() { issueAttempt.value = null; issueDone.value = false; budget.value = null; institutionalConsent.value = false; awardReference.value = ''; message.value = ''; error.value = ''; }
 async function showAudit(bonus, page = 1) {
-    if (selected.value?.id !== bonus.id) { cancelAttempt.value = null; cancelReason.value = ''; }
+    if (selected.value?.id !== bonus.id) { cancelAttempt.value = null; cancelReason.value = ''; institutionalReview.value = null; institutionalCancelAttempt.value = null; institutionalReason.value = ''; institutionalCancelConsent.value = false; institutionalCancelDone.value = false; }
     selected.value = bonus; audit.value = []; auditMeta.value = null; auditBusy.value = true;
     try { const r = await axios.get(route('financial.bonuses.admin.history', bonus.id), { params: { page } }); if (selected.value?.id === bonus.id) { audit.value = r.data.data; auditMeta.value = r.data.meta; } }
     catch (e) { error.value = errorText(e); }
@@ -87,6 +89,32 @@ async function cancel() {
         await load(); await showAudit({ ...target, status: 'CANCELADO', remaining_amount_cents: 0, can_cancel: false });
     } catch (e) { error.value = errorText(e); }
     finally { cancelBusy.value = false; }
+}
+async function reviewInstitutionalCancellation(fresh = true) {
+    if (institutionalReviewBusy.value || !selected.value) return;
+    const id = selected.value.id; institutionalReviewBusy.value = true; error.value = '';
+    if (fresh) { institutionalReview.value = null; institutionalCancelAttempt.value = null; institutionalReason.value = ''; institutionalCancelConsent.value = false; institutionalCancelDone.value = false; }
+    try { const r = await axios.get(route('financial.bonuses.admin.beca.cancel.review', id)); if (selected.value?.id === id) institutionalReview.value = r.data.data; }
+    catch (e) { if (selected.value?.id === id) error.value = errorText(e); }
+    finally { institutionalReviewBusy.value = false; }
+}
+async function cancelInstitutional() {
+    if (institutionalCancelBusy.value || institutionalReviewBusy.value || institutionalCancelDone.value) return;
+    error.value = ''; message.value = '';
+    if (!institutionalCancelAttempt.value) {
+        if (!institutionalReview.value?.cancellable || institutionalReview.value.bonus_id !== selected.value?.id || !institutionalCancelConsent.value || !institutionalReason.value.trim()) { error.value = 'Revisa el bono, explica el motivo y confirma la cancelacion del saldo no utilizado.'; return; }
+        institutionalCancelAttempt.value = { key: crypto.randomUUID(), id: selected.value.id, payload: { budget_version: institutionalReview.value.budget_version, reason: institutionalReason.value.trim(), confirm_cancel: true, review_token: institutionalReview.value.review_token } };
+    }
+    institutionalCancelBusy.value = true;
+    try {
+        const a = institutionalCancelAttempt.value;
+        const result = await axios.post(route('financial.bonuses.admin.beca.cancel', a.id), a.payload, { headers: { 'Idempotency-Key': a.key } });
+        institutionalCancelDone.value = true;
+        message.value = `Cancelacion institucional registrada${result.data.replayed ? ' (solicitud ya procesada)' : ''}. Saldo liberado: ${formatInstitutionalMoney(result.data.data.released_amount_cents, 'MXN')}.`;
+        if (selected.value?.id === a.id) { selected.value = { ...selected.value, status: 'CANCELADO', remaining_amount_cents: 0, can_cancel: false }; await reviewInstitutionalCancellation(false); }
+        await load();
+    } catch (e) { error.value = errorText(e); }
+    finally { institutionalCancelBusy.value = false; }
 }
 onMounted(() => load());
 </script>
@@ -132,13 +160,41 @@ onMounted(() => load());
             </section>
             <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><h2 class="text-xl font-bold text-[#00338D]">Bonos y auditoría</h2><p v-if="!permissions.view" class="mt-4 text-sm text-slate-500">No tienes permiso para consultar registros administrativos.</p>
                 <template v-else><form @submit.prevent="load(1)" class="mt-4 flex flex-wrap gap-3"><label class="text-sm text-slate-600">Filtrar por cuenta beneficiaria<input v-model="beneficiaryFilter" maxlength="24" class="ml-2 rounded-lg border-slate-300 text-sm" /></label><button :disabled="listBusy" class="rounded-lg border border-[#00338D] px-4 py-2 text-sm font-semibold text-[#00338D]">Buscar</button></form><p v-if="listBusy" role="status" class="mt-4 text-sm text-slate-500">Cargando…</p>
-                    <div v-for="bonus in records" :key="bonus.id" class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4"><div><p class="font-bold text-[#00338D]">{{ labels[bonus.type] }} · {{ money(bonus.remaining_amount_cents, bonus.currency) }}</p><p class="mt-1 break-all text-xs text-slate-500">{{ bonus.status }} · Cuenta {{ bonus.beneficiary_id }}</p><p class="mt-1 text-xs text-slate-500">Vence: {{ date(bonus.expires_at) }}</p><p v-if="bonus.institutional_budget_id" class="mt-1 text-xs text-slate-500">BECA presupuestada. La cancelación requiere el procedimiento institucional.</p></div><button :disabled="cancelBusy || auditBusy" @click="showAudit(bonus)" class="rounded-lg border border-[#00338D] px-4 py-2 text-sm font-semibold text-[#00338D]">Ver auditoría y acciones</button></div>
+                    <div v-for="bonus in records" :key="bonus.id" class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4"><div><p class="font-bold text-[#00338D]">{{ labels[bonus.type] }} · {{ money(bonus.remaining_amount_cents, bonus.currency) }}</p><p class="mt-1 break-all text-xs text-slate-500">{{ bonus.status }} · Cuenta {{ bonus.beneficiary_id }}</p><p class="mt-1 text-xs text-slate-500">Vence: {{ date(bonus.expires_at) }}</p><p v-if="bonus.institutional_evidence_incomplete" class="mt-1 text-xs text-amber-800">El vínculo institucional requiere revisión; la cancelación general está bloqueada.</p><p v-if="bonus.institutional_budget_id" class="mt-1 text-xs text-slate-500">BECA presupuestada. La cancelación requiere el procedimiento institucional.</p></div><button :disabled="cancelBusy || auditBusy || institutionalCancelBusy || institutionalReviewBusy" @click="showAudit(bonus)" class="rounded-lg border border-[#00338D] px-4 py-2 text-sm font-semibold text-[#00338D]">Ver auditoría y acciones</button></div>
                     <p v-if="!records.length && !listBusy" class="mt-5 text-sm text-slate-500">No hay bonos en tu ámbito autorizado.</p><nav v-if="meta && meta.last_page > 1" class="mt-5 flex justify-center gap-4"><button :disabled="listBusy || meta.current_page <= 1" @click="load(meta.current_page - 1)" class="text-sm text-[#00338D] disabled:opacity-40">Anterior</button><span class="text-sm">{{ meta.current_page }} / {{ meta.last_page }}</span><button :disabled="listBusy || meta.current_page >= meta.last_page" @click="load(meta.current_page + 1)" class="text-sm text-[#00338D] disabled:opacity-40">Siguiente</button></nav>
                 </template>
             </section>
-            <section v-if="selected" class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div class="flex justify-between gap-3"><h2 class="font-bold text-[#00338D]">Auditoría del bono</h2><button @click="selected = null" :disabled="cancelBusy" class="text-sm text-slate-500">Cerrar</button></div><p class="mt-2 break-all text-xs text-slate-500">{{ selected.id }}</p><p v-if="auditBusy" role="status" class="mt-4 text-sm text-slate-500">Cargando auditoría…</p>
+            <section v-if="selected" class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div class="flex justify-between gap-3"><h2 class="font-bold text-[#00338D]">Auditoría del bono</h2><button @click="selected = null" :disabled="cancelBusy || institutionalCancelBusy || institutionalReviewBusy" class="text-sm text-slate-500">Cerrar</button></div><p class="mt-2 break-all text-xs text-slate-500">{{ selected.id }}</p><p v-if="auditBusy" role="status" class="mt-4 text-sm text-slate-500">Cargando auditoría…</p>
                 <article v-for="entry in audit" :key="entry.id" class="mt-4 rounded-xl border border-slate-200 p-4"><p class="font-semibold">{{ labels[entry.action] }} · {{ date(entry.created_at) }}</p><p class="mt-1 text-sm text-slate-600">{{ entry.reason }}</p><p class="mt-1 break-all text-xs text-slate-500">Responsable: {{ entry.actor_id }}</p><p class="mt-2 text-sm">Saldo anterior: {{ entry.before ? money(entry.before.remaining_amount_cents, entry.before.currency) : 'Bono nuevo' }} · Saldo posterior: {{ money(entry.after.remaining_amount_cents, entry.after.currency) }} · {{ entry.after.status }}</p><details class="mt-3 text-sm"><summary class="cursor-pointer text-[#00338D]">Condiciones registradas</summary><p class="mt-2">Tipo: {{ labels[entry.after.type] }} · Cuenta: {{ entry.after.beneficiary_id }}</p><p v-if="entry.after.issuer_scope_type">Ámbito: {{ entry.after.issuer_scope_type }} · {{ entry.after.issuer_scope_id }}</p><p>Vigencia: {{ date(entry.after.valid_from) }} — {{ date(entry.after.expires_at) }}</p><p>Combinable: {{ entry.after.combinable ? 'Sí' : 'No' }} · Uso parcial: {{ entry.after.allows_partial_use ? 'Sí' : 'No' }}</p><p v-for="(restriction, i) in entry.after.restrictions" :key="i" class="break-all">{{ labels[restriction.type] }}: {{ restriction.target_id }}</p></details></article>
-                <p v-if="!audit.length && !auditBusy" class="mt-4 text-sm text-slate-500">No hay operaciones administrativas de este módulo para el bono. Se conserva su historial financiero previo.</p><nav v-if="auditMeta && auditMeta.last_page > 1" class="mt-5 flex justify-center gap-4"><button :disabled="cancelBusy || auditBusy || auditMeta.current_page <= 1" @click="showAudit(selected, auditMeta.current_page - 1)">Anterior</button><span>{{ auditMeta.current_page }} / {{ auditMeta.last_page }}</span><button :disabled="cancelBusy || auditBusy || auditMeta.current_page >= auditMeta.last_page" @click="showAudit(selected, auditMeta.current_page + 1)">Siguiente</button></nav>
+                <p v-if="!audit.length && !auditBusy" class="mt-4 text-sm text-slate-500">No hay operaciones administrativas de este módulo para el bono. Se conserva su historial financiero previo.</p><nav v-if="auditMeta && auditMeta.last_page > 1" class="mt-5 flex justify-center gap-4"><button :disabled="institutionalCancelBusy || institutionalReviewBusy || cancelBusy || auditBusy || auditMeta.current_page <= 1" @click="showAudit(selected, auditMeta.current_page - 1)">Anterior</button><span>{{ auditMeta.current_page }} / {{ auditMeta.last_page }}</span><button :disabled="institutionalCancelBusy || institutionalReviewBusy || cancelBusy || auditBusy || auditMeta.current_page >= auditMeta.last_page" @click="showAudit(selected, auditMeta.current_page + 1)">Siguiente</button></nav>
+                <section v-if="selected.institutional_budget_id" class="mt-6 space-y-4 border-t border-slate-200 pt-5">
+                    <h3 class="font-bold text-[#00338D]">Cancelación institucional</h3>
+                    <p class="text-sm text-slate-600">Se libera únicamente el saldo de BECA no utilizado. Las compras y obligaciones existentes se conservan; no se acredita dinero a la wallet. Un bono cancelado no se reactiva para devoluciones posteriores.</p>
+                    <p v-if="!selected.can_review_institutional_cancel" class="text-sm text-slate-500">La revisión requiere autorización específica para cancelar y liberar este presupuesto, además de sesión vigente y segundo factor confirmado.</p>
+                    <template v-else>
+                        <button type="button" @click="reviewInstitutionalCancellation(true)" :disabled="cancelBusy || institutionalReviewBusy || institutionalCancelBusy" class="rounded-lg border border-[#00338D] px-4 py-2 text-sm font-semibold text-[#00338D]">{{ institutionalReviewBusy ? 'Revisando…' : institutionalReview || institutionalCancelAttempt ? 'Volver a revisar' : 'Revisar cancelación institucional' }}</button>
+                        <div v-if="institutionalReview" class="space-y-3 rounded-xl bg-slate-50 p-4 text-sm">
+                            <p>Estado: <strong>{{ institutionalReview.status }}</strong></p>
+                            <p>Saldo no utilizado: <strong>{{ formatInstitutionalMoney(institutionalReview.remaining_amount_cents, institutionalReview.currency) }}</strong></p>
+                            <p>Consumo neto registrado: {{ formatInstitutionalMoney(institutionalReview.consumed_amount_cents, institutionalReview.currency) }}</p>
+                            <p class="text-slate-500">Vence: {{ date(institutionalReview.expires_at) }}. Cualquier cambio concurrente exigirá revisar nuevamente.</p>
+                            <div v-if="institutionalReview.last_cancellation" class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                                <p class="font-semibold">Cancelación registrada: {{ date(institutionalReview.last_cancellation.created_at) }}</p>
+                                <p>Liberado: {{ formatInstitutionalMoney(institutionalReview.last_cancellation.released_amount_cents, institutionalReview.currency) }}</p>
+                                <p>{{ institutionalReview.last_cancellation.reason }}</p><p class="break-all font-mono text-xs">{{ institutionalReview.last_cancellation.operation_id }}</p>
+                            </div>
+                            <p v-if="!institutionalReview.cancellable" class="font-semibold">Este bono no tiene saldo disponible para una nueva cancelación.</p>
+                            <form v-else @submit.prevent="cancelInstitutional" class="space-y-3">
+                                <fieldset :disabled="institutionalCancelBusy || !!institutionalCancelAttempt" class="space-y-3">
+                                    <label class="block">Motivo de cancelación<textarea v-model="institutionalReason" required maxlength="1000" class="mt-1 w-full rounded-lg border-slate-300" /></label>
+                                    <label class="flex items-start gap-2"><input v-model="institutionalCancelConsent" type="checkbox" required class="mt-1 rounded" /><span>Confirmo cancelar el saldo no utilizado revisado y conservar las operaciones y obligaciones existentes.</span></label>
+                                </fieldset>
+                                <p v-if="institutionalCancelAttempt" class="text-xs text-slate-500">El reintento conserva la misma solicitud y no vuelve a liberar saldo. «Volver a revisar» consulta el estado antes de iniciar una revisión distinta.</p>
+                                <button :disabled="institutionalCancelBusy || institutionalReviewBusy || institutionalCancelDone" class="rounded-lg bg-red-700 px-4 py-2 font-bold text-white disabled:opacity-50">{{ institutionalCancelBusy ? 'Procesando…' : institutionalCancelAttempt ? 'Reintentar la misma cancelación' : 'Confirmar cancelación institucional' }}</button>
+                            </form>
+                        </div>
+                    </template>
+                </section>
                 <form v-if="selected.can_cancel" @submit.prevent="cancel" class="mt-6 border-t border-slate-200 pt-5"><h3 class="font-bold text-red-700">Cancelar el saldo restante</h3><p class="mt-1 text-sm text-slate-500">La cancelación conserva el historial y no acredita la wallet.</p><label class="mt-3 block text-sm">Motivo<textarea v-model="cancelReason" :disabled="cancelBusy || !!cancelAttempt" required maxlength="1000" class="mt-1 w-full rounded-lg border-slate-300" /></label><button :disabled="cancelBusy" class="mt-3 rounded-lg bg-red-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{{ cancelBusy ? 'Procesando…' : cancelAttempt ? 'Reintentar cancelación' : 'Confirmar cancelación' }}</button></form>
             </section>
         </div></main>

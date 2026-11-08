@@ -50,7 +50,9 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\RequireBonusAdminist
         Route::post('/issue', [$admin, 'store'])->middleware('throttle:15,1')->name('issue');
         Route::get('/beca/budgets/{budgetId}', [\App\Http\Controllers\Financial\InstitutionalBecaWebController::class, 'review'])->whereUuid('budgetId')->middleware('throttle:30,1')->name('beca.budget');
         Route::post('/beca/issue', [\App\Http\Controllers\Financial\InstitutionalBecaWebController::class, 'issue'])->middleware('throttle:15,1')->name('beca.issue');
-        Route::post('/{bonusId}/cancel', [$admin, 'cancel'])->whereUuid('bonusId')->name('cancel');
+        Route::get('/beca/{bonusId}/cancel-review', [\App\Http\Controllers\Financial\InstitutionalBecaCancellationWebController::class,'review'])->whereUuid('bonusId')->middleware('throttle:30,1')->name('beca.cancel.review');
+        Route::post('/beca/{bonusId}/cancel', [\App\Http\Controllers\Financial\InstitutionalBecaCancellationWebController::class,'cancel'])->whereUuid('bonusId')->middleware('throttle:15,1')->name('beca.cancel');
+        Route::post('/{bonusId}/cancel', [$admin, 'cancel'])->whereUuid('bonusId')->middleware('throttle:15,1')->name('cancel');
         Route::get('/{bonusId}/history', [$admin, 'history'])->whereUuid('bonusId')->name('history');
     });
 
