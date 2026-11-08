@@ -8,8 +8,8 @@ use MongoDB\Laravel\Eloquent\Model;
 /**
  * Bitácora de operaciones sensibles del Equipo 5 (Definition of Done:
  * "operaciones sensibles generan auditoría"). Los campos siguen el formato
- * de `audit_logs` del Equipo 7 para poder enviárselos tal cual
- * (REQ-M5-E7-001); `published_at` queda en null hasta ese envío.
+ * del contrato de auditoría. La proyección del piloto E7 comparte campos
+ * seleccionados y confirma `published_at` al recibir el acuse.
  *
  * @property-read string $id
  * @property string $event_id

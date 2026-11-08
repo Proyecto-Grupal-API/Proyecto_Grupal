@@ -76,19 +76,41 @@ permisos financieros. Evidencia: `activacion-verificada.json` en los logs de est
 
 1. E1/E2: autoridad institucional verificable, actor humano, consentimiento, delegaciones,
    receptores y fuentes de financiamiento. Los proveedores `Pending*` siguen cerrados.
-2. E2/E3/E4: coordinador persistente, IDs financieros, vigencia común, contraparte financiera,
-   conciliación y devoluciones. Instalar E2 no acredita todavía ese circuito completo.
+2. E2/E3/E4: el checkout con wallet y la conciliación de la reserva se probaron en laboratorio.
+   Queda aprobar el cliente de E3, la cuenta receptora del negocio, el transporte firmado y
+   la autoridad para ejecutar devoluciones.
 3. Regla API: consultas financieras personales pertenecen a E2. E7 no consulta colecciones
    de usuarios de E1. El corte E2 aún contiene adaptadores y servicios con consultas directas
    a usuarios/sesiones/clientes de E1; los flujos afectados siguen sin habilitarse.
    La proyección de rol de sesión usa la API interna pública de E1 en la misma aplicación;
    el directorio HTTP y la autorización institucional final siguen pendientes.
-4. E4 → E7: transporte HMAC adaptado el 30 de octubre (ver actualización), sin activar.
-   E5 → E7: adaptar su emisor al contrato acordado. No se encendieron emisores
-   antiguos apuntándolos al nuevo receptor, ni se afirma que los siete equipos intercambien
-   ya todos sus datos. Recompensas físicas requieren contrato de inventario y compensación.
+4. E4 → E7: transporte HMAC probado en laboratorio, pendiente de habilitar y acordar los temas del piloto.
+   E5 → E7: confirmar el piloto de auditoría y su alcance antes de habilitarlo.
+   Recompensas físicas requieren contrato de inventario y compensación.
 5. No se importaron usuarios/datos financieros de demostración de E2/E7 ni se depositó saldo.
    Las cuentas documentadas existentes conservan el login y segundo factor de E1.
+
+## Piloto de auditorías de Servicios al Estudiante
+
+E5 prepara una proyección de `library.fine.waived`, `library.fine.cancelled` y `rental.deposit.charged` hacia `POST /api/v1/plataforma/auditoria`. Comparte el ID del evento, el actor cuando tiene un ID canónico, la acción, el tipo e ID de entidad, la fecha y una correlación derivada del evento. Los motivos, importes, detalles del dispositivo y demás datos de la auditoría original se conservan en E5.
+
+El comando `servicios:publicar-auditoria --limit=20` firma el cuerpo con la clave del dominio `services`. Solo marca la auditoría publicada si E7 devuelve el mismo ID y un acuse de aceptación o de duplicado. Los fallos permanecen pendientes y rotan detrás de los registros que aún no se han intentado.
+
+La configuración `PLATFORM_SERVICES_DELIVERY_ENABLED` queda apagada por defecto. Para habilitar el piloto se debe acordar el catálogo de acciones, el origen `PLATFORM_SERVICES_API_URL`, la credencial `PLATFORM_SERVICES_SECRET` y el corte inclusivo `PLATFORM_SERVICES_DELIVERY_SINCE` en UTC con formato `YYYY-MM-DDTHH:MM:SSZ`. El corte determina los registros elegibles y permite pactar por separado el envío histórico. El receptor de E7 debe estar habilitado para ese origen. El acuse registra auditoría y no asigna puntos.
+
+La prueba por HTTP en una red desechable entregó una auditoría E5 y un evento de vencimiento de reserva E4. Repetir ambos envíos conservó un único registro por evento en E7. El registro de puntos quedó vacío. En el alterno se verificó que el receptor E7 está activo y que los emisores de E4 y E5 quedan desactivados para estos pilotos.
+
+## Alistamiento de cobros de Marketplace y Biblioteca
+
+La comprobación del 8 de noviembre encontró en SQL Server del alterno las tablas `marketplace_payment_requests`, `library_fine_payment_requests` y `financial_team4_outbox`. Los dos cobros y el transporte de pagos E2 → E4 permanecen desactivados. Antes de habilitarlos, confirmar los siguientes datos.
+
+| Piloto | Acuerdos necesarios |
+| --- | --- |
+| Marketplace | Cliente de E3 con `financial:purchase:prepare`, `financial:purchase:read` y `financial:purchase:cancel`, wallet del negocio y destino firmado para el evento de E2 a E4. |
+| Biblioteca | Cliente de E5 con `financial:library-fine:prepare`, `financial:library-fine:read` y `financial:library-fine:cancel` y wallet institucional de Servicios al Estudiante. |
+| Auditoría E7 | Destino y credencial separados por dominio, más el alcance y corte de fecha del piloto de E5. |
+
+Los casos a repetir al activar se describen en [Marketplace e Inventarios](INCORPORACION_E4_a3ea96d_2026-10-30.md) y [Multas de Biblioteca](API_E2_MULTAS_BIBLIOTECA.md). Los [mensajes para los equipos](MENSAJES_EQUIPOS_2026-11-08.md) reúnen las solicitudes de confirmación.
 
 ## Preparación y verificación reproducibles
 

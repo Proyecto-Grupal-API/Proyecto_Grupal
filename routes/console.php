@@ -27,6 +27,10 @@ Schedule::command('comunidad:expirar-reservas-eventos')->everyMinute()->withoutO
 Schedule::command('inventario:procesar-devoluciones')->everyMinute()->withoutOverlapping(10);
 Schedule::command('team4:publish-outbox')->everyMinute()->withoutOverlapping(10);
 
+if (config('platform.services_delivery.enabled') === true) {
+    Schedule::command('servicios:publicar-auditoria --limit=20')->everyMinute()->withoutOverlapping(10);
+}
+
 if (config('platform.delivery.enabled') === true) {
     Schedule::command('comunidad:publicar-plataforma')->everyMinute()->withoutOverlapping();
 }
