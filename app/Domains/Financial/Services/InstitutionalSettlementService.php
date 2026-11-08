@@ -60,6 +60,7 @@ final class InstitutionalSettlementService
         try {
             return DB::connection('sqlsrv')->transaction(function () use ($actor,$obligationId,$expectedVersion,$data,$key,$paidAt,$paymentKey,$probe,$context,$hash,$lockKey,$token) {
                 $budget=InstitutionalBonusBudget::where('public_id',$probe->budget_id)->lockForUpdate()->firstOrFail();
+                app(InstitutionalBudgetIntegrity::class)->assertState($budget);
                 $bonus=Bonus::where('public_id',$probe->bonus_id)->lockForUpdate()->firstOrFail();
                 $this->integrity->assertState($budget,$bonus);
                 $purchase=PurchasePayment::where('public_id',$probe->purchase_payment_id)->lockForUpdate()->firstOrFail();
@@ -107,6 +108,8 @@ final class InstitutionalSettlementService
                     'payment_provider'=>$data['payment_provider'],'payment_reference'=>$data['payment_reference'],'payment_key'=>$paymentKey,
                     'recipient_reference'=>$data['recipient_reference'],'paid_at_utc'=>$data['paid_at'],'created_at'=>now()]);
                 $this->integrity->assertState($budget,$bonus);
+                app(InstitutionalBudgetIntegrity::class)->assertState($budget);
+                $this->locks->assertOwned($lockKey,$token,180);
                 return ['operation'=>$op,'settlement_id'=>strtolower($settlementId),'obligation_id'=>$obligationId,'replayed'=>false];
             });
         } catch (QueryException $e) {

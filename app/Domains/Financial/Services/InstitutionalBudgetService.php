@@ -100,6 +100,7 @@ final class InstitutionalBudgetService
         return $this->run($actor, $action, $budgetId, $data, $key, function () use ($budgetId, $version, $mutate) {
             $row = InstitutionalBonusBudget::where('public_id', $budgetId)->lockForUpdate()->first();
             if (!$row) throw new ConflictHttpException('Presupuesto no disponible.');
+            app(InstitutionalBudgetIntegrity::class)->assertState($row);
             if ($row->version !== $version) throw new ConflictHttpException('El presupuesto cambio. Recarga su version.');
             $before = $this->snapshot($row); $mutate($row);
             if ($row->version === PHP_INT_MAX) throw new ConflictHttpException('No puede incrementarse la version.');
@@ -121,6 +122,8 @@ final class InstitutionalBudgetService
                 $existing = InstitutionalBudgetOperation::where('idempotency_key', $key)->first();
                 if ($existing) {
                     if (!hash_equals($existing->request_hash, $hash)) throw new ConflictHttpException('Llave reutilizada con otros datos o actor.');
+                    $current = InstitutionalBonusBudget::where('public_id', $existing->budget_id)->lockForUpdate()->firstOrFail();
+                    app(InstitutionalBudgetIntegrity::class)->assertState($current);
                     return ['operation' => $existing, 'replayed' => true];
                 }
                 [$row, $before] = $work(); $this->locks->assertOwned($lockKey, $token, 180);
@@ -129,6 +132,8 @@ final class InstitutionalBudgetService
                     'actor_id' => $actor, 'reason' => $data['reason'], 'idempotency_key' => $key,
                     'request_hash' => $hash, 'before_data' => $before, 'after_data' => $this->snapshot($row), 'created_at' => now(),
                 ]);
+                app(InstitutionalBudgetIntegrity::class)->assertState($row);
+                $this->locks->assertOwned($lockKey, $token, 180);
                 return ['operation' => $operation, 'replayed' => false];
             });
         } catch (QueryException $e) {

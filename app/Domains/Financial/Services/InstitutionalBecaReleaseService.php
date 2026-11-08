@@ -53,6 +53,8 @@ final class InstitutionalBecaReleaseService
                 $key, $hash, $action, $target, $movement, $expiry, $lockKey, $token) {
                 // Same order as issuance: budget before bonus. No external HTTP while holding these locks.
                 $budget = InstitutionalBonusBudget::where('public_id', $budgetId)->lockForUpdate()->first();
+                if (!$budget) throw new ConflictHttpException('Presupuesto no disponible.');
+                app(InstitutionalBudgetIntegrity::class)->assertState($budget);
                 $bonus = Bonus::where('public_id', $bonusId)->lockForUpdate()->first();
                 if (!$budget || !$bonus) throw new ConflictHttpException('Bono o presupuesto no disponibles.');
                 $link = $this->integrity->assertState($budget,$bonus);
@@ -101,6 +103,8 @@ final class InstitutionalBecaReleaseService
                     'movement_type' => $movement, 'amount_cents' => -$released, 'remaining_after_cents' => 0,
                     'reference_type' => 'BUDGET_RELEASE', 'reference_id' => $operation->public_id, 'actor_id' => $actor, 'reason' => $reason]);
                 $this->integrity->assertState($budget,$bonus);
+                app(InstitutionalBudgetIntegrity::class)->assertState($budget);
+                $this->locks->assertOwned($lockKey,$token,180);
                 return ['operation' => $operation, 'bonus_id' => $bonusId, 'replayed' => false];
             });
         } catch (QueryException $e) {

@@ -47,6 +47,7 @@ final class InstitutionalBecaPurchaseService
         $hash = hash('sha256', json_encode([$actor,'CONSUME_BECA',$evidence],JSON_THROW_ON_ERROR));
         return $this->run($key, function ($lockKey, $token) use ($actor,$key,$bonusId,$budgetId,$wallet,$amount,$context,$categoryId,$evidence,$hash) {
             $budget = InstitutionalBonusBudget::where('public_id',$budgetId)->lockForUpdate()->firstOrFail();
+            app(InstitutionalBudgetIntegrity::class)->assertState($budget);
             $bonus = Bonus::where('public_id',$bonusId)->lockForUpdate()->firstOrFail();
             $this->integrity->assertState($budget,$bonus);
             $currentWallet = Wallet::where('public_id',$wallet->public_id)->lockForUpdate()->firstOrFail();
@@ -101,6 +102,8 @@ final class InstitutionalBecaPurchaseService
                 'movement_type' => BonusMovementType::CONSUMO,'amount_cents' => -$amount,'remaining_after_cents' => $bonus->remaining_amount_cents,
                 'reference_type' => 'BUDGET_PURCHASE','reference_id' => $payment->public_id,'actor_id' => $actor,'reason' => 'Compra con BECA institucional.']);
             $this->integrity->assertState($budget,$bonus);
+            app(InstitutionalBudgetIntegrity::class)->assertState($budget);
+            $this->locks->assertOwned($lockKey,$token,180);
             app(PurchasePaymentEvents::class)->paid($payment,$context);
             return $this->result($payment,$debt,false);
         });
@@ -114,6 +117,7 @@ final class InstitutionalBecaPurchaseService
         if (!$probe) throw new ConflictHttpException('No existe obligacion institucional para esta compra.');
         return $this->run($key, function ($lockKey,$token) use ($input,$probe,$key,$actor) {
             $budget = InstitutionalBonusBudget::where('public_id',$probe->budget_id)->lockForUpdate()->firstOrFail();
+            app(InstitutionalBudgetIntegrity::class)->assertState($budget);
             $bonus = Bonus::where('public_id',$probe->bonus_id)->lockForUpdate()->firstOrFail();
             $this->integrity->assertState($budget,$bonus);
             $payment = PurchasePayment::where('public_id',$probe->purchase_payment_id)->lockForUpdate()->firstOrFail();
@@ -178,6 +182,8 @@ final class InstitutionalBecaPurchaseService
                 'movement_type' => BonusMovementType::DEVOLUCION,'amount_cents' => $amount,'remaining_after_cents' => $bonus->remaining_amount_cents,
                 'reference_type' => 'PURCHASE_REFUND','reference_id' => $refund->public_id,'actor_id' => $actor,'reason' => $refund->reason]);
             $this->integrity->assertState($budget,$bonus);
+            app(InstitutionalBudgetIntegrity::class)->assertState($budget);
+            $this->locks->assertOwned($lockKey,$token,180);
             app(PurchasePaymentEvents::class)->refunded($payment,$refund);
             return $tx;
         });

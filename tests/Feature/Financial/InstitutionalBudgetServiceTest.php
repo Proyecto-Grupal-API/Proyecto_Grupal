@@ -84,16 +84,16 @@ test('institutional adjustment checks the current version and records before and
     expect($row->fresh()->approved_amount_cents)->toBe(15000);
 });
 
-test('institutional budget cannot be reduced below committed and consumed exposure', function () {
+test('institutional budget fabricated exposure blocks both insufficient and apparently sufficient adjustments', function () {
     $row = ibudgetApprove($this);
-    // Future lifecycle fixture only: no reservation or consumption writer is enabled by this delivery.
+    // Counter-only exposure is now deliberately inconsistent; valid lifecycle coverage lives in the integrity suite.
     DB::connection('sqlsrv')->table('institutional_bonus_budgets')->where('public_id', $row->public_id)
         ->update(['committed_amount_cents' => 4000, 'consumed_amount_cents' => 3000]);
     expect(fn () => $this->budgetService->setApprovedAmount($this->budgetActor, $row->public_id, 1, 6999, 'Reduccion insuficiente', 'adjust-'.Str::uuid()))
         ->toThrow(ConflictHttpException::class);
-    $r = $this->budgetService->setApprovedAmount($this->budgetActor, $row->public_id, 1, 7000, 'Reduccion valida', 'adjust-'.Str::uuid());
-    expect($r['operation']->after_data['available_amount_cents'])->toBe(0)
-        ->and($row->fresh()->committed_amount_cents)->toBe(4000)->and($row->fresh()->consumed_amount_cents)->toBe(3000);
+    expect(fn () => $this->budgetService->setApprovedAmount($this->budgetActor, $row->public_id, 1, 7000, 'Reduccion aparente', 'adjust-'.Str::uuid()))
+        ->toThrow(ConflictHttpException::class);
+    expect($row->fresh()->approved_amount_cents)->toBe(10000)->and($row->fresh()->version)->toBe(1);
 });
 
 test('institutional budget suspension and resumption require their own decisions and preserve amounts', function () {

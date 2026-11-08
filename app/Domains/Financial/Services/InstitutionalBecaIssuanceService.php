@@ -55,6 +55,9 @@ final class InstitutionalBecaIssuanceService
         try {
             return DB::connection('sqlsrv')->transaction(function () use ($actor, $budgetId, $expectedVersion, $key, $payload,
                 $hash, $start, $end, $audit, $lockKey, $token, $award) {
+                $budget = InstitutionalBonusBudget::where('public_id', $budgetId)->lockForUpdate()->first();
+                if (!$budget) throw new ConflictHttpException('Presupuesto no disponible.');
+                app(InstitutionalBudgetIntegrity::class)->assertState($budget);
                 $existing = InstitutionalBudgetOperation::where('idempotency_key', $key)->first();
                 if ($existing) {
                     if (!hash_equals($existing->request_hash, $hash)) throw new ConflictHttpException('La llave ya corresponde a otra solicitud.');
@@ -76,8 +79,7 @@ final class InstitutionalBecaIssuanceService
                 if (BonusAdministrativeOperation::where('idempotency_key', $key)->exists()) {
                     throw new ConflictHttpException('La llave ya pertenece a una emision existente.');
                 }
-                $budget = InstitutionalBonusBudget::where('public_id', $budgetId)->lockForUpdate()->first();
-                if (!$budget || $budget->version !== $expectedVersion) throw new ConflictHttpException('Presupuesto o version no disponibles.');
+                if ($budget->version !== $expectedVersion) throw new ConflictHttpException('Presupuesto o version no disponibles.');
                 if ($budget->status !== 'ACTIVE' || $budget->bonus_type !== 'BECA' || $budget->currency !== 'MXN'
                     || now()->lt($budget->valid_from) || now()->gte($budget->expires_at)) {
                     throw new ConflictHttpException('El presupuesto no esta habilitado para esta emision.');
@@ -113,6 +115,8 @@ final class InstitutionalBecaIssuanceService
                 $bound = DB::connection('sqlsrv')->table('bonuses')->where('public_id', $bonusId)
                     ->whereNull('institutional_budget_id')->update(['institutional_budget_id' => $budget->public_id]);
                 if ($bound !== 1) throw new ConflictHttpException('No pudo registrarse el vinculo presupuestario.');
+                app(InstitutionalBudgetIntegrity::class)->assertState($budget);
+                $this->locks->assertOwned($lockKey, $token, 180);
                 return ['operation' => $operation, 'bonus_id' => strtolower($bonusId), 'replayed' => false];
             });
         } catch (QueryException $e) {
