@@ -32,6 +32,7 @@ const findings = {
     BONUS_BINDING: 'El vínculo de emisión requiere revisión.',
     OBLIGATION_EVIDENCE: 'La evidencia de una obligación requiere revisión.',
     PURCHASE_WITHOUT_OBLIGATION: 'Hay una compra sin obligación registrada.',
+    CLOSED_REFUND_RELEASE_EVIDENCE: 'La liberación de una devolución de BECA cerrada requiere revisión.',
     REFUND_EVIDENCE: 'La evidencia de una devolución requiere revisión.',
     LEDGER_RUNNING_BALANCE: 'Hay una diferencia en el saldo por movimiento.',
     BONUS_VS_LEDGER_BALANCE: 'El saldo del bono no coincide con sus movimientos.',
@@ -88,6 +89,7 @@ const findings = {
                                 <p class="mt-1 break-all font-mono text-xs text-slate-500">{{ budget.budget_id }}</p>
                             </div>
                             <Link v-if="!filters.budget" :href="route('financial.institutional.index', { budget: budget.budget_id })" class="self-start rounded-lg border border-blue-800 px-4 py-2 text-sm font-semibold text-blue-800">Ver detalle</Link>
+                            <Link :href="route('financial.institutional.history', { budgetId: budget.budget_id })" class="self-start rounded-lg border border-blue-800 px-4 py-2 text-sm font-semibold text-blue-800">Historial del presupuesto</Link>
                         </div>
                         <dl class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                             <div v-for="card in [{ label: 'Aprobado', value: budget.approved_amount_cents }, { label: 'Disponible', value: budget.available_amount_cents }, { label: 'Comprometido', value: budget.committed_amount_cents }, { label: 'Consumido neto', value: budget.consumed_amount_cents }]" :key="card.label" class="rounded-xl bg-slate-50 p-4">
