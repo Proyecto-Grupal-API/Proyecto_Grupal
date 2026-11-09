@@ -93,6 +93,28 @@ function becaSignal(string $path, string $contents): void
 
 function becaOperation(array $job): array
 {
+    return becaWithClock($job['clock'] ?? null, fn () => becaUnclockedOperation($job));
+}
+
+function becaWithClock(?string $clock, callable $work): mixed
+{
+    if ($clock === null) return $work();
+    becaAssert(preg_match('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z\z/', $clock) === 1,
+        'Reloj de prueba no valido.');
+    $before = Carbon\Carbon::getTestNow();
+    $immutableBefore = Carbon\CarbonImmutable::getTestNow();
+    try {
+        Carbon\Carbon::setTestNow($clock);
+        Carbon\CarbonImmutable::setTestNow($clock);
+        return $work();
+    } finally {
+        Carbon\Carbon::setTestNow($before);
+        Carbon\CarbonImmutable::setTestNow($immutableBefore);
+    }
+}
+
+function becaUnclockedOperation(array $job): array
+{
     $p = $job['fixture'];
     return match ($job['action']) {
         'pay' => app(App\Domains\Financial\Services\InstitutionalBecaPurchaseService::class)->pay(
@@ -106,6 +128,7 @@ function becaOperation(array $job): array
             [['bonus_id' => $p['bonus'], 'amount_cents' => $job['amount']]], $job['key'], $p['buyer'],
             'Reserva exclusiva de prueba concurrente')->public_id)],
         'settle' => becaSettlement($job),
+        'cancel', 'expire' => becaRelease($job),
         default => throw new RuntimeException('Accion de prueba desconocida.'),
     };
 }
@@ -115,4 +138,14 @@ function becaSettlement(array $job): array
     $r = app(App\Domains\Financial\Services\InstitutionalSettlementService::class)->record(
         $job['fixture']['operator'], $job['obligation'], $job['version'], $job['data'], $job['key']);
     return ['settlement_id' => $r['settlement_id'], 'replayed' => $r['replayed']];
+}
+
+function becaRelease(array $job): array
+{
+    $service = app(App\Domains\Financial\Services\InstitutionalBecaReleaseService::class);
+    $p = $job['fixture'];
+    $args = [$p['operator'], $p['budget'], $p['bonus'], $job['version'], $job['reason'], $job['key']];
+    $r = $job['action'] === 'expire' ? $service->expire(...$args) : $service->cancel(...$args);
+    return ['operation_id' => strtolower($r['operation']->public_id),
+        'released_amount_cents' => $r['operation']->after_data['released_amount_cents'], 'replayed' => $r['replayed']];
 }

@@ -143,6 +143,78 @@ try {
     $replay = becaOperation($jobs[$winner]);
     becaAssert($replay['replayed'] && $replay['settlement_id'] === $race[$winner]['value']['settlement_id'], 'Replay de liquidacion competidora inconsistente.');
     $report['cases'][] = ['name' => 'competing_settlements', 'passed' => true, 'workers' => $race];
+
+    // Retain a genuine pre-existing obligation in every release race.
+    $f = fixture($run, 'pay-cancel', $fixtures);
+    becaOperation(payJob($f, 1000, $run.'-pc-initial', 'initial'));
+    $pay = payJob($f, 500, $run.'-pc-pay', 'competing');
+    $cancel = releaseJob($f, 'cancel', $run.'-pc-cancel');
+    $race = race($f, [$pay, $cancel], $dir.'/pay-cancel', false);
+    oneWinner($race);
+    $consumed = $race[0]['status'] === 'OK' ? 1500 : 1000;
+    if ($race[0]['status'] === 'OK') {
+        // A stale review must be renewed explicitly; do not hide a version conflict with an automatic retry.
+        $cancel['version'] = InstitutionalBonusBudget::where('public_id', $f['budget'])->firstOrFail()->version;
+        $released = becaOperation($cancel);
+    } else $released = $race[1]['value'];
+    releaseState($f, $consumed, 'CANCELADO', $consumed === 1500 ? 2 : 1);
+    $replay = becaOperation($cancel);
+    becaAssert($replay['replayed'] && $replay['operation_id'] === $released['operation_id'], 'Cancelacion repetida o replay inconsistente.');
+    assertPaymentRejected($pay);
+    releaseState($f, $consumed, 'CANCELADO', $consumed === 1500 ? 2 : 1);
+    $report['cases'][] = ['name' => 'partial_consumption_vs_cancellation', 'passed' => true, 'workers' => $race,
+        'consumed_cents' => $consumed, 'released_cents' => 3000 - $consumed];
+
+    $f = fixture($run, 'exhaust-cancel', $fixtures);
+    becaOperation(payJob($f, 1000, $run.'-ec-initial', 'initial'));
+    $pay = payJob($f, 2000, $run.'-ec-pay', 'competing');
+    $cancel = releaseJob($f, 'cancel', $run.'-ec-cancel');
+    $race = race($f, [$pay, $cancel], $dir.'/exhaust-cancel', false);
+    oneWinner($race);
+    if ($race[0]['status'] === 'OK') {
+        releaseState($f, 3000, 'AGOTADO', 2);
+        $cancel['version'] = InstitutionalBonusBudget::where('public_id', $f['budget'])->firstOrFail()->version;
+        try { becaOperation($cancel); throw new RuntimeException('Se libero presupuesto de un bono agotado.'); }
+        catch (Symfony\Component\HttpKernel\Exception\ConflictHttpException) {}
+        releaseState($f, 3000, 'AGOTADO', 2);
+    } else {
+        releaseState($f, 1000, 'CANCELADO', 1);
+        assertPaymentRejected($pay);
+    }
+    $report['cases'][] = ['name' => 'full_consumption_vs_cancellation', 'passed' => true, 'workers' => $race];
+
+    $f = fixture($run, 'before-expiry', $fixtures);
+    becaOperation(payJob($f, 1000, $run.'-be-initial', 'initial'));
+    $expiry = Bonus::where('public_id', $f['bonus'])->firstOrFail()->expires_at->toImmutable();
+    $clock = $expiry->subSecond()->toISOString();
+    $pay = payJob($f, 500, $run.'-be-pay', 'competing') + ['clock' => $clock];
+    $expire = releaseJob($f, 'expire', $run.'-be-expire') + ['clock' => $clock];
+    $race = race($f, [$pay, $expire], $dir.'/before-expiry', false);
+    becaAssert($race[0]['status'] === 'OK' && $race[1]['status'] === 'CONFLICT', 'Se permitio vencer antes de la fecha limite o se rechazo consumo vigente.');
+    becaWithClock($clock, fn () => checkState($f, 1500, 1500, 2, 2));
+    $expire['clock'] = $expiry->toISOString();
+    $expire['version'] = InstitutionalBonusBudget::where('public_id', $f['budget'])->firstOrFail()->version;
+    $released = becaOperation($expire);
+    becaAssert($released['released_amount_cents'] === 1500, 'El vencimiento no preservo el consumo anterior.');
+    becaWithClock($expire['clock'], fn () => releaseState($f, 1500, 'EXPIRADO', 2));
+    $report['cases'][] = ['name' => 'consumption_vs_expiration_before_deadline', 'passed' => true, 'workers' => $race,
+        'clock' => $clock, 'expiry' => $expiry->toISOString(), 'released_cents' => 1500];
+
+    $f = fixture($run, 'at-expiry', $fixtures);
+    becaOperation(payJob($f, 1000, $run.'-ae-initial', 'initial'));
+    $clock = Bonus::where('public_id', $f['bonus'])->firstOrFail()->expires_at->toISOString();
+    $pay = payJob($f, 500, $run.'-ae-pay', 'competing') + ['clock' => $clock];
+    $expire = releaseJob($f, 'expire', $run.'-ae-expire') + ['clock' => $clock];
+    $race = race($f, [$pay, $expire], $dir.'/at-expiry', false);
+    becaAssert($race[0]['status'] === 'CONFLICT' && $race[1]['status'] === 'OK', 'En la fecha limite solo puede confirmarse el vencimiento.');
+    becaWithClock($clock, fn () => releaseState($f, 1000, 'EXPIRADO', 1));
+    $replay = becaOperation($expire);
+    becaAssert($replay['replayed'] && $replay['operation_id'] === $race[1]['value']['operation_id']
+        && $replay['released_amount_cents'] === 2000, 'Vencimiento duplicado o importe incorrecto.');
+    assertPaymentRejected($pay);
+    becaWithClock($clock, fn () => releaseState($f, 1000, 'EXPIRADO', 1));
+    $report['cases'][] = ['name' => 'consumption_vs_expiration_at_deadline', 'passed' => true, 'workers' => $race,
+        'clock' => $clock, 'released_cents' => 2000];
     Http::assertNothingSent();
 } catch (Throwable $e) {
     $error = $e;
@@ -164,7 +236,7 @@ try {
 foreach ($report['cases'] as $case) echo 'PASS '.$case['name'].PHP_EOL;
 echo 'Informe: '.$reportPath.PHP_EOL;
 if ($error) { fwrite(STDERR, 'FAIL '.$error->getMessage().PHP_EOL); exit(1); }
-echo 'OK: 7 carreras reales y cierre del ciclo; solo datos de testing.'.PHP_EOL;
+echo 'OK: 11 carreras reales y cierre del ciclo; solo datos de testing.'.PHP_EOL;
 
 function fixture(string $run, string $name, array &$fixtures): array
 {
@@ -233,6 +305,44 @@ function oneWinner(array $results): void
     becaAssert(count(array_filter($results, fn($r) => $r['status'] === 'OK')) === 1
         && count(array_filter($results, fn($r) => $r['status'] === 'CONFLICT')) === 1,
         'Se esperaba exactamente una operacion aprobada y un rechazo.');
+}
+
+function releaseJob(array $f, string $action, string $key): array
+{
+    return ['fixture' => $f, 'action' => $action, 'key' => $key,
+        'version' => InstitutionalBonusBudget::where('public_id', $f['budget'])->firstOrFail()->version,
+        'reason' => 'Liberar remanente en prueba de concurrencia'];
+}
+
+function assertPaymentRejected(array $job): void
+{
+    // An earlier successful payment may legitimately replay after closure. Test a NEW debit instead.
+    $job['key'] .= '-after-close';
+    $job['market']['order_id'] .= '-after-close';
+    try { becaOperation($job); throw new RuntimeException('Se acepto una compra nueva despues del cierre.'); }
+    catch (Symfony\Component\HttpKernel\Exception\ConflictHttpException) {}
+}
+
+function releaseState(array $f, int $consumed, string $status, int $purchases): void
+{
+    checkState($f, 0, $consumed, $purchases, $purchases);
+    $sql = DB::connection('sqlsrv');
+    $bonus = Bonus::where('public_id', $f['bonus'])->firstOrFail();
+    becaAssert($bonus->status->value === $status && $bonus->remaining_amount_cents === 0, 'Estado terminal de bono incorrecto.');
+    $debt = $sql->table('institutional_bonus_obligations')->where('budget_id', $f['budget']);
+    becaAssert((clone $debt)->count() === $purchases && (int)(clone $debt)->sum('amount_cents') === $consumed
+        && (int)(clone $debt)->sum('refunded_amount_cents') === 0 && (int)(clone $debt)->sum('settled_amount_cents') === 0,
+        'El cierre altero la obligacion consumida.');
+    $released = 3000 - $consumed;
+    $entries = $sql->table('bonus_ledger_entries')->where('bonus_id', $f['bonus'])->where('reference_type', 'BUDGET_RELEASE');
+    becaAssert((clone $entries)->count() === ($released > 0 ? 1 : 0)
+        && (int)(clone $entries)->sum('amount_cents') === -$released, 'Liberacion duplicada o importe distinto del remanente.');
+    $ops = InstitutionalBudgetOperation::where('budget_id', $f['budget'])->whereIn('action', ['CANCEL_BECA','EXPIRE_BECA'])->get();
+    becaAssert($ops->count() === ($released > 0 ? 1 : 0), 'Operacion de cierre duplicada o inesperada.');
+    if ($released > 0) becaAssert($ops->first()->after_data['released_amount_cents'] === $released, 'La auditoria libero importe consumido.');
+    $budget = InstitutionalBonusBudget::where('public_id', $f['budget'])->firstOrFail();
+    becaAssert(10000 - $budget->committed_amount_cents - $budget->consumed_amount_cents === 10000 - $consumed,
+        'Disponibilidad presupuestaria incorrecta despues del cierre.');
 }
 
 function obligationState(array $f, array $payment, int $refunded, int $settled, int $reserved): void
@@ -310,7 +420,7 @@ function race(array $f, array $jobs, string $directory, bool $sameKey, ?string $
     }
 }
 
-function checkState(array $f, int $committed, int $consumed, int $events): void
+function checkState(array $f, int $committed, int $consumed, int $events, int $purchaseCount = 1): void
 {
     $b = InstitutionalBonusBudget::where('public_id', $f['budget'])->firstOrFail();
     becaAssert($b->approved_amount_cents === 10000 && $b->committed_amount_cents === $committed
@@ -320,7 +430,7 @@ function checkState(array $f, int $committed, int $consumed, int $events): void
     becaAssert($wallet->available_balance_cents === 0 && $wallet->held_balance_cents === 0, 'Se altero dinero de la wallet.');
     becaAssert(DB::connection('sqlsrv')->table('ledger_entries')->where('wallet_id', $f['wallet'])->count() === 0, 'Se creo un movimiento de dinero.');
     $payments = PurchasePayment::where('wallet_id', $f['wallet'])->pluck('public_id');
-    becaAssert($payments->count() === 1, 'Se registro mas de una compra.');
+    becaAssert($payments->count() === $purchaseCount, 'Cantidad de compras distinta de la esperada.');
     $streams = DB::connection('sqlsrv')->table('financial_team4_streams')->whereIn('payment_intent_id', $payments)->pluck('id');
     $outbox = DB::connection('sqlsrv')->table('financial_team4_outbox')->whereIn('stream_id', $streams)->get();
     becaAssert($outbox->count() === $events, 'Eventos duplicados o faltantes.');
