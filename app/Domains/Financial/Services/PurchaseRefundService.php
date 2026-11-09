@@ -481,8 +481,8 @@ class PurchaseRefundService
             // Validar todos los bonos antes de modificar saldos.
             foreach ($allocations as $bonusId => $amount) {
                 $bonus = $bonuses->get($bonusId);
-                if ($bonus && $bonus->getRawOriginal('institutional_budget_id') !== null) {
-                    throw new \Symfony\Component\HttpKernel\Exception\ConflictHttpException('La devolucion requiere evidencia de obligacion institucional.');
+                if ($bonus) {
+                    \App\Domains\Financial\Support\InstitutionalBonusEvidence::assertUnfunded($bonus);
                 }
 
                 if (

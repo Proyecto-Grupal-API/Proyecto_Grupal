@@ -164,6 +164,8 @@ public function consume(
                 );
             }
 
+            $this->assertUnfundedLifecycle($bonus);
+
             if ($bonus->status === BonusStatus::CANCELADO) {
                 throw new InvalidArgumentException(
                     'No se puede consumir un bono cancelado.'
@@ -510,6 +512,8 @@ public function cancel(
                 );
             }
 
+            $this->assertUnfundedLifecycle($bonus);
+
             if ($bonus->status === BonusStatus::CANCELADO) {
                 throw new InvalidArgumentException(
                     'El bono ya se encuentra cancelado.'
@@ -617,11 +621,7 @@ return $bonus->fresh();
 }
 private function assertUnfundedLifecycle(Bonus $bonus): void
 {
-    if ($bonus->getRawOriginal('institutional_budget_id') !== null) {
-        throw new \Symfony\Component\HttpKernel\Exception\ConflictHttpException(
-            'El ciclo de vida de este bono requiere integracion presupuestaria; no se permite la operacion heredada.'
-        );
-    }
+    \App\Domains\Financial\Support\InstitutionalBonusEvidence::assertUnfunded($bonus);
 }
 
 private function validateRestrictions(
