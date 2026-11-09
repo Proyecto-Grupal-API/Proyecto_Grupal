@@ -1,6 +1,6 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante Campus Digital</title><style>
 @page{margin:45px 40px;}body{font-family:DejaVu Sans,sans-serif;font-size:10px;line-height:1.45;color:#24334b;}h1{font-size:21px;color:#00338d;margin:5px 0;}h2{font-size:13px;color:#00338d;margin:22px 0 8px;}p{margin:6px 0;}.brand{color:#00338d;font-weight:bold;font-size:11px;letter-spacing:2px;}.rule{border-bottom:2px solid #00338d;padding-bottom:15px;}.muted{color:#62718a;}.id{font-size:9px;word-wrap:break-word;}.notice{border:1px solid #dec886;background:#fff8e6;padding:10px;margin:14px 0;}table{border-collapse:collapse;width:100%;table-layout:fixed;}th,td{padding:9px 7px;border-bottom:1px solid #dce3ed;vertical-align:top;word-wrap:break-word;}th{text-align:left;color:#00338d;background:#f2f5f9;}thead{display:table-header-group;}tr{page-break-inside:avoid;}.amount{text-align:right;width:30%;}.small{font-size:8px;}.footer{border-top:1px solid #dce3ed;padding-top:10px;margin-top:24px;font-size:8px;color:#62718a;}</style></head><body>
-<div class="rule"><div class="brand">CAMPUS DIGITAL</div><h1>Comprobante de operación</h1><p>{{ $receipt['source']==='CASH'?'Comprobante de caja':'Participación de tu wallet' }}</p></div>
+<div class="rule"><div class="brand">CAMPUS DIGITAL</div><h1>Comprobante de operación</h1><p>{{ $receipt['source']==='CASH'?'Comprobante de caja':(!empty($receipt['purchase']['institutional'])?'Compra cubierta con BECA institucional':'Participación de tu wallet') }}</p></div>
 <p class="id"><strong>ID:</strong> {{ $receipt['id'] }}</p><p><strong>Estado:</strong> {{ $receipt['status'] }} · <strong>Moneda:</strong> {{ $receipt['currency'] }}</p>
 <p><strong>Fecha de operación:</strong> {{ $date($receipt['created_at']) }}</p>
 @if(!empty($receipt['cash_register_name']))<p><strong>Caja:</strong> {{ $receipt['cash_register_name'] }}</p><p class="id"><strong>Asociación:</strong> {{ $receipt['association_id'] }}</p>
@@ -17,6 +17,16 @@
 @endforeach
 
 </tbody></table>
+@if(!empty($receipt['purchase']['institutional']))
+@php($institutional = $receipt['purchase']['institutional'])
+<h2>BECA institucional y devoluciones</h2>
+<p>Esta compra se cubrió con tu BECA. No se descontó dinero de tu wallet.</p>
+<p><strong>Devoluciones completadas:</strong> {{ $money($institutional['refunded_amount_cents'],$receipt['currency']) }}</p>
+<p><strong>Importe neto de la compra:</strong> {{ $money($institutional['net_amount_cents'],$receipt['currency']) }}</p>
+@if($institutional['restored_bonus_amount_cents'] > 0)<p>Reintegrado al bono: {{ $money($institutional['restored_bonus_amount_cents'],$receipt['currency']) }}.</p>@endif
+@if($institutional['released_budget_amount_cents'] > 0)<p>Devuelto al presupuesto institucional: {{ $money($institutional['released_budget_amount_cents'],$receipt['currency']) }}. Ese importe no se agregó a tu wallet ni reactivó la BECA cerrada.</p>@endif
+<p class="small muted">Devoluciones registradas al {{ $date($institutional['observed_at']) }}. El total original del comprobante se conserva.</p>
+@endif
 @endif
 
 @if(count($receipt['entries']))<h2>Movimientos registrados</h2><table><thead><tr><th>Movimiento</th><th class="amount">Importe</th></tr></thead><tbody>

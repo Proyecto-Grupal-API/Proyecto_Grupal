@@ -1,8 +1,10 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
+import { formatInstitutionalMoney } from '@/Support/institutionalMoney.js';
 defineProps({ receipt: Object });
-const money = (n, currency) => n === null || n === undefined ? 'Sin registro histórico' : new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(n / 100);
+const money = (n, currency) => n === null || n === undefined ? 'Sin registro histórico'
+    : formatInstitutionalMoney(typeof n === 'number' && Number.isSafeInteger(n) ? String(n) : n, currency);
 const date = value => value ? new Date(value).toLocaleString('es-MX') : '';
 const print = () => window.print();
 </script>
@@ -20,6 +22,15 @@ const print = () => window.print();
 <p>Wallet: {{ money(receipt.purchase.wallet_amount_cents, receipt.currency) }}</p>
 <p>Bonos: {{ money(receipt.purchase.bonus_amount_cents, receipt.currency) }}</p>
 <p v-for="b in receipt.purchase.bonuses" :key="b.bonus_id" class="text-sm break-all">Bono {{ b.bonus_id }} · {{ money(b.amount_cents, receipt.currency) }}</p>
+<section v-if="receipt.purchase.institutional" class="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+<h3 class="font-bold text-[#00338D]">Compra cubierta con BECA institucional</h3>
+<p class="text-sm mt-1">Esta compra se cubrió con tu BECA. No se descontó dinero de tu wallet.</p>
+<p class="mt-3">Devoluciones completadas: {{ money(receipt.purchase.institutional.refunded_amount_cents, receipt.currency) }}</p>
+<p>Importe neto de la compra: {{ money(receipt.purchase.institutional.net_amount_cents, receipt.currency) }}</p>
+<p v-if="receipt.purchase.institutional.restored_bonus_amount_cents > 0" class="text-sm mt-2">Reintegrado al bono: {{ money(receipt.purchase.institutional.restored_bonus_amount_cents, receipt.currency) }}.</p>
+<p v-if="receipt.purchase.institutional.released_budget_amount_cents > 0" class="text-sm mt-2">Devuelto al presupuesto institucional: {{ money(receipt.purchase.institutional.released_budget_amount_cents, receipt.currency) }}. Ese importe no se agregó a tu wallet ni reactivó la BECA cerrada.</p>
+<p class="text-xs text-slate-600 mt-3">Devoluciones registradas al {{ date(receipt.purchase.institutional.observed_at) }}. El total original del comprobante se conserva.</p>
+</section>
 </div>
 <div v-for="entry in receipt.entries" :key="entry.id" class="border-t mt-5 pt-4">
 <p class="font-bold">{{ entry.movement_type }} · {{ money(entry.amount_cents, receipt.currency) }}</p>
