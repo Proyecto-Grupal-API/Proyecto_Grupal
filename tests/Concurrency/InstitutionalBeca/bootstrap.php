@@ -101,6 +101,18 @@ function becaOperation(array $job): array
         'refund' => ['transaction_id' => strtolower(app(App\Domains\Financial\Services\PurchaseRefundService::class)->complete(
             App\Domains\Financial\Models\PurchaseRefundRequest::where('public_id', $job['refund'])->firstOrFail(),
             $job['key'], $p['operator'])->public_id)],
+        'reserve_refund' => ['refund_id' => strtolower(app(App\Domains\Financial\Services\PurchaseRefundService::class)->request(
+            App\Domains\Financial\Models\PurchasePayment::where('public_id', $job['payment'])->firstOrFail(), 0,
+            [['bonus_id' => $p['bonus'], 'amount_cents' => $job['amount']]], $job['key'], $p['buyer'],
+            'Reserva exclusiva de prueba concurrente')->public_id)],
+        'settle' => becaSettlement($job),
         default => throw new RuntimeException('Accion de prueba desconocida.'),
     };
+}
+
+function becaSettlement(array $job): array
+{
+    $r = app(App\Domains\Financial\Services\InstitutionalSettlementService::class)->record(
+        $job['fixture']['operator'], $job['obligation'], $job['version'], $job['data'], $job['key']);
+    return ['settlement_id' => $r['settlement_id'], 'replayed' => $r['replayed']];
 }

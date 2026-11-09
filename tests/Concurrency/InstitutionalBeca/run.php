@@ -84,6 +84,65 @@ try {
     becaAssert(Bonus::where('public_id', $f['bonus'])->firstOrFail()->status->value === 'CANCELADO', 'El bono no termino cancelado.');
     $report['cases'][] = ['name' => 'refund_settlement_cancel_reconcile', 'passed' => true,
         'refunded_cents' => 400, 'settled_cents' => 600, 'unpaid_cents' => 0, 'committed_cents' => 0];
+
+    $f = fixture($run, 'reserve-settle', $fixtures);
+    $payment = becaOperation(payJob($f, 1000, $run.'-rs-pay', 'reserve-settle'));
+    $reserve = reserveJob($f, $payment, 1000, $run.'-rs-reserve');
+    $settle = settleJob($f, $payment, 1000, $run.'-rs-settle');
+    $race = race($f, [$reserve, $settle], $dir.'/reserve-settle', false, $payment['purchase_payment_id']);
+    oneWinner($race);
+    if ($race[0]['status'] === 'OK') {
+        $r = PurchaseRefundRequest::where('public_id', $race[0]['value']['refund_id'])->firstOrFail();
+        $r = app(PurchaseRefundService::class)->approve($r, $f['operator'], 'Revision de reserva ganadora');
+        becaOperation(['fixture' => $f, 'action' => 'refund', 'refund' => strtolower($r->public_id), 'key' => $run.'-rs-complete']);
+        obligationState($f, $payment, 1000, 0, 0);
+        checkState($f, 3000, 0, 2);
+    } else {
+        becaAssert(!PurchaseRefundRequest::where('purchase_payment_id', $payment['purchase_payment_id'])->exists(), 'La reserva rechazada dejo una solicitud.');
+        $replay = becaOperation($settle);
+        becaAssert($replay['replayed'] && $replay['settlement_id'] === $race[1]['value']['settlement_id'], 'Replay de liquidacion inconsistente.');
+        obligationState($f, $payment, 0, 1000, 0);
+        checkState($f, 2000, 1000, 1);
+    }
+    $report['cases'][] = ['name' => 'refund_reservation_vs_full_settlement', 'passed' => true, 'workers' => $race];
+
+    $f = fixture($run, 'complete-settle', $fixtures);
+    $payment = becaOperation(payJob($f, 1000, $run.'-cs-pay', 'complete-settle'));
+    $r = refund($f, $payment['purchase_payment_id'], 400, $run.'-cs-request');
+    $complete = ['fixture' => $f, 'action' => 'refund', 'refund' => strtolower($r->public_id), 'key' => $run.'-cs-complete'];
+    $settle = settleJob($f, $payment, 700, $run.'-cs-settle');
+    $race = race($f, [$complete, $settle], $dir.'/complete-settle', false);
+    becaAssert($race[0]['status'] === 'OK' && $race[1]['status'] === 'CONFLICT', 'La liquidacion invadio el importe reservado o devuelto.');
+    obligationState($f, $payment, 400, 0, 0);
+    checkState($f, 2400, 600, 2);
+    becaAssert(!DB::connection('sqlsrv')->table('institutional_bonus_settlements')->where('budget_id', $f['budget'])->exists(), 'Liquidacion rechazada con evidencia residual.');
+    $report['cases'][] = ['name' => 'refund_completion_vs_excess_settlement', 'passed' => true, 'workers' => $race];
+
+    $f = fixture($run, 'two-reserves', $fixtures);
+    $payment = becaOperation(payJob($f, 1000, $run.'-tr-pay', 'two-reserves'));
+    $jobs = [reserveJob($f, $payment, 700, $run.'-tr-a'), reserveJob($f, $payment, 700, $run.'-tr-b')];
+    $race = race($f, $jobs, $dir.'/two-reserves', false, $payment['purchase_payment_id']);
+    oneWinner($race);
+    obligationState($f, $payment, 0, 0, 700);
+    becaAssert(PurchaseRefundRequest::where('purchase_payment_id', $payment['purchase_payment_id'])->count() === 1, 'Reservas duplicadas.');
+    checkState($f, 2000, 1000, 1);
+    $winner = $race[0]['status'] === 'OK' ? 0 : 1;
+    $replay = becaOperation($jobs[$winner]);
+    becaAssert($replay === $race[$winner]['value'], 'Replay de reserva inconsistente.');
+    $report['cases'][] = ['name' => 'competing_refund_reservations', 'passed' => true, 'workers' => $race];
+
+    $f = fixture($run, 'two-settlements', $fixtures);
+    $payment = becaOperation(payJob($f, 1000, $run.'-ts-pay', 'two-settlements'));
+    $jobs = [settleJob($f, $payment, 700, $run.'-ts-a'), settleJob($f, $payment, 700, $run.'-ts-b')];
+    $race = race($f, $jobs, $dir.'/two-settlements', false);
+    oneWinner($race);
+    obligationState($f, $payment, 0, 700, 0);
+    becaAssert(DB::connection('sqlsrv')->table('institutional_bonus_settlements')->where('budget_id', $f['budget'])->count() === 1, 'Liquidaciones duplicadas.');
+    checkState($f, 2000, 1000, 1);
+    $winner = $race[0]['status'] === 'OK' ? 0 : 1;
+    $replay = becaOperation($jobs[$winner]);
+    becaAssert($replay['replayed'] && $replay['settlement_id'] === $race[$winner]['value']['settlement_id'], 'Replay de liquidacion competidora inconsistente.');
+    $report['cases'][] = ['name' => 'competing_settlements', 'passed' => true, 'workers' => $race];
     Http::assertNothingSent();
 } catch (Throwable $e) {
     $error = $e;
@@ -105,7 +164,7 @@ try {
 foreach ($report['cases'] as $case) echo 'PASS '.$case['name'].PHP_EOL;
 echo 'Informe: '.$reportPath.PHP_EOL;
 if ($error) { fwrite(STDERR, 'FAIL '.$error->getMessage().PHP_EOL); exit(1); }
-echo 'OK: 3 carreras reales y cierre del ciclo; solo datos de testing.'.PHP_EOL;
+echo 'OK: 7 carreras reales y cierre del ciclo; solo datos de testing.'.PHP_EOL;
 
 function fixture(string $run, string $name, array &$fixtures): array
 {
@@ -151,18 +210,58 @@ function refund(array $f, string $paymentId, int $amount, string $key): Purchase
     return $service->approve($r, $f['operator'], 'Revision exclusiva de testing');
 }
 
-function race(array $f, array $jobs, string $directory, bool $sameKey): array
+function reserveJob(array $f, array $payment, int $amount, string $key): array
+{
+    return ['fixture' => $f, 'action' => 'reserve_refund', 'payment' => $payment['purchase_payment_id'],
+        'amount' => $amount, 'key' => $key];
+}
+
+function settleJob(array $f, array $payment, int $amount, string $key): array
+{
+    $createdAt = PurchasePayment::where('public_id', $payment['purchase_payment_id'])->firstOrFail()->created_at;
+    // DATETIME rounding must not produce evidence dated before its purchase.
+    becaWait(fn () => now()->gte($createdAt), 'El reloj local precede a la compra persistida.', 2);
+    return ['fixture' => $f, 'action' => 'settle', 'obligation' => $payment['obligation_id'],
+        'version' => InstitutionalBonusBudget::where('public_id', $f['budget'])->firstOrFail()->version, 'key' => $key,
+        'data' => ['amount_cents' => $amount, 'currency' => 'MXN', 'payment_provider' => 'concurrency-test',
+            'payment_reference' => $key.'-external', 'recipient_reference' => 'concurrency-test-recipient',
+            'paid_at' => now()->toISOString(), 'reason' => 'Liquidacion exclusiva de prueba concurrente']];
+}
+
+function oneWinner(array $results): void
+{
+    becaAssert(count(array_filter($results, fn($r) => $r['status'] === 'OK')) === 1
+        && count(array_filter($results, fn($r) => $r['status'] === 'CONFLICT')) === 1,
+        'Se esperaba exactamente una operacion aprobada y un rechazo.');
+}
+
+function obligationState(array $f, array $payment, int $refunded, int $settled, int $reserved): void
+{
+    $sql = DB::connection('sqlsrv');
+    $debt = $sql->table('institutional_bonus_obligations')->where('public_id', $payment['obligation_id'])->first();
+    $pending = (int)$sql->table('purchase_refund_requests')->where('purchase_payment_id', $payment['purchase_payment_id'])
+        ->whereIn('status', ['PENDIENTE','APROBADA'])->sum('total_amount_cents');
+    becaAssert($debt && (int)$debt->amount_cents === 1000 && (int)$debt->refunded_amount_cents === $refunded
+        && (int)$debt->settled_amount_cents === $settled && $pending === $reserved
+        && $refunded + $settled + $reserved <= 1000, 'Importe devuelto, liquidado o reservado inconsistente.');
+    $refundEvidence = (int)$sql->table('institutional_bonus_refunds')->where('obligation_id', $payment['obligation_id'])->sum('amount_cents');
+    $settlementEvidence = (int)$sql->table('institutional_bonus_settlements')->where('obligation_id', $payment['obligation_id'])->sum('amount_cents');
+    becaAssert($refundEvidence === $refunded && $settlementEvidence === $settled, 'Los contadores no coinciden con su evidencia.');
+}
+
+function race(array $f, array $jobs, string $directory, bool $sameKey, ?string $paymentGate = null): array
 {
     $sql = DB::connection('sqlsrv'); $processes = []; $dirs = []; $ready = [];
     $sql->beginTransaction();
     try {
-        // A real UPDLOCK/HOLDLOCK is held by the parent connection while children begin.
-        $sql->table('institutional_bonus_budgets')->where('public_id', $f['budget'])->lockForUpdate()->first();
+        // Pick the row both services lock. Refund reservations do not acquire a budget lock.
+        $gateTable = $paymentGate === null ? 'institutional_bonus_budgets' : 'purchase_payments';
+        $sql->table($gateTable)->where('public_id', $paymentGate ?? $f['budget'])->lockForUpdate()->first();
         foreach ($jobs as $i => $job) {
             $d = $directory.'-'.$i; mkdir($d, 0700, true); $token = bin2hex(random_bytes(16));
             file_put_contents($d.'/owner', $token); $dirs[] = $d;
             $p = new Process([PHP_BINARY, __DIR__.'/worker.php'], base_path(), null,
-                json_encode($job + ['directory' => $d, 'token' => $token], JSON_THROW_ON_ERROR), 55);
+                json_encode($job + ['directory' => $d, 'token' => $token, 'gate_table' => $gateTable], JSON_THROW_ON_ERROR), 55);
             $processes[] = $p; $p->start();
         }
         becaWait(function () use ($dirs, $processes) {
