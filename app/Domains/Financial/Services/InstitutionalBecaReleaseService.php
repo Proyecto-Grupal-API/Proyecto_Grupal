@@ -62,6 +62,8 @@ final class InstitutionalBecaReleaseService
                 app(InstitutionalBudgetIntegrity::class)->assertState($budget);
                 $bonus = Bonus::where('public_id', $bonusId)->lockForUpdate()->first();
                 if (!$budget || !$bonus) throw new ConflictHttpException('Bono o presupuesto no disponibles.');
+                if (!$this->authority->allows($actor,$expiry?'budget.expire':'budget.release',$budgetId)
+                    || (!$expiry && !$this->access->allows($actor,'bonus.cancel'))) throw new AuthorizationException();
                 $link = $this->integrity->assertState($budget,$bonus);
                 $existing = InstitutionalBudgetOperation::where('idempotency_key', $key)->first();
                 if ($existing) {

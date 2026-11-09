@@ -97,9 +97,10 @@ final class InstitutionalBudgetService
         if ($version < 1) throw new InvalidArgumentException('La version esperada debe ser positiva.');
         $data['reason'] = $this->text($data['reason'], 'reason', 1000);
         $data['expected_version'] = $version;
-        return $this->run($actor, $action, $budgetId, $data, $key, function () use ($budgetId, $version, $mutate) {
+        return $this->run($actor, $action, $budgetId, $data, $key, function () use ($actor, $action, $budgetId, $version, $mutate) {
             $row = InstitutionalBonusBudget::where('public_id', $budgetId)->lockForUpdate()->first();
             if (!$row) throw new ConflictHttpException('Presupuesto no disponible.');
+            $this->revalidate($actor,$action,$budgetId);
             app(InstitutionalBudgetIntegrity::class)->assertState($row);
             if ($row->version !== $version) throw new ConflictHttpException('El presupuesto cambio. Recarga su version.');
             $before = $this->snapshot($row); $mutate($row);
@@ -123,9 +124,11 @@ final class InstitutionalBudgetService
                 if ($existing) {
                     if (!hash_equals($existing->request_hash, $hash)) throw new ConflictHttpException('Llave reutilizada con otros datos o actor.');
                     $current = InstitutionalBonusBudget::where('public_id', $existing->budget_id)->lockForUpdate()->firstOrFail();
+                    $this->revalidate($actor,$action,strtolower($current->public_id));
                     app(InstitutionalBudgetIntegrity::class)->assertState($current);
                     return ['operation' => $existing, 'replayed' => true];
                 }
+                if ($action === 'APPROVE') $this->revalidate($actor,$action,null);
                 [$row, $before] = $work(); $this->locks->assertOwned($lockKey, $token, 180);
                 $operation = InstitutionalBudgetOperation::create([
                     'public_id' => (string) Str::uuid(), 'budget_id' => $row->public_id, 'action' => $action,
@@ -142,6 +145,12 @@ final class InstitutionalBudgetService
             }
             throw $e;
         } finally { $this->locks->release($lockKey, $token); }
+    }
+
+    private function revalidate(string $actor,string $action,?string $budgetId): void
+    {
+        $permission=match($action){'APPROVE'=>'budget.approve','ADJUST'=>'budget.adjust','SUSPEND'=>'budget.suspend','RESUME'=>'budget.resume'};
+        $this->authorize($actor,$permission,$action==='APPROVE'?null:$budgetId);
     }
 
     private function authorize(string $actor, string $action, ?string $budgetId = null): void

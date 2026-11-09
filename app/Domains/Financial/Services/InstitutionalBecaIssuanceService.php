@@ -57,6 +57,8 @@ final class InstitutionalBecaIssuanceService
                 $hash, $start, $end, $audit, $lockKey, $token, $award) {
                 $budget = InstitutionalBonusBudget::where('public_id', $budgetId)->lockForUpdate()->first();
                 if (!$budget) throw new ConflictHttpException('Presupuesto no disponible.');
+                if (!$this->authority->allows($actor,'budget.commit',$budgetId)
+                    || !$this->access->allows($actor,'bonus.issue')) throw new AuthorizationException();
                 app(InstitutionalBudgetIntegrity::class)->assertState($budget);
                 $existing = InstitutionalBudgetOperation::where('idempotency_key', $key)->first();
                 if ($existing) {
