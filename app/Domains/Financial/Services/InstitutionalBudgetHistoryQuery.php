@@ -38,10 +38,27 @@ final class InstitutionalBudgetHistoryQuery
             if(!isset($after[$key]))$valid=false;
         }
         $beforeSnapshot=$this->snapshot($before,$valid);$afterSnapshot=$this->snapshot($after,$valid);
+        $settlement=null;
+        if($op->action==='SETTLE_BECA') {
+            $obligation=$refs['obligation_id']??null;if($obligation===null)$valid=false;
+            $settlement=['obligation_id'=>$obligation,
+                'paid_amount_cents'=>$this->settlementAmount($after,'settled_delta_cents',$valid,true),
+                'before'=>['settled_amount_cents'=>$this->settlementAmount($before,'settled_amount_cents',$valid),
+                    'unpaid_amount_cents'=>$this->settlementAmount($before,'unpaid_amount_cents',$valid)],
+                'after'=>['settled_amount_cents'=>$this->settlementAmount($after,'settled_amount_cents',$valid),
+                    'unpaid_amount_cents'=>$this->settlementAmount($after,'unpaid_amount_cents',$valid)]];
+        }
         return ['operation_id'=>strtolower($op->public_id),'action'=>in_array($op->action,self::ACTIONS,true)?$op->action:'UNKNOWN',
             'created_at'=>$op->created_at?->toISOString(),'reason'=>is_string($op->reason)?$op->reason:'',
             'before'=>$beforeSnapshot,'after'=>$afterSnapshot,'references'=>$refs,
-            'recorded_fields_valid'=>$valid];
+            'settlement'=>$settlement,'recorded_fields_valid'=>$valid];
+    }
+    private function settlementAmount(array $data,string $key,bool &$valid,bool $positive=false): ?string
+    {
+        $v=$data[$key]??null;
+        if((is_int($v)||is_string($v))&&preg_match('/\A(?:0|[1-9][0-9]{0,37})\z/',(string)$v)
+            && (!$positive||(string)$v!=='0'))return (string)$v;
+        $valid=false;return null;
     }
     private function snapshot(array $data,bool &$valid): array
     {
