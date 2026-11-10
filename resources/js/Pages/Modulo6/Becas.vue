@@ -8,15 +8,17 @@ import PanelLateral from "@/Components/Panellateral.vue";
 const page = usePage();
 const puedeGestionar = computed(() => page.props.auth.capacidades_comunidad?.includes("becas.gestionar"));
 const puedeRevisar = computed(() => page.props.auth.capacidades_comunidad?.includes("becas.revisar") || page.props.auth.comite_becas);
+const puedeAvalar = computed(() => page.props.auth.tesoreria_becas);
 const comiteSeleccionado = ref(null);
 async function comiteGuardado() {
     comiteSeleccionado.value = null;
     await cargar();
     aviso.value = "Comité guardado. Sus integrantes ya pueden revisar esta convocatoria.";
 }
-const modo = ref(puedeGestionar.value || puedeRevisar.value ? "gestion" : "catalogo");
+const modo = ref(puedeGestionar.value || puedeRevisar.value ? "gestion" : puedeAvalar.value ? "tesoreria" : "catalogo");
 const datos = ref(null),
     mias = ref(null),
+    avales = ref(null),
     lista = ref(null),
     seleccionada = ref(null),
     cargando = ref(false),
@@ -62,7 +64,9 @@ async function cargar(p = 1) {
     cargando.value = true;
     error.value = "";
     try {
-        if (modo.value === "mias")
+        if (modo.value === "tesoreria")
+            avales.value = (await axios.get("/api/becas/tesoreria", { params: { page: p } })).data;
+        else if (modo.value === "mias")
             mias.value = (
                 await axios.get("/api/becas/mis-solicitudes", {
                     params: { page: p },
@@ -92,6 +96,14 @@ function cambiar(m) {
     aviso.value = "";
     cargar();
 }
+function avalar(solicitud) {
+    if (!confirm(`¿Avalar ${dinero(solicitud.monto_centavos)} para el folio ${solicitud.folio}?`)) return;
+    ejecutar(() => axios.post(`/api/becas/solicitudes/${solicitud.id}/aval-tesoreria`, {
+        presupuesto_id: solicitud.presupuesto_id,
+        monto_centavos: solicitud.monto_centavos,
+        huella_dictamen: solicitud.huella_dictamen,
+    }));
+}
 async function ejecutar(fn) {
     if (ocupado.value) return;
     ocupado.value = true;
@@ -101,7 +113,7 @@ async function ejecutar(fn) {
         const { data } = await fn();
         aviso.value = data.message;
         panel.value = false;
-        await cargar();
+        await cargar(modo.value === "tesoreria" ? avales.value?.page : 1);
         if (seleccionada.value)
             await verSolicitudes(seleccionada.value, lista.value?.page ?? 1);
         return data;
@@ -193,7 +205,7 @@ async function verSolicitudes(c, p = 1) {
     }
 }
 const paginado = computed(() =>
-    modo.value === "mias" ? mias.value : datos.value,
+    modo.value === "tesoreria" ? avales.value : modo.value === "mias" ? mias.value : datos.value,
 );
 </script>
 <template>
@@ -224,6 +236,7 @@ const paginado = computed(() =>
                     v-for="tab in [
                         { id: 'catalogo', texto: 'Explorar apoyos' },
                         { id: 'mias', texto: 'Mis solicitudes' },
+                        ...(puedeAvalar ? [{ id: 'tesoreria', texto: 'Avales de Tesorería' }] : []),
                         ...(puedeGestionar || puedeRevisar
                             ? [
                                   {
@@ -259,7 +272,7 @@ const paginado = computed(() =>
                 {{ error }}
             </p>
             <form
-                v-if="modo !== 'mias'"
+                v-if="modo === 'catalogo' || modo === 'gestion'"
                 @submit.prevent="cargar()"
                 class="flex gap-3"
             >
@@ -277,7 +290,37 @@ const paginado = computed(() =>
                 </button>
             </form>
             <p v-if="cargando" role="status">Cargando…</p>
-            <div v-if="modo === 'mias'" class="space-y-3">
+            <section v-if="modo === 'tesoreria'" class="space-y-3" aria-labelledby="avales-titulo">
+                <h2 id="avales-titulo" class="text-lg font-semibold">Presupuesto por solicitud</h2>
+                <article
+                    v-for="s in avales?.solicitudes"
+                    :key="s.id"
+                    class="rounded-xl border bg-white p-5 flex flex-wrap items-center justify-between gap-3"
+                >
+                    <div>
+                        <h3 class="font-semibold">{{ s.convocatoria }} · {{ s.folio }}</h3>
+                        <p v-if="s.monto_centavos !== null">{{ dinero(s.monto_centavos) }}</p>
+                        <p v-if="s.presupuesto_id" class="text-xs break-all text-gray-600">Presupuesto {{ s.presupuesto_id }}</p>
+                    </div>
+                    <p v-if="s.avalada" class="font-semibold text-green-800">Aval registrado</p>
+                    <button
+                        v-else-if="s.puede_avalar"
+                        type="button"
+                        :disabled="ocupado"
+                        @click="avalar(s)"
+                        class="rounded-lg bg-blue-900 text-white px-4 py-2 disabled:opacity-50"
+                    >
+                        Avalar presupuesto
+                    </button>
+                    <p v-else class="text-gray-600">
+                        {{ s.presupuesto_id ? 'Requiere revisión' : 'Presupuesto sin configurar' }}
+                    </p>
+                </article>
+                <p v-if="avales && !avales.solicitudes.length" class="rounded-xl border bg-white p-5">
+                    No hay solicitudes confirmadas por Presidencia pendientes de emisión.
+                </p>
+            </section>
+            <div v-else-if="modo === 'mias'" class="space-y-3">
                 <article
                     v-for="s in mias?.solicitudes"
                     :key="s.id"

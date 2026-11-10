@@ -71,6 +71,7 @@ Route::get('/estudiante/boletos', [EventoController::class, 'boletos']);
 Route::get('/estudiante/mi-boleto', [EventoController::class, 'miBoleto']);
 Route::get('/becas', [BecaController::class, 'index']);
 Route::post('/becas', [BecaController::class, 'store']);
+Route::get('/becas/tesoreria', [BecaController::class, 'tesoreria']);
 Route::get('/becas/mis-solicitudes', [BecaController::class, 'misSolicitudes']);
 Route::prefix('becas/solicitudes/{id}')->where(['id' => '[a-fA-F0-9]{24}'])->group(function () {
     Route::get('/', [BecaController::class, 'showSolicitud']);
@@ -80,6 +81,8 @@ Route::prefix('becas/solicitudes/{id}')->where(['id' => '[a-fA-F0-9]{24}'])->gro
     Route::get('/documentos/{documento}', [BecaController::class, 'descargarDocumento'])->whereUuid('documento');
     Route::delete('/documentos/{documento}', [BecaController::class, 'eliminarDocumento'])->whereUuid('documento');
     Route::post('/dictamen', [BecaController::class, 'dictaminar']);
+    Route::post('/confirmacion-presidencia', [BecaController::class, 'confirmarPresidencia'])->middleware('throttle:30,1');
+    Route::post('/aval-tesoreria', [BecaController::class, 'avalarPresupuesto'])->middleware('throttle:30,1');
     Route::put('/recomendacion', [BecaController::class, 'recomendar'])->middleware('throttle:30,1');
     Route::get('/contrato', [BecaController::class, 'contrato']);
 });

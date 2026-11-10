@@ -5,13 +5,16 @@ namespace Tests\Feature;
 use App\Models\AsignacionBeneficio;
 use App\Models\AuditoriaComunidad;
 use App\Models\ConvocatoriaBeca;
+use App\Models\MiembroOrganizacion;
 use App\Models\Organizacion;
+use App\Models\RolOrganizacion;
 use App\Models\SolicitudBeca;
 use App\Models\TipoBeneficio;
 use App\Models\User;
 use Database\Seeders\BecaSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\RefreshMongoDatabase;
 use Tests\TestCase;
@@ -199,6 +202,42 @@ class BecasTest extends TestCase
         $this->getJson("/api/becas/solicitudes/$s->id/contrato")->assertOk()->assertJsonPath('contrato.clave_idempotencia', 'beca:'.$s->id);
         $this->actingAs($this->alumno)->getJson("/api/becas/solicitudes/$s->id")->assertJsonPath('beneficio.estado', 'pendiente_integracion');
         $this->getJson("/api/becas/solicitudes/$s->id/contrato")->assertForbidden();
+    }
+
+    public function test_treasury_requires_presidency_and_the_exact_mapped_budget_and_amount(): void
+    {
+        $call = $this->convocatoria();
+        $solicitud = $this->solicitar($call);
+        $this->cerrar($call);
+        $this->decidir($solicitud)->assertOk();
+        $budget = (string) Str::uuid();
+        config(['becas_finanzas.enabled' => true, 'becas_finanzas.convocatorias' => [
+            $call->id => ['organization_id' => $call->organizacion_id, 'budget_id' => $budget, 'business_id' => 'LAB-BECA'],
+        ]]);
+        $org = ['organizacion_id' => $call->organizacion_id, 'usuario_id' => (string) $this->andrea->id, 'fecha_inicio' => now()->subDay()];
+        MiembroOrganizacion::firstOrCreate(['organizacion_id' => $org['organizacion_id'], 'usuario_id' => $org['usuario_id']], [...$org, 'estado' => 'activo']);
+        $role = RolOrganizacion::create([...$org, 'slug_rol' => 'tesoreria', 'fecha_fin' => now()->subDay()]);
+        $prefix = '/api/becas/solicitudes/'.$solicitud->id;
+        $this->actingAs($this->andrea)->withSession(['organizacion_id' => $call->organizacion_id])
+            ->getJson('/api/becas/tesoreria')->assertForbidden();
+        $role->update(['fecha_fin' => null]);
+        $this->postJson($prefix.'/confirmacion-presidencia')->assertForbidden();
+        $this->getJson('/api/becas/tesoreria')->assertOk()->assertJsonCount(0, 'solicitudes');
+        $this->actingAs($this->admin)->postJson($prefix.'/confirmacion-presidencia')->assertOk();
+        $this->getJson('/api/becas/tesoreria')->assertForbidden();
+        $row = $this->actingAs($this->andrea)->getJson('/api/becas/tesoreria')->assertOk()
+            ->assertJsonPath('solicitudes.0.puede_avalar', true)->json('solicitudes.0');
+        $this->getJson($prefix)->assertForbidden();
+        $input = array_intersect_key($row, array_flip(['presupuesto_id', 'monto_centavos', 'huella_dictamen']));
+        $this->postJson($prefix.'/aval-tesoreria', [...$input, 'monto_centavos' => 1])->assertConflict();
+        $this->postJson($prefix.'/aval-tesoreria', [...$input, 'presupuesto_id' => (string) Str::uuid()])->assertConflict();
+        $this->postJson($prefix.'/aval-tesoreria', $input)->assertOk();
+        $this->postJson($prefix.'/aval-tesoreria', $input)->assertOk();
+        $award = AsignacionBeneficio::where('solicitud_id', (string) $solicitud->id)->sole();
+        $this->assertSame($budget, $award->aval_tesoreria['presupuesto_id']);
+        $this->assertSame((string) $this->andrea->id, $award->aval_tesoreria['tesoreria_id']);
+        $this->assertSame(1, AuditoriaComunidad::where('entidad_id', (string) $solicitud->id)
+            ->where('accion', 'beca_presupuesto_avalado')->count());
     }
 
     public function test_retry_recovers_missing_assignment_without_consuming_another_slot(): void

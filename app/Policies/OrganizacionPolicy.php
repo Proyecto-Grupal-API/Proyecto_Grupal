@@ -30,6 +30,13 @@ class OrganizacionPolicy
             ->where('slug_rol', 'presidencia')->exists();
     }
 
+    public function avalarPresupuestoBeca(User $user, Organizacion $organizacion): bool
+    {
+        return config('becas_finanzas.enabled') === true && $this->view($user, $organizacion)
+            && RolOrganizacion::vigentes()->where('organizacion_id', (string) $organizacion->id)
+                ->where('usuario_id', (string) $user->id)->where('slug_rol', 'tesoreria')->exists();
+    }
+
     public function comunicar(User $user, Organizacion $organizacion): bool
     {
         return app(PermisosComunidad::class)->permite($user, $organizacion, 'comunicacion.gestionar');

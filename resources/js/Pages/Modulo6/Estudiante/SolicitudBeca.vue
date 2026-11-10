@@ -110,6 +110,10 @@ function retirar() {
             axios.post(`/api/becas/solicitudes/${props.solicitudId}/retirar`),
         );
 }
+function confirmarPresidencia() {
+    if (!confirm("¿Confirmar este dictamen para que Tesorería revise el presupuesto?")) return;
+    ejecutar(() => axios.post(`/api/becas/solicitudes/${props.solicitudId}/confirmacion-presidencia`));
+}
 function dictaminar() {
     if (
         !confirm(
@@ -372,6 +376,13 @@ function dictaminar() {
                         Retirar solicitud
                     </button>
                 </div>
+                <section v-if="datos.puede_confirmar_presidencia" class="rounded-xl border bg-white p-5 space-y-3">
+                    <h2 class="text-lg font-semibold">Confirmación de Presidencia</h2>
+                    <p class="text-sm text-gray-600">Confirma el dictamen aprobado para que Tesorería revise el presupuesto de esta solicitud.</p>
+                    <button type="button" :disabled="ocupado" @click="confirmarPresidencia" class="rounded-lg bg-blue-900 text-white px-4 py-2 disabled:opacity-50">
+                        Confirmar dictamen
+                    </button>
+                </section>
                 <RevisionComiteBeca v-if="datos.comite_revision" :revision="datos.comite_revision" :solicitud-id="solicitudId" :organizacion-id="datos.convocatoria.organizacion_id" @saved="cargar" />
                 <section
                     v-if="datos.puede_dictaminar"

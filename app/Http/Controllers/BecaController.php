@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\BeneficiosBeca;
 use App\Services\ComiteBecas;
 use App\Services\ResponsabilidadesComunidad;
+use App\Support\BecaFinanceContract;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -143,7 +144,8 @@ class BecaController extends Controller
         $c = ConvocatoriaBeca::findOrFail($s->convocatoria_id);
         $propia = $this->autorizarSolicitud($r, $s, $c);
 
-        $award = ($propia || app(ComiteBecas::class)->puedeDictaminar($r->user(), $c))
+        $presidencia = ! $propia && Gate::allows('update', Organizacion::findOrFail($c->organizacion_id));
+        $award = ($propia || $presidencia || app(ComiteBecas::class)->puedeDictaminar($r->user(), $c))
             ? AsignacionBeneficio::where('solicitud_id', $id)->first() : null;
         $reference = config('becas_finanzas.enabled') === true && ($award?->contrato['tipo'] ?? null) === 'bono'
             ? $award->contrato['clave_idempotencia'] : null;
@@ -154,6 +156,8 @@ class BecaController extends Controller
             'puede_dictaminar' => ! $propia && app(ComiteBecas::class)->puedeDictaminar($r->user(), $c) && $this->revisionAbierta($c) && in_array($s->estado, ['pendiente', 'en_revision']),
             'comite_revision' => ! $propia ? app(ComiteBecas::class)->resumen($r->user(), $s, $c) : null,
             'beneficio' => $award?->only(['id', 'estado', 'recibo_servicios', 'recibo_finanzas', 'error_integracion']),
+            'puede_confirmar_presidencia' => $presidencia && $reference !== null && $s->estado === 'aprobada'
+                && $award->estado === 'pendiente_integracion' && $award->aprobacion_presidencia === null,
             'referencia_bono' => $reference])->header('Cache-Control', 'private, no-store');
     }
 
@@ -292,11 +296,113 @@ class BecaController extends Controller
             $s->update(['estado' => $d['estado'], 'dictamen' => ['motivo' => $d['motivo']], 'dictaminado_en' => now(), 'dictaminado_por' => (string) $r->user()->id, 'dictamen_comite' => $evidencia]);
             $this->auditar($r, $c, 'beca_dictamen', $s->id, $antes, [...$this->resumen($s), 'dictamen_comite' => $evidencia]);
             if ($s->estado === 'aprobada') {
-                app(BeneficiosBeca::class)->preparar($s, $c);
+                $award = app(BeneficiosBeca::class)->preparar($s, $c);
+                if (config('becas_finanzas.enabled') === true && $this->bonoFinanciero($award)
+                    && Gate::allows('update', Organizacion::findOrFail($c->organizacion_id))) {
+                    $this->registrarPresidencia($r, $s, $c, $award);
+                }
             }
 
             return response()->json(['message' => $s->estado === 'aprobada' ? 'Solicitud aprobada. La entrega del beneficio está pendiente.' : 'Dictamen guardado.']);
         })));
+    }
+
+    public function confirmarPresidencia(Request $r, string $id)
+    {
+        abort_unless(config('becas_finanzas.enabled') === true, 404);
+
+        return app(ResponsabilidadesComunidad::class)->ejecutar(fn () => $this->conSolicitud($r, $id, 'update',
+            fn ($s, $c) => DB::connection('mongodb')->transaction(function () use ($r, $s, $c) {
+                abort_if((string) $s->usuario_id === (string) $r->user()->id, 403);
+                abort_unless($s->estado === 'aprobada', 409, 'La solicitud requiere un dictamen aprobado.');
+                $award = AsignacionBeneficio::where('solicitud_id', (string) $s->id)->firstOrFail();
+                abort_unless($this->bonoFinanciero($award) && $award->estado === 'pendiente_integracion', 409);
+                $this->registrarPresidencia($r, $s, $c, $award);
+
+                return response()->json(['message' => 'Presidencia confirmó el dictamen.']);
+            })));
+    }
+
+    public function tesoreria(Request $r)
+    {
+        $org = $this->organizacion($r, 'avalarPresupuestoBeca');
+        $r->validate(['page' => ['nullable', 'integer', 'min:1']]);
+        $pendientes = AsignacionBeneficio::where('organizacion_id', (string) $org->id)
+            ->where('estado', 'pendiente_integracion')->where('contrato.equipo_destino', 2)
+            ->where('contrato.tipo', 'bono')->whereNotNull('aprobacion_presidencia.actor_id')
+            ->where('usuario_id', '!=', (string) $r->user()->id)
+            ->orderBy('_id')->paginate(20);
+        $convocatorias = ConvocatoriaBeca::whereIn('_id', $pendientes->getCollection()->pluck('convocatoria_id'))->pluck('titulo', 'id');
+
+        return response()->json([
+            'solicitudes' => $pendientes->getCollection()->map(function (AsignacionBeneficio $award) use ($convocatorias, $r) {
+                $snapshot = BecaFinanceContract::snapshot($award->contrato, (string) $award->solicitud_id);
+                $mapping = $snapshot ? BecaFinanceContract::budgetMapping($snapshot) : null;
+                $presidencia = $award->aprobacion_presidencia;
+                $huella = $snapshot ? BecaFinanceContract::fingerprint($snapshot) : null;
+                $aprobada = $mapping && BecaFinanceContract::treasuryApprovalMatches($award->aval_tesoreria, $snapshot, $mapping['budget_id']);
+
+                return ['id' => $award->solicitud_id, 'folio' => $award->contrato['folio'] ?? null,
+                    'convocatoria' => $convocatorias->get($award->convocatoria_id), 'presupuesto_id' => $mapping['budget_id'] ?? null,
+                    'monto_centavos' => $snapshot['monto_centavos'] ?? null, 'huella_dictamen' => $huella, 'avalada' => $aprobada,
+                    'puede_avalar' => $mapping && ! $aprobada && $presidencia['huella_dictamen'] === $huella
+                        && $presidencia['actor_id'] !== (string) $r->user()->id];
+            }),
+            'page' => $pendientes->currentPage(), 'last_page' => $pendientes->lastPage(),
+        ])->header('Cache-Control', 'private, no-store');
+    }
+
+    public function avalarPresupuesto(Request $r, string $id)
+    {
+        $d = $r->validate(['presupuesto_id' => ['required', 'uuid'], 'monto_centavos' => ['required', 'integer'],
+            'huella_dictamen' => ['required', 'regex:/\A[0-9a-f]{64}\z/']]);
+
+        return app(ResponsabilidadesComunidad::class)->ejecutar(fn () => $this->conSolicitud($r, $id, 'avalarPresupuestoBeca',
+            fn ($s, $c) => DB::connection('mongodb')->transaction(function () use ($r, $s, $c, $d) {
+                $actor = (string) $r->user()->id;
+                abort_if((string) $s->usuario_id === $actor, 403);
+                abort_unless($s->estado === 'aprobada', 409, 'La solicitud requiere un dictamen aprobado.');
+                $award = AsignacionBeneficio::where('solicitud_id', (string) $s->id)->firstOrFail();
+                $snapshot = $this->bonoFinanciero($award) ? BecaFinanceContract::snapshot($award->contrato, (string) $s->id) : null;
+                abort_unless($snapshot && $snapshot['organizacion_id'] === (string) $c->organizacion_id
+                    && $snapshot['convocatoria_id'] === (string) $c->id && $snapshot['beneficiario_id'] === $s->usuario_id, 409);
+                $huella = BecaFinanceContract::fingerprint($snapshot);
+                $presidencia = $award->aprobacion_presidencia;
+                abort_unless(($presidencia['huella_dictamen'] ?? null) === $huella, 409, 'Presidencia debe confirmar el dictamen.');
+                abort_if($presidencia['actor_id'] === $actor, 403, 'El dictamen y el aval requieren dos personas distintas.');
+                $budget = BecaFinanceContract::budgetMapping($snapshot)['budget_id'] ?? null;
+                abort_unless($budget === strtolower($d['presupuesto_id']) && $snapshot['monto_centavos'] === (int) $d['monto_centavos']
+                    && $huella === $d['huella_dictamen'], 409, 'Cambió el dictamen o el presupuesto. Vuelve a revisar.');
+                $antes = $award->aval_tesoreria;
+                if (! BecaFinanceContract::treasuryApprovalMatches($antes, $snapshot, $budget)) {
+                    abort_unless($award->estado === 'pendiente_integracion', 409);
+                    $aval = ['presidencia_id' => $presidencia['actor_id'], 'tesoreria_id' => $actor,
+                        'presupuesto_id' => $budget, 'monto_centavos' => $snapshot['monto_centavos'],
+                        'huella_dictamen' => $huella, 'avalado_en' => now()->toIso8601String()];
+                    $award->update(['aval_tesoreria' => $aval]);
+                    $this->auditar($r, $c, 'beca_presupuesto_avalado', (string) $s->id, $antes, $aval);
+                }
+
+                return response()->json(['message' => 'El aval de Tesorería está registrado.']);
+            })));
+    }
+
+    private function registrarPresidencia(Request $r, SolicitudBeca $s, ConvocatoriaBeca $c, AsignacionBeneficio $award): void
+    {
+        if ($award->aprobacion_presidencia !== null) {
+            return;
+        }
+        $snapshot = BecaFinanceContract::snapshot($award->contrato, (string) $s->id);
+        abort_unless($snapshot, 409, 'La asignación del bono no es válida.');
+        $aprobacion = ['actor_id' => (string) $r->user()->id, 'aprobado_en' => now()->toIso8601String(),
+            'huella_dictamen' => BecaFinanceContract::fingerprint($snapshot)];
+        $award->update(['aprobacion_presidencia' => $aprobacion]);
+        $this->auditar($r, $c, 'beca_dictamen_confirmado_presidencia', (string) $s->id, null, $aprobacion);
+    }
+
+    private function bonoFinanciero(AsignacionBeneficio $award): bool
+    {
+        return ($award->contrato['equipo_destino'] ?? null) === 2 && ($award->contrato['tipo'] ?? null) === 'bono';
     }
 
     public function contrato(Request $r, string $id)

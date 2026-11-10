@@ -27,4 +27,4 @@ La integración conserva las migraciones y los defaults seguros. Las bases, cred
 - Tienda tiene un piloto local con un comprador y un negocio. El pago requiere consentimiento del titular y un evento firmado de Finanzas antes de confirmar inventario.
 - Eventos y multas conservan sus contratos y recuperación por referencia. Su habilitación depende de las cuentas receptoras y clientes de cada entorno.
 - Los roles de revisión, ejecución y cargos de mostrador conservan la guarda de asignaciones sintéticas. La activación operativa requiere una autoridad acordada.
-- Para BECA, Presidencia aprueba el dictamen y Tesorería valida el presupuesto por solicitud. El registro de ese aval y la autoridad de emisión y presupuesto siguen pendientes de habilitación.
+- Para BECA, Presidencia aprueba el dictamen y Tesorería valida el presupuesto por solicitud. El aval se registra por solicitud. Para habilitar el piloto con usuarios operativos quedan las designaciones de emisión y presupuesto.

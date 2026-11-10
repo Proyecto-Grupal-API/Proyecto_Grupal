@@ -22,6 +22,6 @@ final class BecaAwardController
         abort_unless(($award->contrato['clave_idempotencia'] ?? null) === BecaFinanceContract::reference($solicitud)
             && in_array($award->estado, ['pendiente_integracion', 'asignada'], true), 409);
 
-        return response()->json(['data' => $data])->header('Cache-Control', 'private, no-store');
+        return response()->json(['data' => [...$data, 'aval_tesoreria' => $award->aval_tesoreria]])->header('Cache-Control', 'private, no-store');
     }
 }

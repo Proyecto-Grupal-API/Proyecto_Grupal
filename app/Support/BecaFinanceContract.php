@@ -4,6 +4,7 @@ namespace App\Support;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 /** Fields shared by the approved award and the receipt from Finanzas. */
 final class BecaFinanceContract
@@ -42,6 +43,35 @@ final class BecaFinanceContract
         ksort($snapshot);
 
         return hash('sha256', json_encode($snapshot, JSON_THROW_ON_ERROR));
+    }
+
+    public static function budgetMapping(array $snapshot): ?array
+    {
+        $mapping = config('becas_finanzas.convocatorias', [])[$snapshot['convocatoria_id']] ?? null;
+        if (! is_array($mapping) || ($mapping['organization_id'] ?? null) !== $snapshot['organizacion_id']
+            || ! Str::isUuid($mapping['budget_id'] ?? null) || ! is_string($mapping['business_id'] ?? null)
+            || ! preg_match('/\A[A-Za-z0-9_-]{1,100}\z/', $mapping['business_id'])) {
+            return null;
+        }
+
+        return ['budget_id' => strtolower($mapping['budget_id']), 'business_id' => $mapping['business_id']];
+    }
+
+    public static function treasuryApprovalMatches(mixed $approval, array $snapshot, string $budgetId): bool
+    {
+        return is_array($approval)
+            && ($approval['presidencia_id'] ?? null) !== ($approval['tesoreria_id'] ?? null)
+            && self::isOtherActor($approval['presidencia_id'] ?? null, $snapshot)
+            && self::isOtherActor($approval['tesoreria_id'] ?? null, $snapshot)
+            && ($approval['monto_centavos'] ?? null) === $snapshot['monto_centavos']
+            && ($approval['presupuesto_id'] ?? null) === $budgetId
+            && ($approval['huella_dictamen'] ?? null) === self::fingerprint($snapshot);
+    }
+
+    private static function isOtherActor(mixed $actor, array $snapshot): bool
+    {
+        return is_string($actor) && $actor !== $snapshot['beneficiario_id']
+            && preg_match('/\A'.self::ID_PATTERN.'\z/', $actor) === 1;
     }
 
     public static function authorizeService(Request $request, string $consumer): void
