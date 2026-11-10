@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers\Financial;
 
-use App\Domains\Financial\Contracts\BonusAuthorizationProvider;
-use App\Domains\Financial\Contracts\FinancialWebAuthorizer;
 use App\Domains\Financial\Contracts\InstitutionalBudgetAuthorization;
 use App\Domains\Financial\Enums\BonusType;
 use App\Domains\Financial\Models\Bonus;
@@ -33,10 +31,9 @@ final class CommunityBecaController
         }
 
         $treasuryActor = $this->treasuryActor($approval, $award, $mapping['budget_id']);
-        abort_unless(app(InstitutionalBudgetAuthorization::class)->allows($treasuryActor, 'budget.commit', $mapping['budget_id']), 403,
-            'Tesorería no tiene una atribución vigente sobre este presupuesto.');
-        abort_unless(app(BonusAuthorizationProvider::class)->canIssueBonus('USER', $actor, BonusType::BECA), 403,
-            'El emisor no tiene autorización para bonos BECA.');
+        abort_unless(app(\App\Services\CouncilBecaWebAuthorization::class)->allows(
+            $actor, $award['organizacion_id'], $mapping['budget_id'], $treasuryActor), 403,
+            'La emisión requiere las atribuciones vigentes y segundo factor reciente.');
         $budget = InstitutionalBonusBudget::where('public_id', $mapping['budget_id'])->firstOrFail();
         abort_unless($budget->status === 'ACTIVE' && $budget->bonus_type === 'BECA' && $budget->currency === 'MXN'
             && now()->gte($budget->valid_from) && now()->lt($budget->expires_at), 409, 'El presupuesto no está vigente.');
@@ -62,6 +59,9 @@ final class CommunityBecaController
         [$award, $mapping, $actor, $approval] = $this->authorizedAward($request, $solicitud);
         $fingerprint = BecaFinanceContract::fingerprint($award);
         $version = (int) $input['budget_version'];
+        $treasuryActor = $this->treasuryActor($approval, $award, $mapping['budget_id']);
+        abort_unless(app(\App\Services\CouncilBecaWebAuthorization::class)->allows(
+            $actor, $award['organizacion_id'], $mapping['budget_id'], $treasuryActor), 403);
         abort_unless(hash_equals($this->reviewToken($consent, $request, $solicitud, $fingerprint, $mapping, $version), $input['review_token']),
             409, 'Vuelve a revisar los datos de la beca.');
 
@@ -71,7 +71,6 @@ final class CommunityBecaController
 
             return $this->response(['receipt' => $receipt, 'replayed' => true]);
         }
-        $treasuryActor = $this->treasuryActor($approval, $award, $mapping['budget_id']);
         $reference = BecaFinanceContract::reference($solicitud);
         $data = [
             'award_reference' => $reference, 'beneficiary_id' => $award['beneficiario_id'],
@@ -85,7 +84,7 @@ final class CommunityBecaController
             $result = $issuance->issue($actor, $mapping['budget_id'], $version, $data, $reference, [
                 'identity_session_id' => $request->session()->get('cd_session_id'),
                 'native_session_hash' => hash('sha256', $request->session()->getId()),
-            ], $fingerprint, $treasuryActor);
+            ], $fingerprint, $treasuryActor, $award['organizacion_id']);
         } catch (InvalidArgumentException $exception) {
             abort(409, $exception->getMessage());
         }
@@ -108,7 +107,6 @@ final class CommunityBecaController
     {
         abort_unless(config('becas_finanzas.enabled') === true, 503);
         $actor = app(InstitutionalBudgetReadAccess::class)->actor($request);
-        abort_unless(app(FinancialWebAuthorizer::class)->allows($actor, 'bonus.issue'), 403);
         try {
             $result = app(ClienteModuloHttp::class)->para('finanzas_becas_e2', BecaFinanceContract::COMMUNITY_SCOPE)
                 ->get('/api/v1/comunidad/becas/'.$id.'/bono');

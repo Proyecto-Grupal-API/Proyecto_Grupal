@@ -21,15 +21,21 @@ use InvalidArgumentException;
 class BonusAdministrationService
 {
     public function __construct(private readonly BonusService $bonuses, private readonly FinancialWebAuthorizer $access,
-        private readonly BonusAuthorizationProvider $issuers, private readonly FinancialJobLock $locks) {}
+        private readonly BonusAuthorizationProvider $issuers, private readonly FinancialJobLock $locks,
+        private readonly \App\Services\CouncilBecaWebAuthorization $councilWeb) {}
 
-    public function issue(string $userId, array $data, string $key, ?array $audit = null): array
+    public function issue(string $userId, array $data, string $key, ?array $audit = null, ?\App\Domains\Financial\Data\BonusIssuerContext $trustedContext = null, ?string $trustedBudget = null, ?string $trustedTreasury = null): array
     {
-        $this->authorize($userId, 'bonus.issue');
+        if ($trustedContext === null) $this->authorize($userId, 'bonus.issue');
         $data = BonusIssuanceInput::validate($data);
         $this->validateKeyAndReason($key, $data['reason']);
         $type = BonusType::from($data['type']);
-        $context = null;
+        $context = $trustedContext;
+        if ($context !== null && ($type !== BonusType::BECA || $context->scopeType !== 'council'
+            || ! preg_match('/\A[0-9a-f]{24}\z/', (string) $context->scopeId))) {
+            throw new InvalidArgumentException('Sólo el flujo interno BECA admite el Consejo acreditado.');
+        }
+        if ($context !== null) $this->authorizeCouncil($userId, $context, $trustedBudget, $trustedTreasury);
         $start = CarbonImmutable::parse($data['valid_from'])->setTimezone(config('app.timezone', 'UTC'));
         $end = CarbonImmutable::parse($data['expires_at'])->setTimezone(config('app.timezone', 'UTC'));
         $restrictions = collect($data['restrictions'] ?? [])->map(fn ($row) => [
@@ -43,11 +49,14 @@ class BonusAdministrationService
             'restrictions' => $restrictions, 'reason' => trim($data['reason']), ...($context?->toArray() ?? [])];
 
         $this->validateEmission($userId, $payload, $type, $start, $end);
-        if (! $this->issuers->canIssueBonus('USER', $userId, $type)) {
+        if (! ($context === null ? $this->issuers->canIssueBonus('USER', $userId, $type)
+            : ($this->issuers instanceof \App\Domains\Financial\Contracts\ContextualBonusAuthorizationProvider
+                && $this->issuers->canIssueInContext('USER', $userId, $type, $context)))) {
             throw new AuthorizationException('El emisor no tiene autorización para este tipo de bono.');
         }
 
-        return $this->run($userId, 'ISSUE', $payload, $key, function () use ($userId, $payload, $type, $start, $end, $context) {
+        return $this->run($userId, 'ISSUE', $payload, $key, function () use ($userId, $payload, $type, $start, $end, $context, $trustedBudget, $trustedTreasury) {
+            if ($context !== null) $this->authorizeCouncil($userId, $context, $trustedBudget, $trustedTreasury);
             $this->validateEmission($userId, $payload, $type, $start, $end);
             if ($context?->scopeType === 'business') {
                 $businesses = array_column(array_filter($payload['restrictions'], fn ($r) => $r['type'] === 'NEGOCIO'), 'target_id');
@@ -149,6 +158,15 @@ class BonusAdministrationService
             });
         } finally {
             $this->locks->release($lockKey, $token);
+        }
+    }
+
+    private function authorizeCouncil(string $actor, \App\Domains\Financial\Data\BonusIssuerContext $context,
+        ?string $budget, ?string $treasury): void
+    {
+        if ($context->scopeType !== 'council' || $budget === null || $treasury === null
+            || ! $this->councilWeb->allows($actor, $context->scopeId, $budget, $treasury)) {
+            throw new AuthorizationException('La emisión BECA requiere autorización web contextual vigente.');
         }
     }
 
