@@ -4,6 +4,7 @@ namespace App\Services\StudentServices\Support;
 
 use App\Models\StudentServices\Support\SupportTicket;
 use App\Models\StudentServices\Support\TicketEvent;
+use App\Services\StudentServices\Audit\ServiceAuditor;
 use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -466,6 +467,76 @@ class SupportTicketService
             'closed' => 'El ticket fue cerrado.',
 
             default => 'El estado del ticket fue actualizado.',
+        };
+    }
+
+    public function escalateOverdue(?CarbonInterface $now = null): int
+    {
+        $now ??= now();
+        $escalated = 0;
+
+        $overdue = SupportTicket::query()
+            ->whereIn('status', ['open', 'assigned', 'in_progress'])
+            ->where('sla_due_at', '<=', $now)
+            ->whereNull('sla_escalated_at');
+
+        foreach ((clone $overdue)->cursor() as $ticket) {
+            $from = (string) $ticket->priority;
+            $to = match ($from) {
+                'low' => 'medium',
+                'medium' => 'high',
+                'high', 'critical' => 'critical',
+                default => $from,
+            };
+            $message = $from === $to
+                ? 'Venció el SLA; el ticket conserva su prioridad.'
+                : "Venció el SLA; prioridad {$this->priorityLabel($from)} → {$this->priorityLabel($to)}.";
+
+            $recorded = $ticket->getConnection()->transaction(function () use ($overdue, $ticket, $now, $from, $to, $message) {
+                $updated = (clone $overdue)
+                    ->whereKey($ticket->getKey())
+                    ->where('priority', $from)
+                    ->where('status', $ticket->status)
+                    ->update([
+                        'sla_escalated_at' => $now,
+                        'priority_before_escalation' => $from,
+                        'priority' => $to,
+                    ]);
+
+                if ($updated !== 1) {
+                    return false;
+                }
+
+                $this->registerEvent($ticket, 'sla_escalated', $ticket->status, $ticket->status, 'system', $message);
+
+                return true;
+            }, 3);
+
+            if ($recorded) {
+                app(ServiceAuditor::class)->record(
+                    'support.ticket.sla_escalated',
+                    'support_ticket',
+                    (string) $ticket->id,
+                    ['priority' => $from, 'sla_due_at' => $ticket->sla_due_at?->toIso8601String()],
+                    ['priority' => $to, 'sla_escalated_at' => $now->toIso8601String()],
+                    $message,
+                    'system',
+                );
+                $escalated++;
+            }
+        }
+
+        return $escalated;
+    }
+
+    private function priorityLabel(string $priority): string
+    {
+        return match ($priority) {
+            'low' => 'baja',
+            'medium' => 'media',
+            'high' => 'alta',
+            'critical' => 'crítica',
+            default => $priority,
         };
     }
 

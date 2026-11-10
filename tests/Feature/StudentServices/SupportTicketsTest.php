@@ -95,3 +95,53 @@ test('a student can comment and cancel only an open ticket', function () {
         ->patch("/servicios-estudiante/soporte/{$ticket->id}/asignar", ['assigned_to' => 'agente-redes'])
         ->assertSessionHasErrors('ticket');
 });
+
+test('an overdue ticket is escalated once by the SLA review and the history shows it', function () {
+    openTicket($this->student, 'medium');
+    openTicket($this->student, 'low', ['subject' => 'Impresora del piso 2 sin tóner']);
+    // Se crean en el mismo instante: se ubican por asunto.
+    $ticket = SupportTicket::where('subject', 'Sin internet en el laboratorio')->firstOrFail();
+    $onTime = SupportTicket::where('subject', 'Impresora del piso 2 sin tóner')->firstOrFail();
+
+    // Antes del vencimiento no pasa nada.
+    $this->artisan('servicios:revisar-sla')->assertSuccessful();
+    expect($ticket->fresh()->sla_escalated_at)->toBeNull();
+
+    $this->travel(25)->hours();
+    $this->artisan('servicios:revisar-sla')->assertSuccessful();
+
+    $ticket->refresh();
+    expect($ticket->priority)->toBe('high')
+        ->and($ticket->priority_before_escalation)->toBe('medium')
+        ->and($ticket->sla_escalated_at)->not->toBeNull()
+        ->and($onTime->fresh()->priority)->toBe('low')
+        ->and(TicketEvent::where('ticket_id', new ObjectId((string) $ticket->id))->where('event_type', 'sla_escalated')->count())->toBe(1)
+        ->and(App\Models\StudentServices\Audit\ServiceAuditLog::where('action', 'support.ticket.sla_escalated')->where('entity_id', (string) $ticket->id)->count())->toBe(1);
+
+    // Una segunda pasada no lo vuelve a escalar.
+    $this->travel(30)->hours();
+    $this->artisan('servicios:revisar-sla')->assertSuccessful();
+    expect($ticket->fresh()->priority)->toBe('high')
+        ->and($onTime->fresh()->priority)->toBe('medium')
+        ->and(TicketEvent::where('ticket_id', new ObjectId((string) $ticket->id))->where('event_type', 'sla_escalated')->count())->toBe(1);
+
+    $this->actingAs($this->student)->get('/servicios-estudiante/soporte')
+        ->assertInertia(fn ($page) => $page->where('tickets', fn ($tickets) => collect($tickets)
+            ->firstWhere('id', (string) $ticket->id)['slaEscalated'] === true));
+});
+
+test('resolved tickets and critical ones keep their priority when the SLA expires', function () {
+    openTicket($this->student, 'critical');
+    openTicket($this->student, 'low', ['subject' => 'Proyector sin imagen']);
+    $critical = SupportTicket::where('subject', 'Sin internet en el laboratorio')->firstOrFail();
+    $resolved = SupportTicket::where('subject', 'Proyector sin imagen')->firstOrFail();
+    SupportTicket::whereKey($resolved->id)->update(['status' => 'resolved']);
+
+    $this->travel(3)->days();
+    $this->artisan('servicios:revisar-sla')->assertSuccessful();
+
+    expect($critical->fresh()->priority)->toBe('critical')
+        ->and($critical->fresh()->sla_escalated_at)->not->toBeNull()
+        ->and($resolved->fresh()->sla_escalated_at)->toBeNull()
+        ->and($resolved->fresh()->priority)->toBe('low');
+});

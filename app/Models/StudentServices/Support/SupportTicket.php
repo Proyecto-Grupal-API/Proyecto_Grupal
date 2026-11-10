@@ -22,6 +22,8 @@ use MongoDB\Laravel\Eloquent\Model;
  * @property CarbonInterface|null $sla_due_at
  * @property CarbonInterface|null $resolved_at
  * @property CarbonInterface|null $closed_at
+ * @property CarbonInterface|null $sla_escalated_at
+ * @property string|null $priority_before_escalation
  * @property CarbonInterface|null $created_at
  * @property CarbonInterface|null $updated_at
  */
@@ -61,6 +63,7 @@ class SupportTicket extends Model
             'sla_due_at' => 'datetime',
             'resolved_at' => 'datetime',
             'closed_at' => 'datetime',
+            'sla_escalated_at' => 'datetime',
         ];
     }
 }

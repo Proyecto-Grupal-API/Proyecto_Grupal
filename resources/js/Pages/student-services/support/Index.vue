@@ -42,6 +42,7 @@ interface SupportTicket {
     evidence: string | null;
     openedAt: string | null;
     slaDueAt: string | null;
+    slaEscalated?: boolean;
     resolvedAt: string | null;
     closedAt?: string | null;
     events: TicketEvent[];
@@ -804,6 +805,7 @@ function cancelTicket(ticket: SupportTicket) {
 
                             <td>
                                 {{ formatDate(ticket.slaDueAt) }}
+                                <span v-if="ticket.slaEscalated" class="sla-escalated">SLA vencido · escalado</span>
                             </td>
 
                             <td>
@@ -922,6 +924,8 @@ function cancelTicket(ticket: SupportTicket) {
                             <strong>
                                 {{ formatDate(selectedTicket.slaDueAt) }}
                             </strong>
+
+                            <small v-if="selectedTicket.slaEscalated" class="sla-escalated">SLA vencido · escalado</small>
                         </div>
 
                         <div>
@@ -1644,5 +1648,16 @@ td {
     .stats-grid {
         grid-template-columns: 1fr;
     }
+}
+
+.sla-escalated {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 1px 6px;
+    border-radius: 6px;
+    background: #fbebed;
+    color: #9d4650;
+    font-size: 0.75rem;
+    font-weight: 600;
 }
 </style>
