@@ -125,9 +125,9 @@ onMounted(() => load());
     <AuthenticatedLayout>
         <template #header><div class="flex flex-wrap items-center justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-widest text-sky-600">Finanzas · 2.5</p><h1 class="mt-1 text-2xl font-bold text-[#00338D]">Administrar bonos</h1></div><Link :href="route('financial.bonuses.index')" class="text-sm font-semibold text-[#00338D]">Volver a Mis bonos</Link></div></template>
         <main class="min-h-screen bg-[#F5F8FC] px-4 py-8 sm:px-6"><div class="mx-auto max-w-7xl space-y-6">
-            <p v-if="!permissions.view && !permissions.issue && !permissions.cancel" class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-[#00338D]">La administración requiere autorización. Tu cuenta puede consultar sus propios bonos en Mis bonos.</p>
+            <p v-if="!permissions.view && !permissions.issue && !permissions.cancel && !communityBecaEnabled" class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-[#00338D]">La administración requiere autorización. Tu cuenta puede consultar sus propios bonos en Mis bonos.</p>
             <p v-if="error" role="alert" class="rounded-xl bg-red-50 p-4 text-sm text-red-700">{{ error }}</p><p v-if="message" role="status" class="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800">{{ message }}</p>
-            <CommunityBecaIssue v-if="communityBecaEnabled && permissions.issue" />
+            <CommunityBecaIssue v-if="communityBecaEnabled" />
             <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h2 class="text-xl font-bold text-[#00338D]">Emitir un bono</h2><p class="mt-2 text-sm text-slate-500">Se registra en MXN. El bono conserva su propio saldo y condiciones.</p>
                 <p v-if="!permissions.issue" class="mt-4 text-sm text-slate-500">No tienes permiso para emitir bonos.</p>

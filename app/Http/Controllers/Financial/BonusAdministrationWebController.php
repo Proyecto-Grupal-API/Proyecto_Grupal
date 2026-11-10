@@ -10,6 +10,7 @@ use App\Domains\Financial\Services\BonusAdministrationService;
 use App\Domains\Financial\Support\BonusIssuanceInput;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\CouncilBecaWebAuthorization;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use InvalidArgumentException;
@@ -25,7 +26,7 @@ class BonusAdministrationWebController extends Controller
 
         return Inertia::render('Financial/BonusAdministration', [
             'permissions' => $permissions, 'types' => array_map(fn ($case) => $case->value, BonusType::cases()),
-            'communityBecaEnabled' => config('becas_finanzas.enabled') === true,
+            'communityBecaEnabled' => app(CouncilBecaWebAuthorization::class)->canOpen(),
             'userId' => (string) $request->user()->getKey(), 'timezone' => config('financial.business_timezone'),
         ]);
     }

@@ -32,8 +32,9 @@ final class CouncilBecaWebAuthorizationTest extends TestCase
         $user=new User; $user->setRawAttributes(['_id'=>self::ACTOR]); $user->exists=true;
         $this->request=Request::create('/finanzas/comunidad/becas/synthetic/emitir','POST');
         $this->request->setUserResolver(fn($guard=null)=>$guard==='web'?$user:null);
-        $this->state=(object)['fresh'=>true,'eligible'=>true,'budget'=>true,'issuer'=>true,'failure'=>false];
+        $this->state=(object)['fresh'=>true,'eligible'=>true,'budget'=>true,'issuer'=>true,'failure'=>false,'active'=>true];
         $factor=Mockery::mock(RecentTwoFactor::class);
+        $factor->shouldReceive('hasActiveSession')->with($this->request)->andReturnUsing(fn()=>$this->state->active);
         $factor->shouldReceive('isRecent')->with($this->request)->andReturnUsing(fn()=>$this->state->fresh);
         $identity=Mockery::mock(IdentityService::class);
         $identity->shouldReceive('isEligibleFinancialAccount')->with(self::ACTOR)->andReturnUsing(fn()=>$this->state->eligible);
@@ -51,6 +52,55 @@ final class CouncilBecaWebAuthorizationTest extends TestCase
     }
     protected function tearDown(): void {Mockery::close();Container::setInstance($this->previous);}
     private function allowed():bool{return $this->service->allows(self::ACTOR,self::COUNCIL,self::BUDGET,self::TREASURY);}
+
+    private function configurePanel(): void
+    {
+        config(['becas_finanzas.convocatorias' => [
+            'aaaaaaaaaaaaaaaaaaaaaaaa' => ['organization_id' => self::COUNCIL, 'budget_id' => self::BUDGET, 'business_id' => 'BUS-TEST'],
+        ]]);
+    }
+
+    public function test_designated_issuer_can_open_the_panel_before_confirming_recent_factor(): void
+    {
+        $this->configurePanel();
+        $this->state->fresh = false;
+        self::assertTrue($this->service->canOpen());
+        self::assertFalse($this->allowed());
+    }
+
+    public function test_panel_requires_an_active_session_and_effective_council_designation(): void
+    {
+        $this->configurePanel();
+        $this->state->active = false;
+        self::assertFalse($this->service->canOpen());
+        self::assertSame([], $this->service->designationCalls);
+        $this->state->active = true;
+        $this->service->designationCurrent = false;
+        self::assertFalse($this->service->canOpen());
+    }
+
+    public function test_panel_does_not_accept_browser_supplied_context_or_missing_configuration(): void
+    {
+        $this->request->merge(['council_id' => self::COUNCIL, 'budget_id' => self::BUDGET, 'actor_id' => self::ACTOR]);
+        config(['becas_finanzas.convocatorias' => []]);
+        self::assertFalse($this->service->canOpen());
+        $this->configurePanel();
+        config(['becas_finanzas.enabled' => false]);
+        self::assertFalse($this->service->canOpen());
+        self::assertSame([], $this->service->designationCalls);
+    }
+
+    public function test_panel_never_accepts_a_missing_web_identity_or_malformed_mapping(): void
+    {
+        $this->configurePanel();
+        $this->request->setUserResolver(fn () => null);
+        self::assertFalse($this->service->canOpen());
+        $user = new User;
+        $user->setRawAttributes(['_id' => self::ACTOR]);
+        $this->request->setUserResolver(fn () => $user);
+        config(['becas_finanzas.convocatorias' => [['organization_id' => self::COUNCIL, 'budget_id' => 'invalid', 'business_id' => 'BUS-TEST']]]);
+        self::assertFalse($this->service->canOpen());
+    }
 
     public function test_valid_native_actor_requires_both_independent_exact_authorities_and_audit():void
     {

@@ -22,6 +22,36 @@ class CouncilBecaWebAuthorization
         private readonly InstitutionalBudgetAuthorization $budgets,
         private readonly BonusAuthorizationProvider $issuers) {}
 
+    /** Panel visibility only. Issuance rechecks the complete authority and recent factor. */
+    public function canOpen(): bool
+    {
+        try {
+            $user = $this->request->user('web');
+            if (config('becas_finanzas.enabled') !== true || ! $user instanceof User
+                || ! $this->factor->hasActiveSession($this->request)) {
+                return false;
+            }
+
+            $mappings = config('becas_finanzas.convocatorias', []);
+            if (! is_array($mappings)) {
+                return false;
+            }
+
+            foreach ($mappings as $callId => $mapping) {
+                $councilId = is_array($mapping) ? ($mapping['organization_id'] ?? null) : null;
+                if (is_string($councilId) && preg_match('/\A[0-9a-f]{24}\z/', $councilId)
+                    && BecaFinanceContract::budgetMapping(['convocatoria_id' => $callId, 'organizacion_id' => $councilId]) !== null
+                    && $this->hasCurrentDesignation($user, 'bonus_beca_council_issuer', 'council', $councilId, $councilId)) {
+                    return true;
+                }
+            }
+        } catch (Throwable) {
+            return false;
+        }
+
+        return false;
+    }
+
     /** Council, budget and treasury are derived by E2 from the validated E6 award, not request input. */
     public function allows(string $actorId, string $councilId, string $budgetId, string $treasuryActor): bool
     {
