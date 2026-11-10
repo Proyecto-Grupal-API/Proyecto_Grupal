@@ -72,11 +72,12 @@ class Role extends Model
         'bonus_negocio_issuer' => null, 'bonus_negocio_business_issuer' => 'business',
         'bonus_beca_issuer' => null, 'bonus_beca_program_issuer' => 'academic_program',
         'bonus_campania_issuer' => null,
+        'bonus_beca_council_issuer' => 'council',
     ];
 
     public const FINANCIAL_ROLES = [
         'bonus_beneficio_issuer', 'bonus_categoria_issuer', 'bonus_negocio_issuer',
-        'bonus_negocio_business_issuer', 'bonus_beca_issuer', 'bonus_beca_program_issuer', 'bonus_campania_issuer',
+        'bonus_negocio_business_issuer', 'bonus_beca_issuer', 'bonus_beca_program_issuer', 'bonus_campania_issuer', 'bonus_beca_council_issuer',
     ];
 
     // Pilot definitions only: no seeder, legacy writer or productive grant authority.
@@ -84,14 +85,15 @@ class Role extends Model
         'financial_refund_reviewer' => 'wallet',
         'financial_refund_executor' => 'wallet',
         'operador_servicios' => null,
+        'institutional_budget_committer' => 'institutional_budget',
     ];
 
     public const AUTHORIZATION_ROLES = [...self::FOUNDATION_ROLES, ...self::FINANCIAL_ROLES,
-        'financial_refund_reviewer', 'financial_refund_executor', 'operador_servicios'];
+        'financial_refund_reviewer', 'financial_refund_executor', 'operador_servicios', 'institutional_budget_committer'];
 
     public const REWARDS_ROLE_SCOPES = [];
 
-    public const FOUNDATION_SCOPE_TYPES = [...self::VALID_SCOPE_TYPES, 'campus', 'academic_program', 'department', 'wallet'];
+    public const FOUNDATION_SCOPE_TYPES = [...self::VALID_SCOPE_TYPES, 'campus', 'academic_program', 'department', 'wallet', 'institutional_budget'];
 
     public const FOUNDATION_ROLE_SCOPES = [
         'business_owner' => 'business', 'business_manager' => 'business', 'cashier' => 'business',

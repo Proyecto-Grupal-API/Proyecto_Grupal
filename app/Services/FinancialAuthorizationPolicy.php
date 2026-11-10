@@ -29,6 +29,12 @@ final class FinancialAuthorizationPolicy implements FinancialAuthorizationDecisi
             return $this->evaluate($subjectId, $bonusType, $operation);
         }
 
+        // Council BECA is exact-only: a global or academic grant never substitutes it.
+        if ($bonusType === 'BECA' && $scopeType === 'council') {
+            return preg_match('/\A[0-9a-f]{24}\z/', (string) $scopeId) === 1
+                && $this->evaluate($subjectId, $bonusType, $operation, $scopeType, $scopeId);
+        }
+
         // BECA/program and CAMPANIA/campaign remain blocked, including for global grant holders.
         if ($bonusType !== 'NEGOCIO' || $scopeType !== 'business' || ! $this->validIdentifier($scopeId)) {
             return false;

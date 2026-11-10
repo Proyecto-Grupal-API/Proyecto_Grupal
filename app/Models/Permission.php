@@ -35,6 +35,7 @@ class Permission extends Model
     // Definitions only, deliberately excluded from the existing foundation seeder.
     // A definition is neither a role mapping nor a grant to a user.
     public const TECHNICAL_CATALOG = [
+        'budget.commit' => ['Comprometer un presupuesto institucional específico', 'financial'],
         'refunds.review' => ['Revisar devoluciones de una wallet', 'financial'],
         'refunds.execute' => ['Ejecutar devoluciones de una wallet', 'financial'],
         'student_services.rentals.damage.charge' => ['Ordenar cargo por daños de renta', 'student_services'],

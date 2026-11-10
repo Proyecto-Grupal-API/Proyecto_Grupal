@@ -23,7 +23,7 @@ class RoleAssignment extends AuthorizationLifecycleRecord
 
     protected function validateContext(): void
     {
-        if (array_key_exists($this->role_key, Role::PILOT_ROLE_SCOPES)) {
+        if (array_key_exists($this->role_key, Role::PILOT_ROLE_SCOPES) || $this->role_key === 'bonus_beca_council_issuer') {
             self::assertPilotGrantEnvironment();
         }
         // Wallet identifiers are trusted E2 public UUIDs, never business identifiers.
@@ -31,6 +31,11 @@ class RoleAssignment extends AuthorizationLifecycleRecord
             ['financial_refund_reviewer', 'financial_refund_executor'], true)
             || ! is_string($this->scope_id) || ! preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/', $this->scope_id))) {
             throw ValidationException::withMessages(['scope_id' => 'Se requiere la wallet UUID canónica acreditada por Finanzas.']);
+        }
+        if ($this->scope_type === 'institutional_budget'
+            && ($this->role_key !== 'institutional_budget_committer' || ! is_string($this->scope_id)
+                || ! preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/', $this->scope_id))) {
+            throw ValidationException::withMessages(['scope_id' => 'Se requiere el UUID canónico de presupuesto acreditado por E2.']);
         }
         $this->scope_type ??= null;
         $this->scope_id ??= null;
@@ -65,6 +70,11 @@ class RoleAssignment extends AuthorizationLifecycleRecord
         if ($this->scope_type === 'department') {
             throw ValidationException::withMessages(['scope_type' => 'Las asignaciones de departamento esperan el catálogo institucional.']);
         }
+        if ($this->role_key === 'bonus_beca_council_issuer'
+            && (! is_string($this->scope_id) || ! preg_match('/\A[0-9a-f]{24}\z/', $this->scope_id)
+                || ! Organizacion::whereKey($this->scope_id)->where('tipo', 'consejo')->where('estado', 'activa')->exists())) {
+            throw ValidationException::withMessages(['scope_id' => 'Se requiere un Consejo canónico activo de E6.']);
+        }
         if ($this->scope_type === 'campus') {
             $campus = Campus::whereKey($this->scope_id)->first();
             if (! $campus) {
@@ -89,7 +99,7 @@ class RoleAssignment extends AuthorizationLifecycleRecord
 
     public function transitionTo(string $status, mixed $actorId = null, ?string $reason = null): void
     {
-        if (array_key_exists($this->role_key, Role::PILOT_ROLE_SCOPES)) {
+        if (array_key_exists($this->role_key, Role::PILOT_ROLE_SCOPES) || $this->role_key === 'bonus_beca_council_issuer') {
             self::assertPilotGrantEnvironment();
         }
         parent::transitionTo($status, $actorId, $reason);
