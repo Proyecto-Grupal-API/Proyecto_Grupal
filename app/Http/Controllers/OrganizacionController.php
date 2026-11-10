@@ -10,6 +10,7 @@ use App\Services\PeriodosOrganizacion;
 use App\Models\RolOrganizacion;
 use App\Models\StaffEvento;
 use App\Models\User;
+use App\Services\IdentidadComunidadApi;
 use App\Services\RegistroOrganizaciones;
 use App\Services\ResponsabilidadesComunidad;
 use App\Services\DelegacionesComunidad;
@@ -29,8 +30,17 @@ class OrganizacionController extends Controller
         $org = $request->attributes->get('organizacion');
         $miembros = $org ? MiembroOrganizacion::activos()->where('organizacion_id', (string) $org->id)->orderBy('creado_en')->get() : collect();
         $roles = $org ? RolOrganizacion::where('organizacion_id', (string) $org->id)->whereNull('eliminado_en')->get() : collect();
-        $usuarios = User::whereIn('_id', $miembros->pluck('usuario_id')->merge($roles->pluck('usuario_id'))->unique())->get()->keyBy('id');
-        $identidad = fn ($item) => ['nombre' => $usuarios->get($item->usuario_id)?->name ?? 'Usuario no disponible', 'matricula' => $usuarios->get($item->usuario_id)?->matricula];
+        $ids = $miembros->pluck('usuario_id')->merge($roles->pluck('usuario_id'))->unique()->values();
+        $identidades = [];
+        if ($org && $ids->isNotEmpty()) {
+            Gate::authorize('view', $org);
+            $identidades = config('identidad_comunidad.directorio_organizaciones')
+                ? app(IdentidadComunidadApi::class)->identidadesOrganizacion($ids->all(), (string) $org->id)
+                : User::whereIn('_id', $ids)->get(['_id', 'name', 'matricula'])->mapWithKeys(
+                    fn ($user) => [(string) $user->id => ['nombre' => $user->name, 'matricula' => $user->matricula]],
+                )->all();
+        }
+        $identidad = fn ($item) => $identidades[$item->usuario_id] ?? ['nombre' => 'Usuario no disponible', 'matricula' => null];
 
         return response()->json([
             'organizaciones' => $request->attributes->get('organizaciones'),
@@ -80,19 +90,23 @@ class OrganizacionController extends Controller
             'fecha_inicio' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
         ]);
 
-        return $this->modificar($request, function ($org) use ($request, $data) {
-            $usuario = User::where('matricula', $data['matricula'])->first();
-            if (! $usuario) {
+        $resolver = config('identidad_comunidad.directorio_organizaciones')
+            ? fn ($org) => app(IdentidadComunidadApi::class)->resolverMatricula($data['matricula'], (string) $org->id)
+            : null;
+
+        return $this->modificar($request, function ($org, ?string $usuarioId) use ($request, $data) {
+            $usuarioId ??= User::where('matricula', $data['matricula'])->first()?->id;
+            if ($usuarioId === null) {
                 throw ValidationException::withMessages(['matricula' => 'No existe un usuario con esa matrícula.']);
             }
-            $miembro = MiembroOrganizacion::firstOrNew(['organizacion_id' => (string) $org->id, 'usuario_id' => (string) $usuario->id]);
+            $miembro = MiembroOrganizacion::firstOrNew(['organizacion_id' => (string) $org->id, 'usuario_id' => (string) $usuarioId]);
             if ($miembro->exists && $miembro->estado === 'activo') {
                 throw ValidationException::withMessages(['matricula' => 'Este estudiante ya es miembro activo.']);
             }
             $antes = $miembro->exists ? $miembro->toArray() : null;
             $miembro->fill(['fecha_inicio' => $data['fecha_inicio'], 'estado' => 'activo', 'eliminado_en' => null])->save();
             $this->auditar($request, $org, 'miembro_registrado', $miembro, $antes);
-        }, 201);
+        }, 201, $resolver);
     }
 
     public function assignRol(Request $request, ?string $id = null)
@@ -171,13 +185,15 @@ class OrganizacionController extends Controller
         });
     }
 
-    private function modificar(Request $request, callable $operacion, int $status = 200)
+    private function modificar(Request $request, callable $operacion, int $status = 200, ?callable $preparar = null)
     {
         $org = $this->organizacion($request, true);
         try {
-            return app(ResponsabilidadesComunidad::class)->ejecutar(fn () => Cache::lock('organizacion:'.$org->id, 15)->block(5, function () use ($org, $operacion, $status) {
+            return app(ResponsabilidadesComunidad::class)->ejecutar(fn () => Cache::lock('organizacion:'.$org->id, $preparar ? 30 : 15)->block(5, function () use ($org, $operacion, $status, $preparar) {
                 Gate::authorize('update', $org); // Revalidar después de esperar el bloqueo.
-                DB::connection('mongodb')->transaction(fn () => $operacion($org));
+                // Resolver dentro del bloqueo de responsabilidades, fuera de la transacción MongoDB.
+                $resultado = $preparar ? $preparar($org) : null;
+                DB::connection('mongodb')->transaction(fn () => $operacion($org, $resultado));
 
                 return response()->json(['message' => 'Cambios guardados.'], $status);
             }));

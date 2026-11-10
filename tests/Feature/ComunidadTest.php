@@ -10,6 +10,7 @@ use App\Models\RegistroEvento;
 use App\Models\RolOrganizacion;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Tests\Concerns\RefreshMongoDatabase;
 use Tests\TestCase;
 
@@ -92,6 +93,50 @@ class ComunidadTest extends TestCase
         $this->assertTrue(MiembroOrganizacion::activos()->where('usuario_id', (string) $andrea->id)->exists());
         $this->assertFalse(RolOrganizacion::where('usuario_id', (string) $andrea->id)->exists());
         $this->postJson('/api/organizaciones/miembros', ['matricula' => '20260004', 'fecha_inicio' => today()->toDateString()])->assertUnprocessable();
+    }
+
+    public function test_directory_mode_uses_canonical_member_id_and_rejects_legacy_lookup_on_failure(): void
+    {
+        $orgId = (string) $this->org->id;
+        $id = '507f1f77bcf86cd799439011';
+        $prefix = 'http://identidad.test/api/v1/identity/directory';
+        $identity = ['user_id' => $id, 'display_name' => 'Alumno de E1', 'enrollment_number' => 'API-001'];
+        config(['identidad_comunidad' => [
+            'url' => 'http://identidad.test', 'client_id' => 'comunidad-test',
+            'client_secret' => 'test-only', 'directorio_organizaciones' => true,
+        ]]);
+        Http::preventStrayRequests();
+        Http::fake([
+            'http://identidad.test/api/oauth/token' => Http::response(['access_token' => 'test-token']),
+            $prefix.'/resolve-enrollment' => Http::sequence()->push(['data' => ['result' => 'resolved', 'identity' => $identity]])
+                ->push(['data' => ['result' => 'not_found', 'identity' => null]])->pushStatus(403),
+            $prefix.'/batch' => fn ($request) => Http::response(['data' => ['items' => array_map(
+                fn ($ref) => ['requested_user_id' => $ref, 'result' => $ref === $id ? 'found' : 'not_found',
+                    'identity' => $ref === $id ? $identity : null],
+                $request['user_ids'],
+            )]]),
+        ]);
+        $add = fn ($matricula) => $this->postJson('/api/organizaciones/miembros', [
+            'matricula' => $matricula, 'fecha_inicio' => today()->toDateString(),
+        ]);
+        $this->actingAs($this->estudiante);
+        $add('API-001')->assertForbidden();
+        Http::assertNothingSent();
+
+        $this->actingAs($this->presidente);
+        $add('API-001')->assertCreated();
+        $this->assertTrue(MiembroOrganizacion::activos()->where('organizacion_id', $orgId)->where('usuario_id', $id)->exists());
+        $this->getJson('/api/organizaciones')->assertOk()->assertJsonFragment([
+            'usuario_id' => $id, 'nombre' => 'Alumno de E1', 'matricula' => 'API-001',
+        ]);
+        $add('20260004')->assertUnprocessable()->assertJsonValidationErrors('matricula');
+        $add('20260004')->assertStatus(503);
+        $this->assertSame(1, AuditoriaComunidad::where('accion', 'miembro_registrado')->count());
+
+        Http::assertSent(fn ($request) => $request->url() === $prefix.'/resolve-enrollment'
+            && $request->hasHeader('Authorization', 'Bearer test-token') && $request['enrollment_number'] === 'API-001'
+            && $request['context'] === ['type' => 'organization', 'id' => $orgId]);
+        Http::assertSent(fn ($request) => $request->url() === $prefix.'/batch' && in_array($id, $request['user_ids'], true));
     }
 
     public function test_roles_require_active_members_and_valid_dates_and_unique_cargo(): void
