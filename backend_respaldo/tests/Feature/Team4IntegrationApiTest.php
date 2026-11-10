@@ -24,6 +24,7 @@ class Team4IntegrationApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['services.team4.shared_secret' => $this->secret]);
         User::query()->delete();
         Reward::query()->delete();
         Redemption::query()->delete();
@@ -34,7 +35,7 @@ class Team4IntegrationApiTest extends TestCase
     protected function generateHmacHeaders(string $method, string $path, array $body): array
     {
         $timestamp = (string) time();
-        $bodyString = json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $bodyString = json_encode($body);
         $bodyHash = hash('sha256', $bodyString);
         $payload = $timestamp . '|' . strtoupper($method) . '|' . $path . '|' . $bodyHash;
         $signature = hash_hmac('sha256', $payload, $this->secret);
@@ -248,7 +249,8 @@ class Team4IntegrationApiTest extends TestCase
                 'success' => true,
             ]);
 
-        $redemptionId = $response->json('redemption._id');
+        $rawId = $response->json('redemption._id') ?? $response->json('redemption.id');
+        $redemptionId = is_array($rawId) ? ($rawId['$oid'] ?? reset($rawId)) : (string) $rawId;
         $redemption = Redemption::find($redemptionId);
         $this->assertNotNull($redemption);
         $this->assertEquals('01J_RES_MOCK_SUCCESS', $redemption->stock_reservation_reference);

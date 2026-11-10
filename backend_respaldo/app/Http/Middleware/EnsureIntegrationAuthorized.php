@@ -28,11 +28,14 @@ class EnsureIntegrationAuthorized
      * Permite extender fácilmente para nuevos equipos sin modificar lógica.
      */
     private array $domainSecretMap = [
-        'identity' => 'services.team1.shared_secret',
-        'team1'    => 'services.team1.shared_secret',
-        'inventory' => 'services.team4.shared_secret',
-        'team4'    => 'services.team4.shared_secret',
-        'team3'    => 'services.team4.shared_secret', // Equipo 3 comparte mecanismo; actualizar si acuerdan secreto propio
+        'identity'    => 'services.team1.shared_secret',
+        'team1'       => 'services.team1.shared_secret',
+        'inventory'   => 'services.team4.shared_secret',
+        'team4'       => 'services.team4.shared_secret',
+        'community'   => 'platform.ingest.secrets.community',
+        'team6'       => 'platform.ingest.secrets.community',
+        'comunidad'   => 'platform.ingest.secrets.community',
+        'team3'       => 'services.team4.shared_secret', // Equipo 3 comparte mecanismo; actualizar si acuerdan secreto propio
         'marketplace' => 'services.team4.shared_secret',
     ];
 
@@ -47,6 +50,12 @@ class EnsureIntegrationAuthorized
             $sourceDomain = strtolower((string) ($request->header('X-Team-Source-Domain') ?? ''));
             $secretConfigKey = $this->domainSecretMap[$sourceDomain] ?? 'services.team4.shared_secret';
             $secret = (string) config($secretConfigKey);
+                        if ($secret === '') {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'Integración no configurada: falta el secreto de este dominio.',
+                ], 503);
+            }
             $allowedClockSkew = 300; // 5 minutos de tolerancia
 
             if (! ctype_digit((string) $timestamp)) {
@@ -91,9 +100,10 @@ class EnsureIntegrationAuthorized
         // ── 2. Verificación por Bearer Token ──
         $bearerToken = $request->bearerToken();
         if ($bearerToken) {
-            // A. Token de Servicio estático inter-equipos (utilizado por el comando events:publish del Equipo 1 vía EVENTS_SINK_TOKEN)
+            // A. Token de Servicio estático inter-equipos (utilizado por el comando events:publish del Equipo 1 vía EVENTS_SINK_TOKEN o Equipo 6 vía token de comunidad)
             $team1Secret = (string) config('services.team1.service_token', config('services.team1.shared_secret'));
             $team4Secret = (string) config('services.team4.shared_secret');
+            $team6Secret = (string) config('platform.ingest.secrets.community');
 
             if ($team1Secret !== '' && hash_equals($team1Secret, $bearerToken)) {
                 $request->attributes->set('auth_method', 'service_token');
@@ -104,6 +114,12 @@ class EnsureIntegrationAuthorized
             if ($team4Secret !== '' && hash_equals($team4Secret, $bearerToken)) {
                 $request->attributes->set('auth_method', 'service_token');
                 $request->attributes->set('service_source', 'team4');
+                return $next($request);
+            }
+
+            if ($team6Secret !== '' && hash_equals($team6Secret, $bearerToken)) {
+                $request->attributes->set('auth_method', 'service_token');
+                $request->attributes->set('service_source', 'community');
                 return $next($request);
             }
 

@@ -37,9 +37,12 @@ class PlatformIngestApiTest extends TestCase
     private function envelope(array $o = []): array
     {
         return array_merge([
-            'event_id' => (string) Str::uuid(), 'event_name' => 'community.audit.created.v1',
-            'source_domain' => 'community', 'aggregate_id' => 'org-1',
-            'occurred_at' => now()->toIso8601String(), 'payload' => ['organization_id' => 'org-1'],
+            'event_id' => (string) Str::uuid(),
+            'event_name' => 'community.audit.created.v1',
+            'source_domain' => 'community',
+            'aggregate_id' => 'org-1',
+            'occurred_at' => now()->toIso8601String(),
+            'payload' => ['organization_id' => 'org-1'],
         ], $o);
     }
 
@@ -48,10 +51,10 @@ class PlatformIngestApiTest extends TestCase
     {
         $json = json_encode($body, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $time = (string) time();
-        $value = $time.'|'.$method.'|'.$path.'|'.hash('sha256', $json);
+        $value = $time . '|' . $method . '|' . $path . '|' . hash('sha256', $json);
 
         return [
-            'X-Platform-Domain'    => $domain,
+            'X-Platform-Domain' => $domain,
             'X-Platform-Timestamp' => $time,
             'X-Platform-Signature' => hash_hmac('sha256', $value, self::SECRET),
         ];
@@ -82,9 +85,14 @@ class PlatformIngestApiTest extends TestCase
     public function test_audit_source_domain_comes_from_authenticated_signer_not_payload(): void
     {
         $body = [
-            'event_id' => (string) Str::uuid(), 'actor_id' => 'actor-1', 'actor_role' => 'system',
-            'action' => 'community.organization.approved', 'entity_type' => 'organization', 'entity_id' => 'org-1',
-            'correlation_id' => 'corr-1', 'occurred_at' => now()->toIso8601String(),
+            'event_id' => (string) Str::uuid(),
+            'actor_id' => 'actor-1',
+            'actor_role' => 'system',
+            'action' => 'community.organization.approved',
+            'entity_type' => 'organization',
+            'entity_id' => 'org-1',
+            'correlation_id' => 'corr-1',
+            'occurred_at' => now()->toIso8601String(),
             'source_domain' => 'services', // intenta falsear el dominio: debe ignorarse
         ];
 
@@ -99,6 +107,7 @@ class PlatformIngestApiTest extends TestCase
         $body = $this->envelope(['payload' => ['email' => 'a@b.c']]);
         $this->withHeaders($this->signedHeaders('community', 'POST', '/api/v1/plataforma/eventos', $body))
             ->postJson('/api/v1/plataforma/eventos', $body)
+
             ->assertStatus(422)->assertJsonStructure(['codigo', 'mensaje', 'correlacion_id']);
     }
 
@@ -116,4 +125,27 @@ class PlatformIngestApiTest extends TestCase
 
         $this->withHeaders($headers)->postJson('/api/v1/plataforma/eventos', $body)->assertStatus(401);
     }
+
+    public function test_audit_rejects_personal_data_in_before_or_after(): void
+    {
+        $body = [
+            'event_id' => (string) \Illuminate\Support\Str::uuid(),
+            'actor_id' => 'u1',
+            'actor_role' => 'staff',
+            'action' => 'services.fine.waived',
+            'entity_type' => 'fine',
+            'entity_id' => 'fine-1',
+            'before' => ['estado' => 'pendiente'],
+            'after' => ['correo' => 'a@b.c'],
+            'correlation_id' => 'corr-1',
+            'occurred_at' => now()->toIso8601String(),
+        ];
+
+        $this->withHeaders($this->signedHeaders('community', 'POST', '/api/v1/plataforma/auditoria', $body))
+            ->postJson('/api/v1/plataforma/auditoria', $body)
+            ->assertStatus(422)
+            ->assertJsonStructure(['codigo', 'mensaje', 'correlacion_id']);
+    }
+
+
 }

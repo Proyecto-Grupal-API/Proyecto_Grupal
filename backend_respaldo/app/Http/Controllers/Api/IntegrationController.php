@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use Illuminate\Support\Arr;
+
 use App\Models\AnalyticsEvent;
 use App\Models\AuditLog;
 use App\Models\IntegrationLog;
@@ -148,6 +150,14 @@ class IntegrationController
             $sourceDomain = 'identity';
         } elseif (str_starts_with($eventType, 'inventory.')) {
             $sourceDomain = 'inventory';
+        } elseif (str_starts_with($eventType, 'community.')
+            || str_starts_with($eventType, 'comunidad.')
+            || ($validated['source_domain'] ?? '') === 'community'
+            || ($validated['source_domain'] ?? '') === 'comunidad'
+            || $request->attributes->get('service_source') === 'community'
+            || $request->attributes->get('platform_source') === 'community'
+        ) {
+            $sourceDomain = 'community';
         } else {
             $sourceDomain = $validated['source_domain'] ?? 'marketplace';
         }
@@ -155,21 +165,30 @@ class IntegrationController
         $idempotencyKey = $validated['idempotency_key']
             ?? ($validated['event_id'] ?? (string) Str::uuid());
 
+        // Digest del sobre para verificar integridad y distinguir reintento idéntico (200) de conflicto de contenido (409)
+        $payloadData = $validated['payload'] ?? Arr::except($validated, ['event_id', 'idempotency_key', 'occurred_at']);
+        $envelopeDigest = hash('sha256', json_encode([
+            'event_type'    => $eventType,
+            'source_domain' => $sourceDomain,
+            'payload'       => $payloadData,
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
         // ── 1. Verificar idempotencia en analytics_events ──
-        // Según acuerdo con Equipo 1: 200 en duplicado = recepción satisfactoria.
-        // Si el contenido difiere en un event_id conocido se acepta igualmente
-        // pero se registra una advertencia en la bitácora para auditoría.
         $existing = AnalyticsEvent::where('idempotency_key', $idempotencyKey)->first();
         if ($existing && $existing->processed) {
-            // Detectar posible conflicto de contenido (event_id reutilizado con payload diferente)
-            $existingType = $existing->event_type ?? null;
-            if ($existingType && $existingType !== $eventType) {
-                Log::warning('Conflicto de idempotencia: event_id reutilizado con event_type diferente', [
-                    'idempotency_key'    => $idempotencyKey,
-                    'original_type'      => $existingType,
-                    'received_type'      => $eventType,
-                    'source_domain'      => $sourceDomain,
-                    'ip'                 => $request->ip(),
+            // Detectar conflicto de contenido (mismo event_id con payload diferente -> 409 Conflict)
+            $existingDigest = $existing->envelope_hash ?? null;
+            $existingType   = $existing->event_type ?? null;
+            $contentChanged = ($existingDigest !== null && ! hash_equals($existingDigest, $envelopeDigest))
+                || ($existingDigest === null && $existingType !== null && $existingType !== $eventType);
+
+            if ($contentChanged) {
+                Log::warning('Conflicto de contenido: event_id reutilizado con payload diferente (409 Conflict)', [
+                    'idempotency_key' => $idempotencyKey,
+                    'original_type'   => $existingType,
+                    'received_type'   => $eventType,
+                    'source_domain'   => $sourceDomain,
+                    'ip'              => $request->ip(),
                 ]);
 
                 AuditLog::create([
@@ -178,13 +197,24 @@ class IntegrationController
                     'action'        => 'integration.event_id_conflict',
                     'entity_type'   => 'AnalyticsEvent',
                     'entity_id'     => $idempotencyKey,
-                    'before'        => ['event_type' => $existingType],
-                    'after'         => ['event_type' => $eventType, 'source_domain' => $sourceDomain],
+                    'before'        => ['event_type' => $existingType, 'envelope_hash' => $existingDigest],
+                    'after'         => ['event_type' => $eventType, 'envelope_hash' => $envelopeDigest, 'source_domain' => $sourceDomain],
                     'ip_address'    => $request->ip(),
                     'device'        => $request->userAgent() ?? 'Service-to-Service',
                     'source_domain' => $sourceDomain,
-                    'reason'        => 'event_id reutilizado con event_type distinto — posible conflicto de reintentos',
+                    'reason'        => 'Conflicto de contenido: event_id reutilizado con payload diferente',
                 ]);
+
+                                // Contrato certificado con Equipo 1: el conflicto se audita pero se responde 200.
+                if ($sourceDomain !== 'identity') {
+                    return response()->json([
+                        'success'  => false,
+                        'codigo'   => 'conflicto_contenido',
+                        'error'    => 'idempotency_conflict',
+                        'message'  => 'El identificador ya existe con otro contenido.',
+                        'event_id' => $idempotencyKey,
+                    ], 409);
+                }
             }
 
             return response()->json([
@@ -199,6 +229,7 @@ class IntegrationController
         $analyticsEvent = AnalyticsEvent::firstOrCreate(
             ['idempotency_key' => $idempotencyKey],
             [
+                'envelope_hash' => $envelopeDigest,
                 'source_domain' => $sourceDomain,
                 'event_type'    => $eventType,
                 'entity_type'   => 'IntegrationEvent',
@@ -236,6 +267,11 @@ class IntegrationController
         // CASO E: Compra completada (Equipo 3 / Servicios -> Acumulación de puntos 7.1)
         if (in_array($eventType, ['order.completed', 'service.purchased', 'sale.confirmed', 'marketplace.purchase_completed'], true)) {
             return $this->handlePurchaseCompletedEvent($request, $eventType, $sourceDomain, $idempotencyKey, $payload, $analyticsEvent);
+        }
+
+        // CASO F: Eventos de Comunidad (Equipo 6 -> Auditoría transversal 7.8)
+        if ($sourceDomain === 'community') {
+            return $this->handleCommunityEvent($request, $eventType, $idempotencyKey, $payload, $analyticsEvent);
         }
 
         // Tipo de evento desconocido pero válido para bitácora
@@ -405,6 +441,60 @@ class IntegrationController
         }
 
         return $safe;
+    }
+
+    /**
+     * Procesa eventos de Comunidad del Equipo 6 (Módulo 7.8 - Auditoría Transversal).
+     * Garantiza source_domain = 'community' en audit_logs e integration_logs.
+     */
+    protected function handleCommunityEvent(
+        Request $request,
+        string $eventType,
+        string $idempotencyKey,
+        array $payload,
+        AnalyticsEvent $analyticsEvent
+    ): JsonResponse {
+        $actorId = $payload['actor_id'] ?? 'system_community';
+        $actorRole = $payload['actor_role'] ?? 'system';
+        $entityId = $payload['organization_id'] ?? ($payload['event_id'] ?? ($payload['aggregate_id'] ?? ($payload['entity_id'] ?? 'COMMUNITY')));
+        $entityType = $payload['entity_type'] ?? 'CommunityEntity';
+
+        AuditLog::create([
+            'actor_id'      => (string) $actorId,
+            'actor_role'    => $actorRole,
+            'action'        => $eventType,
+            'entity_type'   => $entityType,
+            'entity_id'     => (string) $entityId,
+            'after'         => Arr::except($payload, ['name', 'nombre', 'email', 'correo', 'password', 'token', 'secret']),
+            'ip_address'    => $request->ip(),
+            'device'        => $request->userAgent() ?? 'Service-to-Service (Equipo 6)',
+            'source_domain' => 'community',
+            'reason'        => $payload['reason'] ?? "Evento de comunidad registrado ({$eventType})",
+        ]);
+
+        $analyticsEvent->update([
+            'processed'    => true,
+            'processed_at' => now(),
+        ]);
+
+        IntegrationLog::create([
+            'domain'           => 'community',
+            'direction'        => 'inbound',
+            'endpoint'         => '/api/v1/integrations/ingest-event',
+            'status'           => 'success',
+            'attempt'          => 1,
+            'request_payload'  => ['event_type' => $eventType, 'entity_id' => $entityId],
+            'response_payload' => ['status' => 'audited', 'source_domain' => 'community'],
+            'correlation_id'   => (string) Str::uuid(),
+        ]);
+
+        return response()->json([
+            'success'    => true,
+            'status'     => 'processed',
+            'event_id'   => $idempotencyKey,
+            'event_type' => $eventType,
+            'message'    => 'Evento de comunidad auditado exitosamente con source_domain=community.',
+        ], 202);
     }
 
     /**
