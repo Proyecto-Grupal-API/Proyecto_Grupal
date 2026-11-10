@@ -6,6 +6,7 @@ use App\Services\AutoridadOrganizaciones;
 use App\Services\ComiteBecas;
 use App\Services\InventoryModule\BusinessContext;
 use App\Services\InventoryModule\IdentityService;
+use App\Services\Marketplace\MarketplaceWallet;
 use App\Services\PermisosComunidad;
 use App\Services\StudentServices\ServiceAuthority;
 use Illuminate\Http\Request;
@@ -38,6 +39,12 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
+            ...($request->routeIs('marketplace.*') && $request->user() ? [
+                'marketplacePayment' => [
+                    'walletAvailable' => app(MarketplaceWallet::class)->availableTo((string) $request->user()->getKey()),
+                    'holdMinutes' => (int) config('marketplace.hold_minutes', 15),
+                ],
+            ] : []),
             'inventoryContext' => fn () => $request->is('equipo4*') && $request->attributes->has('inventory_user') ? [
                 'user' => $request->attributes->get('inventory_user'),
                 'business_id' => app(BusinessContext::class)->id(),

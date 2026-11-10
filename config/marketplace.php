@@ -7,6 +7,8 @@ return [
     'inventory' => ['url' => env('MARKETPLACE_INVENTARIO_URL', 'http://app'), 'secret' => env('INVENTARIO_EQ3_SECRETO')],
     'wallet_checkout' => [
         'enabled' => env('MARKETPLACE_WALLET_CHECKOUT_ENABLED', false),
+        'pilot_buyer_id' => env('MARKETPLACE_WALLET_PILOT_BUYER_ID'),
+        'pilot_business_id' => env('MARKETPLACE_WALLET_PILOT_BUSINESS_ID'),
         'url' => env('MARKETPLACE_FINANZAS_URL', 'http://app'),
         'client_id' => env('MARKETPLACE_FINANZAS_CLIENT_ID'),
         'client_secret' => env('MARKETPLACE_FINANZAS_CLIENT_SECRET'),

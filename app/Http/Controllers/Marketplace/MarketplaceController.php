@@ -55,6 +55,8 @@ class MarketplaceController extends Controller
             'businesses' => Business::whereIn('_id', $ids)->limit(12)->get(), 'products' => $products,
             'stats' => ['businesses' => count($ids), 'products' => Product::whereIn('business_id', $ids)->where('active', true)->count(),
                 'orders' => Order::where('buyer_id', (string) $request->user()->getKey())->count(), 'sales' => 0],
+            'cartWalletAvailable' => $cart && ! empty($cart->items)
+                && app(MarketplaceWallet::class)->availableTo((string) $request->user()->getKey(), $cart->items[0]['business_id']),
             'cart' => $cart?->toArray(), 'cartBusiness' => $cart && ! empty($cart->items) ? Business::find($cart->items[0]['business_id']) : null,
             'isAdmin' => (bool) $request->attributes->get('marketplace_reviewer')]);
     }
@@ -107,11 +109,11 @@ class MarketplaceController extends Controller
         $orders = Order::where('buyer_id', (string) $request->user()->getKey())
             ->latest()->paginate(10);
 
-        $enabled = app(MarketplaceWallet::class)->enabled();
-        $orders->through(function (Order $order) use ($enabled) {
-            $order->can_pay_wallet = $enabled && $order->payment_method === 'wallet' && $order->status === 'awaiting_payment'
+        $wallet = app(MarketplaceWallet::class);
+        $orders->through(function (Order $order) use ($wallet) {
+            $order->can_pay_wallet = $wallet->availableTo($order->buyer_id, $order->business_id) && $order->payment_method === 'wallet' && $order->status === 'awaiting_payment'
                 && $order->payment_status === 'pending' && empty($order->wallet_checkout['close_as']) && $order->hold_expires_at?->isFuture();
-            $order->can_sync_wallet = $enabled && $order->wallet_checkout && in_array($order->status, ['awaiting_payment', 'payment_reconciliation'], true);
+            $order->can_sync_wallet = $wallet->enabled() && $order->wallet_checkout && in_array($order->status, ['awaiting_payment', 'payment_reconciliation'], true);
 
             return $order;
         });

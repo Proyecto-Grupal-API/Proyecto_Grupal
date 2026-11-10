@@ -23,10 +23,20 @@ class MarketplaceWallet
         return config('marketplace.wallet_checkout.enabled') === true;
     }
 
+    public function availableTo(string $buyerId, ?string $businessId = null): bool
+    {
+        $pilotBuyer = config('marketplace.wallet_checkout.pilot_buyer_id');
+        $pilotBusiness = config('marketplace.wallet_checkout.pilot_business_id');
+
+        return $this->enabled()
+            && ($pilotBuyer === null || $pilotBuyer === $buyerId)
+            && ($businessId === null || $pilotBusiness === null || $pilotBusiness === $businessId);
+    }
+
     // MarketplaceOrders serializes all state transitions for an order.
     public function start(Order $order): ?string
     {
-        abort_unless($this->enabled() && $order->payment_method === 'wallet', 404);
+        abort_unless($this->availableTo($order->buyer_id, $order->business_id) && $order->payment_method === 'wallet', 404);
         abort_unless($order->status === 'awaiting_payment' && $order->payment_status === 'pending'
             && empty($order->wallet_checkout['close_as']) && $order->hold_expires_at?->isFuture(), 409, 'Este pedido ya no admite un cobro.');
         $client = config('marketplace.wallet_checkout.client_id');

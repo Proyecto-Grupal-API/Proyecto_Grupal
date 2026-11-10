@@ -10,6 +10,7 @@ const props = defineProps({
   stats: Object,
   cart: Object,
   cartBusiness: Object,
+  cartWalletAvailable: Boolean,
   isAdmin: Boolean,
 });
 
@@ -163,7 +164,10 @@ const addToCart = (product) => {
               {{ checkoutForm.processing ? 'Procesando…' : 'Registrar pedido pendiente' }}
             </button>
             <div v-if="Object.keys(checkoutForm.errors).length" role="alert" class="mt-2 text-xs text-red-600"><p v-for="(error,key) in checkoutForm.errors" :key="key">{{ error }}</p></div>
-            <p class="text-[10px] text-slate-400 mt-2">Ningún método realiza cobros todavía. El pedido y la reserva quedan pendientes de integrar Finanzas y Recompensas.</p>
+            <p class="text-xs text-slate-600 mt-2">
+              <template v-if="checkoutForm.payment_method === 'wallet' && cartWalletAvailable">Después de registrar el pedido, abre Mis pedidos y elige Pagar con wallet.</template>
+              <template v-else>Registrar el pedido no realiza un cobro. El pago queda pendiente de confirmación.</template>
+            </p>
           </div>
           <div v-else class="py-16 text-center text-sm text-slate-400">Tu carrito está vacío.</div>
         </aside>

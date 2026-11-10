@@ -44,6 +44,16 @@ final class Team4WebhookDelivery
                         $x->where('candidate.state', 'SENDING')->where('candidate.lease_until', '<=', now());
                     });
             })
+            ->when(config('financial_team4.pilot_client_id') !== null, fn ($q) => $q->whereExists(function ($pilot) {
+                $pilot->selectRaw('1')->from('financial_team4_streams as stream')
+                    ->join('marketplace_payment_requests as checkout', function ($join) {
+                        $join->on('checkout.order_id', '=', 'stream.order_id')
+                            ->on('checkout.business_id', '=', 'stream.business_id');
+                    })
+                    ->whereColumn('stream.id', 'candidate.stream_id')
+                    ->where('checkout.client_id', config('financial_team4.pilot_client_id'))
+                    ->where('checkout.status', 'PAID');
+            }))
             ->whereNotExists(function ($q) {
                 $q->selectRaw('1')->from('financial_team4_outbox as earlier')
                     ->whereColumn('earlier.stream_id', 'candidate.stream_id')->whereColumn('earlier.event_version', '<', 'candidate.event_version')->where('earlier.state', '!=', 'DELIVERED');

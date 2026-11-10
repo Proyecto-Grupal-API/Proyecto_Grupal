@@ -52,6 +52,13 @@ class MarketplaceCheckoutService
         return ['client_name' => $entry['name'], 'business_name' => $entry['businesses'][$business]];
     }
 
+    private function assertBuyerAllowed(string $client, string $buyer): void
+    {
+        $entry = config('financial_marketplace.clients', [])[$client];
+        abort_if(array_key_exists('pilot_buyer_id', $entry) && $entry['pilot_buyer_id'] !== $buyer,
+            403, 'El pago con wallet está limitado al comprador del piloto.');
+    }
+
     private function normalize(array $d): array
     {
         abort_unless(isset($d['order_id'],$d['business_id'],$d['amount_cents'],$d['currency']) && is_int($d['amount_cents']) && $d['amount_cents'] > 0
@@ -95,6 +102,7 @@ class MarketplaceCheckoutService
         abort_unless(trim($key) !== '' && strlen($key) <= 255, 422, 'Clave de idempotencia no valida.');
         $d = $this->normalize($input);
         $this->merchant($client, $d['business_id']);
+        $this->assertBuyerAllowed($client, $d['buyer_id']);
         abort_unless($this->identity->isEligibleFinancialAccount($d['buyer_id']), 422, 'El comprador no es una cuenta habilitada en Finanzas.');
         $ttl = (int) config('financial_marketplace.ttl_seconds', 600);
         abort_unless($ttl >= 60 && $ttl <= 1800, 503, 'Vigencia de compras no valida.');
@@ -206,6 +214,7 @@ class MarketplaceCheckoutService
         return DB::connection('sqlsrv')->transaction(function () use ($request, $id, $token, $bonusId, $fundingToken) {
             $row = MarketplacePaymentRequest::where('public_id', $id)->where('buyer_id', (string) $request->user()->getKey())->lockForUpdate()->firstOrFail();
             $this->merchant($row->client_id, $row->business_id);
+            $this->assertBuyerAllowed($row->client_id, $row->buyer_id);
             abort_unless(hash_equals($this->reviewToken($request, $row), $token), 409, 'Vuelve a abrir el detalle y revisa la compra.');
             abort_unless($this->passwordRecent($request), 409, 'Confirma tu contrasena antes de autorizar el pago.');
             $method = $bonusId === null ? 'WALLET' : 'BECA';
