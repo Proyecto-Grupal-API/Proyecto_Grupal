@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Financial;
 
+use App\Domains\Financial\Contracts\BonusAuthorizationProvider;
 use App\Domains\Financial\Contracts\FinancialWebAuthorizer;
 use App\Domains\Financial\Contracts\InstitutionalBudgetAuthorization;
 use App\Domains\Financial\Enums\BonusType;
@@ -21,10 +22,9 @@ final class CommunityBecaController
 {
     public function review(Request $request, string $solicitud, WalletCheckoutConsent $consent)
     {
-        [$award, $mapping, , $approval] = $this->authorizedAward($request, $solicitud);
-        $budget = InstitutionalBonusBudget::where('public_id', $mapping['budget_id'])->firstOrFail();
+        [$award, $mapping, $actor, $approval] = $this->authorizedAward($request, $solicitud);
         $fingerprint = BecaFinanceContract::fingerprint($award);
-        $receipt = $this->proof($solicitud);
+        $receipt = $this->proof($solicitud, $actor, $mapping['budget_id']);
 
         if ($receipt !== null) {
             abort_unless(hash_equals($receipt['fingerprint'], $fingerprint), 409);
@@ -32,7 +32,12 @@ final class CommunityBecaController
             return $this->response(['receipt' => $receipt]);
         }
 
-        $this->requireTreasuryApproval($approval, $award, $mapping['budget_id']);
+        $treasuryActor = $this->treasuryActor($approval, $award, $mapping['budget_id']);
+        abort_unless(app(InstitutionalBudgetAuthorization::class)->allows($treasuryActor, 'budget.commit', $mapping['budget_id']), 403,
+            'Tesorería no tiene una atribución vigente sobre este presupuesto.');
+        abort_unless(app(BonusAuthorizationProvider::class)->canIssueBonus('USER', $actor, BonusType::BECA), 403,
+            'El emisor no tiene autorización para bonos BECA.');
+        $budget = InstitutionalBonusBudget::where('public_id', $mapping['budget_id'])->firstOrFail();
         abort_unless($budget->status === 'ACTIVE' && $budget->bonus_type === 'BECA' && $budget->currency === 'MXN'
             && now()->gte($budget->valid_from) && now()->lt($budget->expires_at), 409, 'El presupuesto no está vigente.');
         abort_unless(now()->lt($award['vigencia_fin_exclusiva']), 409, 'La vigencia de la beca ya terminó.');
@@ -60,9 +65,13 @@ final class CommunityBecaController
         abort_unless(hash_equals($this->reviewToken($consent, $request, $solicitud, $fingerprint, $mapping, $version), $input['review_token']),
             409, 'Vuelve a revisar los datos de la beca.');
 
-        if ($this->proof($solicitud) === null) {
-            $this->requireTreasuryApproval($approval, $award, $mapping['budget_id']);
+        $receipt = $this->proof($solicitud, $actor, $mapping['budget_id'], originalIssuerOnly: true);
+        if ($receipt !== null) {
+            abort_unless(hash_equals($receipt['fingerprint'], $fingerprint), 409);
+
+            return $this->response(['receipt' => $receipt, 'replayed' => true]);
         }
+        $treasuryActor = $this->treasuryActor($approval, $award, $mapping['budget_id']);
         $reference = BecaFinanceContract::reference($solicitud);
         $data = [
             'award_reference' => $reference, 'beneficiary_id' => $award['beneficiario_id'],
@@ -76,7 +85,7 @@ final class CommunityBecaController
             $result = $issuance->issue($actor, $mapping['budget_id'], $version, $data, $reference, [
                 'identity_session_id' => $request->session()->get('cd_session_id'),
                 'native_session_hash' => hash('sha256', $request->session()->getId()),
-            ], $fingerprint);
+            ], $fingerprint, $treasuryActor);
         } catch (InvalidArgumentException $exception) {
             abort(409, $exception->getMessage());
         }
@@ -114,15 +123,16 @@ final class CommunityBecaController
         abort_unless($award, 503, 'Comunidad devolvió una asignación inválida.');
         $mapping = BecaFinanceContract::budgetMapping($award);
         abort_unless($mapping, 409, 'La convocatoria no tiene presupuesto y negocio autorizados.');
-        abort_unless(app(InstitutionalBudgetAuthorization::class)->allows($actor, 'budget.commit', $mapping['budget_id']), 403);
 
         return [$award, $mapping, $actor, $data['aval_tesoreria'] ?? null];
     }
 
-    private function requireTreasuryApproval(mixed $approval, array $award, string $budgetId): void
+    private function treasuryActor(mixed $approval, array $award, string $budgetId): string
     {
         abort_unless(BecaFinanceContract::treasuryApprovalMatches($approval, $award, $budgetId),
             409, 'Tesorería debe avalar este importe y presupuesto después de la aprobación de Presidencia.');
+
+        return $approval['tesoreria_id'];
     }
 
     private function reviewToken(WalletCheckoutConsent $consent, Request $request, string $id, string $fingerprint, array $mapping, int $version): string
@@ -132,7 +142,7 @@ final class CommunityBecaController
         return $consent->reviewToken($request, BecaFinanceContract::reference($id), $review);
     }
 
-    private function proof(string $id): ?array
+    private function proof(string $id, ?string $actor = null, ?string $budgetId = null, bool $originalIssuerOnly = false): ?array
     {
         $reference = BecaFinanceContract::reference($id);
         $link = BonusBudgetCommitment::where('award_reference', $reference)->first();
@@ -151,6 +161,13 @@ final class CommunityBecaController
             && ($op->after_data['committed_delta_cents'] ?? null) === $link->amount_cents
             && $link->amount_cents === $bonus->original_amount_cents && $link->currency === 'MXN' && $bonus->currency === 'MXN'
             && is_string($fingerprint) && preg_match('/\A[0-9a-f]{64}\z/', $fingerprint), 409, 'La emisión requiere revisión.');
+
+        if ($actor !== null) {
+            abort_unless($budgetId !== null && strcasecmp($link->budget_id, $budgetId) === 0, 409);
+            $originalIssuer = $bonus->issuer_type === 'USER' && strcasecmp($bonus->issuer_id, $actor) === 0;
+            abort_unless($originalIssuer || (! $originalIssuerOnly
+                && app(InstitutionalBudgetAuthorization::class)->allows($actor, 'budget.commit', $budgetId)), 403);
+        }
 
         return ['reference' => $reference, 'fingerprint' => $fingerprint,
             'bonus_id' => strtolower($bonus->public_id), 'operation_id' => strtolower($op->public_id)];

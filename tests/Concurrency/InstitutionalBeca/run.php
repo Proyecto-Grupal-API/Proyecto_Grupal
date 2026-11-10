@@ -4,7 +4,9 @@ use App\Domains\Financial\Models\{InstitutionalBonusBudget, InstitutionalBudgetO
 use App\Domains\Financial\Services\{InstitutionalBudgetService, InstitutionalBecaIssuanceService,
     InstitutionalBecaReleaseService, InstitutionalSettlementService, InstitutionalObligationQueryService,
     PurchaseRefundService, WalletService};
+use App\Domains\Financial\Contracts\InstitutionalBudgetAuthorization;
 use App\Domains\Financial\Enums\WalletType;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\{DB, Http};
 use Symfony\Component\Process\Process;
 
@@ -215,6 +217,43 @@ try {
     becaWithClock($clock, fn () => releaseState($f, 1000, 'EXPIRADO', 1));
     $report['cases'][] = ['name' => 'consumption_vs_expiration_at_deadline', 'passed' => true, 'workers' => $race,
         'clock' => $clock, 'released_cents' => 2000];
+    $f = fixture($run, 'treasury', $fixtures);
+    $treasurer = bin2hex(random_bytes(12));
+    $authority = new class($treasurer, $f['budget']) implements InstitutionalBudgetAuthorization {
+        public array $checks = [];
+        public bool $revokeUnderLock = true;
+
+        public function __construct(private readonly string $treasurer, private readonly string $budget) {}
+
+        public function allows(string $actorId, string $action, ?string $budgetId = null): bool
+        {
+            $this->checks[] = $actorId;
+
+            return $actorId === $this->treasurer && $action === 'budget.commit' && $budgetId === $this->budget
+                && (! $this->revokeUnderLock || count($this->checks) === 1);
+        }
+    };
+    app()->instance(InstitutionalBudgetAuthorization::class, $authority);
+    $reference = 'beca:'.bin2hex(random_bytes(12));
+    $payload = ['award_reference' => $reference, 'external_reference' => $reference, 'beneficiary_id' => $f['buyer'],
+        'type' => 'BECA', 'amount_cents' => 1000, 'valid_from' => now()->subMinute()->toISOString(),
+        'expires_at' => now()->addDay()->toISOString(), 'combinable' => false, 'allows_partial_use' => true,
+        'reason' => 'Aval de Comunidad en pruebas', 'restrictions' => []];
+    $issue = fn () => app(InstitutionalBecaIssuanceService::class)->issue($f['operator'], $f['budget'], 2, $payload,
+        $reference, communityFingerprint: hash('sha256', $reference), treasuryActor: $treasurer);
+    try {
+        $issue();
+        throw new RuntimeException('La revocación bajo bloqueo no detuvo la emisión.');
+    } catch (AuthorizationException) {}
+    becaAssert($authority->checks === [$treasurer, $treasurer]
+        && ! InstitutionalBudgetOperation::where('idempotency_key', $reference)->exists(),
+        'Se consultó al actor incorrecto o se registró una emisión denegada.');
+    $authority->revokeUnderLock = false;
+    $issued = $issue();
+    becaAssert(! $issued['replayed'] && $issued['operation']->actor_id === $f['operator']
+        && $issued['operation']->after_data['community_treasury_actor_id'] === $treasurer,
+        'La emisión no conservó las identidades separadas.');
+    $report['cases'][] = ['name' => 'community_beca_separate_issuer_and_treasurer', 'passed' => true];
     Http::assertNothingSent();
 } catch (Throwable $e) {
     $error = $e;
@@ -236,7 +275,7 @@ try {
 foreach ($report['cases'] as $case) echo 'PASS '.$case['name'].PHP_EOL;
 echo 'Informe: '.$reportPath.PHP_EOL;
 if ($error) { fwrite(STDERR, 'FAIL '.$error->getMessage().PHP_EOL); exit(1); }
-echo 'OK: 11 carreras reales y cierre del ciclo; solo datos de testing.'.PHP_EOL;
+echo 'OK: 11 carreras reales, cierre del ciclo y autoridades BECA separadas; solo datos de testing.'.PHP_EOL;
 
 function fixture(string $run, string $name, array &$fixtures): array
 {

@@ -22,13 +22,17 @@ final class InstitutionalBecaIssuanceService
         private readonly BonusAdministrationService $bonuses, private readonly InstitutionalBudgetService $budgets,
         private readonly FinancialJobLock $locks) {}
 
-    public function issue(string $actor, string $budgetId, int $expectedVersion, array $data, string $key, ?array $audit = null, ?string $communityFingerprint = null): array
+    public function issue(string $actor, string $budgetId, int $expectedVersion, array $data, string $key, ?array $audit = null, ?string $communityFingerprint = null, ?string $treasuryActor = null): array
     {
         if (!preg_match('/\A[0-9a-f]{24}\z/i', $actor)) throw new AuthorizationException();
         $actor = strtolower($actor);
         if (!Str::isUuid($budgetId) || $expectedVersion < 1) throw new InvalidArgumentException('Presupuesto o version no validos.');
         $budgetId = strtolower($budgetId);
-        if (!$this->authority->allows($actor, 'budget.commit', $budgetId)
+        if ($treasuryActor !== null && ($communityFingerprint === null || !preg_match('/\A[0-9a-f]{24}\z/', $treasuryActor))) {
+            throw new InvalidArgumentException('El aval de Tesorería requiere una referencia de Comunidad.');
+        }
+        $budgetActor = $treasuryActor ?? $actor;
+        if (!$this->authority->allows($budgetActor, 'budget.commit', $budgetId)
             || !$this->access->allows($actor, 'bonus.issue')) throw new AuthorizationException();
         $award = validator($data, ['award_reference' => ['required', 'string', 'max:150', 'regex:/\S/u']])->validate()['award_reference'];
         $award = trim($award);
@@ -40,7 +44,7 @@ final class InstitutionalBecaIssuanceService
         if (!preg_match('/\A[A-Za-z0-9._:-]{1,200}\z/', $key)) throw new InvalidArgumentException('Llave de idempotencia no valida.');
         $key = strtolower($key);
         if ($communityFingerprint !== null || str_starts_with(strtolower($award), 'beca:') || str_starts_with($key, 'beca:')) {
-            if (! is_string($communityFingerprint) || ! preg_match('/\A[0-9a-f]{64}\z/', $communityFingerprint)
+            if ($treasuryActor === null || ! is_string($communityFingerprint) || ! preg_match('/\A[0-9a-f]{64}\z/', $communityFingerprint)
                 || ! preg_match('/\Abeca:[0-9a-f]{24}\z/', $award) || $key !== $award || ($data['external_reference'] ?? null) !== $award) {
                 throw new InvalidArgumentException('La referencia de Comunidad requiere su flujo de emisión.');
             }
@@ -54,17 +58,20 @@ final class InstitutionalBecaIssuanceService
             'combinable' => (bool) $data['combinable'], 'allows_partial_use' => (bool) $data['allows_partial_use'],
             'external_reference' => trim((string) ($data['external_reference'] ?? '')) ?: null,
             'reason' => trim($data['reason']), 'restrictions' => $restrictions];
-        $evidence = $communityFingerprint === null ? [] : ['community_award_fingerprint' => $communityFingerprint];
+        $evidence = $communityFingerprint === null ? [] : [
+            'community_award_fingerprint' => $communityFingerprint,
+            'community_treasury_actor_id' => $treasuryActor,
+        ];
         $hash = hash('sha256', json_encode([$actor, 'ISSUE_BECA', $budgetId, $expectedVersion, $award, $payload, ...$evidence], JSON_THROW_ON_ERROR));
         // Same namespace as budget administration: a key cannot race across two budget actions.
         $lockKey = 'institution-budget:'.hash('sha256', $key); $token = $this->locks->acquire($lockKey, 180);
         if (!$token) throw new ConflictHttpException('Solicitud presupuestaria en curso.');
         try {
-            return DB::connection('sqlsrv')->transaction(function () use ($actor, $budgetId, $expectedVersion, $key, $payload,
+            return DB::connection('sqlsrv')->transaction(function () use ($actor, $budgetActor, $budgetId, $expectedVersion, $key, $payload,
                 $hash, $start, $end, $audit, $lockKey, $token, $award, $evidence) {
                 $budget = InstitutionalBonusBudget::where('public_id', $budgetId)->lockForUpdate()->first();
                 if (!$budget) throw new ConflictHttpException('Presupuesto no disponible.');
-                if (!$this->authority->allows($actor,'budget.commit',$budgetId)
+                if (!$this->authority->allows($budgetActor,'budget.commit',$budgetId)
                     || !$this->access->allows($actor,'bonus.issue')) throw new AuthorizationException();
                 app(InstitutionalBudgetIntegrity::class)->assertState($budget);
                 $existing = InstitutionalBudgetOperation::where('idempotency_key', $key)->first();
