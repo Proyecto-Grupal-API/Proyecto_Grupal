@@ -52,17 +52,17 @@ test('the test database guard rejects other names before a destructive operation
     expect($destructiveCallReached)->toBeFalse();
 })->with(['campus_virtual', 'campus_virtual_test', 'production', 'production_database_example']);
 
-test('an unsafe resolved database is rejected before parent setup can initialize testing traits', function () {
+test('an unattested target is rejected before parent setup can initialize testing traits', function () {
     $previousContainer = Container::getInstance();
     $probe = new MongoSetupOrderProbe('runSetupProbe');
 
     try {
         try {
             $probe->runSetupProbe();
-            $this->fail('The unsafe MongoDB target must be rejected before parent setup.');
+            $this->fail('The unattested MongoDB target must be rejected before parent setup.');
         } catch (RuntimeException $exception) {
             expect($exception->getMessage())
-                ->toContain('Blocked destructive test database operation', 'production_database_example');
+                ->toContain('Blocked E1 testing: isolated MongoDB target is not attested.');
         }
 
         expect($probe->parentSetupReached)->toBeFalse();
