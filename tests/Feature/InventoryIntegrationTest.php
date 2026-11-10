@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Models\InventoryModule\Category;
 use App\Models\InventoryModule\InventoryBusiness;
 use App\Models\InventoryModule\Product;
 use App\Models\InventoryModule\StockMovement;
