@@ -12,7 +12,9 @@ use App\Models\RegistroEvento;
 use App\Models\RespuestaEncuesta;
 use App\Models\SolicitudBeca;
 use App\Models\Voto;
+use App\Support\BecaFinanceContract;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Str;
 
 class MetricasComunidad
 {
@@ -49,6 +51,28 @@ class MetricasComunidad
         $agregar('Apoyos', 'asignaciones_pendientes', 'Asignaciones pendientes de integración', $asignaciones->count(), $criterio);
         $monto = $asignaciones->sum(fn ($a) => ($a->contrato['moneda'] ?? null) === 'MXN' ? max(0, (int) ($a->contrato['monto_centavos'] ?? 0)) : 0);
         $agregar('Apoyos', 'monto_pendiente_centavos', 'Monto aprobado pendiente de integración', $monto, $criterio.' Suma los montos MXN de los contratos pendientes, no pagos ni saldo disponible.', 'centavos_mxn');
+        $tiposEntrega = ['locker' => 'Lockers entregados', 'impresiones' => 'Apoyos de impresiones entregados', 'bono' => 'Bonos BECA emitidos'];
+        $entregadas = $periodo(AsignacionBeneficio::where('organizacion_id', $org)->where('estado', 'asignada')
+            ->whereIn('contrato.tipo', array_keys($tiposEntrega)), 'entregado_en')
+            ->get(['solicitud_id', 'contrato', 'recibo_servicios', 'recibo_finanzas'])
+            ->filter(function (AsignacionBeneficio $a) {
+                if ($a->contrato['tipo'] === 'bono') {
+                    return ($a->contrato['equipo_destino'] ?? null) === 2
+                        && ($a->recibo_finanzas['reference'] ?? null) === BecaFinanceContract::reference((string) $a->solicitud_id)
+                        && Str::isUuid($a->recibo_finanzas['bonus_id'] ?? null)
+                        && Str::isUuid($a->recibo_finanzas['operation_id'] ?? null);
+                }
+
+                $recibo = $a->recibo_servicios['asignacion_id'] ?? null;
+
+                return ($a->contrato['equipo_destino'] ?? null) === 5 && is_string($recibo) && trim($recibo) !== '';
+            })->unique('solicitud_id')->countBy(fn (AsignacionBeneficio $a) => $a->contrato['tipo']);
+        $criterio = 'Entregas confirmadas por E5 o emisiones confirmadas por E2, registradas en Comunidad dentro del periodo, aunque el dictamen sea anterior.';
+        $agregar('Apoyos', 'apoyos_entregados', 'Apoyos con entrega confirmada', $entregadas->sum(), $criterio);
+        foreach ($tiposEntrega as $tipo => $etiqueta) {
+            $agregar('Apoyos', 'apoyos_entregados_'.$tipo, $etiqueta, $entregadas->get($tipo, 0), $criterio);
+        }
+
         $campanas = Campana::where('organizacion_id', $org)->pluck('id');
         $mensajes = $periodo(Mensaje::where('organizacion_id', $org)->whereIn('campaña_id', $campanas), 'creado_en');
         $agregar('Comunicación', 'mensajes_entregados', 'Mensajes entregados en bandeja', (clone $mensajes)->count(), 'Entregas de campañas propias creadas en el periodo, incluso archivadas o eliminadas lógicamente.');

@@ -157,6 +157,38 @@ class ReportesTest extends TestCase
         }
     }
 
+    public function test_delivered_benefits_require_receipts_and_use_delivery_dates(): void
+    {
+        $asignar = function (string $tipo, int $equipo, array $extra) {
+            $s = $this->solicitud(['dictaminado_en' => now()->subMonths(2)]);
+            return AsignacionBeneficio::create([
+                'organizacion_id' => (string) $this->org->id, 'solicitud_id' => (string) $s->id,
+                'usuario_id' => (string) $this->alumno->id, 'estado' => 'asignada', 'entregado_en' => now()->subDay(),
+                'contrato' => ['tipo' => $tipo, 'equipo_destino' => $equipo], ...$extra,
+            ]);
+        };
+        $locker = $asignar('locker', 5, ['recibo_servicios' => ['asignacion_id' => 'locker-privado']]);
+        $locker->update(['recibo_servicios' => $locker->recibo_servicios]);
+        $asignar('impresiones', 5, ['recibo_servicios' => ['asignacion_id' => 'impresion-privada']]);
+        $bono = $asignar('bono', 2, []);
+        $bono->update(['recibo_finanzas' => ['reference' => 'beca:'.$bono->solicitud_id, 'bonus_id' => (string) Str::uuid(), 'operation_id' => (string) Str::uuid()]]);
+        $asignar('locker', 5, ['recibo_servicios' => ['asignacion_id' => 'ajena'], 'organizacion_id' => 'ajena']);
+        $asignar('locker', 5, ['recibo_servicios' => ['asignacion_id' => 'futura'], 'entregado_en' => now()->addHour()]);
+        $asignar('locker', 5, ['recibo_servicios' => []]);
+        $asignar('bono', 2, ['recibo_finanzas' => $bono->recibo_finanzas]);
+        $asignar('locker', 5, ['recibo_servicios' => ['asignacion_id' => 'pendiente'], 'estado' => 'pendiente_integracion']);
+
+        $r = $this->crear();
+        $metricas = $this->valores($r->metricas);
+        $this->assertSame(0, $metricas['aprobaciones_periodo']);
+        $this->assertSame(3, $metricas['apoyos_entregados']);
+        $this->assertSame(1, $metricas['apoyos_entregados_locker']);
+        $this->assertSame(1, $metricas['apoyos_entregados_impresiones']);
+        $this->assertSame(1, $metricas['apoyos_entregados_bono']);
+        $this->getJson('/api/transparencia/reportes/'.$r->id)->assertOk()
+            ->assertDontSee('locker-privado')->assertDontSee('impresion-privada')->assertDontSee('bonus_id');
+    }
+
     public function test_communication_counts_delivered_and_first_read_even_when_archived_or_deleted(): void
     {
         $c = Campana::create(['organizacion_id' => (string) $this->org->id]);
