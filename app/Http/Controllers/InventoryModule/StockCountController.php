@@ -17,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use MongoDB\BSON\ObjectId;
 
 class StockCountController extends Controller
@@ -194,14 +195,15 @@ class StockCountController extends Controller
 
         $productsMap = Product::where('business_id', $this->businessId())->get()->keyBy(fn($p) => (string) $p->_id);
 
-        $items = StockCountItem::where('stock_count_id', $id)
+        $items = StockCountItem::where('business_id', $this->businessId())
+            ->where('stock_count_id', $id)
             ->orderBy('product_sku', 'asc')
             ->get()
             ->map(function ($i) use ($productsMap) {
                 $attrs = $i->getAttributes();
                 $product = $productsMap->get((string) ($attrs['product_id'] ?? ''));
                 return [
-                    '_id' => (string) ($c->_id ?? ''),
+                    '_id' => (string) $i->getKey(),
                     'product_id' => (string) ($attrs['product_id'] ?? ''),
                     'product_sku' => (string) ($attrs['product_sku'] ?? ''),
                     'product_name' => (string) ($attrs['product_name'] ?? ''),
@@ -215,7 +217,7 @@ class StockCountController extends Controller
         $attrs = $stockCount->getAttributes();
 
         return response()->json([
-            '_id' => (string) ($c->_id ?? ''),
+            '_id' => (string) $stockCount->getKey(),
             'folio' => (string) ($attrs['folio'] ?? ''),
             'status' => (string) ($attrs['status'] ?? ''),
             'notes' => (string) ($attrs['notes'] ?? ''),
@@ -227,7 +229,7 @@ class StockCountController extends Controller
     {
         $validated = $request->validate([
             'items' => 'required|array|min:1',
-            'items.*.item_id' => 'required|string',
+            'items.*.item_id' => 'required|string|regex:/^[0-9a-f]{24}$/i|distinct:ignore_case',
             'items.*.counted_qty' => 'required|integer|min:0|max:1000000',
         ]);
 
@@ -235,39 +237,38 @@ class StockCountController extends Controller
         if (!$stockCount) return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'Conteo no encontrado.']);
         if ($stockCount->status !== 'DRAFT') return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'Solo se pueden capturar conteos en Borrador.']);
 
-        $itemsCollection = DB::connection('inventory')->getCollection('stock_count_items');
-        $differencesCount = 0;
-        $updatedCount = 0;
+        $differencesCount = $stockCount->getConnection()->transaction(function () use ($stockCount, $validated, $id) {
+            $items = StockCountItem::where('business_id', $this->businessId())->where('stock_count_id', $id);
 
-        foreach ($validated['items'] as $input) {
-            $itemId = (string) $input['item_id'];
-            $counted = (int) $input['counted_qty'];
+            foreach ($validated['items'] as $input) {
+                $item = (clone $items)->where('_id', new ObjectId($input['item_id']))->first();
+                if ($item === null) {
+                    throw ValidationException::withMessages([
+                        'error' => 'Una partida no pertenece a este conteo.',
+                    ]);
+                }
 
-            try { $itemObjectId = new ObjectId($itemId); } catch (\Throwable $e) { continue; }
+                (clone $items)->whereKey($item->getKey())->update([
+                    'counted_qty' => (int) $input['counted_qty'],
+                    'difference' => (int) $input['counted_qty'] - $item->expected_qty,
+                ]);
+            }
 
-            $existingItem = $itemsCollection->findOne(['_id' => $itemObjectId]);
-            if (!$existingItem) continue;
+            $differences = (clone $items)->where('difference', '!=', 0)->count();
+            $updated = StockCount::whereKey($stockCount->getKey())
+                ->where('business_id', $this->businessId())
+                ->where('status', 'DRAFT')
+                ->update(['differences_count' => $differences]);
 
-            $expected = (int) ($existingItem['expected_qty'] ?? 0);
-            $difference = $counted - $expected;
+            if ($updated !== 1) {
+                throw ValidationException::withMessages([
+                    'error' => 'Solo se pueden capturar conteos en Borrador.',
+                ]);
+            }
 
-            $itemsCollection->updateOne(
-                ['_id' => $itemObjectId],
-                ['$set' => [
-                    'counted_qty' => $counted,
-                    'difference' => $difference,
-                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                ]]
-            );
-
-            if ($difference !== 0) $differencesCount++;
-            $updatedCount++;
-        }
-
-        DB::connection('inventory')->getCollection('stock_counts')->updateOne(
-            ['_id' => new ObjectId($id)],
-            ['$set' => ['differences_count' => $differencesCount, 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
-        );
+            return $differences;
+        }, 3);
+        $updatedCount = count($validated['items']);
 
         return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Conteo actualizado. Items: ' . $updatedCount . '. Diferencias: ' . $differencesCount);
     }

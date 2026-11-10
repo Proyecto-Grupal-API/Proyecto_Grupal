@@ -70,3 +70,32 @@ it('uses the highest accepted payment version only within the reservation busine
         'order_id' => 'order-version', 'payment_intent_id' => 'pi-version', 'idempotency_key' => 'confirm-version-123',
     ])->assertConflict()->assertJsonPath('payment_status', 'REFUNDED');
 });
+
+it('captures stock count lines only from the selected count and retains differences from earlier captures', function () {
+    $this->withoutMiddleware();
+    $db = DB::connection('inventory');
+    $counts = $db->getCollection('stock_counts');
+    $items = $db->getCollection('stock_count_items');
+    $count = $counts->insertOne(['business_id' => 'advance-A', 'status' => 'DRAFT', 'differences_count' => 0])->getInsertedId();
+    $otherCount = $counts->insertOne(['business_id' => 'advance-A', 'status' => 'DRAFT'])->getInsertedId();
+    $base = ['business_id' => 'advance-A', 'expected_qty' => 5, 'counted_qty' => 0, 'difference' => 0];
+    $first = $items->insertOne($base + ['stock_count_id' => (string) $count])->getInsertedId();
+    $second = $items->insertOne($base + ['stock_count_id' => (string) $count])->getInsertedId();
+    $foreign = $items->insertOne($base + ['stock_count_id' => (string) $otherCount])->getInsertedId();
+    $path = route('equipo4.conteos.capture', ['id' => (string) $count], false);
+
+    $this->getJson(route('equipo4.conteos.show', ['id' => (string) $count], false))
+        ->assertOk()->assertJsonPath('_id', (string) $count)->assertJsonCount(2, 'items')
+        ->assertJsonFragment(['_id' => (string) $first]);
+    $this->postJson($path, ['items' => [
+        ['item_id' => (string) $first, 'counted_qty' => 4],
+        ['item_id' => (string) $foreign, 'counted_qty' => 1],
+    ]])->assertUnprocessable();
+    expect($items->findOne(['_id' => $first])['counted_qty'])->toBe(0)
+        ->and($items->findOne(['_id' => $foreign])['counted_qty'])->toBe(0);
+
+    foreach ([$first, $second] as $item) {
+        $this->postJson($path, ['items' => [['item_id' => (string) $item, 'counted_qty' => 4]]])->assertRedirect();
+    }
+    expect($counts->findOne(['_id' => $count])['differences_count'])->toBe(2);
+});
