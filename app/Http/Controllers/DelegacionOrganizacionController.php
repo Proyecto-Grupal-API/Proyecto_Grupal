@@ -23,7 +23,7 @@ class DelegacionOrganizacionController extends Controller
         $p = $q->orderBy('creado_en', 'desc')->orderBy('_id')->paginate(10);
 
         return response()->json(['delegaciones' => $p->getCollection()->map(fn ($d) => $servicio->resumen($d, $org)), 'puede_administrar' => $administrar,
-            'capacidades' => PermisosComunidad::CAPACIDADES, 'page' => $p->currentPage(), 'last_page' => $p->lastPage()])->header('Cache-Control', 'private, no-store');
+            'capacidades' => app(PermisosComunidad::class)->delegables($org), 'page' => $p->currentPage(), 'last_page' => $p->lastPage()])->header('Cache-Control', 'private, no-store');
     }
 
     public function store(Request $r, DelegacionesComunidad $servicio)
@@ -32,7 +32,7 @@ class DelegacionOrganizacionController extends Controller
         $datos = $r->validate([
             'destinatario_id' => ['required', 'string', 'regex:/^[a-f0-9]{24}$/i'],
             'capacidades' => ['required', 'array', 'min:1', 'max:3'],
-            'capacidades.*' => ['required', 'string', 'distinct', Rule::in(array_keys(PermisosComunidad::CAPACIDADES))],
+            'capacidades.*' => ['required', 'string', 'distinct', Rule::in(array_keys(app(PermisosComunidad::class)->delegables($org)))],
             'inicio' => ['required', 'date_format:Y-m-d\TH:i'], 'fin' => ['required', 'date_format:Y-m-d\TH:i'],
             'motivo' => ['required', 'string', 'min:10', 'max:1000'], 'clave_idempotencia' => ['required', 'uuid'],
         ]);

@@ -45,6 +45,7 @@ class CashOperationConfirmationService
                 || $wallet->currency !== $shift->cashRegister->currency || $wallet->owner_type !== 'USER' || trim((string) $wallet->owner_id) === '') {
                 throw new InvalidArgumentException('La confirmación requiere una wallet de usuario activa y de la moneda de la caja.');
             }
+            abort_if(trim($actor) === 'user:'.$wallet->owner_id, 403, 'La caja requiere un operador distinto del titular.');
             $ttl = (int) config('financial.cash.confirmation_ttl_seconds', 300);
             if ($ttl < 60 || $ttl > 900) {
                 throw new InvalidArgumentException('La vigencia de confirmación debe estar entre 60 y 900 segundos.');
@@ -137,6 +138,7 @@ class CashOperationConfirmationService
 
                     return $settle($proof);
                 }
+                abort_if(trim($actor) === 'user:'.$proof->student_id, 403, 'La caja requiere un operador distinto del titular.');
                 if ($proof->status !== 'CONFIRMED' || ! $proof->expires_at->isFuture()) {
                     throw new InvalidArgumentException('Se requiere una confirmación vigente del estudiante.');
                 }

@@ -67,6 +67,38 @@ class DelegacionesComunidadTest extends TestCase
         $this->postJson("/api/organizaciones/delegaciones/$id/revocar", ['motivo' => 'No tengo autoridad para revocarla.'])->assertForbidden();
     }
 
+    public function test_financial_cash_permissions_require_explicit_and_current_organization_delegation(): void
+    {
+        $org = (string) $this->org->id;
+        $cash = app(\App\Domains\Financial\Contracts\CashAuthorizationProvider::class);
+        $actor = 'user:'.$this->persona->id;
+        $this->actingAs($this->presidente)->postJson('/api/organizaciones/delegaciones',
+            $this->datos(['capacidades' => ['caja.operar']]))->assertUnprocessable();
+        config(['financial.cash.community_associations' => [$org]]);
+        $this->persona->forceFill(['email_verified_at' => now(), 'must_change_password' => false,
+            'account_activation_pending' => false])->save();
+
+        $id = $this->crear(['capacidades' => ['caja.operar']]);
+        $this->assertTrue($cash->allows($actor, $org, 'operate'));
+        $this->assertTrue($cash->allows($actor, $org, 'close'));
+        $this->assertTrue($cash->allows($actor, $org, 'read'));
+        foreach (['approval_review', 'approval_manage', 'adjust', 'recover', 'manage'] as $action) {
+            $this->assertFalse($cash->allows($actor, $org, $action));
+        }
+        $this->assertFalse($cash->allows('user:'.$this->presidente->id, $org, 'operate'));
+        $this->assertFalse($cash->allows('service:comunidad', $org, 'operate'));
+        $this->assertFalse($cash->allows($actor, (string) Organizacion::where('slug', 'consejo')->sole()->id, 'operate'));
+
+        RolOrganizacion::create(['organizacion_id' => $org, 'usuario_id' => (string) $this->persona->id,
+            'slug_rol' => 'tesoreria', 'fecha_inicio' => now()->subDay()]);
+        $this->postJson("/api/organizaciones/delegaciones/$id/revocar",
+            ['motivo' => 'Terminó la designación del cajero de prueba.'])->assertOk();
+        $this->assertFalse($cash->allows($actor, $org, 'operate'));
+        $this->assertTrue($cash->allows($actor, $org, 'read'));
+        $this->persona->forceFill(['account_activation_pending' => true])->save();
+        $this->assertFalse($cash->allows($actor, $org, 'read'));
+    }
+
     public function test_grant_requires_current_member_supported_capabilities_and_bounded_dates(): void
     {
         $this->actingAs($this->presidente);

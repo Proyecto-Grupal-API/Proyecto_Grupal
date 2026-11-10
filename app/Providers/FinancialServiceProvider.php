@@ -8,10 +8,10 @@ use App\Domains\Financial\Adapters\Module1TransferAccountAdapter;
 use App\Domains\Financial\Adapters\Module1TransferRecipientAdapter;
 use App\Domains\Financial\Adapters\Module1TransferSessionContextAdapter;
 use App\Domains\Financial\Adapters\PendingBonusAuthorizationProvider;
-use App\Domains\Financial\Adapters\PendingCashAuthorizationProvider;
+use App\Domains\Financial\Adapters\CommunityCashAuthorizationProvider;
 use App\Domains\Financial\Adapters\PendingFinancialRoleProvider;
 use App\Domains\Financial\Adapters\PendingFinancialWebAuthorizer;
-use App\Domains\Financial\Adapters\PendingTransferAuthorizationProvider;
+use App\Domains\Financial\Adapters\PersonalWalletTransferAuthorization;
 use App\Domains\Financial\Adapters\PendingTransferDelegationProvider;
 use App\Domains\Financial\Contracts\BonusAuthorizationProvider;
 use App\Domains\Financial\Contracts\CashAuthorizationProvider;
@@ -48,13 +48,13 @@ class FinancialServiceProvider extends ServiceProvider
         $this->app->bind(TransferRecipientProvider::class,
             Module1TransferRecipientAdapter::class);
         $this->app->bind(TransferAuthorizationProvider::class,
-            PendingTransferAuthorizationProvider::class);
+            PersonalWalletTransferAuthorization::class);
         $this->app->bind(BonusAuthorizationProvider::class,
             PendingBonusAuthorizationProvider::class);
         $this->app->bind(FinancialWebAuthorizer::class,
             PendingFinancialWebAuthorizer::class);
         $this->app->bind(CashAuthorizationProvider::class,
-            PendingCashAuthorizationProvider::class);
+            CommunityCashAuthorizationProvider::class);
         $this->app->bind(FinancialRoleProvider::class, PendingFinancialRoleProvider::class);
         $this->app->bind(CashReconciliationSource::class, CashShiftReconciliationSource::class);
         $this->app->scoped(FinancialCorrelation::class);

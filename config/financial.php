@@ -19,7 +19,10 @@ $csv = static fn (?string $value): array => array_values(array_filter(array_map(
 )));
 
 return [
-    'cash' => ['reconciliation_enabled' => env('FINANCIAL_CASH_RECONCILIATION_ENABLED', false),
+    'personal_wallet_transfers_enabled' => env('FINANCIAL_PERSONAL_WALLET_TRANSFERS_ENABLED', false),
+
+    'cash' => ['community_associations' => $csv(env('FINANCIAL_COMMUNITY_CASH_ASSOCIATIONS')),
+        'reconciliation_enabled' => env('FINANCIAL_CASH_RECONCILIATION_ENABLED', false),
         'confirmation_ttl_seconds' => (int) env('FINANCIAL_CASH_CONFIRMATION_TTL_SECONDS', 300)],
 
     // Zona horaria con la que se delimita un "día" o "mes" de negocio

@@ -23,6 +23,9 @@ class DelegacionesComunidad
             $inicio = Carbon::createFromFormat('!Y-m-d\TH:i', $datos['inicio'], 'America/Mexico_City');
             $fin = Carbon::createFromFormat('!Y-m-d\TH:i', $datos['fin'], 'America/Mexico_City');
             $capacidades = $datos['capacidades'];
+            if (array_diff($capacidades, array_keys(app(PermisosComunidad::class)->delegables($org)))) {
+                throw ValidationException::withMessages(['capacidades' => 'Alguna capacidad no está habilitada para esta organización.']);
+            }
             sort($capacidades);
             $contenido = ['destinatario_id' => $datos['destinatario_id'], 'capacidades' => $capacidades, 'inicio' => $inicio->toIso8601String(), 'fin' => $fin->toIso8601String(), 'motivo' => $datos['motivo'], 'delegante_id' => (string) $actor->id];
             $huella = hash('sha256', json_encode($contenido, JSON_THROW_ON_ERROR));

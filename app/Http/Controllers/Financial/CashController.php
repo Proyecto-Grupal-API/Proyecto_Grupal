@@ -196,6 +196,9 @@ class CashController extends Controller
     {
         $actor = $this->authorizeAssociation($request, $associationId, 'close');
         $shift = $this->shift($associationId, $shiftId);
+        if (str_starts_with($actor, 'user:')) {
+            abort_unless($shift->agent_id === $actor, 403, 'El turno pertenece a otro operador.');
+        }
         $values = $request->validate(['counted_amount_cents' => ['required', 'integer', 'min:0'],
             'reason' => ['required', 'string', 'max:1000']]);
         $key = $this->key($request);
