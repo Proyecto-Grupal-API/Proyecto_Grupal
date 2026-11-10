@@ -36,13 +36,13 @@ it('stores the same event once and rejects changed content under the same identi
     $p = '/api/v1/plataforma/eventos';
     signedPlatform($this, $p, $b)->assertStatus(202);
     signedPlatform($this, $p, $b)->assertOk();
-    signedPlatform($this, $p, [...$b, 'payload' => ['student_id' => 'someone-else']])->assertConflict();
+    signedPlatform($this, $p, [...$b, 'payload' => ['student_id' => 'someone-else']])->assertConflict()->assertJsonPath('codigo', 'conflicto_contenido');
     expect(AnalyticsEvent::count())->toBe(1);
 });
 it('refuses personal information nested in analytics payload', function () {
     $b = platformBody();
     $b['payload'] = ['context' => ['email' => 'private@example.test']];
-    signedPlatform($this, '/api/v1/plataforma/eventos', $b)->assertUnprocessable();
+    signedPlatform($this, '/api/v1/plataforma/eventos', $b)->assertUnprocessable()->assertJsonPath('codigo', 'sobre_invalido');
     expect(AnalyticsEvent::count())->toBe(0);
 });
 it('attributes audits to the authenticated domain and checks identical-content retries', function () {
@@ -50,7 +50,7 @@ it('attributes audits to the authenticated domain and checks identical-content r
     $p = '/api/v1/plataforma/auditoria';
     signedPlatform($this, $p, $b)->assertStatus(202);
     signedPlatform($this, $p, $b)->assertOk();
-    signedPlatform($this, $p, [...$b, 'action' => 'another.action'])->assertConflict();
+    signedPlatform($this, $p, [...$b, 'action' => 'another.action'])->assertConflict()->assertJsonPath('codigo', 'conflicto_contenido');
     expect(AuditLog::count())->toBe(1)->and(AuditLog::first()->source_domain)->toBe('community');
     expect(DB::connection('platform')->getCollection('audit_correlations')->findOne(['correlation_id' => 'correlation-1'])['origin_domain'])->toBe('community');
 });

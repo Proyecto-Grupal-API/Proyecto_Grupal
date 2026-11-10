@@ -7,7 +7,6 @@ use App\Models\PlatformModule\AuditCorrelation;
 use App\Models\PlatformModule\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Ramsey\Uuid\Uuid;
@@ -27,7 +26,9 @@ class PlatformIngestController
         ]);
         // Laravel excludes unlisted nested keys from validated(); keep the complete envelope for hashing and privacy checks.
         $payload = $request->input('payload');
-        $this->assertMinimalPayload($payload);
+        if ($this->containsPersonalFields($payload)) {
+            return $this->error($request, 'sobre_invalido', 'Utiliza identificadores y estados; no datos personales.', 422);
+        }
         abort_if(array_key_exists('source_event_id', $payload), 422, 'source_event_id es un campo reservado del receptor.');
         $aggregate = $payload['reservation_id'] ?? $payload['movement_id'] ?? $payload['product_reference'] ?? $payload['product_id'] ?? $payload['business_id'];
         abort_unless(is_string($aggregate) && strlen($aggregate) <= 100, 422);
@@ -67,17 +68,14 @@ class PlatformIngestController
         abort_unless(is_string($source), 401);
         abort_unless(($d['source_domain'] ?? $source) === $source, 403);
         $d['source_domain'] = $source;
-        $this->assertMinimalPayload($d['payload'] ?? $d['before'] ?? []);
-        $this->assertMinimalPayload($d['after'] ?? []);
+        if ($this->containsPersonalFields($d['payload'])) {
+            return $this->error($request, 'sobre_invalido', 'Utiliza identificadores y estados; no datos personales.', 422);
+        }
         $digest = $this->digest($d);
         $d['envelope_hash'] = $digest;
 
         if (! Str::startsWith($d['event_name'], $d['source_domain'].'.')) {
             return $this->error($request, 'sobre_invalido', 'event_name debe empezar con source_domain.', 422);
-        }
-
-        if (Arr::hasAny($d['payload'], ['name', 'nombre', 'email', 'correo'])) {
-            return $this->error($request, 'sobre_invalido', 'El payload no debe incluir nombres ni correos; usa solo ids.', 422);
         }
 
         try {
@@ -101,11 +99,11 @@ class PlatformIngestController
                 throw $e;
             }
 
-            return $this->duplicate($d['event_id'], $digest, isset($d['event_name']) ? AnalyticsEvent::class : AuditLog::class);
+            return $this->duplicate($request, $d['event_id'], $digest, AnalyticsEvent::class);
         }
 
         if (! $event->wasRecentlyCreated) {
-            return $this->duplicate($d['event_id'], $digest, AnalyticsEvent::class);
+            return $this->duplicate($request, $d['event_id'], $digest, AnalyticsEvent::class);
         }
 
         return response()->json(
@@ -141,13 +139,14 @@ class PlatformIngestController
         abort_unless(is_string($source), 401);
         abort_unless(($d['source_domain'] ?? $source) === $source, 403);
         $d['source_domain'] = $source;
-        $this->assertMinimalPayload($d['payload'] ?? $d['before'] ?? []);
-        $this->assertMinimalPayload($d['after'] ?? []);
+        if ($this->containsPersonalFields($d['before'] ?? []) || $this->containsPersonalFields($d['after'] ?? [])) {
+            return $this->error($request, 'sobre_invalido', 'Utiliza identificadores y estados; no datos personales.', 422);
+        }
         $digest = $this->digest($d);
         $d['envelope_hash'] = $digest;
 
         if (AuditLog::where('event_id', $d['event_id'])->exists()) {
-            return $this->duplicate($d['event_id'], $digest, isset($d['event_name']) ? AnalyticsEvent::class : AuditLog::class);
+            return $this->duplicate($request, $d['event_id'], $digest, AuditLog::class);
         }
 
         try {
@@ -168,7 +167,7 @@ class PlatformIngestController
                 throw $e;
             }
 
-            return $this->duplicate($d['event_id'], $digest, isset($d['event_name']) ? AnalyticsEvent::class : AuditLog::class);
+            return $this->duplicate($request, $d['event_id'], $digest, AuditLog::class);
         }
 
         return response()->json(['estado' => 'aceptado', 'event_id' => $d['event_id']], 202);
@@ -191,22 +190,28 @@ class PlatformIngestController
         return hash('sha256', json_encode($sort($value), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
-    private function duplicate(string $id, string $digest, string $model): JsonResponse
+    private function duplicate(Request $request, string $id, string $digest, string $model): JsonResponse
     {
         $stored = $model::where('event_id', $id)->first();
-        abort_unless($stored && is_string($stored->envelope_hash) && hash_equals($stored->envelope_hash, $digest), 409, 'El identificador ya existe con otro contenido.');
+        if (! ($stored && is_string($stored->envelope_hash) && hash_equals($stored->envelope_hash, $digest))) {
+            return $this->error($request, 'conflicto_contenido', 'El identificador ya existe con otro contenido.', 409);
+        }
 
         return response()->json(['estado' => 'duplicado', 'event_id' => $id]);
     }
 
-    private function assertMinimalPayload(array $value): void
+    private function containsPersonalFields(array $value): bool
     {
         foreach ($value as $key => $entry) {
-            abort_if(is_string($key) && in_array(strtolower($key), ['name', 'nombre', 'email', 'correo', 'password', 'token', 'secret', 'documento', 'expediente'], true), 422, 'Utiliza identificadores y estados; no datos personales.');
-            if (is_array($entry)) {
-                $this->assertMinimalPayload($entry);
+            if (is_string($key) && in_array(strtolower($key), ['name', 'nombre', 'email', 'correo', 'password', 'token', 'secret', 'documento', 'expediente'], true)) {
+                return true;
+            }
+            if (is_array($entry) && $this->containsPersonalFields($entry)) {
+                return true;
             }
         }
+
+        return false;
     }
 
     private function error(Request $request, string $codigo, string $mensaje, int $status, array $detalles = []): JsonResponse
