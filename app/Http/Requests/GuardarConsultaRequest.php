@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class GuardarConsultaRequest extends FormRequest
@@ -19,6 +20,9 @@ class GuardarConsultaRequest extends FormRequest
         $eleccion = $this->route('tipo') === 'votaciones';
 
         return [
+            'audiencia' => [$eleccion ? 'prohibited' : Rule::in(['miembros', 'evento_inscritos', 'evento_asistentes'])],
+            'evento_id' => [$eleccion ? 'prohibited' : 'required_if:audiencia,evento_inscritos,evento_asistentes',
+                'prohibited_unless:audiencia,evento_inscritos,evento_asistentes', 'nullable', 'regex:/^[a-f0-9]{24}$/D'],
             'revision' => ['sometimes', 'integer', 'min:1'],
             'titulo' => ['required', 'string', 'max:150'],
             'descripcion' => ['required', 'string', 'min:10', 'max:3000'],
@@ -53,6 +57,9 @@ class GuardarConsultaRequest extends FormRequest
     public function datos(): array
     {
         $d = $this->safe()->except('revision');
+        if (($d['audiencia'] ?? null) === 'miembros') {
+            $d['evento_id'] = null;
+        }
         foreach (['fecha_inicio', 'fecha_fin'] as $campo) {
             $d[$campo] = CarbonImmutable::createFromFormat('!Y-m-d\TH:i', $d[$campo], 'America/Mexico_City')->utc();
         }

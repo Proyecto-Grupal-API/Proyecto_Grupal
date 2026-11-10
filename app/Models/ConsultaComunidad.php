@@ -4,7 +4,7 @@ namespace App\Models;
 
 abstract class ConsultaComunidad extends Documento
 {
-    protected $fillable = ['referencia_demo', 'organizacion_id', 'titulo', 'descripcion', 'fecha_inicio', 'fecha_fin', 'preguntas', 'estado', 'revision', 'padron', 'total_padron', 'publicado_en', 'cerrado_en', 'motivo_cierre', 'motivo_cancelacion'];
+    protected $fillable = ['referencia_demo', 'organizacion_id', 'titulo', 'descripcion', 'fecha_inicio', 'fecha_fin', 'preguntas', 'estado', 'revision', 'audiencia', 'evento_id', 'padron', 'total_padron', 'publicado_en', 'cerrado_en', 'motivo_cierre', 'motivo_cancelacion'];
 
     protected $hidden = ['padron'];
 

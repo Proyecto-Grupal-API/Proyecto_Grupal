@@ -23,6 +23,12 @@ const panel = ref(false),
     detalle = ref(null),
     respuestas = ref({}),
     confirmar = ref(false);
+const eventos = ref([]), cargandoEventos = ref(false), errorEventos = ref("");
+const audiencias = {
+    miembros: "Integrantes activos",
+    evento_inscritos: "Integrantes con inscripción vigente al evento",
+    evento_asistentes: "Integrantes con asistencia registrada",
+};
 const gestion = computed(() => page.props.auth.puede_editar);
 const etiquetas = {
     borrador: "Borrador",
@@ -162,7 +168,27 @@ function editar(c) {
                   },
               ],
           };
+    if (!votacion.value) {
+        form.value.audiencia = c?.audiencia ?? "miembros";
+        form.value.evento_id = c?.evento_id ?? "";
+        cargarEventos();
+    }
     panel.value = true;
+}
+async function cargarEventos() {
+    const edicion = form.value;
+    eventos.value = [];
+    cargandoEventos.value = true;
+    errorEventos.value = "";
+    try {
+        const { data } = await axios.get("/api/consultas/encuestas/eventos");
+        if (form.value === edicion) eventos.value = data.eventos;
+    } catch {
+        if (form.value === edicion)
+            errorEventos.value = "No se pudieron cargar los eventos publicados.";
+    } finally {
+        if (form.value === edicion) cargandoEventos.value = false;
+    }
 }
 async function guardar() {
     const d = await ejecutar(() =>
@@ -326,6 +352,9 @@ async function estado(c, accion) {
                         >. Se fija al publicar. Altas posteriores no podrán
                         participar y quienes pierdan su membresía no podrán
                         acceder.
+                    </p>
+                    <p v-if="preview.evento_titulo" class="text-sm">
+                        {{ audiencias[preview.consulta.audiencia] }} · {{ preview.evento_titulo }}
                     </p>
                     <p class="text-sm">
                         {{ fecha(preview.consulta.fecha_inicio) }} —
@@ -684,9 +713,28 @@ async function estado(c, accion) {
                             class="w-full rounded-lg border-gray-300"
                         ></textarea>
                     </div>
+                    <div v-if="!votacion">
+                        <label for="consulta-audiencia">Quién puede responder</label>
+                        <select id="consulta-audiencia" v-model="form.audiencia"
+                            class="w-full rounded-lg border-gray-300" @change="form.evento_id = ''">
+                            <option v-for="(nombre, id) in audiencias" :key="id" :value="id">{{ nombre }}</option>
+                        </select>
+                    </div>
+                    <div v-if="!votacion && form.audiencia !== 'miembros'">
+                        <label for="consulta-evento">Evento publicado</label>
+                        <select id="consulta-evento" v-model="form.evento_id" required
+                            class="w-full rounded-lg border-gray-300" :disabled="cargandoEventos || !!errorEventos">
+                            <option value="">Selecciona un evento</option>
+                            <option v-for="e in eventos" :key="e.id" :value="e.id">{{ e.titulo }} · {{ fecha(e.fecha_hora_inicio) }}</option>
+                        </select>
+                        <p v-if="cargandoEventos" role="status" class="text-sm">Cargando eventos…</p>
+                        <p v-else-if="errorEventos" role="alert" class="text-sm text-red-700">{{ errorEventos }}
+                            <button type="button" class="font-semibold underline" @click="cargarEventos">Reintentar</button>
+                        </p>
+                        <p v-else-if="!eventos.length" class="text-sm">Publica un evento para usar esta audiencia.</p>
+                    </div>
                     <p class="text-sm text-gray-600">
-                        Población: integrantes activos de tu organización al
-                        publicar. Fechas en horario de Ciudad de México.
+                        El padrón se fija al publicar y exige membresía activa. Fechas en horario de Ciudad de México.
                     </p>
                     <div>
                         <label for="consulta-inicio">Inicio</label
@@ -797,7 +845,7 @@ async function estado(c, accion) {
                 ><button
                     form="form-consulta"
                     type="submit"
-                    :disabled="ocupado"
+                    :disabled="ocupado || (!votacion && form.audiencia !== 'miembros' && !eventos.some(e => e.id === form.evento_id))"
                     class="bg-blue-900 text-white rounded-lg px-4 py-2"
                 >
                     {{ ocupado ? "Guardando…" : "Guardar borrador" }}

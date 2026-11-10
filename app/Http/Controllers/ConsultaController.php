@@ -33,10 +33,21 @@ class ConsultaController extends Controller
         return response()->json(['consultas' => $p->getCollection()->map(fn ($c) => $this->resumen($r, $tipo, $c)), 'page' => $p->currentPage(), 'last_page' => $p->lastPage(), 'puede_gestionar' => $gestion])->header('Cache-Control', 'private, no-store');
     }
 
+    public function eventos(Request $r)
+    {
+        $org = $this->organizacion($r, true);
+
+        return response()->json(['eventos' => $this->consultas->eventos((string) $org->id)
+            ->orderBy('fecha_hora_inicio', 'desc')->orderBy('_id')->get(['id', 'titulo', 'fecha_hora_inicio'])])
+            ->header('Cache-Control', 'private, no-store');
+    }
+
     public function store(GuardarConsultaRequest $r, string $tipo)
     {
         $org = $this->organizacion($r, true);
-        $c = $this->consultas->consulta($tipo)->create([...$r->datos(), 'organizacion_id' => (string) $org->id, 'estado' => 'borrador', 'revision' => 1]);
+        $c = $this->consultas->consulta($tipo)->newInstance([...$r->datos(), 'organizacion_id' => (string) $org->id, 'estado' => 'borrador', 'revision' => 1]);
+        $this->consultas->validarEvento($c);
+        $c->save();
         $this->auditar($r, $c, 'consulta_creada');
 
         return response()->json(['message' => 'Borrador guardado.', 'consulta' => $this->resumen($r, $tipo, $c)], 201);
@@ -54,7 +65,9 @@ class ConsultaController extends Controller
         return $this->bloquear($r, $tipo, $id, true, function ($c) use ($r) {
             $this->exigir($c->estado === 'borrador', 'Solo puedes editar borradores.');
             abort_unless((int) $r->input('revision') === $c->revision, 409, 'El borrador cambió. Abre de nuevo el formulario.');
-            $c->update([...$r->datos(), 'revision' => $c->revision + 1]);
+            $c->fill([...$r->datos(), 'revision' => $c->revision + 1]);
+            $this->consultas->validarEvento($c);
+            $c->save();
             $this->auditar($r, $c, 'consulta_editada');
 
             return response()->json(['message' => 'Borrador actualizado.']);
@@ -67,7 +80,9 @@ class ConsultaController extends Controller
             $this->exigir($c->estado === 'borrador', 'Esta consulta ya fue publicada o cancelada.');
             $ids = $this->consultas->padron($c);
 
-            return response()->json(['consulta' => $this->resumen($r, $tipo, $c), 'total_padron' => count($ids), 'firma' => $this->consultas->firma($c, $ids)]);
+            return response()->json(['consulta' => $this->resumen($r, $tipo, $c), 'total_padron' => count($ids),
+                'evento_titulo' => $c->evento_id ? $this->consultas->eventos($c->organizacion_id)->whereKey($c->evento_id)->value('titulo') : null,
+                'firma' => $this->consultas->firma($c, $ids)]);
         });
     }
 
@@ -167,7 +182,7 @@ class ConsultaController extends Controller
     {
         $registrada = $this->consultas->participacion($tipo)->where('consulta_id', (string) $c->id)->where('usuario_id', (string) $r->user()->id)->exists();
 
-        return [...$c->only(['id', 'titulo', 'descripcion', 'fecha_inicio', 'fecha_fin', 'preguntas', 'estado', 'revision', 'total_padron', 'motivo_cierre', 'motivo_cancelacion']), 'fase' => $c->fase(), 'participacion_registrada' => $registrada, 'puede_participar' => ! $registrada && $c->fase() === 'abierta' && in_array((string) $r->user()->id, $c->padron ?? [], true)];
+        return [...$c->only(['id', 'titulo', 'descripcion', 'fecha_inicio', 'fecha_fin', 'preguntas', 'estado', 'revision', 'audiencia', 'evento_id', 'total_padron', 'motivo_cierre', 'motivo_cancelacion']), 'fase' => $c->fase(), 'participacion_registrada' => $registrada, 'puede_participar' => ! $registrada && $c->fase() === 'abierta' && in_array((string) $r->user()->id, $c->padron ?? [], true)];
     }
 
     private function exigir(bool $ok, string $mensaje): void

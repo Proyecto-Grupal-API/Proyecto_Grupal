@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\AuditoriaComunidad;
 use App\Models\Eleccion;
 use App\Models\Encuesta;
+use App\Models\Evento;
 use App\Models\MiembroOrganizacion;
 use App\Models\Organizacion;
+use App\Models\RegistroEvento;
 use App\Models\RespuestaEncuesta;
 use App\Models\RolOrganizacion;
 use App\Models\User;
@@ -82,6 +84,59 @@ class ConsultasTest extends TestCase
             $this->getJson("/api/consultas/$tipo/$c->id")->assertOk()->assertJsonMissingPath('consulta.padron')->assertJsonMissingPath('consulta.usuario_id')->assertJsonPath('resultados', null);
             $this->actingAs($this->andrea)->getJson("/api/consultas/$tipo/$c->id")->assertForbidden();
         }
+    }
+
+    public function test_event_surveys_snapshot_only_eligible_members_and_protect_the_audience(): void
+    {
+        $org = (string) $this->org->id;
+        $evento = Evento::create(['organizacion_id' => $org, 'titulo' => 'Evento del padrón', 'estado' => 'publicado']);
+        $ajeno = Evento::create(['organizacion_id' => 'ajena', 'titulo' => 'Evento ajeno', 'estado' => 'publicado']);
+        $borrador = Evento::create(['organizacion_id' => $org, 'titulo' => 'Evento privado', 'estado' => 'borrador']);
+        $registrar = fn (User $u, array $datos) => RegistroEvento::create([
+            'evento_id' => (string) $evento->id, 'usuario_id' => (string) $u->id, 'token_qr' => (string) Str::uuid(),
+            'estado' => 'confirmada', 'estado_pago' => 'exento', ...$datos,
+        ]);
+        $asistente = $registrar($this->alumno, ['estado_asistencia' => 'asistio', 'asistio_en' => now()->subMinute()]);
+        $registrar($this->admin, ['estado_asistencia' => 'pendiente']);
+        $registrar($this->andrea, ['estado_asistencia' => 'asistio', 'asistio_en' => now()->subMinute()]);
+        $enEspera = User::factory()->create();
+        $vencido = User::factory()->create();
+        foreach ([$enEspera, $vencido] as $miembro) {
+            MiembroOrganizacion::create(['organizacion_id' => $org, 'usuario_id' => (string) $miembro->id,
+                'estado' => 'activo', 'fecha_inicio' => now()->subDay()]);
+        }
+        $registrar($enEspera, ['estado' => 'espera']);
+        $registrar($vencido, ['estado_pago' => 'pendiente', 'reserva_hasta' => now()->subSecond()]);
+
+        $this->actingAs($this->admin)->getJson('/api/consultas/encuestas/eventos')->assertOk()
+            ->assertJsonFragment(['id' => (string) $evento->id, 'titulo' => 'Evento del padrón'])
+            ->assertDontSee('Evento ajeno')->assertDontSee('Evento privado');
+        $this->actingAs($this->alumno)->getJson('/api/consultas/encuestas/eventos')->assertForbidden();
+        $this->actingAs($this->admin);
+        $filtro = ['audiencia' => 'evento_asistentes', 'evento_id' => (string) $evento->id];
+        foreach ([$ajeno, $borrador] as $invalido) {
+            $this->postJson('/api/consultas/encuestas', $this->datos([...$filtro, 'evento_id' => (string) $invalido->id]))
+                ->assertUnprocessable()->assertJsonValidationErrors('evento_id');
+        }
+        $this->postJson('/api/consultas/votaciones', $this->datos($filtro))->assertUnprocessable();
+        $this->postJson('/api/consultas/encuestas', $this->datos(['audiencia' => 'evento_asistentes']))->assertUnprocessable();
+
+        $inscritos = $this->crear('encuestas', [...$filtro, 'audiencia' => 'evento_inscritos']);
+        $this->publicar($inscritos);
+        $this->assertEqualsCanonicalizing([(string) $this->alumno->id, (string) $this->admin->id], $inscritos->padron);
+
+        $encuesta = $this->crear('encuestas', $filtro);
+        $url = '/api/consultas/encuestas/'.$encuesta->id;
+        $this->putJson($url, $this->datos(['revision' => $encuesta->revision]))->assertOk();
+        $previa = $this->postJson($url.'/preview')->assertOk()->assertJsonPath('total_padron', 1)->json('firma');
+        $asistente->update(['estado_asistencia' => 'pendiente', 'asistio_en' => null]);
+        $this->postJson($url.'/publicar', ['firma' => $previa])->assertConflict();
+        $asistente->update(['estado_asistencia' => 'asistio', 'asistio_en' => now()->subMinute()]);
+        $this->publicar($encuesta);
+        $this->assertSame([(string) $this->alumno->id], $encuesta->padron);
+        $this->actingAs($enEspera)->getJson($url)->assertNotFound();
+        $this->actingAs($this->alumno)->getJson($url)->assertOk()->assertJsonMissingPath('consulta.padron');
+        $this->postJson($url.'/responder', $this->respuesta($encuesta))->assertCreated();
     }
 
     public function test_shape_options_period_and_single_election_question_are_validated(): void

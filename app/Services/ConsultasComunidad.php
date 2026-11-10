@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\ConsultaComunidad;
 use App\Models\Eleccion;
 use App\Models\Encuesta;
+use App\Models\Evento;
 use App\Models\MiembroOrganizacion;
 use App\Models\ParticipacionConsulta;
+use App\Models\RegistroEvento;
 use App\Models\RespuestaEncuesta;
 use App\Models\User;
 use App\Models\Voto;
@@ -26,9 +28,28 @@ class ConsultasComunidad
         return $tipo === 'encuestas' ? new RespuestaEncuesta : new Voto;
     }
 
+    public function eventos(string $org)
+    {
+        return Evento::where('organizacion_id', $org)->where('estado', 'publicado');
+    }
+
+    public function validarEvento(ConsultaComunidad $c): void
+    {
+        if ($c instanceof Encuesta && in_array($c->audiencia, ['evento_inscritos', 'evento_asistentes'], true)
+            && (! $c->evento_id || ! $this->eventos($c->organizacion_id)->whereKey($c->evento_id)->exists())) {
+            throw ValidationException::withMessages(['evento_id' => 'Selecciona un evento publicado de esta organización.']);
+        }
+    }
+
     public function padron(ConsultaComunidad $c): array
     {
         $miembros = MiembroOrganizacion::activos()->where('organizacion_id', $c->organizacion_id)->pluck('usuario_id');
+        $this->validarEvento($c);
+        if ($c instanceof Encuesta && $c->evento_id) {
+            $miembros = RegistroEvento::where('evento_id', $c->evento_id)->whereIn('usuario_id', $miembros)->conCupo()
+                ->when($c->audiencia === 'evento_asistentes', fn ($q) => $q->where('estado_asistencia', 'asistio')->whereNotNull('asistio_en'))
+                ->pluck('usuario_id');
+        }
         $ids = User::whereIn('_id', $miembros)->limit(5001)->pluck('id')->map(fn ($id) => (string) $id)->sort()->values()->all();
         if (count($ids) > 5000) {
             throw ValidationException::withMessages(['padron' => 'El máximo local es de 5000 integrantes por consulta.']);

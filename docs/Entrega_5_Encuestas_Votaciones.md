@@ -14,7 +14,9 @@ En el menú aparecen **Encuestas** (`/modulo6/encuestas`) y **Votaciones** (`/mo
 
 ## Población y autorización
 
-La población inicial son los integrantes activos de la organización. Al publicar se guarda un padrón fijo de hasta 5000 cuentas existentes, excluyendo membresías futuras, inactivas o eliminadas. La firma de la vista previa vincula contenido, revisión y padrón; si cambian, se requiere una nueva revisión.
+La audiencia predeterminada son los integrantes activos de la organización. Las encuestas también pueden acotarse a integrantes con inscripción vigente o asistencia registrada en un evento publicado de la propia organización. Al publicar se guarda un padrón fijo de hasta 5000 cuentas existentes, excluyendo membresías futuras, inactivas o eliminadas. La firma de la vista previa vincula contenido, revisión y padrón; si cambian, se requiere una nueva revisión.
+
+El formulario obtiene eventos propios publicados mediante `GET /api/consultas/encuestas/eventos`. Al guardar una encuesta, `audiencia` admite `miembros`, `evento_inscritos` o `evento_asistentes`. Las dos opciones por evento requieren `evento_id`. El padrón conserva la membresía activa y excluye la lista de espera y las reservas vencidas. La asistencia requiere check-in. En votaciones se conserva el padrón de integrantes activos.
 
 Las altas posteriores no se añaden. Para consultar o participar se exige además membresía activa actual. Una baja impide nuevas participaciones, sin borrar las ya registradas. Las preferencias de mensajes no afectan el derecho a participar. No hay filtros ficticios de campus/carrera/semestre: esos contratos siguen pendientes del equipo 1.
 

@@ -115,6 +115,8 @@ Route::get('/notificaciones', [NotificacionController::class, 'index']);
 Route::put('/notificaciones/leer', [NotificacionController::class, 'marcarLeidas']);
 Route::delete('/notificaciones/leidas', [NotificacionController::class, 'eliminarLeidas']);
 
+Route::get('/consultas/encuestas/eventos', [ConsultaController::class, 'eventos']);
+
 Route::prefix('consultas/{tipo}')->where(['tipo' => 'encuestas|votaciones'])->group(function () {
     Route::get('/', [ConsultaController::class, 'index']);
     Route::post('/', [ConsultaController::class, 'store']);
