@@ -30,6 +30,10 @@ final class InstitutionalBudgetServiceProvider extends ServiceProvider
         $this->app->scoped(\App\Domains\Financial\Services\InstitutionalCheckoutConsent::class);
         $this->app->bind(\App\Domains\Financial\Contracts\InstitutionalSettlementAuthorization::class, \App\Domains\Financial\Adapters\PendingInstitutionalSettlementAuthorization::class);
         $this->app->bind(\App\Domains\Financial\Contracts\InstitutionalPurchaseAuthorization::class, \App\Domains\Financial\Adapters\CheckoutInstitutionalPurchaseAuthorization::class);
-        $this->app->bind(InstitutionalBudgetAuthorization::class, PendingInstitutionalBudgetAuthorization::class);
+        $this->app->bind(InstitutionalBudgetAuthorization::class, function ($app) {
+            return config('financial_identity_authorization.enabled') === true
+                ? $app->make(\App\Domains\Financial\Adapters\IdentityInstitutionalBudgetAuthorization::class)
+                : $app->make(PendingInstitutionalBudgetAuthorization::class);
+        });
     }
 }

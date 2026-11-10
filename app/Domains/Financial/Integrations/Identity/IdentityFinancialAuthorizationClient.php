@@ -49,8 +49,9 @@ final class IdentityFinancialAuthorizationClient
         if (($scopeType === null) !== ($scopeId === null)) {
             throw new InvalidArgumentException('Ambos campos de contexto deben estar presentes o ser null.');
         }
-        if ($scopeType !== null && ($type !== BonusType::NEGOCIO || $scopeType !== 'business')) {
-            throw new InvalidArgumentException('Este contrato solo admite contexto business para NEGOCIO; los demas tipos requieren null/null.');
+        if ($scopeType !== null && !(($type === BonusType::NEGOCIO && $scopeType === 'business')
+            || ($type === BonusType::BECA && $scopeType === 'council' && preg_match('/\A[0-9a-f]{24}\z/', (string) $scopeId)))) {
+            throw new InvalidArgumentException('Contexto admitido: business para NEGOCIO o Consejo canónico para BECA; los demás requieren null/null.');
         }
 
         return ['subject_id' => strtolower($subjectId), 'bonus_type' => $type->value, 'operation' => 'issue',

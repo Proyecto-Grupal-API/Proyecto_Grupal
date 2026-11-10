@@ -57,6 +57,21 @@ final class BecaFinanceContract
         return ['budget_id' => strtolower($mapping['budget_id']), 'business_id' => $mapping['business_id']];
     }
 
+    /** Explicit server configuration owned by E2; never request input or academic inference. */
+    public static function councilBudgetMatches(string $councilId, string $budgetId): bool
+    {
+        $mappings = config('becas_finanzas.convocatorias', []);
+        if (! is_array($mappings)) return false;
+        foreach ($mappings as $mapping) {
+            if (is_array($mapping) && ($mapping['organization_id'] ?? null) === $councilId
+                && ($mapping['budget_id'] ?? null) === $budgetId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static function treasuryApprovalMatches(mixed $approval, array $snapshot, string $budgetId): bool
     {
         return is_array($approval)

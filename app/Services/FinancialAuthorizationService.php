@@ -39,7 +39,7 @@ class FinancialAuthorizationService implements BonusAuthorization
         if ($operation !== 'issue' || $capability === null
             || (($scopeType === null) !== ($scopeId === null))
             || ($scopeType !== null && ! (($bonusType === 'NEGOCIO' && $scopeType === 'business')
-                || ($bonusType === 'BECA' && $scopeType === 'academic_program')))) {
+                || ($bonusType === 'BECA' && in_array($scopeType, ['academic_program', 'council'], true))))) {
             return false;
         }
         $id = $scopeType === null ? null : $this->identities->businessId($scopeId);
@@ -49,6 +49,10 @@ class FinancialAuthorizationService implements BonusAuthorization
         }
         $user = $this->identities->validUser(User::whereKey($userId)->first());
         if (! $user || ! Permission::where('key', $capability)->where('domain', 'financial')->where('active', true)->exists()) {
+            return false;
+        }
+        if ($scopeType === 'council' && (! preg_match('/\A[0-9a-f]{24}\z/', $id)
+            || ! \App\Models\Organizacion::whereKey($id)->where('tipo', 'consejo')->where('estado', 'activa')->exists())) {
             return false;
         }
         if ($scopeType === 'business' && ! $this->identities->hasMembership($user, $id)) {
@@ -69,6 +73,9 @@ class FinancialAuthorizationService implements BonusAuthorization
         $query = $this->assignments->queryForRoles($user, $catalog)
             ->where('scope_type', $scopeType)->where('scope_id', $id)
             ->whereRaw(['scope_type' => ['$exists' => true], 'scope_id' => ['$exists' => true]]);
+        if ($scopeType === 'council') {
+            $query->whereNull('revoked_at');
+        }
         if ($program) {
             // Preserve the original assignment binding: a moved program cannot inherit a grant.
             $query->where('campus_id', (string) $program->campus_id);

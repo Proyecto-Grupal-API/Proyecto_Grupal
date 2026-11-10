@@ -68,6 +68,22 @@ final class IdentityFinancialAuthorizationClientTest extends TestCase
         ]);
     }
 
+    public function test_council_beca_transports_exact_context_and_rechecks_without_global_fallback(): void
+    {
+        Http::fake([
+            'http://127.0.0.1:8086/api/oauth/token' => Http::response($this->token()),
+            'http://127.0.0.1:8086/api/v1/identity/financial-authorization/check' => Http::sequence()
+                ->push(['authorized' => true])->push(['authorized' => false]),
+        ]);
+        $scope = new BonusIssuerContext('council', '111111111111111111111111');
+        self::assertTrue($this->client->check('507f1f77bcf86cd799439011', BonusType::BECA, $scope));
+        self::assertFalse($this->client->check('507f1f77bcf86cd799439011', BonusType::BECA, $scope));
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/financial-authorization/check')
+            && $request->data() === ['subject_id' => '507f1f77bcf86cd799439011', 'bonus_type' => 'BECA',
+                'operation' => 'issue', 'scope_type' => 'council', 'scope_id' => '111111111111111111111111']);
+        Http::assertSentCount(4);
+    }
+
     public static function bonusTypes(): array
     {
         return [['BECA'], ['CAMPANIA'], ['BENEFICIO'], ['CATEGORIA'], ['NEGOCIO']];

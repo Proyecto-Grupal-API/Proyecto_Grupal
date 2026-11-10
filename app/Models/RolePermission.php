@@ -35,9 +35,11 @@ class RolePermission extends Model
         'bonus_beca_issuer' => ['bonuses.beca.issue'],
         'bonus_beca_program_issuer' => ['bonuses.beca.issue'],
         'bonus_campania_issuer' => ['bonuses.campania.issue'],
+        'bonus_beca_council_issuer' => ['bonuses.beca.issue'],
     ];
 
     public const PILOT_MAPPINGS = [
+        'institutional_budget_committer' => ['budget.commit'],
         'financial_refund_reviewer' => ['refunds.review'],
         'financial_refund_executor' => ['refunds.execute'],
         'operador_servicios' => ['student_services.rentals.damage.charge'],

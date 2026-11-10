@@ -20,7 +20,7 @@ class FinancialAuthorizationRequest extends FormRequest
             'subject_id' => ['required', 'string', 'max:100', 'regex:/^[^\x00-\x20\x7f]+$/'],
             'bonus_type' => ['required', Rule::in(array_keys(FinancialAuthorizationService::BONUS_CAPABILITIES))],
             'operation' => ['required', Rule::in(['issue'])],
-            'scope_type' => ['present', 'nullable', Rule::in(['business'])],
+            'scope_type' => ['present', 'nullable', Rule::in(['business', 'council'])],
             'scope_id' => ['present', 'nullable', 'string', 'max:100', 'regex:/^[^\x00-\x20\x7f]+$/'],
             'role' => ['prohibited'], 'role_key' => ['prohibited'], 'roles' => ['prohibited'],
             'capability' => ['prohibited'], 'membership' => ['prohibited'], 'actor_id' => ['prohibited'],
@@ -33,7 +33,9 @@ class FinancialAuthorizationRequest extends FormRequest
             $type = $this->input('scope_type');
             $id = $this->input('scope_id');
             if (($type === null) !== ($id === null)
-                || ($type !== null && ! ($type === 'business' && $this->input('bonus_type') === 'NEGOCIO'))) {
+                || ($type !== null && ! (($type === 'business' && $this->input('bonus_type') === 'NEGOCIO')
+                    || ($type === 'council' && $this->input('bonus_type') === 'BECA'
+                        && is_string($id) && preg_match('/\A[0-9a-f]{24}\z/', $id))))) {
                 $validator->errors()->add('scope_type', 'Unsupported financial context.');
             }
         }];
