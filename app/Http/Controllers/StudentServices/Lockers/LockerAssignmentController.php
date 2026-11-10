@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\StudentServices\Lockers;
 
+use App\Services\StudentServices\ServiceAuthority;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StudentServices\Lockers\ReleaseLockerAssignmentRequest;
 use App\Http\Requests\StudentServices\Lockers\RenewLockerAssignmentRequest;
@@ -45,6 +46,7 @@ class LockerAssignmentController extends Controller
 
         $assignments =
             app(\App\Services\StudentServices\ServiceAuthority::class)->propias(LockerAssignment::query())
+                ->tap(app(ServiceAuthority::class)->desdeAviso(...))
                 ->orderBy(
                     'created_at',
                     'desc'

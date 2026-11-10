@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\StudentServices\Services;
 
+use App\Services\StudentServices\ServiceAuthority;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StudentServices\Services\PayServiceOrderRequest;
 use App\Http\Requests\StudentServices\Services\StoreServiceOrderRequest;
@@ -34,6 +35,7 @@ class ServiceOrderController extends Controller
         $orders =
             ServiceOrder::query()
                 ->when(! app(\App\Services\StudentServices\ServiceAuthority::class)->staff($request->user()), fn ($q) => $q->where('student_id', $studentId))
+                ->tap(app(ServiceAuthority::class)->desdeAviso(...))
                 ->orderBy(
                     'requested_at',
                     'desc'

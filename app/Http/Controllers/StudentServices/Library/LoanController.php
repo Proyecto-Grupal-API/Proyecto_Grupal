@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\StudentServices\Library;
 
+use App\Services\StudentServices\ServiceAuthority;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StudentServices\Library\RenewLoanRequest;
 use App\Http\Requests\StudentServices\Library\ReturnLoanRequest;
@@ -28,6 +29,7 @@ class LoanController extends Controller
             ->refreshOverdueLoans();
 
         $loans = app(\App\Services\StudentServices\ServiceAuthority::class)->propias(Loan::query())
+            ->tap(app(ServiceAuthority::class)->desdeAviso(...))
             ->orderBy(
                 'borrowed_at',
                 'desc'

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\StudentServices\Library;
 
+use App\Services\StudentServices\ServiceAuthority;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StudentServices\Library\AssignBookReservationRequest;
 use App\Http\Requests\StudentServices\Library\CancelBookReservationRequest;
@@ -31,6 +32,7 @@ class BookReservationController extends Controller
         $this->expireReadyReservations();
 
         $reservations = app(\App\Services\StudentServices\ServiceAuthority::class)->propias(BookReservation::query())
+            ->tap(app(ServiceAuthority::class)->desdeAviso(...))
             ->orderBy('reserved_at', 'desc')
             ->get()
             ->map(

@@ -18,4 +18,16 @@ class ServiceAuthority
         $user = request()->user();
         return $this->staff($user) ? $query : $query->where('student_id', (string) $user?->id);
     }
+
+    public function desdeAviso($query)
+    {
+        if (! request()->query->has('registro')) {
+            return $query;
+        }
+
+        $id = request()->query('registro');
+        abort_unless(is_string($id) && preg_match('/^[a-f0-9]{24}$/Di', $id), 404);
+
+        return $query->where('student_id', (string) request()->user()->id)->whereKey(strtolower($id));
+    }
 }

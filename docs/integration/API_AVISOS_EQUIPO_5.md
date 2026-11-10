@@ -65,7 +65,7 @@ Con la misma clave y otro contenido: 409 `clave_en_conflicto`. Las fechas equiva
 | orden_lista | mis_ordenes | Sí |
 | ticket_actualizado | mi_ticket | Sí |
 
-`accion.id` identifica el registro de Servicios. Comunidad genera la ruta interna y `?registro=...`. No se admiten URLs proporcionadas por el emisor ni destinos que no correspondan al tipo. Las pantallas aplican autorización al usuario; el enlace nunca concede acceso a registros ajenos. `importancia` puede ser `normal` o `alta`; no cambia la política obligatoria del tipo.
+`accion.id` identifica el registro de Servicios. Comunidad genera la ruta interna y `?registro=...`. No se admiten URLs proporcionadas por el emisor ni destinos que no correspondan al tipo. Las pantallas usan `registro` para mostrar el registro exacto cuando pertenece a la cuenta autenticada. El listado completo sigue disponible desde la vista filtrada. El calendario conserva el enlace a la reserva de instalación o zona de descanso correspondiente. `importancia` puede ser `normal` o `alta`; no cambia la política obligatoria del tipo.
 
 Los recordatorios antes del vencimiento son opcionales. Los préstamos ya vencidos y las multas son obligatorios. Esta precisión resuelve la diferencia entre la frase general «vencimientos no se silencian» y la tabla de tipos de la solicitud. La preferencia personal está en **Mi bandeja → Preferencias → Servicios al estudiante**. No afecta campañas de organizaciones ni elimina mensajes anteriores.
 

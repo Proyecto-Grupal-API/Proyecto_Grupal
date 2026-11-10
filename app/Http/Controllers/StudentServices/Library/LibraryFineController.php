@@ -30,6 +30,7 @@ class LibraryFineController extends Controller
     public function index(): Response
     {
         $fines = app(ServiceAuthority::class)->propias(LibraryFine::query())
+            ->tap(app(ServiceAuthority::class)->desdeAviso(...))
             ->orderBy(
                 'generated_at',
                 'desc'

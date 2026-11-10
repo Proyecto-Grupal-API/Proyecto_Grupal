@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\StudentServices\Rentals;
 
+use App\Services\StudentServices\ServiceAuthority;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StudentServices\Rentals\ReturnRentalRequest;
 use App\Http\Requests\StudentServices\Rentals\StoreRentalRequest;
@@ -64,6 +65,7 @@ class RentalController extends Controller
                 'student_id',
                 $studentId
             )
+            ->tap(app(ServiceAuthority::class)->desdeAviso(...))
             ->whereIn(
                 'status',
                 [

@@ -15,6 +15,7 @@ use App\Services\StudentServices\Calendars\BookableResources;
 use App\Services\StudentServices\Calendars\BookingService;
 use App\Services\StudentServices\Calendars\BookingStatus;
 use App\Services\StudentServices\Calendars\CalendarSettingsService;
+use App\Services\StudentServices\ServiceAuthority;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -66,7 +67,9 @@ class AvailabilityController extends Controller
             }
 
             $bookingModel = BookableResources::bookingModel($type);
-            foreach ($bookingModel::where('student_id', (string) request()->user()->id)->orderBy('start_at', 'desc')->limit(50)->get() as $booking) {
+            $propias = $bookingModel::where('student_id', (string) request()->user()->id)
+                ->tap(app(ServiceAuthority::class)->desdeAviso(...))->orderBy('start_at', 'desc')->limit(50)->get();
+            foreach ($propias as $booking) {
                 $foreignKey = BookableResources::foreignKey($type);
                 $bookings[] = ['id' => (string) $booking->id, 'folio' => $booking->folio, 'resource_name' => $names[$type.':'.$booking->{$foreignKey}] ?? 'Recurso',
                     'start_at' => $booking->start_at->toIso8601String(), 'end_at' => $booking->end_at->toIso8601String(), 'status' => $booking->status,

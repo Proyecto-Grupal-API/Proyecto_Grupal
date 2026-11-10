@@ -5,10 +5,20 @@ namespace Tests\Feature;
 use App\Models\Mensaje;
 use App\Models\PreferenciaBandeja;
 use App\Models\ServiceClient;
+use App\Models\StudentServices\Library\{BookReservation, LibraryFine, Loan};
+use App\Models\StudentServices\Lockers\LockerAssignment;
+use App\Models\StudentServices\Rentals\Rental;
+use App\Models\StudentServices\Reservations\Reservation;
+use App\Models\StudentServices\RestSpaces\RestBooking;
+use App\Models\StudentServices\Services\ServiceOrder;
+use App\Models\StudentServices\Support\SupportTicket;
 use App\Models\User;
 use App\Services\OAuthTokenService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia;
+use MongoDB\BSON\ObjectId;
 use Tests\Concerns\RefreshMongoDatabase;
 use Tests\TestCase;
 
@@ -86,6 +96,52 @@ class AvisosServiciosTest extends TestCase
         $this->putJson('/api/bandeja/'.$id, ['leida' => true])->assertNotFound();
         $this->putJson('/api/bandeja/categorias/servicios_estudiante', ['silenciada' => true, 'usuario_id' => (string) $this->alumno->id])->assertOk();
         $this->assertFalse(PreferenciaBandeja::where('usuario_id', (string) $this->alumno->id)->exists());
+    }
+
+    public function test_each_notice_opens_only_its_record_for_the_recipient(): void
+    {
+        $this->withoutVite();
+        $otro = User::factory()->create();
+        $cases = [
+            ['prestamo_por_vencer', 'mis_prestamos', Loan::class, 'loans', ['copy_id' => new ObjectId, 'status' => 'active']],
+            ['prestamo_vencido', 'mis_prestamos', Loan::class, 'loans', ['copy_id' => new ObjectId, 'status' => 'overdue']],
+            ['reserva_libro_disponible', 'mis_reservas_libros', BookReservation::class, 'reservations', ['book_id' => new ObjectId, 'status' => 'ready']],
+            ['multa_generada', 'mis_multas', LibraryFine::class, 'fines', ['loan_id' => new ObjectId, 'amount_cents' => 500, 'status' => 'pending']],
+            ['locker_por_vencer', 'mi_locker', LockerAssignment::class, 'assignments', ['locker_id' => new ObjectId, 'period_id' => new ObjectId, 'status' => 'active']],
+            ['lista_espera_promovida', 'mis_reservas', Reservation::class, 'bookings', ['facility_id' => new ObjectId, 'status' => 'confirmed']],
+            ['recordatorio_reserva', 'mis_reservas', RestBooking::class, 'bookings', ['rest_space_id' => new ObjectId, 'status' => 'confirmed']],
+            ['no_show_registrado', 'mis_reservas', Reservation::class, 'bookings', ['facility_id' => new ObjectId, 'status' => 'no_show']],
+            ['renta_por_devolver', 'mis_rentas', Rental::class, 'rentals', ['asset_id' => new ObjectId, 'status' => 'active']],
+            ['orden_lista', 'mis_ordenes', ServiceOrder::class, 'orders', ['status' => 'ready']],
+            ['ticket_actualizado', 'mi_ticket', SupportTicket::class, 'tickets', ['status' => 'open']],
+        ];
+        foreach ($cases as [$tipo, $destino, $model, $prop, $datos]) {
+            $crear = fn (User $user) => $model::forceCreate([
+                'student_id' => (string) $user->id, 'folio' => (string) Str::uuid(),
+                'start_at' => now()->addHour(), 'end_at' => now()->addHours(2), 'due_at' => now()->addHour(),
+                ...$datos,
+            ]);
+            $registro = $crear($this->alumno);
+            $crear($this->alumno);
+            $crear($otro);
+            $aviso = $this->enviar([...$this->datos($tipo, $destino), 'accion' => ['destino' => $destino, 'id' => (string) $registro->id]], 'prueba:'.$tipo)
+                ->assertCreated()->json('notificacion_id');
+            $url = $this->actingAs($this->alumno)->getJson('/api/bandeja/'.$aviso)->assertOk()->json('accion_url');
+            $this->get($url)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+                ->has($prop, 1)->where($prop.'.0.id', (string) $registro->id)->etc());
+            if ($destino === 'mis_reservas') {
+                $detalle = $model === Reservation::class ? 'reservas' : 'zonas-descanso';
+                $propDetalle = $model === Reservation::class ? 'myReservations' : 'bookings';
+                if ($datos['status'] === 'no_show') {
+                    $propDetalle = 'history';
+                }
+                $this->get('/servicios-estudiante/'.$detalle.'?registro='.$registro->id)->assertOk()
+                    ->assertInertia(fn (AssertableInertia $page) => $page->has($propDetalle, 1)
+                        ->where($propDetalle.'.0.id', (string) $registro->id)->etc());
+            }
+            $this->actingAs($otro)->getJson('/api/bandeja/'.$aviso)->assertNotFound();
+            $this->get($url)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->has($prop, 0)->etc());
+        }
     }
 
     public function test_retirar_preserva_lectura_y_su_clave_tambien_es_idempotente(): void

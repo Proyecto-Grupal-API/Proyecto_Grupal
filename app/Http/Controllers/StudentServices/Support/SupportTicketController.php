@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\StudentServices\Support;
 
+use App\Services\StudentServices\ServiceAuthority;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StudentServices\Support\AddTicketCommentRequest;
 use App\Http\Requests\StudentServices\Support\AssignTicketRequest;
@@ -35,6 +36,7 @@ class SupportTicketController extends Controller
         $tickets =
             SupportTicket::query()
                 ->when(! app(\App\Services\StudentServices\ServiceAuthority::class)->staff($request->user()), fn ($q) => $q->where('student_id', $studentId))
+                ->tap(app(ServiceAuthority::class)->desdeAviso(...))
                 ->orderBy(
                     'opened_at',
                     'desc'

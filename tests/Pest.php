@@ -96,6 +96,7 @@ function useStudentServicesTestDatabase(): void
     test()->mock(\App\Services\StudentServices\ServiceAuthority::class, function ($mock) {
         $mock->shouldReceive('staff')->andReturnFalse();
         $mock->shouldReceive('propias')->andReturnUsing(fn ($q) => $q);
+        $mock->shouldReceive('desdeAviso')->passthru();
     });
     app()->bind(\App\Services\StudentServices\Benefits\StudentDirectory::class, \Tests\Fakes\StudentServices\LocalStudentDirectory::class);
     app()->bind(\App\Services\StudentServices\ServiceAccess\StudentCredentialResolver::class, \Tests\Fakes\StudentServices\LocalStudentCredentialResolver::class);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\StudentServices\Reservations;
 
+use App\Services\StudentServices\ServiceAuthority;
 use App\Http\Controllers\Controller;
 use App\Models\StudentServices\Reservations\Facility;
 use App\Models\StudentServices\Reservations\Reservation;
@@ -53,6 +54,7 @@ class FacilityController extends Controller
 
         $reservations = Reservation::query()
             ->where('student_id', $studentId)
+            ->tap(app(ServiceAuthority::class)->desdeAviso(...))
             ->orderBy('start_at', 'desc')
             ->limit(60)
             ->get();

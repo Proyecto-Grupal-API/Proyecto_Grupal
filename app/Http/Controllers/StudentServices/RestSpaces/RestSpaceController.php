@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\StudentServices\RestSpaces;
 
+use App\Services\StudentServices\ServiceAuthority;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StudentServices\RestSpaces\StoreRestSpaceRequest;
 use App\Models\StudentServices\RestSpaces\RestBooking;
@@ -66,6 +67,7 @@ class RestSpaceController extends Controller
 
         $bookings = RestBooking::query()
             ->where('student_id', $studentId)
+            ->tap(app(ServiceAuthority::class)->desdeAviso(...))
             ->orderBy('start_at', 'desc')
             ->limit(30)
             ->get()
