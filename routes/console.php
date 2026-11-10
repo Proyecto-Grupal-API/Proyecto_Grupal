@@ -20,6 +20,7 @@ if (config('becas_finanzas.enabled') === true) {
     Schedule::command('comunidad:conciliar-bonos-beca')->everyMinute()->withoutOverlapping(10);
 }
 Schedule::command('servicios:avisos')->everyMinute()->withoutOverlapping(10);
+Schedule::command('servicios:revisar-sla')->everyFiveMinutes()->withoutOverlapping(10);
 
 Schedule::command('inventario:expirar-reservas')->everyFiveMinutes()->withoutOverlapping(10);
 
@@ -36,6 +37,7 @@ Schedule::command('team4:publish-outbox')->everyMinute()->withoutOverlapping(10)
 
 if (config('platform.services_delivery.enabled') === true) {
     Schedule::command('servicios:publicar-auditoria --limit=20')->everyMinute()->withoutOverlapping(10);
+    Schedule::command('servicios:publicar-eventos')->everyMinute()->withoutOverlapping(10);
 }
 
 if (config('platform.delivery.enabled') === true) {

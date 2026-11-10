@@ -7,6 +7,7 @@ use App\Models\StudentServices\Lockers\LockerAssignment;
 use App\Models\StudentServices\Lockers\LockerPeriod;
 use App\Models\StudentServices\Lockers\LockerRequest;
 use App\Services\StudentServices\Audit\ServiceAuditor;
+use App\Services\StudentServices\Platform\ServicePlatformObserver;
 use Illuminate\Support\Str;
 use MongoDB\BSON\ObjectId;
 use RuntimeException;
@@ -528,6 +529,9 @@ class LockerAssignmentService
             ->update([
                 'status' => 'available',
             ]);
+
+        // La liberación es una actualización masiva (no dispara observadores).
+        app(ServicePlatformObserver::class)->lockerReleased($assignment);
 
         app(ServiceAuditor::class)->record(
             'locker.assignment.released',

@@ -13,6 +13,7 @@ use MongoDB\Laravel\Eloquent\Model;
  * @property int $quantity
  * @property string|null $observations
  * @property int|null $quoted_amount_cents
+ * @property bool|null $finance_requested
  * @property string $payment_status
  * @property string|null $payment_reference_id
  * @property string $status
@@ -71,6 +72,8 @@ class ServiceOrder extends Model
             'delivered_at' => 'datetime',
 
             'cancelled_at' => 'datetime',
+
+            'finance_requested' => 'boolean',
         ];
     }
 }

@@ -16,4 +16,11 @@ return [
         'pilot_hold_ttl_seconds' => (int) env('SERVICIOS_FINANZAS_GARANTIAS_PILOT_TTL_SECONDS', 0),
         'client_secret' => env('SERVICIOS_FINANZAS_GARANTIAS_CLIENT_SECRET'),
     ],
+    // Pago de lockers e impresiones. Puede ser el mismo cliente OAuth de multas con más scopes.
+    'finanzas_servicios' => [
+        'enabled' => env('SERVICIOS_FINANZAS_SERVICIOS_ENABLED', false),
+        'url' => env('SERVICIOS_FINANZAS_API_URL', 'http://app'),
+        'client_id' => env('SERVICIOS_FINANZAS_SERVICIOS_CLIENT_ID', env('SERVICIOS_FINANZAS_MULTAS_CLIENT_ID')),
+        'client_secret' => env('SERVICIOS_FINANZAS_SERVICIOS_CLIENT_SECRET', env('SERVICIOS_FINANZAS_MULTAS_CLIENT_SECRET')),
+    ],
 ];

@@ -22,5 +22,9 @@ class StudentServicesServiceProvider extends ServiceProvider
         foreach (\App\Services\StudentServices\Notifications\NotificationPlanner::MODELS as $model) {
             $model::observe(\App\Services\StudentServices\Notifications\NotificationPlanner::class);
         }
+        // Eventos analíticos hacia el Equipo 7 (REQ-M5-E7-001).
+        foreach (\App\Services\StudentServices\Platform\ServicePlatformObserver::MODELS as $model) {
+            $model::observe(\App\Services\StudentServices\Platform\ServicePlatformObserver::class);
+        }
     }
 }

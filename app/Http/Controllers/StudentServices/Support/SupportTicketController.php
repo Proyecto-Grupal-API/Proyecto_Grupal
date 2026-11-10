@@ -400,6 +400,9 @@ class SupportTicketController extends Controller
             'slaDueAt' => $ticket->sla_due_at
                 ?->toISOString(),
 
+            // Escalado automático por SLA vencido (servicios:revisar-sla).
+            'slaEscalated' => $ticket->sla_escalated_at !== null,
+
             'resolvedAt' => $ticket->resolved_at
                 ?->toISOString(),
 
@@ -479,6 +482,13 @@ class SupportTicketController extends Controller
             };
         }
 
+        if (
+            $event->event_type ===
+            'sla_escalated'
+        ) {
+            return 'Escalamiento por SLA';
+        }
+
         return 'Evento';
     }
 
@@ -486,6 +496,10 @@ class SupportTicketController extends Controller
         TicketEvent $event,
         SupportTicket $ticket
     ): string {
+        if ($event->actor_id === 'system') {
+            return 'Sistema';
+        }
+
         if (
             (string)
             $event->actor_id

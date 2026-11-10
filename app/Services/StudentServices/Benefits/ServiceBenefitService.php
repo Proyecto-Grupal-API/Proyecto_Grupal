@@ -9,6 +9,7 @@ use App\Models\StudentServices\ServiceAccess\ServiceCheckin;
 use App\Models\StudentServices\Services\ServiceOrder;
 use App\Services\StudentServices\Audit\ServiceAuditor;
 use App\Services\StudentServices\Lockers\LockerAssignmentService;
+use App\Services\StudentServices\Platform\ServicePlatformObserver;
 use App\Services\StudentServices\Services\ServiceOrderService;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -230,7 +231,14 @@ class ServiceBenefitService
 
         $this->auditCancellation($assignment, $reason, $clientId);
 
-        return ['assignment' => $assignment->fresh(), 'replayed' => false];
+        $fresh = $assignment->fresh();
+
+        // Cancelación con actualización masiva: se publica de forma explícita.
+        if ($fresh !== null) {
+            app(ServicePlatformObserver::class)->benefitCancelled($fresh);
+        }
+
+        return ['assignment' => $fresh, 'replayed' => false];
     }
 
     private function auditCancellation(BenefitAssignment $assignment, string $reason, string $clientId): void

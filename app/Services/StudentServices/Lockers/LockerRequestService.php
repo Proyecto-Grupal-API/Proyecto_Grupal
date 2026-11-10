@@ -6,6 +6,7 @@ use App\Models\StudentServices\Lockers\Locker;
 use App\Models\StudentServices\Lockers\LockerAssignment;
 use App\Models\StudentServices\Lockers\LockerPeriod;
 use App\Models\StudentServices\Lockers\LockerRequest;
+use App\Services\StudentServices\Payments\ServiceFinancePayments;
 use Illuminate\Support\Str;
 use MongoDB\BSON\ObjectId;
 use MongoDB\BSON\UTCDateTime;
@@ -226,22 +227,18 @@ class LockerRequestService
             );
         }
 
-        $moved =
-            LockerRequest::query()
-                ->where(
-                    '_id',
-                    new ObjectId(
-                        (string)
-                        $request->id
-                    )
-                )
-                ->where(
-                    'status',
-                    'pending'
-                )
-                ->update([
-                    'status' => 'cancelled',
-                ]);
+        $pending = LockerRequest::query()
+            ->where('_id', new ObjectId((string) $request->id))
+            ->where('status', 'pending');
+
+        // Si nunca se pidió el cobro a Finanzas, se cancela directo.
+        $moved = (clone $pending)->where('finance_requested', '!=', true)->update(['status' => 'cancelled']);
+
+        if ($moved === 0) {
+            // Ya se pidió el cobro: primero se cancela en Finanzas (o se registra si ya cobró).
+            app(ServiceFinancePayments::class)->beforeCancel($request);
+            $moved = $pending->update(['status' => 'cancelled']);
+        }
 
         if ($moved === 0) {
             throw new RuntimeException(

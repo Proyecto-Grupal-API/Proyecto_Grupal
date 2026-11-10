@@ -23,6 +23,8 @@ interface LockerRequest {
     status: RequestStatus;
     amount: string | null;
     payment_reference: string | null;
+    can_start_payment: boolean;
+    can_reconcile_payment: boolean;
     paid_at: string | null;
     created_at: string | null;
     notes: string | null;
@@ -81,6 +83,18 @@ const actionMode = ref<'pay' | 'assign' | null>(null);
 const selectedRequest = ref<LockerRequest | null>(null);
 
 const paymentReference = ref('');
+const processingRequestId = ref<string | null>(null);
+
+// Pago con la wallet de Finanzas: se autoriza en Finanzas y al volver se consulta.
+function financeAction(request: LockerRequest, action: 'iniciar-pago' | 'consultar-pago') {
+    processingRequestId.value = request.id;
+    router.post(`${BASE_URL}/solicitudes/${request.id}/${action}`, {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            processingRequestId.value = null;
+        },
+    });
+}
 const selectedLockerId = ref('');
 
 const form = useForm({
@@ -805,15 +819,36 @@ const serverError = (form: { errors: object }, key: string) =>
                             <td>
                                 <div class="actions">
                                     <button
+                                        v-if="request.can_start_payment"
+                                        type="button"
+                                        class="action-button pay"
+                                        :disabled="processingRequestId !== null"
+                                        @click="financeAction(request, 'iniciar-pago')"
+                                    >
+                                        Pagar con mi wallet
+                                    </button>
+
+                                    <button
+                                        v-if="request.can_reconcile_payment"
+                                        type="button"
+                                        class="action-button details"
+                                        :disabled="processingRequestId !== null"
+                                        @click="financeAction(request, 'consultar-pago')"
+                                    >
+                                        Consultar pago
+                                    </button>
+
+                                    <button
                                         v-if="
                                             request.request_type === 'paid' &&
-                                            request.status === 'pending'
+                                            request.status === 'pending' &&
+                                            !request.can_start_payment
                                         "
                                         type="button"
                                         class="action-button pay"
-                                        disabled title="Pendiente de conexión con cartera"
+                                        disabled title="El pago con Finanzas no está habilitado"
                                     >
-                                        Pago pendiente de cartera
+                                        Pago no disponible
                                     </button>
 
                                     <button
@@ -1464,6 +1499,12 @@ tbody tr:hover {
     border: 1px solid #c3e2d1;
     background: #eaf7f0;
     color: #26734c;
+}
+
+.action-button.details {
+    border: 1px solid #d8dee8;
+    background: #f5f7fa;
+    color: #3b4a5e;
 }
 
 .action-button.assign {

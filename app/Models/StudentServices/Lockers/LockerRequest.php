@@ -19,6 +19,7 @@ use MongoDB\Laravel\Eloquent\Model;
  * @property string $status
  * @property int|null $amount_cents
  * @property string|null $payment_reference
+ * @property bool|null $finance_requested
  * @property CarbonInterface|null $paid_at
  * @property string|null $reviewed_by
  * @property CarbonInterface|null $reviewed_at
@@ -69,6 +70,7 @@ class LockerRequest extends Model
             'paid_at' => 'datetime',
             'reviewed_at' => 'datetime',
             'amount_cents' => 'integer',
+            'finance_requested' => 'boolean',
         ];
     }
 
