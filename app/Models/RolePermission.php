@@ -37,6 +37,12 @@ class RolePermission extends Model
         'bonus_campania_issuer' => ['bonuses.campania.issue'],
     ];
 
+    public const PILOT_MAPPINGS = [
+        'financial_refund_reviewer' => ['refunds.review'],
+        'financial_refund_executor' => ['refunds.execute'],
+        'operador_servicios' => ['student_services.rentals.damage.charge'],
+    ];
+
     public const REWARDS_MAPPINGS = [];
 
     public static function approvedPermissionsForRole(mixed $role): array
@@ -49,6 +55,7 @@ class RolePermission extends Model
             ...(self::MAPPINGS[$role] ?? []),
             ...(self::FINANCIAL_MAPPINGS[$role] ?? []),
             ...(self::REWARDS_MAPPINGS[$role] ?? []),
+            ...(self::PILOT_MAPPINGS[$role] ?? []),
         ]));
     }
 

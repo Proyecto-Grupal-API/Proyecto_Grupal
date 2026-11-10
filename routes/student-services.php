@@ -336,12 +336,12 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\AutorizarServicios::
         Route::get(
             '/validacion-servicios',
             [ServiceAccessController::class, 'index']
-        )->name('service-access.index');
+        )->middleware(['session.active', 'device.track'])->name('service-access.index');
 
         Route::post(
             '/validacion-servicios/validar',
             [ServiceAccessController::class, 'validateAccess']
-        )->name('service-access.validate');
+        )->middleware(['session.active', 'device.track'])->name('service-access.validate');
 
         /*
 |--------------------------------------------------------------------------
@@ -457,6 +457,11 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\AutorizarServicios::
             '/renta-equipos',
             [RentalController::class, 'store']
         )->name('rentals.store');
+
+        Route::post(
+            '/renta-equipos/{rentalId}/recuperar-garantia',
+            [RentalController::class, 'recoverDeposit']
+        )->where('rentalId', '[a-f0-9]{24}')->name('rentals.deposit.recover');
 
         Route::patch(
             '/renta-equipos/{rentalId}/cancelar',

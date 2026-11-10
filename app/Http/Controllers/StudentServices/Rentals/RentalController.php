@@ -142,6 +142,23 @@ class RentalController extends Controller
         }
     }
 
+    public function recoverDeposit(Request $request, string $rentalId): RedirectResponse
+    {
+        $rental = Rental::findOrFail($rentalId);
+        abort_unless((string) $rental->student_id === $this->getStudentId($request), 404);
+        abort_unless(in_array($rental->deposit_status, ['pending', 'held', 'released'], true), 409);
+
+        try {
+            $recovered = $this->rentalService->recoverDeposit($rental);
+
+            return back()->with('success', $recovered->status === 'cancelled'
+                ? 'Finanzas confirmó la liberación de la garantía.'
+                : 'Finanzas confirmó la garantía.');
+        } catch (RuntimeException $error) {
+            return back()->withErrors(['rental' => $error->getMessage()]);
+        }
+    }
+
     public function cancel(
         Request $request,
         string $rentalId

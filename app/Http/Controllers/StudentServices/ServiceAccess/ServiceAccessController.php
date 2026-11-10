@@ -25,6 +25,16 @@ class ServiceAccessController extends Controller
 
     public function index(Request $request): Response
     {
+        if ($request->attributes->getBoolean('rental_damage_only')) {
+            return Inertia::render('student-services/service-access/Index', [
+                'events' => [],
+                'stats' => ['today' => 0, 'granted' => 0, 'denied' => 0],
+                'operations' => ['rental' => ['return']],
+                'result' => $request->session()->get('access_result'),
+                'damageOnly' => true,
+            ]);
+        }
+
         $today = now()->startOfDay();
 
         $events = ServiceCheckin::query()
@@ -52,7 +62,8 @@ class ServiceAccessController extends Controller
     {
         $checkin = $this->access->validate(
             $request->accessData(),
-            (string) $request->user()->getAuthIdentifier()
+            (string) $request->user()->getAuthIdentifier(),
+            $request,
         );
 
         return back()->with('access_result', $this->payload($checkin));

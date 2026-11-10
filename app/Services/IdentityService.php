@@ -736,7 +736,7 @@ class IdentityService
     {
         abort_unless($session->user_id === (string) $user->_id, 403);
 
-        $session->update(['revoked_at' => now(), 'revoked_reason' => $reason]);
+        $session->forceFill(['revoked_at' => now(), 'revoked_reason' => $reason, 'recent_two_factor' => null])->save();
 
         SecurityEvent::log([
             'user_id' => (string) $user->_id,

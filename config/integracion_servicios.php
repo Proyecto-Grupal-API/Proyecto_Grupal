@@ -10,4 +10,10 @@ return [
         'client_id' => env('SERVICIOS_FINANZAS_MULTAS_CLIENT_ID'),
         'client_secret' => env('SERVICIOS_FINANZAS_MULTAS_CLIENT_SECRET'),
     ],
+    'finanzas_garantias' => [
+        'url' => env('SERVICIOS_FINANZAS_API_URL', 'http://app'),
+        'client_id' => env('SERVICIOS_FINANZAS_GARANTIAS_CLIENT_ID'),
+        'pilot_hold_ttl_seconds' => (int) env('SERVICIOS_FINANZAS_GARANTIAS_PILOT_TTL_SECONDS', 0),
+        'client_secret' => env('SERVICIOS_FINANZAS_GARANTIAS_CLIENT_SECRET'),
+    ],
 ];

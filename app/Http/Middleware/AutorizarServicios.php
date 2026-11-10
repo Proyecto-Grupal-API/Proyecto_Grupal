@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Middleware;
 
+use App\Services\PilotOperationAuthorization;
 use App\Services\StudentServices\ServiceAuthority;
 use Closure;
 use Illuminate\Http\Request;
@@ -16,6 +17,15 @@ class AutorizarServicios
             return $next($r);
         }
         $staff = app(ServiceAuthority::class)->staff($r->user());
+        $damageDesk = $name === 'service-access.index'
+            || ($name === 'service-access.validate' && $r->input('service') === 'rental' && $r->input('action') === 'return');
+        if (! $staff && $damageDesk && app()->environment('testing')
+            && config('financial_rental_deposit_pilot.enabled') === true
+            && app(PilotOperationAuthorization::class)->hasRentalDamageAuthority($r)) {
+            $r->attributes->set('rental_damage_only', true);
+
+            return $next($r);
+        }
         $payment = in_array($name, ['library.fines.pay', 'lockers.requests.pay', 'services.pay'], true);
         if ($payment) {
             $message = 'El pago está pendiente de la API de cartera del equipo 2. No se realizó ningún cobro.';

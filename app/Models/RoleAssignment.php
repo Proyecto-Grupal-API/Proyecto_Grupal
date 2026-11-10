@@ -23,6 +23,15 @@ class RoleAssignment extends AuthorizationLifecycleRecord
 
     protected function validateContext(): void
     {
+        if (array_key_exists($this->role_key, Role::PILOT_ROLE_SCOPES)) {
+            self::assertPilotGrantEnvironment();
+        }
+        // Wallet identifiers are trusted E2 public UUIDs, never business identifiers.
+        if ($this->scope_type === 'wallet' && (! in_array($this->role_key,
+            ['financial_refund_reviewer', 'financial_refund_executor'], true)
+            || ! is_string($this->scope_id) || ! preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/', $this->scope_id))) {
+            throw ValidationException::withMessages(['scope_id' => 'Se requiere la wallet UUID canónica acreditada por Finanzas.']);
+        }
         $this->scope_type ??= null;
         $this->scope_id ??= null;
         if ($this->origin === 'legacy_backfill') {
@@ -75,6 +84,24 @@ class RoleAssignment extends AuthorizationLifecycleRecord
             $this->campus_id = (string) $campus->getKey();
         } elseif ($this->campus_id !== null) {
             throw ValidationException::withMessages(['campus_id' => 'Sólo el programa académico utiliza campus_id adicional.']);
+        }
+    }
+
+    public function transitionTo(string $status, mixed $actorId = null, ?string $reason = null): void
+    {
+        if (array_key_exists($this->role_key, Role::PILOT_ROLE_SCOPES)) {
+            self::assertPilotGrantEnvironment();
+        }
+        parent::transitionTo($status, $actorId, $reason);
+    }
+
+    /** No production writer for these pilot authorities, including direct model creation. */
+    public static function assertPilotGrantEnvironment(): void
+    {
+        if (! app()->environment('testing') || config('database.default') !== 'mongodb'
+            || config('database.connections.mongodb.database') !== 'campus_virtual_testing'
+            || \Illuminate\Support\Facades\DB::connection('mongodb')->getDatabaseName() !== 'campus_virtual_testing') {
+            throw new \Illuminate\Auth\Access\AuthorizationException('Pilot grant authority has not been institutionally approved.');
         }
     }
 }

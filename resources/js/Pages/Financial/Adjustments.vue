@@ -1,18 +1,29 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import axios from 'axios';
 
 const props = defineProps({
     wallet: { type: Object, default: null }, canRequest: Boolean,
+    refundScopes: { type: Object, default: () => ({}) },
+    refundScope: { type: Object, default: null },
+    refundTwoFactorRecent: Boolean,
     permissions: { type: Object, default: () => ({}) },
     holds: { type: Array, default: () => [] }, refunds: { type: Array, default: () => [] },
     purchaseRefunds: { type: Array, default: () => [] }, purchases: { type: Array, default: () => [] },
     transactions: { type: Array, default: () => [] }, policies: { type: Array, default: () => [] },
 });
 const tabs = [['holds', 'Retenciones'], ['refunds', 'Devoluciones'], ['transactions', 'Operaciones y reversos'], ['policies', 'Plazos de retención']];
-const tab = ref('holds');
+const tab = ref(props.refundScope ? 'refunds' : 'holds');
+const refundWallet = ref(props.refundScope?.id ?? '');
+watch(() => props.refundScope?.id, (id) => {
+    refundWallet.value = id ?? '';
+    tab.value = id ? 'refunds' : 'holds';
+});
+const requiresFactor = ref(false);
+const showFactor = ref(false);
+const code = ref('');
 const dialog = ref(null);
 const busy = ref(false);
 const notice = ref('');
@@ -24,7 +35,12 @@ const lookupWallet = ref('');
 const form = reactive({ kind: '', title: '', id: '', action: '', key: '', reason: '', amount: '',
     selectedId: '', walletAmount: '0', bonusAmounts: {}, operationType: '', maxSeconds: '', active: true, version: 1, receipt: '' });
 const can = (action) => Boolean(props.permissions[action]);
-const money = (cents) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: props.wallet?.currency || 'MXN' }).format((cents || 0) / 100);
+const canRefund = (row, action) => {
+    if (action === 'approve' && row.own_request) return false;
+    const permission = action === 'complete' ? 'execute' : 'review';
+    return props.refundScope ? props.refundScope[permission] : can('refund.' + permission);
+};
+const money = (cents) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: props.refundScope?.currency || props.wallet?.currency || 'MXN' }).format((cents || 0) / 100);
 const date = (value) => value ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—';
 const short = (id) => id ? id.slice(0, 8) : '—';
 const refundable = computed(() => props.transactions.filter((row) => row.status === 'COMPLETADA' && row.amount_cents < 0
@@ -43,12 +59,21 @@ const cents = (input) => {
 };
 function open(kind, title, row = {}, action = '') {
     error.value = ''; notice.value = '';
+    code.value = '';
+    requiresFactor.value = Boolean(props.refundScope && ['refund', 'purchase-refund'].includes(kind)
+        && ['approve', 'complete'].includes(action));
+    showFactor.value = requiresFactor.value && !props.refundTwoFactorRecent;
     Object.assign(form, { kind, title, id: row.id || '', action, key: crypto.randomUUID(), reason: '', amount: '', selectedId: '',
         walletAmount: '0', bonusAmounts: {}, operationType: row.operation_type || '', maxSeconds: row.max_duration_seconds || '',
         active: row.active ?? true, version: row.version || 1, receipt: '' });
     dialog.value.showModal();
 }
-function close() { if (!busy.value) dialog.value.close(); }
+function close() {
+    if (!busy.value) {
+        code.value = '';
+        dialog.value.close();
+    }
+}
 async function submit() {
     if (busy.value) return;
     error.value = '';
@@ -77,14 +102,26 @@ async function submit() {
             break;
         }
         busy.value = true;
+        if (showFactor.value) {
+            if (!/^\d{6}$/.test(code.value)) throw new Error('Escribe los seis dígitos de tu aplicación de autenticación.');
+            await axios.post(route('security.two-factor.confirm'), { code: code.value });
+            showFactor.value = false;
+        }
         await axios({ method, url, data: payload, headers: { 'Idempotency-Key': form.key } });
         dialog.value.close(); notice.value = 'Operación registrada correctamente.';
         router.reload({ preserveScroll: true });
     } catch (exception) {
+        if (exception.response?.status === 428) {
+            requiresFactor.value = true;
+            showFactor.value = true;
+        }
         const validation = exception.response?.data?.errors;
         error.value = validation ? Object.values(validation).flat().join(' ') : exception.response?.data?.message
             || (exception.response ? 'No se pudo realizar la operación.' : exception.message || 'No pudimos confirmar el resultado. Puedes reintentar esta misma solicitud.');
-    } finally { busy.value = false; }
+    } finally {
+        code.value = '';
+        busy.value = false;
+    }
 }
 async function loadHistory(policy, page = 1) {
     if (busy.value) return;
@@ -98,6 +135,9 @@ async function loadHistory(policy, page = 1) {
 }
 function selectWallet() {
     router.get(route('financial.adjustments.index'), { wallet_id: lookupWallet.value }, { preserveScroll: true });
+}
+function selectRefundWallet() {
+    router.get(route('financial.adjustments.index'), { refund_wallet_id: refundWallet.value }, { preserveScroll: true });
 }
 </script>
 
@@ -114,7 +154,17 @@ function selectWallet() {
             <div class="mx-auto max-w-7xl space-y-6">
                 <p v-if="notice" role="status" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">{{ notice }}</p>
                 <p v-if="error && !dialog?.open" role="alert" class="rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">{{ error }}</p>
-                <section class="rounded-2xl bg-[#00338D] p-6 text-white">
+                <form v-if="Object.keys(refundScopes).length" @submit.prevent="selectRefundWallet" class="flex flex-wrap items-end gap-3 rounded-xl border bg-white p-4">
+                    <label class="min-w-0 grow text-sm">Cuenta receptora asignada
+                        <select v-model="refundWallet" required class="mt-1 block w-full rounded-lg border-slate-300">
+                            <option value="">Selecciona una cuenta</option>
+                            <option v-for="(scope, id) in refundScopes" :key="id" :value="id">{{ id }} · {{ scope.review ? 'Revisión' : 'Ejecución' }}{{ scope.review && scope.execute ? ' y ejecución' : '' }}</option>
+                        </select>
+                    </label>
+                    <button class="action">Consultar devoluciones</button>
+                    <Link v-if="refundScope" :href="route('financial.adjustments.index')" class="action">Mi wallet</Link>
+                </form>
+                <section v-if="!refundScope" class="rounded-2xl bg-[#00338D] p-6 text-white">
                     <h2 class="text-lg font-bold">{{ wallet ? 'Saldo de la wallet' : 'Sin wallet asociada' }}</h2>
                     <div v-if="wallet" class="mt-4 grid gap-4 sm:grid-cols-3">
                         <div><p class="text-sm text-blue-100">Disponible</p><p class="mt-1 text-2xl font-bold">{{ money(wallet.available_balance_cents) }}</p></div>
@@ -127,11 +177,11 @@ function selectWallet() {
                     <label class="grow text-sm">Consultar otra wallet<input v-model="lookupWallet" required placeholder="Identificador de wallet" class="mt-1 block w-full rounded-lg border-slate-300" /></label>
                     <button class="self-end rounded-lg bg-blue-700 px-4 py-2 text-white">Consultar</button>
                 </form>
-                <nav aria-label="Secciones de ajustes" class="flex flex-wrap gap-2">
+                <nav v-if="!refundScope" aria-label="Secciones de ajustes" class="flex flex-wrap gap-2">
                     <button v-for="[key, label] in tabs" :key="key" @click="tab = key; history = null" :aria-pressed="tab === key" :class="tab === key ? 'bg-blue-800 text-white' : 'bg-white text-slate-700 hover:bg-blue-50'" class="rounded-xl border px-4 py-3 text-sm font-semibold">{{ label }}</button>
                 </nav>
                 <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                    <p class="mb-4 text-xs text-slate-500">Se muestran hasta 50 registros recientes por listado. Los importes se presentan en {{ wallet?.currency || 'MXN' }}.</p>
+                    <p class="mb-4 text-xs text-slate-500">Se muestran hasta 50 registros recientes por listado. Los importes se presentan en {{ refundScope?.currency || wallet?.currency || 'MXN' }}.</p>
                     <template v-if="tab === 'holds'">
                         <h2 class="text-lg font-bold text-[#00338D]">Retenciones</h2><p class="mt-1 text-sm text-slate-500">El saldo reservado se libera al cancelar o vencer; al capturar se utiliza una sola vez.</p>
                         <p v-if="!holds.length" class="py-10 text-center text-slate-500">No hay retenciones registradas.</p>
@@ -145,19 +195,19 @@ function selectWallet() {
                         </article>
                     </template>
                     <template v-if="tab === 'refunds'">
-                        <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="text-lg font-bold text-[#00338D]">Solicitudes de devolución</h2><div class="flex flex-wrap gap-2">
+                        <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="text-lg font-bold text-[#00338D]">{{ refundScope ? 'Devoluciones de la cuenta receptora' : 'Solicitudes de devolución' }}</h2><div v-if="!refundScope" class="flex flex-wrap gap-2">
                             <button :disabled="!canRequest || !refundable.length" @click="open('request-refund', 'Solicitar devolución')" class="action">Solicitar devolución</button>
                             <button :disabled="!canRequest || !purchases.length" @click="open('request-purchase', 'Devolver compra con bonos')" class="action">Compra con bonos</button>
                         </div></div>
                         <p class="mt-2 text-sm text-slate-500">Solicitar una devolución no modifica los saldos. La solicitud debe revisarse antes de ejecutarse.</p>
                         <p v-if="!refunds.length && !purchaseRefunds.length" class="py-10 text-center text-slate-500">No hay solicitudes registradas.</p>
                         <article v-for="row in [...refunds.map(r => ({ ...r, kind: 'refund' })), ...purchaseRefunds.map(r => ({ ...r, kind: 'purchase-refund' }))]" :key="row.id" class="mt-4 rounded-xl border p-4">
-                            <div class="flex flex-wrap justify-between gap-2"><h3 class="font-semibold">{{ row.kind === 'refund' ? 'Devolución' : 'Compra con bonos' }} · {{ money(row.amount_cents ?? row.total_amount_cents) }}</h3><span class="text-sm font-semibold text-blue-800">{{ row.status }}</span></div>
+                            <div class="flex flex-wrap justify-between gap-2"><h3 class="font-semibold">{{ row.kind === 'refund' ? 'Devolución' : 'Devolución de compra' }} · {{ money(row.amount_cents ?? row.total_amount_cents) }}</h3><span class="text-sm font-semibold text-blue-800">{{ row.status }}</span></div>
                             <p v-if="row.kind === 'purchase-refund'" class="mt-1 text-sm text-slate-500">Wallet: {{ money(row.wallet_amount_cents) }} · Bonos: {{ money(row.bonus_amount_cents) }}</p>
                             <p class="mt-2 text-sm">{{ row.reason }}</p><p v-if="row.review_reason" class="mt-1 text-sm text-slate-500">Revisión: {{ row.review_reason }}</p>
                             <div class="mt-3 flex flex-wrap gap-2">
-                                <template v-if="row.status === 'PENDIENTE'"><button :disabled="!can('refund.review')" @click="open(row.kind, 'Aprobar devolución', row, 'approve')" class="action">Aprobar</button><button :disabled="!can('refund.review')" @click="open(row.kind, 'Rechazar devolución', row, 'reject')" class="action">Rechazar</button></template>
-                                <template v-if="row.status === 'APROBADA'"><button v-if="row.kind === 'refund' && row.is_withdrawal" :disabled="!can('refund.recover')" @click="open(row.kind, 'Confirmar recuperación de un retiro', row, 'recover')" class="action">Registrar recuperación de retiro</button><button :disabled="!can('refund.execute')" @click="open(row.kind, 'Completar devolución', row, 'complete')" class="action">Completar</button></template>
+                                <template v-if="row.status === 'PENDIENTE'"><button :disabled="!canRefund(row, 'approve')" @click="open(row.kind, 'Aprobar devolución', row, 'approve')" class="action">Aprobar</button><button :disabled="!canRefund(row, 'reject')" @click="open(row.kind, 'Rechazar devolución', row, 'reject')" class="action">Rechazar</button></template>
+                                <template v-if="row.status === 'APROBADA'"><button v-if="row.kind === 'refund' && row.is_withdrawal" :disabled="!can('refund.recover')" @click="open(row.kind, 'Confirmar recuperación de un retiro', row, 'recover')" class="action">Registrar recuperación de retiro</button><button :disabled="!canRefund(row, 'complete')" @click="open(row.kind, 'Completar devolución', row, 'complete')" class="action">Completar</button></template>
                             </div>
                         </article>
                     </template>
@@ -191,6 +241,11 @@ function selectWallet() {
                 <label v-if="form.action === 'recover'" class="field">Referencia de recuperación externa<input v-model="form.receipt" required maxlength="255" /></label>
                 <p v-if="form.kind === 'reverse'" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Se registrarán movimientos compensatorios. Las compras con bonos, retiros y retenciones requieren sus flujos específicos.</p>
                 <label class="field">Motivo<textarea v-model="form.reason" required maxlength="1000" rows="3"></textarea></label>
+                <label v-if="showFactor" class="field">Código de segundo factor
+                    <input v-model="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required />
+                    <span class="mt-1 block text-xs font-normal text-slate-500">Usa el código de seis dígitos de tu aplicación de autenticación.</span>
+                </label>
+                <p v-else-if="requiresFactor" class="text-xs text-slate-500">Esta acción requiere una confirmación reciente del segundo factor.</p>
                 <div class="flex justify-end gap-3"><button type="button" :disabled="busy" @click="close" class="action">Cancelar</button><button :disabled="busy" class="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{{ busy ? 'Procesando…' : 'Confirmar' }}</button></div>
             </form>
         </dialog>

@@ -22,7 +22,7 @@ interface Equipment {
     deposit: string;
 }
 
-type DepositStatus = 'none' | 'held' | 'released' | 'charged';
+type DepositStatus = 'none' | 'pending' | 'held' | 'released' | 'charged';
 
 interface Rental {
     id: string;
@@ -204,6 +204,23 @@ const confirmRental = () => {
             window.alert('Renta registrada correctamente.');
         },
     });
+};
+
+const recoverDeposit = (rental: Rental) => {
+    processingRentalId.value = rental.id;
+    router.post(
+        `/servicios-estudiante/renta-equipos/${rental.id}/recuperar-garantia`,
+        {},
+        {
+            preserveScroll: true,
+            onError: (errors) => {
+                window.alert(errors.rental ?? 'No fue posible recuperar la garantía.');
+            },
+            onFinish: () => {
+                processingRentalId.value = null;
+            },
+        },
+    );
 };
 
 const cancelRental = (rental: Rental) => {
@@ -525,8 +542,21 @@ const serverError = (form: { errors: object }, key: string) =>
                         </div>
 
                         <div class="rental-actions">
+                            <template v-if="rental.deposit_status === 'pending'">
+                                <p class="deposit-note">
+                                    Garantía pendiente de confirmación. El equipo se conserva para esta renta.
+                                </p>
+                                <button
+                                    type="button"
+                                    class="return-rental"
+                                    :disabled="processingRentalId === rental.id"
+                                    @click="recoverDeposit(rental)"
+                                >
+                                    Recuperar garantía
+                                </button>
+                            </template>
                             <p
-                                v-if="rental.deposit_status === 'held'"
+                                v-else-if="rental.deposit_status === 'held'"
                                 class="deposit-note"
                             >
                                 Entrega el equipo en el mostrador para revisarlo
@@ -544,7 +574,7 @@ const serverError = (form: { errors: object }, key: string) =>
                             </button>
 
                             <button
-                                v-if="!rental.picked_up"
+                                v-if="!rental.picked_up && rental.deposit_status !== 'pending'"
                                 type="button"
                                 class="cancel-rental"
                                 :disabled="processingRentalId === rental.id"

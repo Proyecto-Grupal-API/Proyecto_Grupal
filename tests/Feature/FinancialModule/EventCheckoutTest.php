@@ -1,8 +1,12 @@
 <?php
 
 use App\Domains\Financial\Enums\MovementType;
+use App\Domains\Financial\Enums\RefundRequestStatus;
+use App\Domains\Financial\Models\FinancialRefundRequest;
+use App\Domains\Financial\Models\FinancialTransaction;
 use App\Domains\Financial\Models\Wallet;
 use App\Domains\Financial\Services\LedgerService;
+use App\Domains\Financial\Services\FinancialAdjustmentService;
 use App\Models\ServiceClient;
 use App\Models\User;
 use App\Models\UserSession;
@@ -64,6 +68,27 @@ it('binds the original reservation to one owner-consented ledger transfer and on
     $this->postJson($this->url.'/cancel', [], $this->headers)->assertOk()->assertJsonPath('data.status', 'CONFIRMED');
     expect($this->payer->fresh()->available_balance_cents)->toBe(2500)->and($this->receiver->fresh()->available_balance_cents)->toBe(2500);
     $this->assertDatabaseCount('ledger_entries', 3, 'sqlsrv');
+
+    $original = FinancialTransaction::where('public_id', basename($receipt))->firstOrFail();
+    $refunds = app(FinancialAdjustmentService::class);
+    $requester = 'user:'.$this->student->id;
+    $request = $refunds->refund($original, 2500, 'event-refund-request', $requester);
+    $refund = FinancialRefundRequest::where('request_transaction_id', $request->public_id)->sole();
+    expect($refunds->reviewWalletId($refund))->toBe(strtolower($this->receiver->public_id));
+    expect(fn () => $refunds->approveRefund($refund, $requester))->toThrow(InvalidArgumentException::class);
+    expect($refund->fresh()->status)->toBe(RefundRequestStatus::PENDIENTE);
+    $this->getJson($this->url, $this->headers)->assertOk()->assertJsonPath('data.refund', null);
+
+    $refunds->approveRefund($refund, 'user:reviewer');
+    $completed = $refunds->completeRefund($refund, 'event-refund-execute', 'user:executor');
+    expect(strtolower($refunds->completeRefund($refund, 'event-refund-execute', 'user:executor')->public_id))
+        ->toBe(strtolower($completed->public_id));
+    $this->getJson($this->url, $this->headers)->assertOk()
+        ->assertJsonPath('data.refund.refund_id', strtolower($completed->public_id))
+        ->assertJsonPath('data.refund.original_payment_id', strtolower($original->public_id))
+        ->assertJsonPath('data.refund.amount_cents', 2500);
+    expect($this->payer->fresh()->available_balance_cents)->toBe(5000)->and($this->receiver->fresh()->available_balance_cents)->toBe(0);
+    $this->assertDatabaseCount('ledger_entries', 5, 'sqlsrv');
 });
 
 it('records cancellation before preparation and rejects a charge at the exclusive deadline', function () {

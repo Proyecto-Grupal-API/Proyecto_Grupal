@@ -24,6 +24,7 @@ use App\Services\StudentServices\Lockers\LockerAssignmentService;
 use App\Services\StudentServices\Rentals\RentalService;
 use App\Services\StudentServices\Services\ServiceOrderService;
 use Illuminate\Support\Str;
+use Illuminate\Http\Request;
 use InvalidArgumentException;
 use MongoDB\BSON\ObjectId;
 use RuntimeException;
@@ -73,7 +74,7 @@ class ServiceAccessService
     /**
      * @param  array{credential: string, method: string, service: string, action: string, reference?: string|null, condition?: string|null, damage_charge_cents?: int|null}  $input
      */
-    public function validate(array $input, ?string $operatorId = null): ServiceCheckin
+    public function validate(array $input, ?string $operatorId = null, ?Request $request = null): ServiceCheckin
     {
         $service = $input['service'];
         $action = $input['action'];
@@ -115,7 +116,9 @@ class ServiceAccessService
                 'rest.checkin' => $this->bookingCheckIn(BookableResources::REST_SPACE, $student['student_id'], $reference),
                 'rest.checkout' => $this->bookingCheckOut(BookableResources::REST_SPACE, $student['student_id'], $reference),
                 'rental.pickup' => $this->rentalPickup($student['student_id'], $reference),
-                'rental.return' => $this->rentalReturn($student['student_id'], $reference, (string) ($input['condition'] ?? 'good'), $input['damage_charge_cents'] ?? null),
+                'rental.return' => $this->rentalReturn(
+                    $student['student_id'], $reference, (string) ($input['condition'] ?? 'good'), $input['damage_charge_cents'] ?? null, $request
+                ),
                 'service.delivery' => $this->serviceDelivery($student['student_id'], $reference),
                 default => throw new InvalidArgumentException('Operación no soportada.'),
             };
@@ -332,7 +335,7 @@ class ServiceAccessService
     /**
      * @return array{message: string, reference: string, reference_id: string, event: string, data?: array<string, mixed>}
      */
-    private function rentalReturn(string $studentId, string $reference, string $condition, ?int $damageChargeCents = null): array
+    private function rentalReturn(string $studentId, string $reference, string $condition, ?int $damageChargeCents, ?Request $request): array
     {
         if (! in_array($condition, self::RENTAL_CONDITIONS, true)) {
             throw new RuntimeException('La condición de devolución no es válida.');
@@ -342,7 +345,9 @@ class ServiceAccessService
 
         $this->assertOwner($rental->student_id, $studentId, 'La renta pertenece a otro estudiante.');
 
-        $rental = $this->rentals->returnRental($rental, $condition, 'Devolución registrada desde validación de servicios (5.11).', $damageChargeCents);
+        $rental = $this->rentals->returnRental(
+            $rental, $condition, 'Devolución registrada desde validación de servicios (5.11).', $damageChargeCents, $request
+        );
         $asset = Asset::find((string) $rental->asset_id);
 
         return [

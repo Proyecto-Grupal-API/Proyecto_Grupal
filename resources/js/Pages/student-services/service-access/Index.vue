@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import StudentServicesLayout from '@/Layouts/StudentServicesLayout.vue';
 import { useForm } from '@inertiajs/vue3';
+import axios from 'axios';
 import { computed, nextTick, ref, watch } from 'vue';
 
 type ScanMode = 'qr' | 'nfc' | 'manual';
@@ -42,6 +43,7 @@ const props = defineProps<{
     stats: { today: number; granted: number; denied: number };
     operations: Record<ServiceType, ActionType[]>;
     result: ServiceEvent | null;
+    damageOnly?: boolean;
 }>();
 
 const search = ref('');
@@ -51,8 +53,8 @@ const dismissedResultId = ref<string | null>(null);
 const form = useForm({
     credential: '',
     method: 'qr' as ScanMode,
-    service: 'library' as ServiceType,
-    action: 'loan' as ActionType,
+    service: (props.damageOnly ? 'rental' : 'library') as ServiceType,
+    action: (props.damageOnly ? 'return' : 'loan') as ActionType,
     reference: '',
     condition: 'good',
     damage_charge: '',
@@ -175,7 +177,19 @@ const formError = computed(() => {
     return Object.values(errors)[0] ?? '';
 });
 
-function validateAccess() {
+const factorCode = ref('');
+const factorError = ref('');
+const confirmingFactor = ref(false);
+const needsFactor = computed(() => Boolean((form.errors as Record<string, string>).rental_two_factor));
+
+watch(() => [form.service, form.action, form.condition, form.damage_charge, form.credential, form.reference, form.method], () => {
+    form.clearErrors('rental_two_factor' as keyof typeof form.errors);
+    factorCode.value = '';
+    factorError.value = '';
+});
+
+async function validateAccess() {
+    if (form.processing || confirmingFactor.value) return;
     if (!form.credential.trim()) {
         credentialInput.value?.focus();
 
@@ -186,6 +200,22 @@ function validateAccess() {
         window.alert('Captura la referencia del servicio.');
 
         return;
+    }
+
+    if (needsFactor.value) {
+        confirmingFactor.value = true;
+        factorError.value = '';
+        try {
+            await axios.post(route('security.two-factor.confirm'), { code: factorCode.value });
+        } catch (error) {
+            factorError.value = axios.isAxiosError(error)
+                ? error.response?.data?.errors?.code?.[0] || 'No se pudo confirmar tu segundo factor.'
+                : 'No se pudo confirmar tu segundo factor.';
+            return;
+        } finally {
+            factorCode.value = '';
+            confirmingFactor.value = false;
+        }
     }
 
     form.post('/servicios-estudiante/validacion-servicios/validar', {
@@ -232,7 +262,7 @@ function clearResult() {
             </div>
         </section>
 
-        <section class="stats-grid">
+        <section v-if="!damageOnly" class="stats-grid">
             <article class="stat-card">
                 <span>Eventos de hoy</span>
                 <strong>{{ stats.today }}</strong>
@@ -311,6 +341,7 @@ function clearResult() {
                             :key="mode"
                             type="button"
                             :class="{ active: form.method === mode }"
+                            :disabled="form.processing || confirmingFactor"
                             @click="form.method = mode"
                         >
                             {{ modeLabel(mode) }}
@@ -319,7 +350,7 @@ function clearResult() {
                 </div>
 
                 <form class="validation-form" @submit.prevent="validateAccess">
-                    <div class="form-grid">
+                    <fieldset class="form-grid" :disabled="form.processing || confirmingFactor">
                         <div class="form-field full">
                             <label>
                                 Credencial del estudiante
@@ -423,6 +454,13 @@ function clearResult() {
                                 depósito retenido.
                             </small>
                         </div>
+                    </fieldset>
+
+                    <div v-if="needsFactor" class="form-field">
+                        <label for="rental-factor">Código de segundo factor</label>
+                        <input id="rental-factor" v-model="factorCode" inputmode="numeric" autocomplete="one-time-code"
+                            pattern="[0-9]{6}" maxlength="6" :disabled="confirmingFactor" required />
+                        <p v-if="factorError" role="alert">{{ factorError }}</p>
                     </div>
 
                     <div v-if="formError" class="information-box error-box">
@@ -438,10 +476,10 @@ function clearResult() {
                     <button
                         type="submit"
                         class="validate-button"
-                        :disabled="form.processing"
+                        :disabled="form.processing || confirmingFactor"
                     >
                         {{
-                            form.processing
+                            form.processing || confirmingFactor
                                 ? 'Validando...'
                                 : 'Validar operación'
                         }}
@@ -491,7 +529,7 @@ function clearResult() {
             </button>
         </section>
 
-        <section class="content-panel">
+        <section v-if="!damageOnly" class="content-panel">
             <div class="panel-header">
                 <div>
                     <span class="panel-label">EVENTOS</span>

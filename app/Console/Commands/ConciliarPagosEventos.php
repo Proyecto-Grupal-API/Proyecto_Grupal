@@ -21,7 +21,8 @@ class ConciliarPagosEventos extends Command
         }
 
         $pendientes = PagoReservaEvento::where('estado', 'pendiente')->orderBy('revisado_en')->orderBy('_id')->limit(20)->get();
-        foreach ($pendientes as $pago) {
+        $devoluciones = PagoReservaEvento::where('estado', 'devolucion_pendiente')->orderBy('revisado_en')->orderBy('_id')->limit(20)->get();
+        foreach ($pendientes->concat($devoluciones) as $pago) {
             $pago->update(['revisado_en' => now()]);
             try {
                 $pagos->recuperar($pago);
@@ -29,7 +30,7 @@ class ConciliarPagosEventos extends Command
                 Log::warning('comunidad.pago_evento_pendiente', ['pago_id' => (string) $pago->id, 'error' => $e::class]);
             }
         }
-        $this->info('Intentos de pago revisados: '.$pendientes->count());
+        $this->info('Intentos de pago revisados: '.($pendientes->count() + $devoluciones->count()));
 
         return self::SUCCESS;
     }

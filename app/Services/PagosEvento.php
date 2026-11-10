@@ -48,6 +48,11 @@ class PagosEvento
 
     public function recuperar(PagoReservaEvento $pago): string
     {
+        if ($pago->estado === 'devolucion_pendiente') {
+            $result = $this->solicitar($pago, 'read');
+
+            return $result ? $this->aplicarDevolucion($pago, $result) : 'devolucion_pendiente';
+        }
         if ($pago->estado !== 'pendiente') {
             return $pago->estado;
         }
@@ -56,6 +61,37 @@ class PagosEvento
         $result = $this->solicitar($pago, $accion);
 
         return $result ? $this->aplicar($pago, $result) : 'pendiente';
+    }
+
+    private function aplicarDevolucion(PagoReservaEvento $pago, array $result): string
+    {
+        $receipt = $result['refund'] ?? null;
+        if ($receipt === null) {
+            return 'devolucion_pendiente';
+        }
+        abort_unless(is_array($receipt) && $result['status'] === 'CONFIRMED'
+            && Str::isUuid($receipt['refund_id'] ?? null)
+            && ($receipt['original_payment_id'] ?? null) === $result['payment_id']
+            && ($receipt['amount_cents'] ?? null) === $pago->monto_centavos
+            && ($receipt['currency'] ?? null) === 'MXN', 503, 'La devolución no coincide con el cobro de la reserva.');
+
+        return $this->inscripciones->ejecutar($pago->evento_id, function (Evento $evento) use ($pago, $result, $receipt) {
+            $pago->refresh();
+            if ($pago->estado !== 'devolucion_pendiente') {
+                return $pago->estado;
+            }
+            abort_unless($pago->comprobante === $result['payment_id'], 503, 'La devolución corresponde a otro cobro.');
+            $pago->update(['estado' => 'devuelto', 'comprobante_devolucion' => $receipt['refund_id']]);
+            RegistroEvento::whereKey($pago->registro_id)->where('evento_id', $pago->evento_id)
+                ->where('usuario_id', $pago->usuario_id)->where('generacion', $pago->generacion)
+                ->where('pago_estado', 'devolucion_pendiente')->update(['pago_estado' => 'devuelto']);
+            $this->inscripciones->auditar($evento, null, 'evento_pago_devuelto', (string) $pago->id, null, [
+                'registro_id' => $pago->registro_id, 'generacion' => $pago->generacion,
+                'referencia_financiera' => $receipt['refund_id'],
+            ]);
+
+            return 'devuelto';
+        });
     }
 
     private function solicitar(PagoReservaEvento $pago, string $accion): ?array

@@ -115,6 +115,7 @@ async function pago(b, consultar = false) {
     }
 }
 function estado(b) {
+    if (b.pago_estado === "devuelto") return "Pago devuelto";
     if (b.pago_estado === "devolucion_pendiente") return "Pago en revisión para devolución";
     if (b.pago_estado === "cancelacion_pendiente" && b.estado === "confirmada") return "Cancelación pendiente de Finanzas";
     if (b.estado === "cancelada") return "Inscripción cancelada";

@@ -14,11 +14,14 @@ use App\Domains\Financial\Models\WalletHold;
 use App\Domains\Financial\Models\WalletHoldPolicy;
 use App\Domains\Financial\Services\FinancialAdjustmentService;
 use App\Domains\Financial\Services\PurchaseRefundService;
+use App\Domains\Financial\Services\RefundRecipientQueue;
 use App\Domains\Financial\Services\WalletHoldPolicyService;
 use App\Domains\Financial\Services\WalletHoldService;
 use App\Domains\Financial\Services\WalletService;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Financial\Concerns\FinancialControlResponses;
+use App\Services\PilotOperationAuthorization;
+use App\Services\RecentTwoFactor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -28,9 +31,25 @@ class FinancialAdjustmentWebController extends Controller
 {
     use FinancialControlResponses;
 
-    public function index(Request $request, WalletService $wallets)
+    public function index(Request $request, WalletService $wallets, PilotOperationAuthorization $authorization)
     {
-        $request->validate(['wallet_id' => ['nullable', 'uuid']]);
+        $request->validate(['wallet_id' => ['nullable', 'uuid'], 'refund_wallet_id' => ['nullable', 'uuid']]);
+        $scopes = $authorization->refundScopes($request);
+        if ($request->filled('refund_wallet_id')) {
+            $id = strtolower($request->string('refund_wallet_id')->toString());
+            abort_unless(isset($scopes[$id]), 403);
+            $wallet = Wallet::where('public_id', $id)->firstOrFail();
+            [$refunds, $purchases] = app(RefundRecipientQueue::class)->forWallet($id);
+            $actor = $this->actor($request);
+
+            return Inertia::render('Financial/Adjustments', [
+                'refundScopes' => (object) $scopes,
+                'refundScope' => ['id' => $id, 'currency' => $wallet->currency, ...$scopes[$id]],
+                'refundTwoFactorRecent' => app(RecentTwoFactor::class)->isRecent($request),
+                'refunds' => $refunds->map(fn ($row) => $this->refundFields($row, $actor)),
+                'purchaseRefunds' => $purchases->map(fn ($row) => $this->purchaseRefundFields($row, $actor)),
+            ])->toResponse($request)->header('Cache-Control', 'private, no-store');
+        }
         $wallet = $request->filled('wallet_id')
             ? Wallet::where('public_id', $request->input('wallet_id'))->firstOrFail()
             : $wallets->findByOwner('USER', (string) $request->user()->getKey(), WalletType::USUARIO);
@@ -61,11 +80,12 @@ class FinancialAdjustmentWebController extends Controller
             ->keyBy(fn ($entry) => strtolower($entry->transaction_id)) : collect();
 
         return Inertia::render('Financial/Adjustments', [
+            'refundScopes' => (object) $scopes,
             'wallet' => $wallet ? $this->fields($wallet, ['currency', 'available_balance_cents', 'held_balance_cents']) : null,
             'canRequest' => $wallet && $this->owns($request, $wallet), 'permissions' => $permissions,
             'holds' => $holds->map(fn ($row) => $this->fields($row, ['amount_cents', 'status', 'expires_at', 'operation_type', 'reason', 'policy_version', 'max_duration_seconds'])),
-            'refunds' => $refunds->map(fn ($row) => $this->fields($row, ['amount_cents', 'status', 'reason', 'review_reason', 'original_transaction_id']) + ['is_withdrawal' => $row->originalTransaction?->reference_type === 'WITHDRAWAL']),
-            'purchaseRefunds' => $purchaseRefunds->map(fn ($row) => $this->fields($row, ['total_amount_cents', 'wallet_amount_cents', 'bonus_amount_cents', 'status', 'reason', 'review_reason', 'purchase_payment_id'])),
+            'refunds' => $refunds->map(fn ($row) => $this->refundFields($row, $this->actor($request))),
+            'purchaseRefunds' => $purchaseRefunds->map(fn ($row) => $this->purchaseRefundFields($row, $this->actor($request))),
             'purchases' => $purchases->map(fn ($row) => $this->fields($row, ['total_amount_cents', 'wallet_amount_cents', 'bonus_amount_cents']) + [
                 'bonuses' => $row->bonuses->isEmpty() && $row->bonus_amount_cents > 0 && $row->bonus_id
                     ? [['bonus_id' => strtolower($row->bonus_id), 'amount_cents' => $row->bonus_amount_cents]]
@@ -113,35 +133,47 @@ class FinancialAdjustmentWebController extends Controller
     public function refundAction(Request $request, string $refundId, string $action, FinancialAdjustmentService $service)
     {
         $refund = FinancialRefundRequest::where('public_id', $refundId)->firstOrFail();
-        $this->authorizeAction($request, match ($action) {
-            'approve', 'reject' => 'refund.review', 'complete' => 'refund.execute', 'recover' => 'refund.recover'
-        }, $refund->wallet_id);
         $reason = $this->reason($request);
         $actor = $this->actor($request);
         if ($action === 'recover') {
+            $this->authorizeAction($request, 'refund.recover', $refund->wallet_id);
             $receipt = $request->validate(['recovery_reference' => ['required', 'string', 'max:255', 'regex:/\S/u']])['recovery_reference'];
 
             return $this->run($request, fn () => $service->confirmWithdrawalRecovery($refund, $receipt, $actor, $reason));
         }
         $key = $action === 'complete' ? $this->key($request) : null;
 
-        return $this->run($request, fn () => match ($action) {
-            'approve' => $service->approveRefund($refund, $actor, $reason), 'reject' => $service->rejectRefund($refund, $actor, $reason),
-            'complete' => $service->completeRefund($refund, $key, $actor),
+        return $this->run($request, function () use ($request, $service, $refund, $action, $actor, $reason, $key) {
+            $scope = $service->reviewWalletId($refund);
+            if ($scope === null) {
+                $this->authorizeAction($request, $action === 'complete' ? 'refund.execute' : 'refund.review', $refund->wallet_id);
+            } else {
+                $this->authorizePilotRefund($request, $scope, $action);
+            }
+
+            return match ($action) {
+                'approve' => $service->approveRefund($refund, $actor, $reason),
+                'reject' => $service->rejectRefund($refund, $actor, $reason),
+                'complete' => $service->completeRefund($refund, $key, $actor),
+            };
         });
     }
 
     public function purchaseRefundAction(Request $request, string $refundId, string $action, PurchaseRefundService $service)
     {
         $refund = PurchaseRefundRequest::where('public_id', $refundId)->firstOrFail();
-        $this->authorizeAction($request, $action === 'complete' ? 'refund.execute' : 'refund.review', $refund->wallet_id);
         $reason = $this->reason($request);
         $actor = $this->actor($request);
         $key = $action === 'complete' ? $this->key($request) : null;
 
-        return $this->run($request, fn () => match ($action) {
-            'approve' => $service->approve($refund, $actor, $reason), 'reject' => $service->reject($refund, $actor, $reason),
-            'complete' => $service->complete($refund, $key, $actor),
+        return $this->run($request, function () use ($request, $service, $refund, $action, $actor, $reason, $key) {
+            $this->authorizePilotRefund($request, $service->reviewWalletId($refund), $action);
+
+            return match ($action) {
+                'approve' => $service->approve($refund, $actor, $reason),
+                'reject' => $service->reject($refund, $actor, $reason),
+                'complete' => $service->complete($refund, $key, $actor),
+            };
         });
     }
 
@@ -221,6 +253,23 @@ class FinancialAdjustmentWebController extends Controller
         abort_unless($this->allowed($request, $action, $walletId), 403, 'No tienes permiso para realizar esta acción.');
     }
 
+    private function authorizePilotRefund(Request $request, string $walletId, string $action): void
+    {
+        $operation = $action === 'complete' ? 'execute' : $action;
+        $authorization = app(PilotOperationAuthorization::class);
+        if ($authorization->allowsRefund($request, $walletId, $operation)) {
+            return;
+        }
+
+        $capability = $operation === 'execute' ? 'execute' : 'review';
+        if ($operation !== 'reject' && ($authorization->refundScopes($request)[$walletId][$capability] ?? false)
+            && ! app(RecentTwoFactor::class)->isRecent($request)) {
+            abort(428, 'Confirma tu segundo factor para continuar con esta devolución.');
+        }
+
+        abort(403, 'La devolución requiere el permiso vigente sobre la cuenta receptora.');
+    }
+
     private function reason(Request $request): string
     {
         return $request->validate(['reason' => ['required', 'string', 'max:1000', 'regex:/\S/u']])['reason'];
@@ -260,6 +309,18 @@ class FinancialAdjustmentWebController extends Controller
         }
 
         return $this->ok($request, ['id' => strtolower($row->public_id)]);
+    }
+
+    private function refundFields(FinancialRefundRequest $row, string $actor): array
+    {
+        return $this->fields($row, ['amount_cents', 'status', 'reason', 'review_reason', 'original_transaction_id'])
+            + ['is_withdrawal' => $row->originalTransaction?->reference_type === 'WITHDRAWAL', 'own_request' => $row->requested_by === $actor];
+    }
+
+    private function purchaseRefundFields(PurchaseRefundRequest $row, string $actor): array
+    {
+        return $this->fields($row, ['total_amount_cents', 'wallet_amount_cents', 'bonus_amount_cents', 'status', 'reason', 'review_reason', 'purchase_payment_id'])
+            + ['own_request' => $row->requested_by === $actor];
     }
 
     private function fields($row, array $keys): array

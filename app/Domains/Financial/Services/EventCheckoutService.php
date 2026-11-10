@@ -4,9 +4,12 @@ namespace App\Domains\Financial\Services;
 
 use App\Domains\Financial\Enums\LimitAction;
 use App\Domains\Financial\Enums\MovementType;
+use App\Domains\Financial\Enums\RefundRequestStatus;
+use App\Domains\Financial\Enums\TransactionStatus;
 use App\Domains\Financial\Enums\WalletStatus;
 use App\Domains\Financial\Enums\WalletType;
 use App\Domains\Financial\Models\EventPaymentRequest;
+use App\Domains\Financial\Models\FinancialRefundRequest;
 use App\Domains\Financial\Models\FinancialTransaction;
 use App\Domains\Financial\Models\Wallet;
 use App\Services\IdentityService;
@@ -85,6 +88,33 @@ class EventCheckoutService
             'currency' => 'MXN', 'request_id' => strtolower($row->public_id),
             'payment_id' => $row->transaction_id ? strtolower($row->transaction_id) : null,
             'confirmation_path' => $row->status === 'PENDING' ? '/finanzas/eventos/solicitudes/'.strtolower($row->public_id) : null,
+        ];
+    }
+
+    public function completedRefund(EventPaymentRequest $row): ?array
+    {
+        if ($row->status !== 'CONFIRMED' || ! $row->transaction_id || $row->amount_cents <= 0) {
+            return null;
+        }
+
+        $refund = FinancialRefundRequest::where('original_transaction_id', $row->transaction_id)
+            ->where('status', RefundRequestStatus::COMPLETADA->value)
+            ->where('amount_cents', $row->amount_cents)->whereNotNull('completed_at')
+            ->with('completedTransaction')->first();
+        $transaction = $refund?->completedTransaction;
+        if (! $transaction || $transaction->status !== TransactionStatus::COMPLETADA
+            || $transaction->reference_type !== 'DEVOLUCION'
+            || strcasecmp((string) $transaction->reference_id, $refund->public_id) !== 0
+            || strcasecmp((string) $transaction->original_transaction_id, $row->transaction_id) !== 0
+            || ($transaction->metadata['amount_cents'] ?? null) !== $row->amount_cents) {
+            return null;
+        }
+
+        return [
+            'refund_id' => strtolower($transaction->public_id),
+            'original_payment_id' => strtolower($row->transaction_id),
+            'amount_cents' => $row->amount_cents,
+            'currency' => 'MXN',
         ];
     }
 

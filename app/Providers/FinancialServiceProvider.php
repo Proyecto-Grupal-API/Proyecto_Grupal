@@ -80,6 +80,7 @@ class FinancialServiceProvider extends ServiceProvider
         $this->loadRoutesFrom(base_path('routes/financial.php'));
         $this->loadRoutesFrom(base_path('routes/financial_api.php'));
         $this->loadRoutesFrom(base_path('routes/financial_library_fines.php'));
+        $this->loadRoutesFrom(base_path('routes/financial_rental_deposit_pilot.php'));
         $this->loadRoutesFrom(base_path('routes/financial_event_payments.php'));
 
     }

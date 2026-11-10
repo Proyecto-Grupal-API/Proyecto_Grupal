@@ -567,6 +567,25 @@ class PurchaseRefundService
         );
     }
 
+    /** Scope discovery is read-only. Decisions use the default locks inside their transaction. */
+    public function reviewWalletId(PurchaseRefundRequest $refund, bool $lock = true): string
+    {
+        $payment = $refund->purchasePayment()->when($lock, fn ($query) => $query->lockForUpdate())->firstOrFail();
+        if ($payment->status !== 'COMPLETADO' || $payment->wallet_amount_cents <= 0
+            || strcasecmp($payment->wallet_id, $refund->wallet_id) !== 0) {
+            throw new InvalidArgumentException('La devolución requiere revisión separada. No se pudo acreditar la wallet receptora.');
+        }
+
+        $original = FinancialTransaction::where('idempotency_key', $payment->idempotency_key)
+            ->when($lock, fn ($query) => $query->lockForUpdate())->first();
+        $recipient = $original ? $payment->assertWalletCharge($original) : null;
+        if ($recipient === null) {
+            throw new InvalidArgumentException('La devolución requiere revisión separada. No se pudo acreditar la wallet receptora.');
+        }
+
+        return strtolower($recipient);
+    }
+
     public function approve(
         PurchaseRefundRequest $refundRequest,
         string $reviewedBy,
@@ -666,6 +685,10 @@ class PurchaseRefundService
                     throw new InvalidArgumentException(
                         'La transacción de solicitud no es válida para revisarse.'
                     );
+                }
+
+                if ($newStatus === RefundRequestStatus::APROBADA && $request->requested_by === $reviewedBy) {
+                    throw new InvalidArgumentException('El solicitante no puede aprobar su propia devolución.');
                 }
 
                 $request->status = $newStatus;

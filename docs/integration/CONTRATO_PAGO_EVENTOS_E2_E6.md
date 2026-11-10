@@ -77,3 +77,18 @@ Para activar con cuentas reales queda acreditar la cuenta de cada organización,
 - Desde **Mis boletos**, el titular puede usar **Pagar con wallet** o **Consultar pago**. El acceso conserva las condiciones de Staff. Si la reserva se pierde, el registro financiero de esa generación queda en `devolucion_pendiente`, con su comprobante.
 - La prueba HTTP desechable autorizó **$25.00 MXN**, obtuvo un comprobante y habilitó el QR tras la conciliación. Repetir la confirmación conservó un cargo y dos movimientos que se balancean. Una segunda reserva se canceló antes del pago y se liberó con el saldo intacto.
 - Pasaron **101 pruebas de Finanzas, Eventos y Staff, con 1,640 aserciones**. Las pruebas enfocadas cubren vencimiento exacto, cierre previo a preparar, evidencia alterada y pago de una generación anterior. La resolución automática de devoluciones sigue fuera del piloto.
+
+## Conciliación de una devolución
+
+La consulta por inscripción y generación conserva `status: CONFIRMED`
+para el cobro original. Cuando E2 tiene una devolución completa ejecutada
+en una sola operación, devuelve `refund` con `refund_id`,
+`original_payment_id`, `amount_cents` y `currency`. Una devolución pendiente,
+rechazada o parcial conserva `refund: null`.
+
+Comunidad aplica el comprobante solo al intento en `devolucion_pendiente`
+que coincide con el pago, importe y moneda. Guarda
+`comprobante_devolucion`, registra una auditoría y cambia el estado
+financiero a `devuelto`. La conciliación no reasigna cupos ni cambia
+la generación vigente o el estado de acceso. La autorización y la
+ejecución de la devolución permanecen en E2.

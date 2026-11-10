@@ -35,7 +35,10 @@ class UserSession extends Model
         'revoked_reason',
     ];
 
+    protected $hidden = ['recent_two_factor'];
+
     protected $casts = [
+        'recent_two_factor' => \MongoDB\Laravel\Eloquent\Casts\AsBsonDocument::class,
         'started_at' => 'datetime',
         'last_activity_at' => 'datetime',
         'revoked_at' => 'datetime',

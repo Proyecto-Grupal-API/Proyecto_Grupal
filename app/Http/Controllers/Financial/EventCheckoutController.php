@@ -36,7 +36,10 @@ class EventCheckoutController
         $client = $service->authorize($request->attributes->get('oauth_client_id'), 'read');
         abort_if($request->all() !== [], 422);
 
-        return response()->json(['data' => $service->result($service->lookup($client, $this->source($registroId, $generation)))]);
+        $row = $service->lookup($client, $this->source($registroId, $generation));
+
+        return response()->json(['data' => $service->result($row) + ['refund' => $service->completedRefund($row)]])
+            ->header('Cache-Control', 'private, no-store');
     }
 
     public function cancel(Request $request, string $registroId, string $generation, EventCheckoutService $service)

@@ -94,6 +94,35 @@ test('if the rental cannot be completed no deposit is left held', function () {
         ->and($this->asset->fresh()->status)->toBe('available');
 });
 
+test('a lost hold response preserves the rental and can be recovered by its owner', function () {
+    $ledger = app(StudentPaymentGateway::class);
+    $calls = 0;
+    $this->mock(StudentPaymentGateway::class)->shouldReceive('hold')
+        ->twice()->andReturnUsing(function (...$arguments) use ($ledger, &$calls) {
+            $reference = $ledger->hold(...$arguments);
+            if (++$calls === 1) {
+                throw new RuntimeException('Respuesta perdida después de retener.');
+            }
+
+            return $reference;
+        });
+
+    $this->actingAs($this->user)->post('/servicios-estudiante/renta-equipos', [
+        'asset_id' => (string) $this->asset->id, 'due_at' => now()->addDays(3)->toDateString(),
+    ])->assertSessionHasErrors('rental');
+    $rental = Rental::sole();
+    $path = '/servicios-estudiante/renta-equipos/'.$rental->id;
+    expect($rental->deposit_status)->toBe('pending')->and($this->asset->fresh()->status)->toBe('rented');
+    $this->patch($path.'/cancelar')->assertSessionHasErrors('rental');
+    expect(fn () => app(RentalService::class)->markPickedUp($rental))->toThrow(PaymentException::class);
+
+    $this->actingAs($this->operator)->post($path.'/recuperar-garantia')->assertNotFound();
+    $this->actingAs($this->user)->post($path.'/recuperar-garantia')->assertSessionHasNoErrors();
+    expect(Rental::count())->toBe(1)
+        ->and($rental->fresh()->deposit_status)->toBe('held')
+        ->and($rental->fresh()->deposit_hold_reference)->toBe(ServiceCharge::where('operation', 'hold')->sole()->reference);
+});
+
 test('a student cannot self-return an asset that holds a deposit', function () {
     $rental = rentAsset($this);
 

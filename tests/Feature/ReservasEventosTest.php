@@ -198,6 +198,14 @@ class ReservasEventosTest extends TestCase
         $this->getJson($url.'/boleto')->assertJsonPath('generacion', 2)->assertJsonPath('qr_habilitado', false)
             ->assertJsonPath('estado_pago', 'pendiente');
         $this->assertSame($finanzas->payment, PagoReservaEvento::firstOrFail()->comprobante);
+        $finanzas->refund = ['refund_id' => (string) Str::uuid(), 'original_payment_id' => $finanzas->payment,
+            'amount_cents' => 2500, 'currency' => 'MXN'];
+        $this->artisan('comunidad:conciliar-pagos-eventos')->assertSuccessful();
+        $this->postJson($url.'/pago/consultar', ['generacion' => 1])->assertOk()->assertJsonPath('estado', 'devuelto');
+        $this->getJson($url.'/boleto')->assertJsonPath('generacion', 2)->assertJsonPath('qr_habilitado', false)
+            ->assertJsonPath('estado_pago', 'pendiente');
+        $this->assertSame($finanzas->refund['refund_id'], PagoReservaEvento::firstOrFail()->comprobante_devolucion);
+        $this->assertSame(1, AuditoriaComunidad::where('accion', 'evento_pago_devuelto')->count());
     }
 
     public function test_finance_must_close_the_payment_before_cancellation_releases_an_active_seat(): void
@@ -223,7 +231,7 @@ class ReservasEventosTest extends TestCase
         $id = (string) Str::uuid();
         $fixture = (object) ['prepared' => 0, 'status' => 'PENDING', 'importe' => $reg->monto_centavos,
             'path' => '/finanzas/eventos/solicitudes/'.$id, 'payment' => (string) Str::uuid(),
-            'confirmado' => now()->utc()->format('Y-m-d\TH:i:s.v\Z')];
+            'confirmado' => now()->utc()->format('Y-m-d\TH:i:s.v\Z'), 'refund' => null];
         Http::preventStrayRequests();
         Http::fake([
             'http://finanzas.test/api/oauth/token' => Http::response(['access_token' => 'fixture-token', 'expires_in' => 120]),
@@ -244,7 +252,7 @@ class ReservasEventosTest extends TestCase
                     'student_id' => $reg->usuario_id, 'event_id' => $reg->evento_id, 'organization_id' => (string) Evento::find($reg->evento_id)->organizacion_id,
                     'amount_cents' => $fixture->importe, 'currency' => 'MXN',
                     'reservation_expires_at' => $reg->reserva_hasta->copy()->utc()->format('Y-m-d\TH:i:s.v\Z'),
-                    'payment_id' => $fixture->status === 'CONFIRMED' ? $fixture->payment : null,
+                    'refund' => $fixture->refund, 'payment_id' => $fixture->status === 'CONFIRMED' ? $fixture->payment : null,
                     'confirmed_at' => $fixture->status === 'CONFIRMED' ? $fixture->confirmado : null,
                     'confirmation_path' => $fixture->path,
                 ]]);

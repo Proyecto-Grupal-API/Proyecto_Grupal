@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Financial\Enums\MovementType;
+use App\Domains\Financial\Enums\RefundRequestStatus;
 use App\Domains\Financial\Exceptions\FinancialLimitExceededException;
 use App\Domains\Financial\Integrations\Team4\WebhookSigner;
 use App\Domains\Financial\Models\FinancialTransaction;
@@ -123,6 +124,26 @@ test('wallet purchase refuses a financial key from another operation', function 
     expect(fn () => app(PurchasePaymentService::class)->payWithWallet($w, 100, $key))->toThrow(InvalidArgumentException::class);
     expect($w->fresh()->available_balance_cents)->toBe(10100)->and(PurchasePayment::where('idempotency_key', $key)->exists())->toBeFalse();
 });
+test('a purchase refund uses the credited wallet for review and cannot be approved by its requester', function () {
+    $payer = wpoWallet();
+    $receiver = Wallet::create([
+        'public_id' => (string) Str::uuid(), 'owner_type' => 'BUSINESS', 'owner_id' => 'BUS-WPO',
+        'type' => 'WALLET_NEGOCIO', 'currency' => 'MXN', 'status' => 'ACTIVA',
+        'available_balance_cents' => 0, 'held_balance_cents' => 0,
+    ]);
+    $result = app(PurchasePaymentService::class)->payWithWallet($payer, 3000, 'wpo-'.Str::uuid(), 'BUS-WPO', recipient: $receiver);
+    $payment = PurchasePayment::where('public_id', $result['purchase_payment_id'])->firstOrFail();
+    $refunds = app(PurchaseRefundService::class);
+    $requester = 'user:507f1f77bcf86cd799439011';
+    $refund = $refunds->request($payment, 1000, [], 'wpo-request-'.Str::uuid(), $requester);
+    expect(fn () => $refunds->approve($refund, $requester))->toThrow(InvalidArgumentException::class, 'El solicitante no puede aprobar su propia devolución.');
+    expect($refund->fresh()->status)->toBe(RefundRequestStatus::PENDIENTE)
+        ->and($payer->fresh()->available_balance_cents)->toBe(7000)
+        ->and($receiver->fresh()->available_balance_cents)->toBe(3000)
+        ->and($refunds->reviewWalletId($refund))->toBe(strtolower($receiver->public_id));
+    expect($refunds->approve($refund, 'user:507f1f77bcf86cd799439012')->status)->toBe(RefundRequestStatus::APROBADA);
+});
+
 test('wallet purchase completes partial and full refunds with delta events and no bonus allocations', function () {
     $w = wpoWallet();
     $c = wpoContext();

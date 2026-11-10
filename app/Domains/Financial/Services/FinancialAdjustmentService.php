@@ -9,20 +9,28 @@ use App\Domains\Financial\Enums\TransactionStatus;
 use App\Domains\Financial\Enums\WithdrawalStatus;
 use App\Domains\Financial\Models\CashMovement;
 use App\Domains\Financial\Models\CashShift;
+use App\Domains\Financial\Models\EventPaymentRequest;
 use App\Domains\Financial\Models\FinancialRefundRequest;
 use App\Domains\Financial\Models\FinancialTransaction;
 use App\Domains\Financial\Models\FinancialWithdrawalRecovery;
 use App\Domains\Financial\Models\LedgerEntry;
+use App\Domains\Financial\Models\LibraryFinePaymentRequest;
 use App\Domains\Financial\Models\PurchasePayment;
 use App\Domains\Financial\Models\Wallet;
 use App\Domains\Financial\Models\Withdrawal;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class FinancialAdjustmentService
 {
+    private const SERVICE_PAYMENTS = [
+        'COMMUNITY_EVENT' => EventPaymentRequest::class,
+        'LIBRARY_FINE' => LibraryFinePaymentRequest::class,
+    ];
+
     public function refund(
         FinancialTransaction $originalTransaction,
         int $amountCents,
@@ -118,6 +126,10 @@ class FinancialAdjustmentService
                     $lockedOriginal->public_id
                 );
 
+                if (isset(self::SERVICE_PAYMENTS[$lockedOriginal->reference_type])) {
+                    $this->servicePaymentCredit($lockedOriginal, $originalEntry);
+                }
+
                 $originalAmountCents = abs(
                     $originalEntry->amount_cents
                 );
@@ -166,6 +178,42 @@ class FinancialAdjustmentService
         );
     }
 
+    /** Scope discovery is read-only. Decisions use the default locks inside their transaction. */
+    public function reviewWalletId(FinancialRefundRequest $refund, bool $lock = true): ?string
+    {
+        $original = FinancialTransaction::where('public_id', $refund->original_transaction_id)
+            ->when($lock, fn ($query) => $query->lockForUpdate())->firstOrFail();
+        if (! isset(self::SERVICE_PAYMENTS[$original->reference_type])) {
+            return null;
+        }
+
+        $debit = $this->getRefundableEntry($original->public_id);
+        if (strcasecmp($refund->wallet_id, $debit->wallet_id) !== 0) {
+            throw new InvalidArgumentException('La wallet de la solicitud no corresponde al cargo original.');
+        }
+
+        return strtolower($this->servicePaymentCredit($original, $debit, lock: $lock)->wallet_id);
+    }
+
+    private function servicePaymentCredit(FinancialTransaction $original, LedgerEntry $debit, ?Collection $entries = null, bool $lock = true): LedgerEntry
+    {
+        $model = self::SERVICE_PAYMENTS[$original->reference_type];
+        $payment = $model::where('source_reference', $original->reference_id)
+            ->where('transaction_id', $original->public_id)->where('status', 'CONFIRMED')->first();
+        $entries ??= LedgerEntry::where('transaction_id', $original->public_id)
+            ->when($lock, fn ($query) => $query->lockForUpdate())->get();
+        $credit = $entries->first(fn (LedgerEntry $row) => $row->movement_type === MovementType::COBRO_SERVICIO);
+        if ($original->status !== TransactionStatus::COMPLETADA || ! $payment || $entries->count() !== 2
+            || $debit->movement_type !== MovementType::PAGO || $debit->amount_cents >= 0
+            || ! $credit || $credit->amount_cents !== -$debit->amount_cents || $payment->amount_cents !== $credit->amount_cents
+            || strcasecmp($debit->wallet_id, $credit->wallet_id) === 0
+            || strcasecmp((string) $payment->recipient_wallet_id, $credit->wallet_id) !== 0) {
+            throw new InvalidArgumentException('El cargo de servicio requiere evidencia contable válida del receptor.');
+        }
+
+        return $credit;
+    }
+
     public function approveRefund(
         FinancialRefundRequest $refundRequest,
         string $reviewedBy,
@@ -199,6 +247,10 @@ class FinancialAdjustmentService
                     throw new InvalidArgumentException(
                         'Solo se pueden aprobar solicitudes pendientes.'
                     );
+                }
+
+                if ($lockedRequest->requested_by === $reviewedBy) {
+                    throw new InvalidArgumentException('El solicitante no puede aprobar su propia devolución.');
                 }
 
                 // Comprobar la transacción financiera relacionada.
@@ -603,15 +655,21 @@ class FinancialAdjustmentService
                     fn (LedgerEntry $item) => $item->amount_cents < 0
                 );
 
+                $isServicePayment = isset(self::SERVICE_PAYMENTS[$original->reference_type]);
+                if ($isServicePayment && ! $entry) {
+                    throw new InvalidArgumentException('El cargo de servicio no tiene un débito original.');
+                }
+
                 $isPayment =
                     $entries->count() === 1 &&
                     $entry &&
                     $entry->movement_type === MovementType::PAGO;
 
-                $incomingEntry = $entries->first(
-                    fn (LedgerEntry $item) => $item->movement_type === MovementType::TRANSFERENCIA_ENTRADA &&
-                        $item->amount_cents > 0
-                );
+                $incomingEntry = $isServicePayment
+                    ? $this->servicePaymentCredit($original, $entry, $entries)
+                    : $entries->first(fn (LedgerEntry $item) =>
+                        $item->movement_type === MovementType::TRANSFERENCIA_ENTRADA && $item->amount_cents > 0);
+
 
                 $isTransfer =
                     $entries->count() === 2 &&
@@ -628,7 +686,7 @@ class FinancialAdjustmentService
                     $entry->movement_type === MovementType::RETIRO &&
                     $original->reference_type === 'WITHDRAWAL';
 
-                if (! $isPayment && ! $isTransfer && ! $isWithdrawal) {
+                if (! $isPayment && ! $isTransfer && ! $isWithdrawal && ! $isServicePayment) {
                     throw new InvalidArgumentException(
                         'Esta ejecución solo admite pagos, transferencias o retiros con recuperación confirmada.'
                     );
@@ -741,7 +799,7 @@ class FinancialAdjustmentService
 
                 $ledger = app(LedgerService::class);
 
-                if ($isTransfer) {
+                if ($isTransfer || $isServicePayment) {
                     $wallets = Wallet::whereIn('public_id', [
                         $entry->wallet_id,
                         $incomingEntry->wallet_id,

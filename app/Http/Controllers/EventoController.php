@@ -296,8 +296,8 @@ class EventoController extends Controller
 
         return [...$this->resumen($reg), 'estado' => $estado, 'titulo' => $e?->titulo ?? 'Evento no disponible', 'ubicacion' => $e?->ubicacion, 'fecha_hora_inicio' => $e?->fecha_hora_inicio, 'fecha_hora_fin' => $e?->fecha_hora_fin, 'motivo_cancelacion' => $e?->motivo_cancelacion, 'evento_estado' => $e?->estado, 'posicion_espera' => $posicion, 'organizacion_activa' => (bool) $organizacionActiva, 'qr_habilitado' => $habilitado, 'token_qr' => $habilitado ? $reg->token_qr : null, 'puede_pagar' => config('comunidad.eventos_pagos.enabled') === true && $vigente && $estado === 'confirmada'
             && $reg->estado_pago === 'pendiente' && $reg->reserva_hasta?->isFuture() && $reg->monto_centavos > 0
-            && ! in_array($reg->pago_estado, ['cancelacion_pendiente', 'devolucion_pendiente'], true),
-            'puede_consultar_pago' => config('comunidad.eventos_pagos.enabled') === true && in_array($reg->pago_estado, ['pendiente', 'cancelacion_pendiente'], true), 'puede_cancelar' => $e && now()->lt($e->fecha_hora_inicio) && in_array($estado, ['confirmada', 'espera'], true) && $reg->estado_asistencia !== 'asistio' && $reg->estado_pago !== 'pagado', 'zona_horaria' => config('comunidad.eventos_timezone')];
+            && ! in_array($reg->pago_estado, ['cancelacion_pendiente', 'devolucion_pendiente', 'devuelto'], true),
+            'puede_consultar_pago' => config('comunidad.eventos_pagos.enabled') === true && in_array($reg->pago_estado, ['pendiente', 'cancelacion_pendiente', 'devolucion_pendiente'], true), 'puede_cancelar' => $e && now()->lt($e->fecha_hora_inicio) && in_array($estado, ['confirmada', 'espera'], true) && $reg->estado_asistencia !== 'asistio' && $reg->estado_pago !== 'pagado', 'zona_horaria' => config('comunidad.eventos_timezone')];
     }
 
     private function editable(Evento $e): void
