@@ -27,4 +27,4 @@ Evidencia privada: `storage/app/private/beca-persistente-b008s56o/result.json` y
 
 ## Incorporación conjunta
 
-La entrega se divide en dos commits consecutivos: autorización E1 y consumo financiero E2. Deben incorporarse juntos: las designaciones E1 consultan la relación Consejo-presupuesto de E2, y la autorización web E2 consume las atribuciones E1. El primer commit no constituye una entrega operativa independiente. Se conservan los modelos y contratos E6 publicados en la base de MERGE_COMPLETO. La validación del transporte HTTP/OAuth entre servidores sigue pendiente.
+La entrega se divide en dos commits consecutivos: autorización E1 y consumo financiero E2. Deben incorporarse juntos: las designaciones E1 consultan la relación Consejo-presupuesto de E2, y la autorización web E2 consume las atribuciones E1. El primer commit no constituye una entrega operativa independiente. Se conservan los modelos y contratos E6 publicados en la base de MERGE_COMPLETO. Una validación posterior comprobó el transporte HTTP/OAuth y la conciliación con bases desechables. Consulta el [panel BECA y la preparación del piloto](../modulo-2/2.5-panel-beca-consejo.md).
