@@ -15,6 +15,8 @@ class ClienteModuloHttp
             'inventario_identidad' => config('team4.identidad'),
             'marketplace_identity' => config('marketplace.identidad'),
             'comunidad_finanzas' => config('comunidad.eventos_pagos'),
+            'finanzas_becas_e2' => config('becas_finanzas.e2'),
+            'finanzas_becas_e6' => config('becas_finanzas.e6'),
             'marketplace_finance' => config('marketplace.wallet_checkout'),
             'marketplace_community' => config('marketplace.comunidad'),
             default => config('integracion_servicios.'.$modulo),

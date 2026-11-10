@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Domains\Financial\Exceptions\FinancialDependencyUnavailableException;
 use Closure;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use MongoDB\Driver\Exception\Exception;
@@ -22,6 +23,8 @@ class RenderMarketplaceCheckoutFailures
             $response = response()->json(['message' => 'Identidad no esta disponible para comprobar la operacion.'], 503);
         } catch (UniqueConstraintViolationException $e) {
             $response = response()->json(['message' => 'Hay una operacion concurrente o un pedido ya vinculado. Consulta el mismo pedido antes de reintentar.'], 409);
+        } catch (QueryException) {
+            $response = response()->json(['message' => 'La operación financiera no está disponible. Conserva la misma solicitud.'], 503);
         }
 
         return $response->header('Cache-Control', 'private, no-store')->header('Referrer-Policy', 'same-origin');

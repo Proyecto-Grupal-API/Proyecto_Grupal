@@ -98,7 +98,8 @@ class PersonalReceiptQueryService
             'entries' => $entries, 'cash_receipts' => [],
             'purchase' => ['total_amount_cents' => $payment->total_amount_cents,
                 'wallet_amount_cents' => $payment->wallet_amount_cents, 'bonus_amount_cents' => $payment->bonus_amount_cents,
-                'bonuses' => $allocations],
+                'bonuses' => $allocations,
+                'institutional' => app(InstitutionalPurchaseReceiptQuery::class)->summary($wallet, $payment, $allocations)],
         ];
     }
 

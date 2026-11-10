@@ -23,6 +23,14 @@ class PurchasePaymentService
         private LedgerService $ledgerService
     ) {}
 
+    /** Dedicated funded path: caller must supply verifiable human-consent evidence. */
+    public function payWithInstitutionalBeca(Wallet $wallet, string $bonusId, mixed $amountCents,
+        string $idempotencyKey, string $actorId, string $authorizationReference, array $marketplace, ?string $categoryId = null): array
+    {
+        return app(InstitutionalBecaPurchaseService::class)->pay($wallet,$bonusId,$amountCents,
+            $idempotencyKey,$actorId,$authorizationReference,$marketplace,$categoryId);
+    }
+
     public function pay(
         Wallet $wallet,
         int $totalAmountCents,

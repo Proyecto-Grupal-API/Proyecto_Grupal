@@ -29,6 +29,7 @@ class FinancialController extends Controller
             : collect();
 
         return Inertia::render('Financial/Dashboard', [
+            'canReadInstitutionalBudgets' => app(\App\Domains\Financial\Services\InstitutionalBudgetReadAccess::class)->canList($request),
             'wallet' => $wallet ? [
                 'id' => strtolower($wallet->public_id),
                 'type' => $wallet->type->value,

@@ -12,6 +12,7 @@ use App\Domains\Financial\Enums\BonusType;
 use App\Domains\Financial\Models\Bonus;
 use App\Domains\Financial\Models\BonusLedgerEntry;
 use App\Domains\Financial\Models\BonusRestriction;
+use App\Domains\Financial\Support\InstitutionalBonusEvidence;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -166,6 +167,8 @@ class BonusService
                     );
                 }
 
+                InstitutionalBonusEvidence::assertUnfunded($bonus);
+
                 if ($bonus->status === BonusStatus::CANCELADO) {
                     throw new InvalidArgumentException(
                         'No se puede consumir un bono cancelado.'
@@ -285,6 +288,10 @@ class BonusService
         }
         if (count($bonusIds) !== count(array_unique($bonusIds))) {
             throw new InvalidArgumentException('Un bono no puede repetirse en la misma combinación.');
+        }
+
+        foreach (Bonus::whereIn('public_id', $bonusIds)->get() as $candidate) {
+            InstitutionalBonusEvidence::assertUnfunded($candidate);
         }
 
         foreach ($bonusIds as $bonusPublicId) {
@@ -504,6 +511,8 @@ class BonusService
                     );
                 }
 
+                InstitutionalBonusEvidence::assertUnfunded($bonus);
+
                 if ($bonus->status === BonusStatus::CANCELADO) {
                     throw new InvalidArgumentException(
                         'El bono ya se encuentra cancelado.'
@@ -567,6 +576,8 @@ class BonusService
                         'El bono solicitado no existe.'
                     );
                 }
+
+                InstitutionalBonusEvidence::assertUnfunded($bonus);
 
                 if (
                     $bonus->status === BonusStatus::CANCELADO
@@ -693,6 +704,8 @@ class BonusService
                 'El bono solicitado no existe.'
             );
         }
+
+        InstitutionalBonusEvidence::assertUnfunded($bonus);
 
         $restrictionExists = BonusRestriction::where(
             'bonus_id',

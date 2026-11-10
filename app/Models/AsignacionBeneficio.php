@@ -6,7 +6,7 @@ class AsignacionBeneficio extends Documento
 {
     protected $table = 'asignaciones_beneficios';
 
-    protected $fillable = ['organizacion_id', 'convocatoria_id', 'solicitud_id', 'usuario_id', 'estado', 'contrato', 'recibo_servicios', 'entregado_en', 'intentos', 'proximo_intento_en', 'error_integracion'];
+    protected $fillable = ['organizacion_id', 'convocatoria_id', 'solicitud_id', 'usuario_id', 'estado', 'contrato', 'recibo_servicios', 'recibo_finanzas', 'entregado_en', 'intentos', 'proximo_intento_en', 'error_integracion'];
 
     protected function casts(): array
     {

@@ -143,12 +143,18 @@ class BecaController extends Controller
         $c = ConvocatoriaBeca::findOrFail($s->convocatoria_id);
         $propia = $this->autorizarSolicitud($r, $s, $c);
 
+        $award = ($propia || app(ComiteBecas::class)->puedeDictaminar($r->user(), $c))
+            ? AsignacionBeneficio::where('solicitud_id', $id)->first() : null;
+        $reference = config('becas_finanzas.enabled') === true && ($award?->contrato['tipo'] ?? null) === 'bono'
+            ? $award->contrato['clave_idempotencia'] : null;
+
         return response()->json(['solicitud' => [...$this->resumen($s), 'motivacion' => $s->motivacion, 'documentos' => collect($s->documentos ?? [])->map(fn ($d) => collect($d)->except('ruta')->all())],
             'convocatoria' => $this->convocatoria($c), 'propia' => $propia, 'puede_editar' => $propia && $s->estado === 'borrador' && $this->recepcionAbierta($c),
             'puede_retirar' => $propia && in_array($s->estado, ['borrador', 'pendiente']) && $this->recepcionAbierta($c),
             'puede_dictaminar' => ! $propia && app(ComiteBecas::class)->puedeDictaminar($r->user(), $c) && $this->revisionAbierta($c) && in_array($s->estado, ['pendiente', 'en_revision']),
             'comite_revision' => ! $propia ? app(ComiteBecas::class)->resumen($r->user(), $s, $c) : null,
-            'beneficio' => ($propia || app(ComiteBecas::class)->puedeDictaminar($r->user(), $c)) ? AsignacionBeneficio::where('solicitud_id', $id)->first()?->only(['id', 'estado', 'recibo_servicios', 'error_integracion']) : null])->header('Cache-Control', 'private, no-store');
+            'beneficio' => $award?->only(['id', 'estado', 'recibo_servicios', 'recibo_finanzas', 'error_integracion']),
+            'referencia_bono' => $reference])->header('Cache-Control', 'private, no-store');
     }
 
     public function guardarSolicitud(Request $r, string $id)
@@ -302,7 +308,7 @@ class BecaController extends Controller
         abort_unless($s->estado === 'aprobada', 404);
         $a = AsignacionBeneficio::where('solicitud_id', $id)->firstOrFail();
 
-        return response()->json($a->only(['id', 'estado', 'contrato', 'recibo_servicios', 'entregado_en', 'error_integracion']))->header('Cache-Control', 'private, no-store');
+        return response()->json($a->only(['id', 'estado', 'contrato', 'recibo_servicios', 'recibo_finanzas', 'entregado_en', 'error_integracion']))->header('Cache-Control', 'private, no-store');
     }
 
     public function comite(Request $r, string $id)

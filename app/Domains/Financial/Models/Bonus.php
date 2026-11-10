@@ -46,7 +46,7 @@ class Bonus extends Model
     protected static function booted(): void
     {
         static::updating(function (self $bonus): void {
-            if ($bonus->isDirty(['issuer_type', 'issuer_id', 'issuer_scope_type', 'issuer_scope_id'])) {
+            if ($bonus->isDirty(['issuer_type', 'issuer_id', 'issuer_scope_type', 'issuer_scope_id', 'institutional_budget_id'])) {
                 throw new \InvalidArgumentException('El emisor y el contexto de un bono registrado son inmutables.');
             }
         });

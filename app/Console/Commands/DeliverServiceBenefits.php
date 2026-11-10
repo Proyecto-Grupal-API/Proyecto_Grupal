@@ -11,6 +11,7 @@ class DeliverServiceBenefits extends Command
     {
         $count = 0;
         foreach (AsignacionBeneficio::where('estado', 'pendiente_integracion')
+            ->where('contrato.equipo_destino', 5)->whereIn('contrato.tipo', ['locker', 'impresiones'])
             ->where(fn ($q) => $q->whereNull('proximo_intento_en')->orWhere('proximo_intento_en', '<=', now()))->limit(100)->get() as $a) {
             $delivery->entregar($a); $count++;
         }

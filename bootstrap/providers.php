@@ -4,6 +4,7 @@ use App\Providers\AppServiceProvider;
 use App\Providers\FinancialIdentityAuthorizationServiceProvider;
 use App\Providers\FinancialServiceProvider;
 use App\Providers\FortifyServiceProvider;
+use App\Providers\InstitutionalBudgetServiceProvider;
 use App\Providers\InventoryServiceProvider;
 use App\Providers\MarketplaceCheckoutServiceProvider;
 use App\Providers\MarketplaceServiceProvider;
@@ -16,6 +17,7 @@ return [
     PersonalReceiptServiceProvider::class,
     MarketplaceCheckoutServiceProvider::class,
     FinancialIdentityAuthorizationServiceProvider::class,
+    InstitutionalBudgetServiceProvider::class,
     PlatformServiceProvider::class,
     InventoryServiceProvider::class,
     MarketplaceServiceProvider::class,

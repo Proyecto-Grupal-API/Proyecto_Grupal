@@ -25,6 +25,7 @@ class BonusAdministrationWebController extends Controller
 
         return Inertia::render('Financial/BonusAdministration', [
             'permissions' => $permissions, 'types' => array_map(fn ($case) => $case->value, BonusType::cases()),
+            'communityBecaEnabled' => config('becas_finanzas.enabled') === true,
             'userId' => (string) $request->user()->getKey(), 'timezone' => config('financial.business_timezone'),
         ]);
     }
@@ -37,12 +38,38 @@ class BonusAdministrationWebController extends Controller
         $query = $this->scoped($request, 'bonus.view.all')->when($data['beneficiary_id'] ?? null,
             fn ($query, $id) => $query->where('beneficiary_id', strtolower($id)));
         $rows = $query->latest('id')->paginate(20);
-
+        $pageIds=$rows->getCollection()->pluck('public_id')->all();
+        $linkedIds=\App\Domains\Financial\Models\BonusBudgetCommitment::whereIn('bonus_id',$pageIds)->pluck('bonus_id')
+            ->merge(\App\Domains\Financial\Models\InstitutionalBonusObligation::whereIn('bonus_id',$pageIds)->pluck('bonus_id'))
+            ->map(fn($id)=>strtolower($id))->flip()->all();
+        $releaseRights=[]; $cancelActor=null; $cancelAll=false;
+        if($rows->getCollection()->contains(fn($b)=>$b->getRawOriginal('institutional_budget_id')!==null)) {
+            try {
+                if($this->allowed($request,'bonus.cancel')) {
+                    $cancelActor=app(\App\Domains\Financial\Services\InstitutionalBudgetReadAccess::class)->actor($request);
+                    $cancelAll=$this->allowed($request,'bonus.cancel.all');
+                    foreach($rows->getCollection() as $b) {
+                        $budget=$b->getRawOriginal('institutional_budget_id');
+                        if($budget && ($this->isIssuer($request,$b)||$cancelAll)) {
+                            $id=strtolower($budget);
+                            if(!array_key_exists($id,$releaseRights)) {
+                                try{$releaseRights[$id]=app(\App\Domains\Financial\Contracts\InstitutionalBudgetAuthorization::class)->allows($cancelActor,'budget.release',$id);}
+                                catch(\Throwable $e){$releaseRights[$id]=false;}
+                            }
+                        }
+                    }
+                }
+            } catch(\Throwable $e){$cancelActor=null;$releaseRights=[];}
+        }
         return response()->json(['data' => $rows->getCollection()->map(fn ($bonus) => [
             'id' => strtolower($bonus->public_id), 'beneficiary_id' => $bonus->beneficiary_id,
             'type' => $bonus->type->value, 'status' => $bonus->status->value, 'currency' => $bonus->currency,
             'remaining_amount_cents' => $bonus->remaining_amount_cents, 'expires_at' => $bonus->expires_at?->toISOString(),
-            'can_cancel' => in_array($bonus->status->value, ['ACTIVO', 'PENDIENTE'], true)
+            'institutional_budget_id' => $bonus->getRawOriginal('institutional_budget_id') ? strtolower($bonus->getRawOriginal('institutional_budget_id')) : null,
+            'institutional_evidence_incomplete' => $bonus->getRawOriginal('institutional_budget_id') === null && array_key_exists(strtolower($bonus->public_id),$linkedIds),
+            'can_review_institutional_cancel' => $cancelActor !== null && $bonus->getRawOriginal('institutional_budget_id') !== null
+                && ($this->isIssuer($request,$bonus)||$cancelAll) && ($releaseRights[strtolower((string)$bonus->getRawOriginal('institutional_budget_id'))]??false),
+            'can_cancel' => $bonus->getRawOriginal('institutional_budget_id') === null && !array_key_exists(strtolower($bonus->public_id),$linkedIds) && in_array($bonus->status->value, ['ACTIVO', 'PENDIENTE'], true)
                 && $bonus->remaining_amount_cents > 0 && $bonus->expires_at?->gt(now())
                 && $this->allowed($request, 'bonus.cancel') && ($this->isIssuer($request, $bonus)
                 || $this->allowed($request, 'bonus.cancel.all')),
@@ -60,6 +87,8 @@ class BonusAdministrationWebController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->input('type') === 'BECA') return app(InstitutionalBecaWebController::class)->issue($request);
+        $request->validate(['budget_id'=>['prohibited'],'budget_version'=>['prohibited'],'award_reference'=>['prohibited'],'confirm_institutional'=>['prohibited']]);
         $this->authorizeAction($request, 'bonus.issue');
         $data = BonusIssuanceInput::validate($request->all());
 
@@ -72,7 +101,9 @@ class BonusAdministrationWebController extends Controller
         $this->authorizeAction($request, 'bonus.cancel');
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000', 'regex:/\S/u']]);
         $bonus = $this->scoped($request, 'bonus.cancel.all')->where('public_id', $bonusId)->firstOrFail();
-
+        if($bonus->getRawOriginal('institutional_budget_id') !== null
+            || \App\Domains\Financial\Models\BonusBudgetCommitment::where('bonus_id',$bonus->public_id)->exists()
+            || \App\Domains\Financial\Models\InstitutionalBonusObligation::where('bonus_id',$bonus->public_id)->exists()) return app(InstitutionalBecaCancellationWebController::class)->cancel($request,$bonusId);
         return $this->run(fn () => app(BonusAdministrationService::class)->cancel(
             (string) $request->user()->getKey(), $bonus, $data['reason'], $this->key($request), $this->sessionAudit($request)));
     }

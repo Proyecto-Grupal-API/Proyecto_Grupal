@@ -20,6 +20,14 @@ foreach (['authorization/check' => ['post', 'check', 'identity:authorization:che
 
 Route::post('/oauth/token', OAuthTokenController::class)->middleware('throttle:60,1');
 
+Route::get('/v1/comunidad/becas/{solicitud}/bono', \App\Http\Controllers\Api\Community\BecaAwardController::class)
+    ->where('solicitud', \App\Support\BecaFinanceContract::ID_PATTERN)
+    ->middleware(['oauth.service:community:beca-award:read', AuthorizeCommunityService::class.':community:beca-award:read', 'throttle:120,1']);
+
+Route::get('/v1/financial/community/becas/{solicitud}/issuance', [\App\Http\Controllers\Financial\CommunityBecaController::class, 'receipt'])
+    ->where('solicitud', \App\Support\BecaFinanceContract::ID_PATTERN)
+    ->middleware(['oauth.service:financial:beca-issuance:read', AuthorizeIdentityService::class.':financial:beca-issuance:read', 'throttle:120,1']);
+
 Route::get('/v1/organizations/{organizationId}/summary', OrganizationSummaryController::class)
     ->where('organizationId', '[a-fA-F0-9]{24}')
     ->middleware(['oauth.service:community:organizations:read', AuthorizeCommunityService::class.':community:organizations:read', 'throttle:120,1,community-organizations-summary:'])

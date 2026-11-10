@@ -192,11 +192,17 @@ function dictaminar() {
                         class="rounded-lg bg-amber-50 p-4 text-amber-900"
                     >
                         <h2 class="font-semibold">
-                            {{ datos.beneficio?.estado === 'asignada' ? 'Apoyo aprobado · servicio asignado' : 'Apoyo aprobado · entrega pendiente' }}
+                            {{ datos.beneficio?.recibo_finanzas ? 'Apoyo aprobado · bono emitido' : datos.beneficio?.estado === 'asignada' ? 'Apoyo aprobado · servicio asignado' : 'Apoyo aprobado · entrega pendiente' }}
                         </h2>
                         <p class="text-sm mt-1">
-                            <template v-if="datos.beneficio?.estado === 'asignada'">Tu beneficio de {{ datos.beneficio.recibo_servicios?.tipo || 'servicio' }} fue asignado. Consulta el saldo o recurso en Servicios al estudiante.</template>
+                            <template v-if="datos.beneficio?.recibo_finanzas">
+                                Finanzas registró el bono. <Link v-if="datos.propia" :href="route('financial.bonuses.index')" class="font-semibold underline">Consultar Mis bonos</Link>
+                            </template>
+                            <template v-else-if="datos.beneficio?.estado === 'asignada'">Tu beneficio de {{ datos.beneficio.recibo_servicios?.tipo || 'servicio' }} fue asignado. Consulta el saldo o recurso en Servicios al estudiante.</template>
                             <template v-else>La aprobación reserva tu apoyo. La entrega está pendiente de confirmación del módulo responsable.</template>
+                        </p>
+                        <p v-if="datos.referencia_bono && !datos.propia && !datos.beneficio?.recibo_finanzas" class="mt-2 break-all text-sm">
+                            Referencia para Finanzas <code>{{ datos.referencia_bono }}</code>
                         </p>
                     </div>
                 </section>

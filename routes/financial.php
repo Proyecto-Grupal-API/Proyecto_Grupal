@@ -39,8 +39,19 @@ Route::middleware(['web', 'auth', 'verified', 'session.active', 'device.track'])
         Route::get('/', [$admin, 'index'])->name('index');
         Route::get('/records', [$admin, 'listing'])->name('records');
         Route::get('/beneficiaries/{userId}', [$admin, 'beneficiary'])->where('userId', '[0-9a-fA-F]{24}')->name('beneficiary');
-        Route::post('/issue', [$admin, 'store'])->withoutMiddleware('device.track')->middleware(\App\Http\Middleware\RequireBonusAdministrativeSession::class)->name('issue');
-        Route::post('/{bonusId}/cancel', [$admin, 'cancel'])->whereUuid('bonusId')->withoutMiddleware('device.track')->middleware(\App\Http\Middleware\RequireBonusAdministrativeSession::class)->name('cancel');
+        Route::post('/issue', [$admin, 'store'])->withoutMiddleware('device.track')->middleware([\App\Http\Middleware\RequireBonusAdministrativeSession::class, 'throttle:15,1'])->name('issue');
+        Route::post('/{bonusId}/cancel', [$admin, 'cancel'])->whereUuid('bonusId')->withoutMiddleware('device.track')->middleware([\App\Http\Middleware\RequireBonusAdministrativeSession::class, 'throttle:15,1'])->name('cancel');
+        Route::get('/beca/budgets/{budgetId}', [\App\Http\Controllers\Financial\InstitutionalBecaWebController::class, 'review'])->whereUuid('budgetId')->withoutMiddleware('device.track')->middleware([\App\Http\Middleware\RequireBonusAdministrativeSession::class, 'throttle:30,1'])->name('beca.budget');
+        Route::post('/beca/issue', [\App\Http\Controllers\Financial\InstitutionalBecaWebController::class, 'issue'])->withoutMiddleware('device.track')->middleware([\App\Http\Middleware\RequireBonusAdministrativeSession::class, 'throttle:15,1'])->name('beca.issue');
+        Route::get('/beca/{bonusId}/cancel-review', [\App\Http\Controllers\Financial\InstitutionalBecaCancellationWebController::class,'review'])->whereUuid('bonusId')->withoutMiddleware('device.track')->middleware([\App\Http\Middleware\RequireBonusAdministrativeSession::class, 'throttle:30,1'])->name('beca.cancel.review');
+        Route::post('/beca/{bonusId}/cancel', [\App\Http\Controllers\Financial\InstitutionalBecaCancellationWebController::class,'cancel'])->whereUuid('bonusId')->withoutMiddleware('device.track')->middleware([\App\Http\Middleware\RequireBonusAdministrativeSession::class, 'throttle:15,1'])->name('beca.cancel');
+        Route::prefix('/beca/comunidad/{solicitud}')->where(['solicitud' => \App\Support\BecaFinanceContract::ID_PATTERN])
+            ->withoutMiddleware('device.track')->middleware(\App\Http\Middleware\RequireBonusAdministrativeSession::class)
+            ->group(function () {
+                $community = \App\Http\Controllers\Financial\CommunityBecaController::class;
+                Route::get('/', [$community, 'review'])->middleware('throttle:30,1')->name('beca.community.review');
+                Route::post('/', [$community, 'issue'])->middleware('throttle:15,1')->name('beca.community.issue');
+            });
         Route::get('/{bonusId}/history', [$admin, 'history'])->whereUuid('bonusId')->name('history');
     });
 

@@ -158,6 +158,22 @@ class PurchaseRefundService
                     }
                 }
 
+                // Funded purchases may only refund the part that has not been externally paid.
+                // Same purchase lock as settlement: a new refund reservation cannot race its payment record.
+                if (\Illuminate\Support\Facades\Schema::connection('sqlsrv')->hasTable('institutional_bonus_obligations')) {
+                    $debt = \App\Domains\Financial\Models\InstitutionalBonusObligation::where('purchase_payment_id',$lockedPayment->public_id)->lockForUpdate()->first();
+                    if ($debt) {
+                        $inProgress = (int)PurchaseRefundRequest::where('purchase_payment_id',$lockedPayment->public_id)
+                            ->whereIn('status',[RefundRequestStatus::PENDIENTE->value,RefundRequestStatus::APROBADA->value])->sum('total_amount_cents');
+                        $bonusKey = strtolower($debt->bonus_id);
+                        if (!is_int($debt->settled_amount_cents) || $walletAmountCents !== 0 || count($allocations) !== 1
+                            || !isset($allocations[$bonusKey])
+                            || $allocations[$bonusKey] > $debt->amount_cents - $debt->refunded_amount_cents - $debt->settled_amount_cents - $inProgress) {
+                            throw new InvalidArgumentException('La devolucion excede la parte no liquidada disponible.');
+                        }
+                    }
+                }
+
                 $reservedRequests = PurchaseRefundRequest::where(
                     'purchase_payment_id',
                     $lockedPayment->public_id
@@ -261,6 +277,11 @@ class PurchaseRefundService
             throw new InvalidArgumentException(
                 'La clave de idempotencia y el ejecutor son obligatorios y no deben superar 255 caracteres.'
             );
+        }
+
+        if (\Illuminate\Support\Facades\Schema::connection('sqlsrv')->hasTable('institutional_bonus_obligations')
+            && \App\Domains\Financial\Models\InstitutionalBonusObligation::where('purchase_payment_id', $refundRequest->purchase_payment_id)->exists()) {
+            return app(InstitutionalBecaPurchaseService::class)->completeRefund($refundRequest, $idempotencyKey, $executedBy);
         }
 
         return DB::connection('sqlsrv')->transaction(
@@ -424,6 +445,9 @@ class PurchaseRefundService
                 // Validar todos los bonos antes de modificar saldos.
                 foreach ($allocations as $bonusId => $amount) {
                     $bonus = $bonuses->get($bonusId);
+                    if ($bonus) {
+                        \App\Domains\Financial\Support\InstitutionalBonusEvidence::assertUnfunded($bonus);
+                    }
 
                     if (
                         ! $bonus ||

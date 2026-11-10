@@ -16,6 +16,9 @@ Schedule::command('security-events:prune')->daily();
 Schedule::command('events:publish')->everyMinute()->withoutOverlapping(30);
 
 Schedule::command('comunidad:entregar-beneficios')->everyMinute()->withoutOverlapping(10);
+if (config('becas_finanzas.enabled') === true) {
+    Schedule::command('comunidad:conciliar-bonos-beca')->everyMinute()->withoutOverlapping(10);
+}
 Schedule::command('servicios:avisos')->everyMinute()->withoutOverlapping(10);
 
 Schedule::command('inventario:expirar-reservas')->everyFiveMinutes()->withoutOverlapping(10);
