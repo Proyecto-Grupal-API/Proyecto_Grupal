@@ -38,6 +38,16 @@ La activación fue autorizada explícitamente y ejecutada en el alterno. Se vinc
 - E4: `POST /api/equipo4/integration/businesses`; lecturas y reservas en `/api/equipo4/businesses/{businessId}/...`. El ámbito está firmado en el path, junto al método y cuerpo. Las rutas previas de E4 siguen disponibles.
 - E4: `POST .../integration/reservation-status`, consulta idempotente de una reserva por `order_id` y su clave original. Permite recuperar respuestas perdidas sin adivinar el resultado.
 
+## Alcance de abastecimiento de tiendas de asociación
+
+Decisión de Comunidad para el piloto del 9 de noviembre de 2026.
+
+- **Comunidad (E6)** verifica la membresía activa y la presidencia vigente cuando se solicita una tienda en nombre de una asociación.
+- **Marketplace (E3)** administra la tienda, el catálogo publicado y los pedidos de clientes. El negocio aprobado usa su `business_id` para vincularse con Inventarios.
+- **Inventarios (E4)** administra proveedores, órdenes de compra, recepciones y existencias para ese negocio. El personal autorizado registra la reposición en el flujo de compras de E4.
+
+El pendiente de alcance de E6 queda cerrado. El piloto usa las interfaces existentes de Marketplace e Inventarios para la operación de la tienda. La aceptación operativa queda a cargo de E3 y E4. El caso consiste en registrar una recepción para una tienda de asociación y verificar que Marketplace pueda consultar y reservar el stock recibido bajo el mismo `business_id`.
+
 ## Límites
 
 Los resultados desconocidos permanecen pendientes de revisión hasta que E4 confirma qué ocurrió. Un proceso interrumpido durante una escritura nativa de E4 puede requerir revisión manual; no se declara certificación de consistencia distribuida. Los pedidos vencidos no admiten comprobantes nuevos ni preparación/entrega. La confirmación de ventas queda pendiente del contrato y la autoridad financieros de E2.

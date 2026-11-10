@@ -6,7 +6,28 @@ class Product extends Team4Document
 {
     protected $collection = 'products';
 
-    protected $fillable = ['business_id', 'sku', 'name', 'description', 'category', 'sizes', 'colors', 'seasons', 'stock_min', 'stock_max', 'active'];
+    protected $fillable = [
+        'business_id',
+        'sku',
+        'name',
+        'description',
+        'category',
+        'sizes',
+        'colors',
+        'seasons',
+        'collections',
+        'packages',
+        'preorder',
+        'official',
+        'stock_min',
+        'stock_max',
+        'active',
+    ];
 
-    protected $casts = ['active' => 'boolean', 'stock_min' => 'integer', 'stock_max' => 'integer'];
+    protected $casts = [
+        'active' => 'boolean',
+        'official' => 'boolean',
+        'stock_min' => 'integer',
+        'stock_max' => 'integer',
+    ];
 }

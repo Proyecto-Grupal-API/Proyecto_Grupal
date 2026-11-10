@@ -42,3 +42,7 @@
 - eq7.md — contrato con Eq.7 (inventario)
 - README.md — firma HMAC comun
 - STATUS_INTEGRACIONES.md — este archivo
+
+## Abastecimiento de tiendas de asociación
+
+Comunidad cerró su alcance para el piloto. Las compras y recepciones se gestionan en E4 y la tienda en E3. La prueba compartida queda a cargo de E3 y E4 con un mismo `business_id`. [Decisión de alcance](../INTEGRACION_1_3_4_5_6.md#alcance-de-abastecimiento-de-tiendas-de-asociación)

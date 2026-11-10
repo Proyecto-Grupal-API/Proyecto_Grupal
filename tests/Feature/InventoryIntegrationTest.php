@@ -437,3 +437,33 @@ it('rolls back an E7 expiry when its outbox write fails and queues it exactly on
         ->and((int) $inventory->findOne($where)['available'])->toBe((int) $before['available'])
         ->and($outbox->countDocuments(['payload.reservation_id' => $id, 'status' => 'PENDING']))->toBe(1);
 });
+
+it('persists souvenir preorder metadata and rejects an invalid preorder limit', function () {
+    $category = Category::where('business_id', 'business-A')->where('slug', 'souvenirs')->firstOrFail();
+    $payload = [
+        'sku' => 'PREORDER-NEW',
+        'name' => 'Souvenir de colección',
+        'category' => $category->slug,
+        'stock_min' => 0,
+        'stock_max' => 50,
+        'active' => true,
+        'official' => true,
+        'collections' => ['Generación 2026'],
+        'packages' => ['Edición especial'],
+        'preorder' => ['enabled' => true, 'available_at' => now()->addMonth()->toDateString(), 'limit' => 24],
+    ];
+
+    $this->actingAs($this->actor)->postJson('/equipo4/souvenirs', $payload)->assertRedirect();
+    $product = Product::where('business_id', 'business-A')->where('sku', 'PREORDER-NEW')->firstOrFail();
+    expect($product->official)->toBeTrue()
+        ->and($product->collections)->toBe(['Generación 2026'])
+        ->and($product->packages)->toBe(['Edición especial'])
+        ->and($product->preorder['limit'])->toBe(24);
+
+    $this->postJson('/equipo4/souvenirs', [...$payload, 'sku' => 'PREORDER-INVALID', 'preorder' => [
+        'enabled' => true,
+        'available_at' => now()->addMonth()->toDateString(),
+        'limit' => 0,
+    ]])->assertUnprocessable();
+    expect(Product::where('business_id', 'business-A')->where('sku', 'PREORDER-INVALID')->exists())->toBeFalse();
+});
