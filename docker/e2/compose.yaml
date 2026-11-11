@@ -1,0 +1,56 @@
+name: campus-e2-local
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: docker/e2/Dockerfile
+      target: app
+    image: campus-e2-local:review
+    platform: linux/amd64
+    init: true
+    restart: "no"
+    ports:
+      - "127.0.0.1:8082:8080"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_URL: http://127.0.0.1:8082
+      SESSION_DRIVER: file
+      SESSION_COOKIE: campus_e2_docker_session
+      SESSION_SECURE_COOKIE: "false"
+      CACHE_STORE: file
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: log
+      LOG_CHANNEL: stderr
+      FINANCIAL_TEAM4_WEBHOOK_ENABLED: "false"
+      FINANCIAL_IDENTITY_AUTHORIZATION_ENABLED: "false"
+      FINANCIAL_MARKETPLACE_ENABLED: "false"
+      FINANCIAL_MARKETPLACE_INSTITUTIONAL_BECA_ENABLED: "false"
+      FINANCIAL_HOLD_SCHEDULE_EXPIRATION: "false"
+      FINANCIAL_RECONCILIATION_SCHEDULE_ENABLED: "false"
+      FINANCIAL_INSTITUTIONAL_BECA_EXPIRATION_ENABLED: "false"
+    volumes:
+      - type: bind
+        source: ./local/.env
+        target: /var/www/html/.env
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: volume
+        source: storage
+        target: /var/www/html/storage
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=128m
+      - /var/www/html/bootstrap/cache:rw,nosuid,nodev,uid=33,gid=33,mode=0750,size=16m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 8080) ? 0 : 1);"]
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    stop_grace_period: 15s
+volumes:
+  storage:
