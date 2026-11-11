@@ -27,13 +27,7 @@ final class CommunityPlatformDelivery
         if (config('platform.delivery.enabled') !== true) {
             return ['sent' => 0, 'failed' => 0, 'enabled' => false];
         }
-        $url = rtrim((string) config('platform.delivery.url'), '/');
-        $parts = parse_url($url);
-        abort_unless(is_array($parts) && isset($parts['host'],$parts['scheme']) && ! isset($parts['user']) && ! isset($parts['pass'])
-            && ! isset($parts['query']) && ! isset($parts['fragment']) && empty($parts['path'])
-            && ($parts['scheme'] === 'https' || (app()->environment(['local', 'testing']) && $parts['scheme'] === 'http' && in_array($parts['host'], ['app', 'localhost', '127.0.0.1'], true))), 503, 'Origen E7 inválido.');
-        $secret = config('platform.ingest.secrets.community');
-        abort_unless(is_string($secret) && strlen($secret) >= 20, 503, 'Falta credencial de transporte E7.');
+        $this->target();
         $receipts = DB::connection('mongodb')->getCollection('community_platform_deliveries');
         $sent = 0;
         $failed = 0;
@@ -56,21 +50,7 @@ final class CommunityPlatformDelivery
                     break;
                 }
                 $body = $this->envelope($audit);
-                $json = json_encode($body, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                $path = '/api/v1/plataforma/auditoria';
-                $time = (string) time();
-                $error = null;
-                try {
-                    $response = Http::acceptJson()->connectTimeout(3)->timeout(10)->withoutRedirecting()->withHeaders([
-                        'X-Platform-Domain' => 'community', 'X-Platform-Timestamp' => $time,
-                        'X-Platform-Signature' => hash_hmac('sha256', $time.'|POST|'.$path.'|'.hash('sha256', $json), $secret),
-                    ])->withBody($json, 'application/json')->post($url.$path);
-                    if (! in_array($response->status(), [200, 202], true) || $response->json('event_id') !== $body['event_id'] || ! in_array($response->json('estado'), ['aceptado', 'duplicado'], true)) {
-                        $error = 'invalid_receipt_'.$response->status();
-                    }
-                } catch (\Throwable $e) {
-                    $error = 'transport_unavailable';
-                }
+                $error = $this->sendEnvelope($body, '/api/v1/plataforma/auditoria');
                 $receipts->updateOne(['audit_id' => $last], ['$set' => ['event_id' => $body['event_id'], 'status' => $error === null ? 'sent' : 'failed', 'last_error' => $error, 'updated_at' => new UTCDateTime(now())], '$inc' => ['attempts' => 1]], ['upsert' => true]);
                 if ($error === null) {
                     $sent++;
@@ -82,4 +62,40 @@ final class CommunityPlatformDelivery
 
         return ['sent' => $sent, 'failed' => $failed, 'enabled' => true];
     }
+    /** Same signed transport for audit references and anonymous analytics. */
+    public function sendEnvelope(array $body, string $path): ?string
+    {
+        abort_unless(in_array($path, ['/api/v1/plataforma/auditoria', '/api/v1/plataforma/eventos'], true), 503);
+        [$url, $secret] = $this->target();
+        $json = json_encode($body, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $time = (string) time();
+        try {
+            $response = Http::acceptJson()->connectTimeout(3)->timeout(10)->withoutRedirecting()->withHeaders([
+                'X-Platform-Domain' => 'community', 'X-Platform-Timestamp' => $time,
+                'X-Platform-Signature' => hash_hmac('sha256', $time.'|POST|'.$path.'|'.hash('sha256', $json), $secret),
+            ])->withBody($json, 'application/json')->post($url.$path);
+            if (! in_array($response->status(), [200, 202], true) || $response->json('event_id') !== $body['event_id']
+                || ! in_array($response->json('estado'), ['aceptado', 'duplicado'], true)) {
+                return 'invalid_receipt_'.$response->status();
+            }
+        } catch (\Throwable) {
+            return 'transport_unavailable';
+        }
+
+        return null;
+    }
+
+    private function target(): array
+    {
+        $url = rtrim((string) config('platform.delivery.url'), '/');
+        $parts = parse_url($url);
+        abort_unless(is_array($parts) && isset($parts['host'],$parts['scheme']) && ! isset($parts['user']) && ! isset($parts['pass'])
+            && ! isset($parts['query']) && ! isset($parts['fragment']) && empty($parts['path'])
+            && ($parts['scheme'] === 'https' || (app()->environment(['local', 'testing']) && $parts['scheme'] === 'http' && in_array($parts['host'], ['app', 'localhost', '127.0.0.1'], true))), 503, 'Origen E7 inválido.');
+        $secret = config('platform.ingest.secrets.community');
+        abort_unless(is_string($secret) && strlen($secret) >= 20, 503, 'Falta credencial de transporte E7.');
+
+        return [$url, $secret];
+    }
+
 }

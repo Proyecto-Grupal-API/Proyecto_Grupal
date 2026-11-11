@@ -4,6 +4,7 @@ use App\Http\Controllers\PlatformModule\AnalyticsController;
 use App\Http\Controllers\PlatformModule\AuditController;
 use App\Http\Controllers\PlatformModule\BusinessController;
 use App\Http\Controllers\PlatformModule\CampaignController;
+use App\Http\Controllers\PlatformModule\CommunityAnalyticsController;
 use App\Http\Controllers\PlatformModule\DashboardController;
 use App\Http\Controllers\PlatformModule\EarningRuleController;
 use App\Http\Controllers\PlatformModule\GovernanceController;
@@ -119,6 +120,7 @@ Route::prefix('api/v1/recompensas')->middleware(['web', 'auth', 'session.active'
         // ── Dashboards y Analítica (7.9) ───────────────────────
         Route::prefix('analytics')->group(function () {
             Route::get('/overview', [AnalyticsController::class, 'overview'])->middleware(EnsurePlatformPermission::class.':analytics.view');
+            Route::get('/community', CommunityAnalyticsController::class)->middleware(EnsurePlatformPermission::class.':analytics.view');
             Route::get('/professor', [AnalyticsController::class, 'professorAnalytics'])->middleware(EnsurePlatformPermission::class.':analytics.view_academic');
         });
 

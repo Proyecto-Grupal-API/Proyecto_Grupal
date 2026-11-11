@@ -72,3 +72,10 @@ if (config('financial_community_notices.enabled') === true) {
         ->preventOverlapsUsing(app(CacheEventMutex::class)->useStore('financial_scheduler'))
         ->withoutOverlapping(10);
 }
+
+if (config('platform.community_analytics.enabled') === true) {
+    Schedule::command('comunidad:publicar-analitica --limit=30')->everyMinute()->withoutOverlapping(10);
+}
+if (config('platform.notices.enabled') === true) {
+    Schedule::command('plataforma:entregar-avisos-comunidad --limit=30')->everyMinute()->withoutOverlapping(10);
+}

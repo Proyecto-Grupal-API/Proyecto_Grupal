@@ -1,6 +1,17 @@
 <?php
 
 return [
+    'notices' => [
+        'enabled' => env('PLATFORM_COMMUNITY_NOTICES_ENABLED', false),
+        'url' => env('PLATFORM_COMMUNITY_NOTICES_URL', 'http://app'),
+        'client_id' => env('PLATFORM_COMMUNITY_NOTICES_CLIENT_ID'),
+        'client_secret' => env('PLATFORM_COMMUNITY_NOTICES_CLIENT_SECRET'),
+        'since' => env('PLATFORM_COMMUNITY_NOTICES_SINCE'),
+    ],
+    'community_analytics' => [
+        'enabled' => env('PLATFORM_COMMUNITY_ANALYTICS_ENABLED', false),
+        'since' => env('PLATFORM_COMMUNITY_ANALYTICS_SINCE'),
+    ],
     'database' => env('PLATFORM_DATABASE'),
     // E1 remains the authority; only effective global roles enter the module.
     'role_map' => ['admin' => 'admin', 'maestro' => 'professor', 'estudiante' => 'student'],

@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Campus Digital · Comunidad · Avisos de Servicios y Finanzas",
-    "version": "1.1.0",
+    "title": "Campus Digital · Comunidad · Avisos de Servicios, Finanzas y Recompensas",
+    "version": "1.2.0",
     "description": "REQ-M5-E6-001. Recibos aislados por cliente OAuth. 120 operaciones/minuto/cliente compartidas entre envío, consulta y retiro. Avisos financieros mediante catálogo cerrado y cliente dedicado; misma ruta, scopes e idempotencia."
   },
   "servers": [
@@ -45,6 +45,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/AvisoFinanzas"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AvisoRecompensas"
                   }
                 ]
               }
@@ -143,7 +146,7 @@
             }
           }
         },
-        "description": "El servidor elige el catálogo por el client_id OAuth autenticado. Solo el cliente configurado en FINANCIAL_COMMUNITY_NOTICES_CLIENT_ID puede emitir AvisoFinanzas; ese cliente no puede emitir AvisoServicios. Los demás clientes autorizados conservan el catálogo de Servicios. La categoría, el emisor y la URL se determinan en backend. Para Finanzas: pago/devolución -> comprobante_financiero y beca_emitida -> bono_financiero; requieren UUID. Los avisos financieros son obligatorios y no acreditan cupo ni reemplazan la autorización al consultar el recurso."
+        "description": "El servidor elige el catálogo por el client_id OAuth autenticado. Solo el cliente configurado en FINANCIAL_COMMUNITY_NOTICES_CLIENT_ID puede emitir AvisoFinanzas; ese cliente no puede emitir AvisoServicios. Los demás clientes autorizados conservan el catálogo de Servicios. La categoría, el emisor y la URL se determinan en backend. Para Finanzas: pago/devolución -> comprobante_financiero y beca_emitida -> bono_financiero; requieren UUID. Los avisos financieros son obligatorios y no acreditan cupo ni reemplazan la autorización al consultar el recurso. El cliente dedicado PLATFORM_COMMUNITY_NOTICES_CLIENT_ID usa únicamente AvisoRecompensas, con categoría recompensas, emisor Recompensas y enlaces privados fijos. Puntos -> actividad?movimiento=id; canjes -> canjes?canje=id. Una configuración que comparte client_id con Finanzas falla con 503 cliente_ambiguo."
       },
       "get": {
         "operationId": "consultarReciboAviso",
@@ -647,6 +650,91 @@
           "accion": {
             "destino": "comprobante_financiero",
             "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+          },
+          "importancia": "normal"
+        }
+      },
+      "AvisoRecompensas": {
+        "type": "object",
+        "required": [
+          "destinatario_id",
+          "tipo",
+          "asunto",
+          "texto",
+          "accion"
+        ],
+        "properties": {
+          "destinatario_id": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "User._id canónico de Identidad; se valida por su API de condición académica."
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "puntos_acreditados",
+              "canje_confirmado",
+              "canje_entregado",
+              "canje_cancelado"
+            ]
+          },
+          "asunto": {
+            "type": "string",
+            "maxLength": 180,
+            "description": "Texto sin HTML."
+          },
+          "texto": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "Texto sin HTML."
+          },
+          "accion": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "destino",
+              "id"
+            ],
+            "properties": {
+              "destino": {
+                "type": "string",
+                "enum": [
+                  "mi_actividad_recompensas",
+                  "mi_canje_recompensas"
+                ]
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{24}$",
+                "description": "ID canónico del movimiento o canje del destinatario."
+              }
+            }
+          },
+          "importancia": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "alta"
+            ],
+            "default": "normal"
+          },
+          "expira_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "ISO 8601 con zona, posterior al primer envío. Un reintento posterior conserva el recibo."
+          }
+        },
+        "example": {
+          "destinatario_id": "66a123456789abcdef123456",
+          "tipo": "canje_entregado",
+          "asunto": "Canje entregado",
+          "texto": "Tu canje fue entregado. Consulta sus detalles.",
+          "accion": {
+            "destino": "mi_canje_recompensas",
+            "id": "66a123456789abcdef123457"
           },
           "importancia": "normal"
         }

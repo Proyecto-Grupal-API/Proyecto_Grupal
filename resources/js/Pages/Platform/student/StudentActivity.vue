@@ -1,19 +1,20 @@
 <script setup>
 import PlatformLayout from '@/Layouts/PlatformLayout.vue'
 defineOptions({ layout: PlatformLayout })
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { Link, usePage } from '@inertiajs/vue3'
 import StatusBadge from '@/Platform/components/ui/StatusBadge.vue'
 import EmptyState from '@/Platform/components/ui/EmptyState.vue'
-import { activityInitial } from '@/Platform/initialState.js'
 import { api } from '@/Platform/services/api.js'
 
+const page = usePage()
+const movementParam = computed(() => new URL(page.url, 'http://localhost').searchParams.get('movimiento'))
+const movementId = computed(() => /^[0-9a-f]{24}$/i.test(movementParam.value || '') ? movementParam.value.toLowerCase() : '')
 const filter = ref('all')
-const allActivity = ref([...activityInitial])
-const balanceData = ref({
-  balance: 0,
-  lifetimeEarned: 0,
-  lifetimeRedeemed: 0,
-})
+const allActivity = ref([])
+const balanceData = ref(null)
+const balanceError = ref('')
+const historyError = ref('')
 const isLoading = ref(true)
 
 const filtered = computed(() => {
@@ -26,44 +27,63 @@ function applyFilter(type) {
 }
 
 function formatPoints(pts) {
+  if (pts == null) return '—'
   return (pts > 0 ? '+' : '') + pts.toLocaleString()
 }
 
 async function loadActivity() {
+  const selected = movementParam.value
+  isLoading.value = true
+  allActivity.value = []
+  balanceData.value = null
+  balanceError.value = ''
+  historyError.value = ''
+  filter.value = 'all'
+  if (selected !== null && !movementId.value) {
+    historyError.value = 'La referencia del movimiento no es válida.'
+    isLoading.value = false
+    return
+  }
   try {
-    isLoading.value = true
     const [balanceRes, historyRes] = await Promise.allSettled([
       api.points.getMyBalance(),
-      api.points.getMyHistory(),
+      api.points.getMyHistory(1, movementId.value),
     ])
+    if (selected !== movementParam.value) return
 
     if (balanceRes.status === 'fulfilled' && balanceRes.value) {
-      balanceData.value.balance = balanceRes.value.balance ?? balanceData.value.balance
-      balanceData.value.lifetimeEarned = balanceRes.value.lifetime_earned ?? balanceData.value.lifetimeEarned
-      balanceData.value.lifetimeRedeemed = balanceRes.value.lifetime_redeemed ?? balanceData.value.lifetimeRedeemed
+      balanceData.value = {
+        balance: balanceRes.value.balance,
+        lifetimeEarned: balanceRes.value.lifetime_earned,
+        lifetimeRedeemed: balanceRes.value.lifetime_redeemed,
+      }
+    } else {
+      balanceError.value = 'No se pudo consultar tu saldo. Intenta de nuevo.'
     }
 
-    if (historyRes.status === 'fulfilled' && historyRes.value) {
-      const list = Array.isArray(historyRes.value) ? historyRes.value : (historyRes.value.data || [])
-      if (list.length > 0) {
-        allActivity.value = list.map(item => ({
-          id: item._id || item.id,
-          date: item.created_at ? item.created_at.slice(0, 10) : 'Hoy',
-          concept: item.description || (item.type === 'earn' ? 'Puntos acumulados' : 'Canje de recompensa'),
-          source: item.source_domain || 'campus',
-          points: item.amount || 0,
-          type: item.type === 'earn' ? 'earn' : 'redeem',
-          status: 'Completado',
-        }))
-      }
+    if (historyRes.status !== 'fulfilled') {
+      historyError.value = 'No se pudo consultar tu actividad. Intenta de nuevo.'
+      return
     }
-  } catch (err) {
-    console.warn('No se pudo actualizar la información de Recompensas.', err)
+    const list = Array.isArray(historyRes.value) ? historyRes.value : historyRes.value?.data
+    if (!Array.isArray(list)) throw new Error('Historial no válido')
+    allActivity.value = list.map(item => ({
+      id: item._id || item.id,
+      date: item.created_at ? item.created_at.slice(0, 10) : '—',
+      concept: item.description || (item.type === 'earn' ? 'Puntos acumulados' : 'Canje de recompensa'),
+      source: item.source_domain || 'campus',
+      points: item.amount ?? null,
+      type: item.type === 'earn' ? 'earn' : 'redeem',
+      status: 'Completado',
+    }))
+  } catch {
+    if (selected === movementParam.value) historyError.value = 'No se pudo consultar tu actividad. Intenta de nuevo.'
   } finally {
-    isLoading.value = false
+    if (selected === movementParam.value) isLoading.value = false
   }
 }
 
+watch(movementParam, loadActivity)
 onMounted(() => {
   loadActivity()
 })
@@ -76,26 +96,29 @@ onMounted(() => {
         <h1 class="page-title">Mi actividad</h1>
         <div class="page-subtitle">Panel del alumno</div>
         <p class="page-desc">Historial completo de tus movimientos de puntos y transacciones.</p>
+        <p v-if="movementId" class="page-desc">Movimiento seleccionado: <code>{{ movementId }}</code></p>
       </div>
+      <Link v-if="movementParam !== null" href="/recompensas/alumno/actividad" class="btn btn-ghost btn-sm">Ver todos</Link>
     </div>
 
     <!-- Balance -->
-    <div class="balance-strip card">
+    <div v-if="balanceData" class="balance-strip card">
       <div class="bs-item">
         <div class="bs-label">Saldo actual</div>
-        <div class="bs-value blue">{{ balanceData.balance.toLocaleString() }} pts</div>
+        <div class="bs-value blue">{{ balanceData.balance?.toLocaleString() ?? '—' }} pts</div>
       </div>
       <div class="bs-divider"></div>
       <div class="bs-item">
         <div class="bs-label">Total ganado</div>
-        <div class="bs-value green">+{{ balanceData.lifetimeEarned.toLocaleString() }} pts</div>
+        <div class="bs-value green">{{ balanceData.lifetimeEarned == null ? '—' : '+' + balanceData.lifetimeEarned.toLocaleString() }} pts</div>
       </div>
       <div class="bs-divider"></div>
       <div class="bs-item">
         <div class="bs-label">Total canjeado</div>
-        <div class="bs-value red">-{{ balanceData.lifetimeRedeemed.toLocaleString() }} pts</div>
+        <div class="bs-value red">{{ balanceData.lifetimeRedeemed == null ? '—' : '-' + balanceData.lifetimeRedeemed.toLocaleString() }} pts</div>
       </div>
     </div>
+    <EmptyState v-else-if="balanceError" class="card" title="Saldo no disponible" :message="balanceError" icon="⚠" role="alert" />
 
     <!-- Filtros -->
     <div class="filter-row">
@@ -107,7 +130,12 @@ onMounted(() => {
 
     <!-- Tabla -->
     <div class="card">
-      <EmptyState v-if="!isLoading && !filtered.length" title="Sin movimientos" message="No hay movimientos para el filtro seleccionado." icon="🔍" />
+      <EmptyState v-if="isLoading" title="Cargando actividad" message="Consultando tus movimientos." role="status" />
+      <EmptyState v-else-if="historyError" title="Actividad no disponible" :message="historyError" icon="⚠" role="alert">
+        <button class="btn btn-ghost btn-sm" @click="loadActivity">Reintentar</button>
+      </EmptyState>
+      <EmptyState v-else-if="!filtered.length" :title="movementId ? 'Movimiento no disponible' : 'Sin movimientos'"
+        :message="movementId ? 'No se encontró este movimiento en tu actividad.' : 'No hay movimientos para el filtro seleccionado.'" icon="🔍" />
       <div v-else class="table-wrapper">
         <table class="cd-table">
           <thead>

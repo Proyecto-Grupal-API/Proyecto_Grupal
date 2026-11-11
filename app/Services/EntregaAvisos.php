@@ -15,6 +15,18 @@ class EntregaAvisos
 {
     use ExecutesMongoAtomically;
 
+    public static function catalogo(string $cliente): string
+    {
+        $finanzas = CatalogoAvisosFinanzas::esClienteFinanciero($cliente);
+        $plataforma = CatalogoAvisosPlataforma::esClientePlataforma($cliente);
+        if ($finanzas && $plataforma) {
+            throw new AvisoApiException(503, 'cliente_ambiguo', 'Se requiere un cliente distinto para cada módulo emisor.');
+        }
+
+        return $finanzas ? CatalogoAvisosFinanzas::class
+            : ($plataforma ? CatalogoAvisosPlataforma::class : CatalogoAvisosServicios::class);
+    }
+
     public function enviar(string $cliente, string $clave, array $datos): array
     {
         $datos['importancia'] ??= 'normal';
@@ -24,10 +36,13 @@ class EntregaAvisos
             $this->comparar($anterior->huella, $huella);
             return ['resultado' => $anterior->resultado_envio, 'creada' => false];
         }
-        $finanzas = CatalogoAvisosFinanzas::esClienteFinanciero($cliente);
-        $categoria = $finanzas ? 'finanzas' : 'servicios_estudiante';
-        $accion = app($finanzas ? CatalogoAvisosFinanzas::class : CatalogoAvisosServicios::class)
-            ->accion($datos['tipo'], $datos['accion']);
+        $catalogo = self::catalogo($cliente);
+        [$categoria, $emisor] = match ($catalogo) {
+            CatalogoAvisosFinanzas::class => ['finanzas', 'Finanzas'],
+            CatalogoAvisosPlataforma::class => ['recompensas', 'Recompensas'],
+            default => ['servicios_estudiante', 'Servicios al estudiante'],
+        };
+        $accion = app($catalogo)->accion($datos['tipo'], $datos['accion']);
         if ($datos['expira_en'] && Carbon::parse($datos['expira_en'])->lte(now())) {
             throw new AvisoApiException(422, 'fecha_invalida', 'La expiración debe ser posterior al primer envío.');
         }
@@ -54,7 +69,7 @@ class EntregaAvisos
         $m->fill(['cliente_id' => $cliente, 'clave_idempotencia' => $clave, 'huella' => $huella,
             'resultado_envio' => $resultado, 'estado_entrega' => $resultado['estado'], 'categoria' => $categoria,
             'tipo_aviso' => $datos['tipo'], 'usuario_id' => $datos['destinatario_id'],
-            'asunto' => $datos['asunto'], 'cuerpo' => $datos['texto'], 'emisor_nombre' => $finanzas ? 'Finanzas' : 'Servicios al estudiante',
+            'asunto' => $datos['asunto'], 'cuerpo' => $datos['texto'], 'emisor_nombre' => $emisor,
             'accion_url' => $accion['url'], 'texto_accion' => $accion['texto'],
             'importante' => $accion['obligatoria'] || $datos['importancia'] === 'alta', 'expira_en' => $datos['expira_en']]);
         try {

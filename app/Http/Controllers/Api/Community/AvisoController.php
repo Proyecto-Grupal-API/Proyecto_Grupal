@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Api\Community;
 
 use App\Http\Controllers\Controller;
-use App\Services\CatalogoAvisosServicios;
-use App\Services\CatalogoAvisosFinanzas;
 use App\Services\EntregaAvisos;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -16,8 +14,7 @@ class AvisoController extends Controller
         $textoPlano = function ($atributo, $valor, $fallar) {
             if (is_string($valor) && strip_tags($valor) !== $valor) { $fallar('Utiliza texto sin HTML.'); }
         };
-        $catalogo = CatalogoAvisosFinanzas::esClienteFinanciero($this->cliente($r))
-            ? CatalogoAvisosFinanzas::class : CatalogoAvisosServicios::class;
+        $catalogo = EntregaAvisos::catalogo($this->cliente($r));
         $d = $r->validate([
             'destinatario_id' => ['required', 'string', 'max:128', 'regex:/^[a-zA-Z0-9_-]+$/'],
             'tipo' => ['required', Rule::in(array_keys($catalogo::TIPOS))],

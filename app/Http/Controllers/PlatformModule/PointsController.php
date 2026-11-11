@@ -281,6 +281,9 @@ class PointsController
 
     private function queryHistory(Request $request, string $studentId): JsonResponse
     {
+        $validated = $request->validate([
+            'movement_id' => ['sometimes', 'required', 'string', 'regex:/\A[0-9a-fA-F]{24}\z/'],
+        ]);
         $perPage = min((int) $request->query('per_page', 20), 100);
         $type = $request->query('type');
 
@@ -289,6 +292,10 @@ class PointsController
 
         if ($type) {
             $query->where('type', $type);
+        }
+
+        if (isset($validated['movement_id'])) {
+            $query->where('_id', strtolower($validated['movement_id']));
         }
 
         $entries = $query->paginate($perPage);

@@ -23,7 +23,7 @@ export const api = {
   // ── 3. Puntos y Ledger (Motor Contable) ────────────────────
   points: {
     getMyBalance: () => request('GET', '/points/my-balance'),
-    getMyHistory: (page = 1) => request('GET', `/points/my-history?page=${page}`),
+    getMyHistory: (page = 1, movementId = '') => request('GET', `/points/my-history?page=${page}${movementId ? `&movement_id=${encodeURIComponent(movementId)}` : ''}`),
     getBalance: (studentId) => request('GET', `/points/balance/${studentId}`),
     getHistory: (studentId, page = 1) => request('GET', `/points/history/${studentId}?page=${page}`),
     getLedger: (params = {}) => {
