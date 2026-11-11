@@ -28,7 +28,7 @@ async function cargar() {
     cargando.value = true;
     try {
         datos.value = (
-            await axios.get(`/api/becas/solicitudes/${props.solicitudId}`)
+            await axios.get(`/api/v1/comunidad/portal/becas/solicitudes/${props.solicitudId}`)
         ).data;
         motivacion.value = datos.value.solicitud.motivacion ?? "";
     } catch (e) {
@@ -65,7 +65,7 @@ async function guardar(enviar) {
     )
         return;
     await ejecutar(() =>
-        axios.put(`/api/becas/solicitudes/${props.solicitudId}`, {
+        axios.put(`/api/v1/comunidad/portal/becas/solicitudes/${props.solicitudId}`, {
             motivacion: motivacion.value,
             enviar,
         }),
@@ -80,7 +80,7 @@ async function subir() {
     if (
         await ejecutar(() =>
             axios.post(
-                `/api/becas/solicitudes/${props.solicitudId}/documentos`,
+                `/api/v1/comunidad/portal/becas/solicitudes/${props.solicitudId}/documentos`,
                 f,
             ),
         )
@@ -95,7 +95,7 @@ async function eliminar(d) {
     const texto = motivacion.value;
     await ejecutar(() =>
         axios.delete(
-            `/api/becas/solicitudes/${props.solicitudId}/documentos/${d.id}`,
+            `/api/v1/comunidad/portal/becas/solicitudes/${props.solicitudId}/documentos/${d.id}`,
         ),
     );
     motivacion.value = texto;
@@ -107,12 +107,12 @@ function retirar() {
         )
     )
         ejecutar(() =>
-            axios.post(`/api/becas/solicitudes/${props.solicitudId}/retirar`),
+            axios.post(`/api/v1/comunidad/portal/becas/solicitudes/${props.solicitudId}/retirar`),
         );
 }
 function confirmarPresidencia() {
     if (!confirm("¿Confirmar este dictamen para que Tesorería revise el presupuesto?")) return;
-    ejecutar(() => axios.post(`/api/becas/solicitudes/${props.solicitudId}/confirmacion-presidencia`));
+    ejecutar(() => axios.post(`/api/v1/comunidad/portal/becas/solicitudes/${props.solicitudId}/confirmacion-presidencia`));
 }
 function dictaminar() {
     if (
@@ -122,7 +122,7 @@ function dictaminar() {
     )
         return;
     ejecutar(() =>
-        axios.post(`/api/becas/solicitudes/${props.solicitudId}/dictamen`, {
+        axios.post(`/api/v1/comunidad/portal/becas/solicitudes/${props.solicitudId}/dictamen`, {
             estado: decision.value,
             motivo: motivo.value,
         }),
@@ -295,7 +295,7 @@ function dictaminar() {
                         </div>
                         <div class="flex gap-3 text-sm">
                             <a
-                                :href="`/api/becas/solicitudes/${solicitudId}/documentos/${d.id}`"
+                                :href="`/api/v1/comunidad/portal/becas/solicitudes/${solicitudId}/documentos/${d.id}`"
                                 class="text-blue-800 font-semibold"
                                 >Descargar</a
                             ><button

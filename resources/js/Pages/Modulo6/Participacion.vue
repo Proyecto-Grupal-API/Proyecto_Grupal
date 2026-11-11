@@ -10,7 +10,7 @@ const votacion = computed(() => props.tipo === "votaciones");
 const titulo = computed(() =>
     votacion.value ? "Votaciones internas" : "Encuestas y consultas",
 );
-const base = computed(() => `/api/consultas/${props.tipo}`);
+const base = computed(() => `/api/v1/comunidad/portal/consultas/${props.tipo}`);
 const datos = ref(null),
     buscar = ref(""),
     error = ref(""),
@@ -181,7 +181,7 @@ async function cargarEventos() {
     cargandoEventos.value = true;
     errorEventos.value = "";
     try {
-        const { data } = await axios.get("/api/consultas/encuestas/eventos");
+        const { data } = await axios.get("/api/v1/comunidad/portal/consultas/encuestas/eventos");
         if (form.value === edicion) eventos.value = data.eventos;
     } catch {
         if (form.value === edicion)

@@ -36,7 +36,7 @@ async function cargar(p = datos.value?.page ?? 1, silencioso = false) {
     if (!silencioso) error.value = "";
     try {
         datos.value = (
-            await axios.get("/api/bandeja", {
+            await axios.get("/api/v1/comunidad/portal/bandeja", {
                 params: { page: p, filtro: filtro.value, buscar: buscar.value },
             })
         ).data;
@@ -51,9 +51,9 @@ async function abrir(id) {
     ocupado.value = true;
     error.value = "";
     try {
-        seleccionado.value = (await axios.get(`/api/bandeja/${id}`)).data;
+        seleccionado.value = (await axios.get(`/api/v1/comunidad/portal/bandeja/${id}`)).data;
         if (!seleccionado.value.leido_en) {
-            await axios.put(`/api/bandeja/${id}`, { leida: true });
+            await axios.put(`/api/v1/comunidad/portal/bandeja/${id}`, { leida: true });
             seleccionado.value.leido_en = new Date().toISOString();
             notificar();
             await cargar();
@@ -70,9 +70,9 @@ async function actualizar(d) {
     ocupado.value = true;
     error.value = "";
     try {
-        await axios.put(`/api/bandeja/${seleccionado.value.id}`, d);
+        await axios.put(`/api/v1/comunidad/portal/bandeja/${seleccionado.value.id}`, d);
         seleccionado.value = (
-            await axios.get(`/api/bandeja/${seleccionado.value.id}`)
+            await axios.get(`/api/v1/comunidad/portal/bandeja/${seleccionado.value.id}`)
         ).data;
         await cargar();
         notificar();
@@ -87,7 +87,7 @@ async function configurar() {
     error.value = "";
     try {
         if (preferencias.value) {
-            const [organizaciones, servicios] = await Promise.all([axios.get("/api/bandeja/preferencias"), axios.get("/api/bandeja/categorias")]);
+            const [organizaciones, servicios] = await Promise.all([axios.get("/api/v1/comunidad/portal/bandeja/preferencias"), axios.get("/api/v1/comunidad/portal/bandeja/categorias")]);
             prefs.value = organizaciones.data;
             categorias.value = servicios.data;
         }
@@ -99,7 +99,7 @@ async function silenciar(o, categoria = false) {
     ocupado.value = true;
     error.value = "";
     try {
-        const { data } = await axios.put(categoria ? `/api/bandeja/categorias/${o.id}` : `/api/bandeja/preferencias/${o.id}`, {
+        const { data } = await axios.put(categoria ? `/api/v1/comunidad/portal/bandeja/categorias/${o.id}` : `/api/v1/comunidad/portal/bandeja/preferencias/${o.id}`, {
             silenciada: !o.silenciada,
         });
         o.silenciada = !o.silenciada;

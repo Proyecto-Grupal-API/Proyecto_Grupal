@@ -35,7 +35,7 @@ async function cargar() {
     if (!id) return;
     cargando.value = true;
     try {
-        const res = await axios.get(`/api/eventos/${id}/staff`);
+        const res = await axios.get(`/api/v1/comunidad/portal/eventos/${id}/staff`);
         if (turno === version) datos.value = res.data;
     } catch (e) {
         if (turno === version) fallar(e);
@@ -63,10 +63,10 @@ async function guardar(staff = null) {
     try {
         if (staff)
             await axios.delete(
-                `/api/eventos/${props.evento.id}/staff/${staff.id}`,
+                `/api/v1/comunidad/portal/eventos/${props.evento.id}/staff/${staff.id}`,
             );
         else
-            await axios.post(`/api/eventos/${props.evento.id}/staff`, {
+            await axios.post(`/api/v1/comunidad/portal/eventos/${props.evento.id}/staff`, {
                 usuario_id: usuario.value,
             });
         aviso.value = staff

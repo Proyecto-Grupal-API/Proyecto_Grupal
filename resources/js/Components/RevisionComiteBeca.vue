@@ -5,12 +5,12 @@ const props = defineProps({ revision: Object, solicitudId: String, organizacionI
 const emit = defineEmits(['saved']);
 const opcion = ref('favorable'), motivo = ref(''), ocupado = ref(false), error = ref(''), aviso = ref(''), nombres = ref({});
 watch(() => props.revision, r => { opcion.value = r?.recomendacion_propia?.recomendacion ?? 'favorable'; motivo.value = r?.recomendacion_propia?.motivo ?? ''; }, { immediate: true });
-onMounted(async () => { try { const { data } = await axios.get('/api/organizaciones'); if (data.organizacion?.id === props.organizacionId) nombres.value = Object.fromEntries(data.miembros.map(m => [m.usuario_id, m.nombre])); } catch { /* Los expedientes siguen siendo legibles si el directorio provisional no responde. */ } });
+onMounted(async () => { try { const { data } = await axios.get('/api/v1/comunidad/portal/organizaciones'); if (data.organizacion?.id === props.organizacionId) nombres.value = Object.fromEntries(data.miembros.map(m => [m.usuario_id, m.nombre])); } catch { /* Los expedientes siguen siendo legibles si el directorio provisional no responde. */ } });
 async function guardar() {
     if (ocupado.value) return;
     ocupado.value = true; error.value = ''; aviso.value = '';
     try {
-        await axios.put(`/api/becas/solicitudes/${props.solicitudId}/recomendacion`, { version_comite: props.revision.version, revision: props.revision.recomendacion_propia?.revision ?? 0, recomendacion: opcion.value, motivo: motivo.value }, { headers: { 'X-Organization-Id': props.organizacionId } });
+        await axios.put(`/api/v1/comunidad/portal/becas/solicitudes/${props.solicitudId}/recomendacion`, { version_comite: props.revision.version, revision: props.revision.recomendacion_propia?.revision ?? 0, recomendacion: opcion.value, motivo: motivo.value }, { headers: { 'X-Organization-Id': props.organizacionId } });
         aviso.value = 'Recomendación guardada.'; emit('saved');
     } catch (e) { error.value = Object.values(e.response?.data?.errors ?? {}).flat().join(' ') || e.response?.data?.message || 'No se pudo guardar la recomendación.'; }
     finally { ocupado.value = false; }

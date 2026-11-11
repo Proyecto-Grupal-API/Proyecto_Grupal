@@ -47,7 +47,7 @@ async function cargar(page = 1) {
     cargando.value = true;
     try {
         datos.value = (
-            await axios.get("/api/gestion-organizaciones", {
+            await axios.get("/api/v1/comunidad/portal/gestion-organizaciones", {
                 params: { buscar: buscar.value, estado: filtro.value, page },
             })
         ).data;
@@ -89,7 +89,7 @@ async function consultarTitular() {
     error.value = "";
     errores.value = {};
     try {
-        const r = await axios.post("/api/gestion-organizaciones/titular", {
+        const r = await axios.post("/api/v1/comunidad/portal/gestion-organizaciones/titular", {
             matricula: form.value.matricula_presidencia,
         });
         if (turno === consulta) titular.value = r.data.titular;
@@ -115,7 +115,7 @@ async function ver(o) {
     ocupado.value = true;
     try {
         detalle.value = (
-            await axios.get(`/api/gestion-organizaciones/${o.id}`)
+            await axios.get(`/api/v1/comunidad/portal/gestion-organizaciones/${o.id}`)
         ).data;
     } catch (e) {
         fallo(e);
@@ -159,17 +159,17 @@ function guardar() {
         titular.value.matricula !== form.value.matricula_presidencia.trim()
     )
         return;
-    ejecutar(() => axios.post("/api/gestion-organizaciones", form.value));
+    ejecutar(() => axios.post("/api/v1/comunidad/portal/gestion-organizaciones", form.value));
 }
 const guardarEstado = () =>
     ejecutar(() =>
         axios.post(
-            `/api/gestion-organizaciones/${cambio.value.id}/estado`,
+            `/api/v1/comunidad/portal/gestion-organizaciones/${cambio.value.id}/estado`,
             cambio.value,
         ),
     );
 const completar = (o) =>
-    ejecutar(() => axios.post(`/api/gestion-organizaciones/${o.id}/completar`));
+    ejecutar(() => axios.post(`/api/v1/comunidad/portal/gestion-organizaciones/${o.id}/completar`));
 </script>
 <template>
     <Head title="Gestión de organizaciones" />

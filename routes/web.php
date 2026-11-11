@@ -231,7 +231,12 @@ Route::middleware(['auth', 'session.active', 'device.track', SeleccionarOrganiza
 
 });
 
-Route::middleware(['auth', 'session.active', 'device.track', SeleccionarOrganizacion::class])->prefix('api')->group(__DIR__.'/comunidad.php');
+// Portal APIs share session, CSRF and organization policies with the legacy clients.
+// The portal segment avoids collisions with Comunidad's OAuth service contracts.
+foreach (['api', 'api/v1/comunidad/portal'] as $prefix) {
+    Route::middleware(['auth', 'session.active', 'device.track', SeleccionarOrganizacion::class])
+        ->prefix($prefix)->group(__DIR__.'/comunidad.php');
+}
 
 require __DIR__.'/auth.php';
 

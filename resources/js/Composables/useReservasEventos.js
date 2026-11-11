@@ -6,7 +6,7 @@ export function useReservasEventos() {
         const intento = `${accion}:${eventoId}:${generacion}`;
         if (!solicitudes.has(intento)) solicitudes.set(intento, crypto.randomUUID());
         const data = { clave_solicitud: solicitudes.get(intento), generacion };
-        const url = `/api/eventos/${eventoId}/inscripcion`;
+        const url = `/api/v1/comunidad/portal/eventos/${eventoId}/inscripcion`;
         return accion === "inscribir" ? axios.post(url, data) : axios.delete(url, { data });
     };
 }

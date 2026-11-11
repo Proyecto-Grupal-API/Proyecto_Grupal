@@ -14,7 +14,7 @@ class SeleccionarOrganizacion
         $ids = MiembroOrganizacion::activos()->where('usuario_id', (string) $request->user()->id)->pluck('organizacion_id');
         $organizaciones = Organizacion::whereIn('_id', $ids)->where('estado', 'activa')->orderBy('nombre')->get();
         $seleccionada = $organizaciones->firstWhere('id', $request->session()->get('organizacion_id')) ?? $organizaciones->first();
-        if (! $request->isMethodSafe() && ! $request->is('api/organizaciones/seleccionar') && ! $request->is('api/gestion-organizaciones*') && $request->hasHeader('X-Organization-Id')) {
+        if (! $request->isMethodSafe() && ! $request->is('api/organizaciones/seleccionar', 'api/v1/comunidad/portal/organizaciones/seleccionar') && ! $request->is('api/gestion-organizaciones*', 'api/v1/comunidad/portal/gestion-organizaciones*') && $request->hasHeader('X-Organization-Id')) {
             abort_unless($request->header('X-Organization-Id') === (string) $seleccionada?->id, 409, 'La organización activa cambió en otra pestaña. Recarga antes de guardar.');
         }
         $request->attributes->set('organizaciones', $organizaciones);

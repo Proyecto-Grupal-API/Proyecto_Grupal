@@ -7,7 +7,7 @@ const datos = ref(null), estado = ref("activo"), cargando = ref(false), ocupado 
 const error = ref(""), aviso = ref(""), editor = ref(null), form = ref({}), archivo = ref(null);
 const clave = ref(crypto.randomUUID()), historial = ref(null), tituloCampo = ref(null);
 const opciones = () => ({ headers: { "X-Organization-Id": props.organizacionId } });
-const base = "/api/organizaciones/documentos";
+const base = "/api/v1/comunidad/portal/organizaciones/documentos";
 const tamano = bytes => bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(0)} KB`;
 const hoy = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Mexico_City" }).format(new Date());
 watch([form, archivo], () => { clave.value = crypto.randomUUID(); }, { deep: true });

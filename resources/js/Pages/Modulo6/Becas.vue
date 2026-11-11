@@ -65,16 +65,16 @@ async function cargar(p = 1) {
     error.value = "";
     try {
         if (modo.value === "tesoreria")
-            avales.value = (await axios.get("/api/becas/tesoreria", { params: { page: p } })).data;
+            avales.value = (await axios.get("/api/v1/comunidad/portal/becas/tesoreria", { params: { page: p } })).data;
         else if (modo.value === "mias")
             mias.value = (
-                await axios.get("/api/becas/mis-solicitudes", {
+                await axios.get("/api/v1/comunidad/portal/becas/mis-solicitudes", {
                     params: { page: p },
                 })
             ).data;
         else
             datos.value = (
-                await axios.get("/api/becas", {
+                await axios.get("/api/v1/comunidad/portal/becas", {
                     params: {
                         gestion: modo.value === "gestion" ? 1 : 0,
                         buscar: buscar.value,
@@ -98,7 +98,7 @@ function cambiar(m) {
 }
 function avalar(solicitud) {
     if (!confirm(`¿Avalar ${dinero(solicitud.monto_centavos)} para el folio ${solicitud.folio}?`)) return;
-    ejecutar(() => axios.post(`/api/becas/solicitudes/${solicitud.id}/aval-tesoreria`, {
+    ejecutar(() => axios.post(`/api/v1/comunidad/portal/becas/solicitudes/${solicitud.id}/aval-tesoreria`, {
         presupuesto_id: solicitud.presupuesto_id,
         monto_centavos: solicitud.monto_centavos,
         huella_dictamen: solicitud.huella_dictamen,
@@ -166,7 +166,7 @@ function guardar() {
             .filter(Boolean),
     };
     ejecutar(() =>
-        d.id ? axios.put(`/api/becas/${d.id}`, d) : axios.post("/api/becas", d),
+        d.id ? axios.put(`/api/v1/comunidad/portal/becas/${d.id}`, d) : axios.post("/api/v1/comunidad/portal/becas", d),
     );
 }
 function estado(c, destino) {
@@ -182,12 +182,12 @@ function estado(c, destino) {
     )
         return;
     ejecutar(() =>
-        axios.post(`/api/becas/${c.id}/estado`, { estado: destino, motivo }),
+        axios.post(`/api/v1/comunidad/portal/becas/${c.id}/estado`, { estado: destino, motivo }),
     );
 }
 async function solicitar(c) {
     const data = await ejecutar(() =>
-        axios.post(`/api/becas/${c.id}/solicitud`),
+        axios.post(`/api/v1/comunidad/portal/becas/${c.id}/solicitud`),
     );
     if (data) router.visit(`/modulo6/becas/solicitudes/${data.solicitud.id}`);
 }
@@ -195,7 +195,7 @@ async function verSolicitudes(c, p = 1) {
     seleccionada.value = c;
     try {
         lista.value = (
-            await axios.get(`/api/becas/${c.id}/solicitudes`, {
+            await axios.get(`/api/v1/comunidad/portal/becas/${c.id}/solicitudes`, {
                 params: { page: p, estado: filtro.value },
             })
         ).data;

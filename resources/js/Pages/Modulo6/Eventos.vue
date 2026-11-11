@@ -64,7 +64,7 @@ async function cargar(pagina = 1) {
     cargando.value = true;
     try {
         datos.value = (
-            await axios.get("/api/eventos", {
+            await axios.get("/api/v1/comunidad/portal/eventos", {
                 params: {
                     gestion: modo.value === "gestion" ? 1 : 0,
                     buscar: buscar.value,
@@ -145,15 +145,15 @@ async function ejecutar(fn) {
 const guardar = () =>
     ejecutar(() =>
         formulario.value.id
-            ? axios.put(`/api/eventos/${formulario.value.id}`, formulario.value)
-            : axios.post("/api/eventos", formulario.value),
+            ? axios.put(`/api/v1/comunidad/portal/eventos/${formulario.value.id}`, formulario.value)
+            : axios.post("/api/v1/comunidad/portal/eventos", formulario.value),
     );
 const publicar = (e) =>
-    ejecutar(() => axios.post(`/api/eventos/${e.id}/publicar`));
+    ejecutar(() => axios.post(`/api/v1/comunidad/portal/eventos/${e.id}/publicar`));
 function cancelar(e) {
     const motivo = prompt("Motivo de cancelación (mínimo 10 caracteres):");
     if (motivo !== null)
-        ejecutar(() => axios.post(`/api/eventos/${e.id}/cancelar`, { motivo }));
+        ejecutar(() => axios.post(`/api/v1/comunidad/portal/eventos/${e.id}/cancelar`, { motivo }));
 }
 const inscribir = (e) =>
     ejecutar(() => solicitarReserva("inscribir", e.id, e.mi_registro?.generacion ?? 0));
@@ -162,7 +162,7 @@ async function cargarLista(pagina = 1) {
     paginaLista.value = pagina;
     try {
         lista.value = (
-            await axios.get(`/api/eventos/${seleccionado.value.id}/inscritos`, {
+            await axios.get(`/api/v1/comunidad/portal/eventos/${seleccionado.value.id}/inscritos`, {
                 params: { page: pagina, estado: filtroLista.value },
             })
         ).data;
@@ -181,7 +181,7 @@ function checkin(codigo = token.value) {
     if (!codigo?.trim() || !seleccionado.value) return;
     token.value = codigo.trim();
     ejecutar(() =>
-        axios.post("/api/eventos/checkin", {
+        axios.post("/api/v1/comunidad/portal/eventos/checkin", {
             evento_id: seleccionado.value.id,
             token_qr: token.value,
         }),

@@ -55,7 +55,7 @@ function mostrarError(e) {
             "No fue posible conectar. Intenta nuevamente.";
 }
 async function cargar() {
-    const { data } = await axios.get("/api/organizaciones");
+    const { data } = await axios.get("/api/v1/comunidad/portal/organizaciones");
     datos.value = data;
     seleccion.value = data.organizacion?.id ?? "";
 }
@@ -126,20 +126,20 @@ async function ejecutar(peticion) {
     }
 }
 const guardarPerfil = () =>
-    ejecutar(() => axios.put("/api/organizaciones/perfil", perfil.value));
+    ejecutar(() => axios.put("/api/v1/comunidad/portal/organizaciones/perfil", perfil.value));
 const guardarMiembro = () =>
-    ejecutar(() => axios.post("/api/organizaciones/miembros", miembro.value));
+    ejecutar(() => axios.post("/api/v1/comunidad/portal/organizaciones/miembros", miembro.value));
 const guardarCargo = () =>
     ejecutar(() => {
         const body = { ...cargo.value, periodo_id: cargo.value.periodo_id || null };
         const contexto = { headers: { "X-Organization-Id": String(datos.value.organizacion.id) } };
         return cargo.value.id
-            ? axios.put(`/api/organizaciones/roles/${cargo.value.id}`, body, contexto)
-            : axios.post("/api/organizaciones/roles", body, contexto);
+            ? axios.put(`/api/v1/comunidad/portal/organizaciones/roles/${cargo.value.id}`, body, contexto)
+            : axios.post("/api/v1/comunidad/portal/organizaciones/roles", body, contexto);
     });
 async function actualizarPeriodos() {
     try {
-        const { data } = await axios.get("/api/organizaciones");
+        const { data } = await axios.get("/api/v1/comunidad/portal/organizaciones");
         if (datos.value?.organizacion?.id === data.organizacion?.id) datos.value.periodos = data.periodos;
     } catch (e) { mostrarError(e); }
 }
@@ -151,13 +151,13 @@ function quitar(tipo, id) {
                 : "¿Retirar este cargo?",
         )
     )
-        ejecutar(() => axios.delete(`/api/organizaciones/${tipo}/${id}`));
+        ejecutar(() => axios.delete(`/api/v1/comunidad/portal/organizaciones/${tipo}/${id}`));
 }
 async function cambiarOrganizacion() {
     guardando.value = true;
     error.value = "";
     try {
-        await axios.post("/api/organizaciones/seleccionar", {
+        await axios.post("/api/v1/comunidad/portal/organizaciones/seleccionar", {
             organizacion_id: seleccion.value,
         });
         window.location.reload();

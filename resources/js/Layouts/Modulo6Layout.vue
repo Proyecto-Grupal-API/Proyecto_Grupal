@@ -235,7 +235,7 @@ async function checkHeartbeat() {
 
 const cargarNotificaciones = async () => {
     try {
-        const respuesta = await axios.get("/api/notificaciones");
+        const respuesta = await axios.get("/api/v1/comunidad/portal/notificaciones");
         notificaciones.value = respuesta.data;
         noLeidas.value = Number(respuesta.headers["x-unread-count"] || 0);
     } catch (error) {
@@ -262,7 +262,7 @@ onBeforeUnmount(() => {
 
 const marcarComoLeidas = async () => {
     try {
-        await axios.put("/api/notificaciones/leer");
+        await axios.put("/api/v1/comunidad/portal/notificaciones/leer");
         await cargarNotificaciones();
     } catch (error) {
         console.error("Error al actualizar notificaciones:", error);
@@ -276,7 +276,7 @@ const eliminarLeidas = async () => {
         )
     ) {
         try {
-            await axios.delete("/api/notificaciones/leidas");
+            await axios.delete("/api/v1/comunidad/portal/notificaciones/leidas");
             await cargarNotificaciones();
         } catch (error) {
             console.error("Error al eliminar notificaciones:", error);

@@ -15,12 +15,12 @@ watch(participante, () => { claveParticipante.value = crypto.randomUUID(); }, { 
 function fallar(e) { error.value = Object.values(e.response?.data?.errors ?? {}).flat().join(" ") || e.response?.data?.message || "No se pudo conectar. Intenta nuevamente."; }
 async function cargar(page = 1) {
     cargando.value = true;
-    try { datos.value = (await axios.get("/api/organizaciones/comisiones", { ...opciones(), params: { estado: estado.value, page } })).data; }
+    try { datos.value = (await axios.get("/api/v1/comunidad/portal/organizaciones/comisiones", { ...opciones(), params: { estado: estado.value, page } })).data; }
     catch (e) { fallar(e); }
     finally { cargando.value = false; }
 }
 async function ver(c, page = 1) {
-    try { detalle.value = (await axios.get(`/api/organizaciones/comisiones/${c.id}`, { ...opciones(), params: { historial: historial.value ? 1 : 0, page } })).data; }
+    try { detalle.value = (await axios.get(`/api/v1/comunidad/portal/organizaciones/comisiones/${c.id}`, { ...opciones(), params: { historial: historial.value ? 1 : 0, page } })).data; }
     catch (e) { fallar(e); }
 }
 function abrir(c = null) {
@@ -39,7 +39,7 @@ async function ejecutar(fn) {
 function guardar() {
     ejecutar(async () => {
         const body = { ...form.value, fecha_fin: form.value.fecha_fin || null, clave_solicitud: clave.value };
-        const res = editor.value === "nueva" ? await axios.post("/api/organizaciones/comisiones", body, opciones()) : await axios.put(`/api/organizaciones/comisiones/${editor.value.id}`, body, opciones());
+        const res = editor.value === "nueva" ? await axios.post("/api/v1/comunidad/portal/organizaciones/comisiones", body, opciones()) : await axios.put(`/api/v1/comunidad/portal/organizaciones/comisiones/${editor.value.id}`, body, opciones());
         editor.value = null; aviso.value = res.data.message;
         await cargar(datos.value?.page || 1);
         await ver(res.data.comision);
@@ -47,7 +47,7 @@ function guardar() {
 }
 function asignar() {
     ejecutar(async () => {
-        const res = await axios.post(`/api/organizaciones/comisiones/${detalle.value.comision.id}/integrantes`, { ...participante.value, clave_solicitud: claveParticipante.value }, opciones());
+        const res = await axios.post(`/api/v1/comunidad/portal/organizaciones/comisiones/${detalle.value.comision.id}/integrantes`, { ...participante.value, clave_solicitud: claveParticipante.value }, opciones());
         participante.value = { usuario_id: "", funcion: "integrante" };
         aviso.value = res.data.message;
         await ver(detalle.value.comision);
@@ -60,7 +60,7 @@ function preparar(tipo, registro = null) {
 function confirmar() {
     ejecutar(async () => {
         const c = detalle.value.comision;
-        const url = accion.value.tipo === "cierre" ? `/api/organizaciones/comisiones/${c.id}/cerrar` : `/api/organizaciones/comisiones/${c.id}/integrantes/${accion.value.registro.id}/retirar`;
+        const url = accion.value.tipo === "cierre" ? `/api/v1/comunidad/portal/organizaciones/comisiones/${c.id}/cerrar` : `/api/v1/comunidad/portal/organizaciones/comisiones/${c.id}/integrantes/${accion.value.registro.id}/retirar`;
         const res = await axios.post(url, { motivo: motivo.value, version: c.version }, opciones());
         aviso.value = res.data.message; accion.value = null;
         if (res.data.comision?.estado === "cerrada") historial.value = true;

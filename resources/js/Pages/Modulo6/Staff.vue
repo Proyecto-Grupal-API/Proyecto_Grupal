@@ -60,7 +60,7 @@ async function cargar(pagina = 1) {
     version++;
     try {
         datos.value = (
-            await axios.get("/api/staff/eventos", { params: { page: pagina } })
+            await axios.get("/api/v1/comunidad/portal/staff/eventos", { params: { page: pagina } })
         ).data;
         if (desmontado) return;
         if (!datos.value.nfc_habilitado) metodo.value = "boleto";
@@ -80,7 +80,7 @@ async function cargar(pagina = 1) {
             pagina === 1
         ) {
             await seleccionar(
-                (await axios.get(`/api/staff/eventos/${solicitado}`)).data
+                (await axios.get(`/api/v1/comunidad/portal/staff/eventos/${solicitado}`)).data
                     .evento,
             );
         }
@@ -97,7 +97,7 @@ async function actualizar() {
     const id = evento.value.id,
         turno = version;
     try {
-        const res = await axios.get(`/api/staff/eventos/${id}`);
+        const res = await axios.get(`/api/v1/comunidad/portal/staff/eventos/${id}`);
         if (!desmontado && turno === version && !validando.value)
             evento.value = res.data.evento;
     } catch (e) {
@@ -116,7 +116,7 @@ async function validar(token = codigo.value, via = metodo.value) {
     error.value = "";
     resultado.value = null;
     try {
-        const res = await axios.post("/api/eventos/checkin", {
+        const res = await axios.post("/api/v1/comunidad/portal/eventos/checkin", {
             evento_id: id,
             ...(via === "nfc"
                 ? { metodo: "nfc", credential_uid: token.trim() }

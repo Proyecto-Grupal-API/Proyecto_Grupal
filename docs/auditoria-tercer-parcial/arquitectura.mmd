@@ -1,0 +1,10 @@
+flowchart LR
+  V[Vue 3 / Inertia] -->|Axios + sesión + CSRF| P[API v1 Comunidad / portal]
+  P --> C[Controladores / Requests / Policies]
+  C --> S[Servicios Comunidad]
+  S --> M[(MongoDB E6)]
+  S -->|OAuth + HTTP| E1[Identidad E1]
+  S -->|Contrato + comprobante| E2[Finanzas E2 / SQL Server]
+  S -->|Beneficio de servicio| E5[Servicios E5]
+  S -->|Outbox / auditoría firmada| E7[Plataforma E7]
+  E3[Marketplace E3] -->|Resumen organización OAuth| P

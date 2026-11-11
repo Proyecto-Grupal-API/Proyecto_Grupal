@@ -31,10 +31,10 @@ async function cargar(p = pagina.value, silencioso = false) {
     try {
         if (props.eventoId)
             boletos.value = [
-                (await axios.get(`/api/eventos/${props.eventoId}/boleto`)).data,
+                (await axios.get(`/api/v1/comunidad/portal/eventos/${props.eventoId}/boleto`)).data,
             ];
         else {
-            const { data } = await axios.get("/api/estudiante/boletos", {
+            const { data } = await axios.get("/api/v1/comunidad/portal/estudiante/boletos", {
                 params: { page: p },
             });
             boletos.value = data.boletos;
@@ -99,7 +99,7 @@ async function pago(b, consultar = false) {
     error.value = "";
     try {
         const { data } = await axios.post(
-            `/api/eventos/${b.evento_id}/pago${consultar ? "/consultar" : ""}`,
+            `/api/v1/comunidad/portal/eventos/${b.evento_id}/pago${consultar ? "/consultar" : ""}`,
             { generacion: b.generacion },
         );
         if (data.confirmation_path) {

@@ -8,7 +8,7 @@ const datos = ref(null), detalle = ref(null), historial = ref(null), situacion =
 const cargando = ref(false), ocupado = ref(false), error = ref(""), aviso = ref("");
 const editor = ref(null), form = ref({}), clave = ref(crypto.randomUUID()), nombreCampo = ref(null);
 const cancelacion = ref(null), motivo = ref(""), motivoCampo = ref(null);
-const base = "/api/organizaciones/periodos";
+const base = "/api/v1/comunidad/portal/organizaciones/periodos";
 const opciones = () => ({ headers: { "X-Organization-Id": props.organizacionId } });
 const nombre = id => props.miembros.find(m => m.usuario_id === id)?.nombre || "Cuenta no disponible";
 const cargo = slug => ({ presidencia: "Presidencia", vicepresidencia: "Vicepresidencia", secretaria: "Secretaría", tesoreria: "Tesorería", comunicacion: "Comunicación", responsable_becas: "Responsable de becas" })[slug] || slug;

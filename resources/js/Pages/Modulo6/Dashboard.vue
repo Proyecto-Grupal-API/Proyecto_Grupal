@@ -19,7 +19,7 @@ async function cargar() {
     cargando.value = true;
     error.value = "";
     try {
-        datos.value = (await axios.get("/api/dashboard")).data;
+        datos.value = (await axios.get("/api/v1/comunidad/portal/dashboard")).data;
     } catch (e) {
         error.value =
             e.response?.data?.message ||

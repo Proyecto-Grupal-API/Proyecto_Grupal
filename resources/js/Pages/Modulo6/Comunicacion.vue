@@ -55,7 +55,7 @@ async function cargar(p = datos.value?.page ?? 1, silencioso = false) {
     if (!silencioso) error.value = "";
     try {
         datos.value = (
-            await axios.get("/api/comunicacion", {
+            await axios.get("/api/v1/comunidad/portal/comunicacion", {
                 params: { page: p, buscar: buscar.value },
             })
         ).data;
@@ -129,20 +129,20 @@ async function ejecutar(fn) {
 async function guardar() {
     const d = await ejecutar(() =>
         form.value.id
-            ? axios.put(`/api/comunicacion/${form.value.id}`, form.value)
-            : axios.post("/api/comunicacion", form.value),
+            ? axios.put(`/api/v1/comunidad/portal/comunicacion/${form.value.id}`, form.value)
+            : axios.post("/api/v1/comunidad/portal/comunicacion", form.value),
     );
     if (d) panel.value = false;
 }
 async function previsualizar(c) {
     const d = await ejecutar(() =>
-        axios.post(`/api/comunicacion/${c.id}/preview`),
+        axios.post(`/api/v1/comunidad/portal/comunicacion/${c.id}/preview`),
     );
     if (d) preview.value = d;
 }
 async function enviar() {
     const d = await ejecutar(() =>
-        axios.post(`/api/comunicacion/${preview.value.campana.id}/enviar`, {
+        axios.post(`/api/v1/comunidad/portal/comunicacion/${preview.value.campana.id}/enviar`, {
             firma: preview.value.firma,
         }),
     );
@@ -155,7 +155,7 @@ function cancelar(c) {
     );
     if (motivo !== null)
         ejecutar(() =>
-            axios.post(`/api/comunicacion/${c.id}/cancelar`, { motivo }),
+            axios.post(`/api/v1/comunidad/portal/comunicacion/${c.id}/cancelar`, { motivo }),
         );
 }
 </script>
@@ -335,7 +335,7 @@ function cancelar(c) {
                                 @click="
                                     ejecutar(() =>
                                         axios.post(
-                                            `/api/comunicacion/${c.id}/reintentar`,
+                                            `/api/v1/comunidad/portal/comunicacion/${c.id}/reintentar`,
                                         ),
                                     )
                                 "

@@ -43,7 +43,7 @@ async function cargar(p = datos.value?.page ?? 1) {
     cargando.value = true;
     try {
         datos.value = (
-            await axios.get("/api/transparencia", {
+            await axios.get("/api/v1/comunidad/portal/transparencia", {
                 params: { page: p, buscar: buscar.value },
             })
         ).data;
@@ -83,7 +83,7 @@ function nuevo() {
 }
 async function generar() {
     const d = await ejecutar(() =>
-        axios.post("/api/transparencia/reportes", form.value),
+        axios.post("/api/v1/comunidad/portal/transparencia/reportes", form.value),
     );
     if (d) {
         detalle.value = d.reporte;
@@ -93,18 +93,18 @@ async function generar() {
 }
 async function abrir(r) {
     const d = await ejecutar(() =>
-        axios.get(`/api/transparencia/reportes/${r.id}`),
+        axios.get(`/api/v1/comunidad/portal/transparencia/reportes/${r.id}`),
     );
     if (d) detalle.value = d;
 }
 async function publicar() {
     const d = await ejecutar(async () => {
         const res = await axios.post(
-            `/api/transparencia/reportes/${detalle.value.id}/publicar`,
+            `/api/v1/comunidad/portal/transparencia/reportes/${detalle.value.id}/publicar`,
             { confirmar: true },
         );
         const reporte = (
-            await axios.get(`/api/transparencia/reportes/${detalle.value.id}`)
+            await axios.get(`/api/v1/comunidad/portal/transparencia/reportes/${detalle.value.id}`)
         ).data;
         return { data: { ...res.data, reporte } };
     });
@@ -119,7 +119,7 @@ async function retirar() {
     );
     if (motivo === null) return;
     const d = await ejecutar(() =>
-        axios.post(`/api/transparencia/reportes/${detalle.value.id}/retirar`, {
+        axios.post(`/api/v1/comunidad/portal/transparencia/reportes/${detalle.value.id}/retirar`, {
             motivo,
         }),
     );
@@ -213,11 +213,11 @@ async function retirar() {
                     </p>
                     <div class="flex flex-wrap gap-3 text-sm font-semibold">
                         <a
-                            :href="`/api/transparencia/reportes/${detalle.id}/csv`"
+                            :href="`/api/v1/comunidad/portal/transparencia/reportes/${detalle.id}/csv`"
                             class="text-blue-800"
                             >Descargar CSV</a
                         ><a
-                            :href="`/api/transparencia/reportes/${detalle.id}/imprimir`"
+                            :href="`/api/v1/comunidad/portal/transparencia/reportes/${detalle.id}/imprimir`"
                             target="_blank"
                             rel="noopener"
                             class="text-blue-800"

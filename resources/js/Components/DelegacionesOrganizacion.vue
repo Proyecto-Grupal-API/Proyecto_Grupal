@@ -17,7 +17,7 @@ async function cargar(pagina = 1) {
     cargando.value = true;
     error.value = "";
     try {
-        datos.value = (await axios.get("/api/organizaciones/delegaciones", { ...opciones(), params: { page: pagina } })).data;
+        datos.value = (await axios.get("/api/v1/comunidad/portal/organizaciones/delegaciones", { ...opciones(), params: { page: pagina } })).data;
     } catch (e) { fallar(e); }
     finally { cargando.value = false; }
 }
@@ -25,7 +25,7 @@ async function guardar() {
     if (ocupado.value) return;
     ocupado.value = true; error.value = ""; aviso.value = "";
     try {
-        await axios.post("/api/organizaciones/delegaciones", { ...form.value, clave_idempotencia: clave.value }, opciones());
+        await axios.post("/api/v1/comunidad/portal/organizaciones/delegaciones", { ...form.value, clave_idempotencia: clave.value }, opciones());
         form.value = { destinatario_id: "", capacidades: [], inicio: "", fin: "", motivo: "" };
         aviso.value = "Delegación guardada. Su acceso depende del periodo y de la presidencia vigentes.";
         await cargar();
@@ -36,7 +36,7 @@ async function revocar(id) {
     if (ocupado.value) return;
     ocupado.value = true; error.value = ""; aviso.value = "";
     try {
-        await axios.post(`/api/organizaciones/delegaciones/${id}/revocar`, { motivo: motivoRevocacion.value }, opciones());
+        await axios.post(`/api/v1/comunidad/portal/organizaciones/delegaciones/${id}/revocar`, { motivo: motivoRevocacion.value }, opciones());
         revocando.value = null; motivoRevocacion.value = "";
         aviso.value = "Delegación revocada. El cambio quedó en el historial.";
         await cargar(datos.value.page);

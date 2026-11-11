@@ -1,0 +1,1928 @@
+{
+  "info": {
+    "name": "Campus Digital · Comunidad · Auditoría",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Colección importable. Pruebas de esta entrega ejecutadas con navegador y cliente Python, no se afirman capturas de Postman. Primero iniciar sesión en el mismo host y configurar cookies/CSRF; nunca desactivar CSRF para probar."
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8086"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const token = pm.cookies.get('XSRF-TOKEN');",
+          "if(token) pm.request.headers.upsert({key:'X-XSRF-TOKEN', value:decodeURIComponent(token)});"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Preparar sesión",
+      "item": [
+        {
+          "name": "Abrir login y recibir cookies",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/login"
+          }
+        },
+        {
+          "name": "Iniciar sesión (rellenar credenciales demo)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/login",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{email}}\",\"password\":\"{{password}}\"}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catálogo completo; configurar IDs antes de escrituras",
+      "item": [
+        {
+          "name": "GET /api/v1/comunidad/becas/{solicitud}/bono",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/becas/{{solicitud}}/bono",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/Api/Community/BecaAwardController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/notificaciones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/notificaciones",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/Api/Community/AvisoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/notificaciones",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/notificaciones",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/Api/Community/AvisoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/notificaciones/{id}/retiro",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/notificaciones/{{id}}/retiro",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/Api/Community/AvisoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/organizaciones/comercio",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/organizaciones/comercio",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/Api/Community/OrganizationCommerceController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/bandeja",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/bandeja",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BandejaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/bandeja/categorias",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/bandeja/categorias",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BandejaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/bandeja/categorias/servicios_estudiante",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/bandeja/categorias/servicios_estudiante",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BandejaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/bandeja/preferencias",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/bandeja/preferencias",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BandejaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/bandeja/preferencias/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/bandeja/preferencias/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BandejaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/bandeja/{id}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/bandeja/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BandejaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/bandeja/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/bandeja/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BandejaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/becas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/becas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/becas/mis-solicitudes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/mis-solicitudes",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/becas/solicitudes/{id}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/solicitudes/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/becas/solicitudes/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/solicitudes/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/becas/solicitudes/{id}/aval-tesoreria",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/solicitudes/{{id}}/aval-tesoreria",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/becas/solicitudes/{id}/confirmacion-presidencia",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/solicitudes/{{id}}/confirmacion-presidencia",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/becas/solicitudes/{id}/contrato",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/solicitudes/{{id}}/contrato",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/becas/solicitudes/{id}/dictamen",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/solicitudes/{{id}}/dictamen",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/becas/solicitudes/{id}/documentos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/solicitudes/{{id}}/documentos",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/becas/solicitudes/{id}/documentos/{documento}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/solicitudes/{{id}}/documentos/{{documento}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/comunidad/portal/becas/solicitudes/{id}/documentos/{documento}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/solicitudes/{{id}}/documentos/{{documento}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/becas/solicitudes/{id}/recomendacion",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/solicitudes/{{id}}/recomendacion",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/becas/solicitudes/{id}/retirar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/solicitudes/{{id}}/retirar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/becas/tesoreria",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/tesoreria",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/becas/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/becas/{id}/comite",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/{{id}}/comite",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/becas/{id}/comite",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/{{id}}/comite",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/becas/{id}/estado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/{{id}}/estado",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/becas/{id}/solicitud",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/{{id}}/solicitud",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/becas/{id}/solicitudes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/becas/{{id}}/solicitudes",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/comunicacion",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/comunicacion",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComunicacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/comunicacion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/comunicacion",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComunicacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/comunicacion/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/comunicacion/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComunicacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/comunicacion/{id}/cancelar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/comunicacion/{{id}}/cancelar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComunicacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/comunicacion/{id}/enviar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/comunicacion/{{id}}/enviar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComunicacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/comunicacion/{id}/preview",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/comunicacion/{{id}}/preview",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComunicacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/comunicacion/{id}/reintentar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/comunicacion/{{id}}/reintentar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComunicacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/consultas/encuestas/eventos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/consultas/encuestas/eventos",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/consultas/{tipo}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/consultas/{{tipo}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/consultas/{tipo}",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/consultas/{{tipo}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/consultas/{tipo}/{id}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/consultas/{{tipo}}/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/consultas/{tipo}/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/consultas/{{tipo}}/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/consultas/{tipo}/{id}/cancelar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/consultas/{{tipo}}/{{id}}/cancelar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/consultas/{tipo}/{id}/cerrar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/consultas/{{tipo}}/{{id}}/cerrar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/consultas/{tipo}/{id}/preview",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/consultas/{{tipo}}/{{id}}/preview",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/consultas/{tipo}/{id}/publicar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/consultas/{{tipo}}/{{id}}/publicar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/consultas/{tipo}/{id}/responder",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/consultas/{{tipo}}/{{id}}/responder",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/dashboard",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DashboardController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/estudiante/boletos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/estudiante/boletos",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/estudiante/mi-boleto",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/estudiante/mi-boleto",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/eventos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/eventos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/eventos/checkin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos/checkin",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/eventos/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Auditoría: conferencia de Comunidad\",\n  \"descripcion\": \"Evento creado por API para acreditar alta, edición, publicación, reserva y cancelación.\",\n  \"ubicacion\": \"Auditorio Campus Digital\",\n  \"fecha_hora_inicio\": \"2026-11-10T21:26\",\n  \"fecha_hora_fin\": \"2026-11-10T22:26\",\n  \"fecha_inicio_registro\": \"2026-11-10T20:06\",\n  \"fecha_fin_registro\": \"2026-11-10T21:24\",\n  \"costo\": 0,\n  \"capacidad\": 25,\n  \"lista_espera\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/eventos/{id}/boleto",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos/{{id}}/boleto",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/eventos/{id}/cancelar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos/{{id}}/cancelar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/eventos/{id}/inscripcion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos/{{id}}/inscripcion",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clave_solicitud\": \"b6f920ec-a8ad-4cdf-b0d1-d7a13852d71e\",\n  \"generacion\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/comunidad/portal/eventos/{id}/inscripcion",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos/{{id}}/inscripcion",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clave_solicitud\": \"d62a5498-1206-45cd-aa57-10ebe98d824a\",\n  \"generacion\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/eventos/{id}/inscritos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos/{{id}}/inscritos",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/eventos/{id}/pago",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos/{{id}}/pago",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PagoEventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/eventos/{id}/pago/consultar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos/{{id}}/pago/consultar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PagoEventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/eventos/{id}/publicar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos/{{id}}/publicar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/eventos/{id}/staff",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos/{{id}}/staff",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/StaffEventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/eventos/{id}/staff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos/{{id}}/staff",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/StaffEventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/comunidad/portal/eventos/{id}/staff/{staff}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/eventos/{{id}}/staff/{{staff}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/StaffEventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/gestion-organizaciones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/gestion-organizaciones",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/GestionOrganizacionesController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/gestion-organizaciones",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/gestion-organizaciones",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/GestionOrganizacionesController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/gestion-organizaciones/titular",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/gestion-organizaciones/titular",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/GestionOrganizacionesController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/gestion-organizaciones/{id}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/gestion-organizaciones/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/GestionOrganizacionesController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/gestion-organizaciones/{id}/completar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/gestion-organizaciones/{{id}}/completar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/GestionOrganizacionesController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/gestion-organizaciones/{id}/estado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/gestion-organizaciones/{{id}}/estado",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/GestionOrganizacionesController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/identidad/mi-condicion",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/identidad/mi-condicion",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/IdentidadComunidadController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/notificaciones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/notificaciones",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/NotificacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/notificaciones/leer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/notificaciones/leer",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/NotificacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/comunidad/portal/notificaciones/leidas",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/notificaciones/leidas",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/NotificacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/organizaciones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/organizaciones/comisiones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/comisiones",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComisionConsejoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/organizaciones/comisiones",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/comisiones",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComisionConsejoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/organizaciones/comisiones/{id}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/comisiones/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComisionConsejoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/organizaciones/comisiones/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/comisiones/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComisionConsejoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/organizaciones/comisiones/{id}/cerrar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/comisiones/{{id}}/cerrar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComisionConsejoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/organizaciones/comisiones/{id}/integrantes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/comisiones/{{id}}/integrantes",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComisionConsejoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/organizaciones/comisiones/{id}/integrantes/{asignacion}/retirar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/comisiones/{{id}}/integrantes/{{asignacion}}/retirar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComisionConsejoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/organizaciones/delegaciones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/delegaciones",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DelegacionOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/organizaciones/delegaciones",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/delegaciones",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DelegacionOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/organizaciones/delegaciones/{id}/revocar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/delegaciones/{{id}}/revocar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DelegacionOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/organizaciones/documentos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/documentos",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/organizaciones/documentos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/documentos",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/organizaciones/documentos/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/documentos/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/organizaciones/documentos/{id}/descargar",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/documentos/{{id}}/descargar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/organizaciones/documentos/{id}/retirar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/documentos/{{id}}/retirar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/organizaciones/documentos/{id}/versiones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/documentos/{{id}}/versiones",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/organizaciones/documentos/{id}/versiones",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/documentos/{{id}}/versiones",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/organizaciones/documentos/{id}/versiones/{version}/descargar",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/documentos/{{id}}/versiones/{{version}}/descargar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/organizaciones/miembros",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/miembros",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/comunidad/portal/organizaciones/miembros/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/miembros/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/organizaciones/perfil",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/perfil",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cambio prohibido\",\n  \"email\": \"prohibido@example.test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/organizaciones/periodos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/periodos",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PeriodoOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/organizaciones/periodos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/periodos",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PeriodoOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/organizaciones/periodos/{id}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/periodos/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PeriodoOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/organizaciones/periodos/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/periodos/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PeriodoOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/organizaciones/periodos/{id}/cancelar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/periodos/{{id}}/cancelar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PeriodoOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/organizaciones/periodos/{id}/historial",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/periodos/{{id}}/historial",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PeriodoOrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/organizaciones/roles",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/roles",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/comunidad/portal/organizaciones/roles/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/roles/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/comunidad/portal/organizaciones/roles/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/roles/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/organizaciones/seleccionar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/organizaciones/seleccionar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/staff/eventos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/staff/eventos",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/StaffEventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/staff/eventos/{id}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/staff/eventos/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/StaffEventoController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/transparencia",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/transparencia",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/TransparenciaController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/transparencia/reportes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/transparencia/reportes",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ReporteController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clave_solicitud\": \"8271ba73-551e-4444-9787-707ffa518f45\",\n  \"titulo\": \"Informe verificable del tercer parcial\",\n  \"descripcion\": \"Corte de la base de auditoría aislada. No representa actividad productiva.\",\n  \"fecha_inicio\": \"2026-11-10\",\n  \"fecha_fin\": \"2026-11-10\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/transparencia/reportes/{id}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/transparencia/reportes/{{id}}",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ReporteController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/transparencia/reportes/{id}/csv",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/transparencia/reportes/{{id}}/csv",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ReporteController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/comunidad/portal/transparencia/reportes/{id}/imprimir",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/transparencia/reportes/{{id}}/imprimir",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ReporteController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/transparencia/reportes/{id}/publicar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/transparencia/reportes/{{id}}/publicar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ReporteController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"confirmar\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/comunidad/portal/transparencia/reportes/{id}/retirar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/comunidad/portal/transparencia/reportes/{{id}}/retirar",
+            "description": "Implementación: https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ReporteController.php. Portal: sesión y CSRF. Payload de ejemplo solo cuando fue capturado; ajustar parámetros a datos de prueba."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

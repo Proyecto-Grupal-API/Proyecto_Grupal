@@ -1,0 +1,16 @@
+erDiagram
+  USER_E1 ||--o{ MIEMBRO : referencia_canonica
+  ORGANIZACION ||--o{ MIEMBRO : pertenece
+  ORGANIZACION ||--o{ CARGO_VIGENTE : autoriza
+  ORGANIZACION ||--o{ EVENTO : publica
+  EVENTO ||--o{ REGISTRO_EVENTO : reserva
+  USER_E1 ||--o{ REGISTRO_EVENTO : solicita
+  ORGANIZACION ||--o{ CONVOCATORIA : publica
+  CONVOCATORIA ||--o{ SOLICITUD_BECA : recibe
+  SOLICITUD_BECA ||--o| BENEFICIO : dictamina
+  BENEFICIO }o--|| COMPROBANTE_E2_E5 : confirma_entrega
+  ORGANIZACION ||--o{ CAMPANA : comunica
+  CAMPANA ||--o{ MENSAJE : entrega
+  ORGANIZACION ||--o{ CONSULTA : publica
+  CONSULTA ||--o{ RESPUESTA_VOTO : registra
+  ORGANIZACION ||--o{ REPORTE : agrega

@@ -14,7 +14,7 @@ watch(() => props.show, async show => {
     if (!show || !props.convocatoria) return;
     cargando.value = true; error.value = ''; datos.value = null;
     try {
-        const [comite, org] = await Promise.all([axios.get(`/api/becas/${props.convocatoria.id}/comite`), axios.get('/api/organizaciones')]);
+        const [comite, org] = await Promise.all([axios.get(`/api/v1/comunidad/portal/becas/${props.convocatoria.id}/comite`), axios.get('/api/v1/comunidad/portal/organizaciones')]);
         if (actual !== ciclo) return;
         if (org.data.organizacion?.id !== props.convocatoria.organizacion_id) throw new Error('contexto');
         datos.value = comite.data; miembros.value = org.data.miembros;
@@ -28,7 +28,7 @@ async function guardar() {
     if (ocupado.value) return;
     ocupado.value = true; error.value = '';
     try {
-        await axios.put(`/api/becas/${props.convocatoria.id}/comite`, form.value, { headers: { 'X-Organization-Id': props.convocatoria.organizacion_id } });
+        await axios.put(`/api/v1/comunidad/portal/becas/${props.convocatoria.id}/comite`, form.value, { headers: { 'X-Organization-Id': props.convocatoria.organizacion_id } });
         emit('saved');
     } catch (e) { error.value = mensaje(e); }
     finally { ocupado.value = false; }

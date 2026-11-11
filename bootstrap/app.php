@@ -55,6 +55,32 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        // Keep the versioned portal independent of Accept headers and debug HTML pages.
+        $exceptions->render(function (Throwable $error, Request $request) {
+            if (! $request->is('api/v1/comunidad/portal', 'api/v1/comunidad/portal/*')) {
+                return null;
+            }
+            $http = $error instanceof HttpExceptionInterface;
+            $status = $error instanceof AuthenticationException ? 401
+                : ($error instanceof ValidationException ? 422 : ($http ? $error->getStatusCode() : 500));
+            $message = match ($status) {
+                401 => 'Se requiere una sesión autenticada vigente.',
+                403 => 'No tienes permiso para esta operación.',
+                404 => 'No se encontró el recurso solicitado.',
+                405 => 'Método no permitido.',
+                419 => 'La sesión o el token CSRF venció. Inicia sesión nuevamente.',
+                422 => 'Revisa los datos enviados.',
+                429 => 'Demasiadas solicitudes. Intenta nuevamente más tarde.',
+                default => $http && $status < 500 ? $error->getMessage() : 'No fue posible completar la operación. Intenta nuevamente más tarde.',
+            };
+            $body = ['message' => $message];
+            if ($error instanceof ValidationException) {
+                $body['errors'] = $error->errors();
+            }
+
+            return response()->json($body, $status, $http ? $error->getHeaders() : [])
+                ->header('Cache-Control', 'private, no-store');
+        });
         // Directory-only boundary: Laravel's routing pipeline reports before rendering.
         // Never send raw directory input/driver failures to the default logger.
         $exceptions->report(function (Throwable $error) {

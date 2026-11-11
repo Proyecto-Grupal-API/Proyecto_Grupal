@@ -1,0 +1,714 @@
+{
+  "date": "2026-11-10",
+  "repository": "https://github.com/Proyecto-Grupal-API/Proyecto_Grupal",
+  "branch": "MERGE_COMPLETO",
+  "source_head": "2651e5dcee021a96a8931ea013c5921d4f883aeb",
+  "patch_sha256": "72f020ca0a44518ccf902b74d8ebe19970b1e0e30033fe5c234bf2eae2c81c4f",
+  "rubric_sha256": "08223c76850f7bb7df20b38f427e9458ec5424dbed531c00b2020ac5c9438482",
+  "correction": "El solicitante confirmó que el proyecto utiliza MongoDB y SQL Server, no PostgreSQL. E6 utiliza MongoDB. La nomenclatura singular de tablas SQL se marca no aplicable con justificación, pendiente de ratificación docente si se extiende a colecciones.",
+  "method": "Autoevaluación orientativa: Cumple=1, Parcial=0.5, No cumple=0; No aplica se excluye dentro del área. Se conservan las ponderaciones del formato. No es porcentaje funcional ni calificación del profesor.",
+  "scores": [
+    {
+      "area": "Desarrollo funcional",
+      "weight": 15,
+      "suggested": 13.12
+    },
+    {
+      "area": "API First y arquitectura",
+      "weight": 15,
+      "suggested": 14.17
+    },
+    {
+      "area": "Laravel / Vue / Axios",
+      "weight": 15,
+      "suggested": 15.0
+    },
+    {
+      "area": "Persistencia MongoDB (corrección del formato)",
+      "weight": 8,
+      "suggested": 7.33
+    },
+    {
+      "area": "Testing XP y calidad",
+      "weight": 15,
+      "suggested": 15.0
+    },
+    {
+      "area": "Integraciones",
+      "weight": 12,
+      "suggested": 12.0
+    },
+    {
+      "area": "Dashboard y reportes",
+      "weight": 8,
+      "suggested": 8.0
+    },
+    {
+      "area": "Documentación",
+      "weight": 8,
+      "suggested": 7.0
+    },
+    {
+      "area": "Git y trazabilidad",
+      "weight": 4,
+      "suggested": 3.33
+    }
+  ],
+  "self_assessment": 94.95,
+  "counts": {
+    "Cumple": 63,
+    "Cumple parcialmente": 8,
+    "No cumple": 0,
+    "No aplica": 1
+  },
+  "rows": [
+    {
+      "id": "3.1",
+      "criterion": "El módulo permite ejecutar el flujo principal completo sin errores críticos.",
+      "required": "Video corto del flujo completo, capturas de pantalla y URL de prueba.",
+      "status": "Cumple parcialmente",
+      "code": "P",
+      "response": "Recorrido gratuito de evento completo: alta, edición, publicación, inscripción, boleto y cancelación. La operación financiera integral y algunas ampliaciones académicas no se dan por habilitadas por este recorrido.",
+      "evidence": "Recorrido_Comunidad.avi; recorrido.json; capturas/03,09,10; docs/integration/CONTRATO_PAGO_EVENTOS_E2_E6.md"
+    },
+    {
+      "id": "3.2",
+      "criterion": "Las pantallas principales están conectadas a datos reales de backend.",
+      "required": "Capturas con datos creados desde la API y evidencia de respuesta JSON.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Las pantallas consumen APIs con documentos persistidos en MongoDB; el evento y el reporte se crearon mediante HTTP. Los registros son de demostración y están identificados como tales.",
+      "evidence": "recorrido.json; capturas/03-evento-publicado.png; evidencias/http-independiente.json"
+    },
+    {
+      "id": "3.3",
+      "criterion": "El módulo implementa altas, consultas, actualizaciones y bajas o cancelaciones cuando aplique.",
+      "required": "Capturas de cada operación y endpoints utilizados.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Se acreditaron alta, consulta, edición y cancelación. Las bajas conservan evidencia y estados en vez de borrar el historial.",
+      "evidence": "recorrido.json; capturas/10-boleto-cancelado.png; tests/Feature/EventosTest.php"
+    },
+    {
+      "id": "3.4",
+      "criterion": "Las validaciones frontend muestran mensajes claros al usuario.",
+      "required": "Captura de errores de validación en formulario.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "El formulario muestra los errores de validación devueltos por el backend. También conserva restricciones HTML y mensajes de estado.",
+      "evidence": "capturas/02-validacion-formulario.png; resources/js/Pages/Modulo6/Eventos.vue"
+    },
+    {
+      "id": "3.5",
+      "criterion": "Las validaciones backend impiden datos inválidos aunque se invoque la API directo.",
+      "required": "Captura Postman/Insomnia con error 422 o respuesta equivalente.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "El cliente HTTP independiente envió datos vacíos: recibió 422. Reglas y fechas se validan en GuardarEventoRequest y servicios.",
+      "evidence": "evidencias/http-independiente.json; app/Http/Requests/GuardarEventoRequest.php"
+    },
+    {
+      "id": "3.6",
+      "criterion": "El módulo maneja errores comunes sin romper la interfaz.",
+      "required": "Captura de error controlado y código donde se maneja la excepción.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "La pérdida de conexión produce una alerta y conserva la pantalla; los errores 500 del portal no exponen trazas incluso con debug activo.",
+      "evidence": "capturas/11-error-red-controlado.png; tests/Feature/CommunityVersionedApiTest.php; bootstrap/app.php"
+    },
+    {
+      "id": "3.7",
+      "criterion": "El módulo respeta roles, permisos y restricciones de acceso.",
+      "required": "Capturas con usuario autorizado y no autorizado, más middleware/policies.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Presidencia vigente administra; alumno consulta y recibe 403 si intenta cambiar el perfil. Staff se limita al evento asignado y se prueba revocación.",
+      "evidence": "capturas/08-estudiante-sin-administracion.png; evidencias/http-independiente.json; tests/Feature/StaffEventosTest.php"
+    },
+    {
+      "id": "3.8",
+      "criterion": "El módulo cumple las historias de usuario comprometidas para el parcial.",
+      "required": "Lista de historias, criterios de aceptación y evidencia por historia.",
+      "status": "Cumple parcialmente",
+      "code": "P",
+      "response": "Las once capacidades 6.1–6.11 se trazan al diseño original. Continúan pendientes los segmentos académicos/globales de 6.7 y la aceptación operativa final de flujos financieros habilitados.",
+      "evidence": "INTEGRADOR.md: historias HU-01 a HU-11; docs/Campus_Digital_Diseno_Modulos.pdf pp. 11–12"
+    },
+    {
+      "id": "4.1",
+      "criterion": "La API funciona independientemente de Inertia/Vue.",
+      "required": "Prueba en Postman/Insomnia consumiendo /api/v1 sin interfaz web.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Un cliente Python con cookies y CSRF consultó y probó /api/v1 sin Vue ni Inertia. Se entrega colección Postman importable; no se afirma haber usado Postman.",
+      "evidence": "evidencias/http-independiente.json; contratos/Comunidad.postman_collection.json"
+    },
+    {
+      "id": "4.2",
+      "criterion": "Los endpoints están versionados con /api/v1.",
+      "required": "Lista de rutas Laravel o captura de php artisan route:list.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Se añadieron 114 rutas versionadas del portal, sin colisionar con las cinco rutas de servicio de Comunidad. Los alias heredados conservan controles.",
+      "evidence": "evidencias/routes.json; routes/web.php; tests/Feature/CommunityVersionedApiTest.php"
+    },
+    {
+      "id": "4.3",
+      "criterion": "Las respuestas son JSON estructurado y consistente.",
+      "required": "Ejemplos JSON exitosos y con error.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Objetos JSON con recursos nombrados y errores message/errors. Los contratos de servicio conservan sus envolturas documentadas; no se fuerza una envoltura nueva a consumidores existentes.",
+      "evidence": "recorrido.json; bootstrap/app.php; docs/integration/comunidad-notificaciones.openapi.json"
+    },
+    {
+      "id": "4.4",
+      "criterion": "La API usa códigos HTTP correctos.",
+      "required": "Capturas con 200, 201, 401/403, 404, 422 según aplique.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Se observaron 200/201/401/403/404/422 mediante HTTP. Las pruebas comprueban 409 por contexto obsoleto; CSRF y límites mantienen sus estados propios.",
+      "evidence": "recorrido.json; evidencias/http-independiente.json; tests/Feature/CommunityVersionedApiTest.php"
+    },
+    {
+      "id": "4.5",
+      "criterion": "La API contiene reglas de negocio en backend, no solo en frontend.",
+      "required": "Código de controlador/servicio/request y prueba que lo demuestre.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Permisos, periodos, aforo, lista de espera, dictamen, aval y pago se resuelven en el backend. Ocultar botones no sustituye la autorización.",
+      "evidence": "app/Services/InscripcionesEvento.php; app/Services/PermisosComunidad.php; tests/Feature/BecasTest.php"
+    },
+    {
+      "id": "4.6",
+      "criterion": "Existe documentación clara de endpoints.",
+      "required": "Archivo README, OpenAPI/Swagger, tabla de endpoints o documento API.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Catálogo de las 119 rutas observadas con método, parámetros e implementación, más contratos especializados existentes.",
+      "evidence": "API.md; comunidad.openapi.json; docs/API_Integracion_Equipo_7.md"
+    },
+    {
+      "id": "4.7",
+      "criterion": "La API puede ser consumida por otros módulos sin dependencia visual.",
+      "required": "Ejemplo de consumo desde otro módulo o desde Postman.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "E5/E7 pueden consumir notificaciones y organizaciones con OAuth. Los resúmenes y revocación del cliente se ejercitan en pruebas persistentes.",
+      "evidence": "tests/Feature/OrganizationSummaryApiTest.php; tests/Feature/AvisosServiciosTest.php; docs/integration/API_AVISOS_EQUIPO_5.md"
+    },
+    {
+      "id": "4.8",
+      "criterion": "Se documentan parámetros, request, response y errores por endpoint.",
+      "required": "Tabla de contrato API completa.",
+      "status": "Cumple parcialmente",
+      "code": "P",
+      "response": "El inventario de rutas y los contratos de servicio están disponibles. Faltan esquemas estrictos y ejemplos de request/response para cada operación del portal. OpenAPI marca explícitamente ese límite.",
+      "evidence": "API.md; comunidad.openapi.json: x-contract-status; PLAN_CIERRE.md"
+    },
+    {
+      "id": "4.9",
+      "criterion": "Las operaciones críticas evitan duplicidad o estados inconsistentes.",
+      "required": "Prueba de doble envío, validación de estado o regla transaccional.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Inscripciones usan clave vinculada a acción/evento/generación; reportes y campañas usan idempotencia/revisión. Pruebas cubren reintentos y reversión ante fallos de auditoría.",
+      "evidence": "tests/Feature/IntentosReservasEventosTest.php; tests/Feature/ReportesTest.php; tests/Feature/RevisionArchivosComunidadTest.php"
+    },
+    {
+      "id": "5.1",
+      "criterion": "El módulo usa controladores organizados y con responsabilidades claras.",
+      "required": "Ruta del archivo, captura o enlace al controlador.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Controladores por asociaciones, Consejo, eventos, becas, consultas, reportes y Staff.",
+      "evidence": "routes/comunidad.php; app/Http/Controllers/EventoController.php; app/Http/Controllers/BecaController.php"
+    },
+    {
+      "id": "5.2",
+      "criterion": "La lógica de negocio compleja está en servicios, actions o clases dedicadas.",
+      "required": "Código de Service/Action y ejemplo de uso.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Servicios separados para inscripciones, permisos, periodos, documentos, métricas y clientes HTTP.",
+      "evidence": "app/Services/InscripcionesEvento.php; app/Services/MetricasComunidad.php; app/Services/ClienteModuloHttp.php"
+    },
+    {
+      "id": "5.3",
+      "criterion": "Se usan Form Requests o validaciones estructuradas.",
+      "required": "Archivo Request o validación documentada.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Form Requests tipados y validaciones estructuradas en operaciones pequeñas; no se omiten validaciones al consumir directamente la API.",
+      "evidence": "app/Http/Requests/GuardarEventoRequest.php; app/Http/Requests/GuardarConvocatoriaRequest.php; app/Http/Requests/CrearReporteRequest.php"
+    },
+    {
+      "id": "5.4",
+      "criterion": "Se usan modelos Eloquent correctamente.",
+      "required": "Modelo, relaciones y casts cuando aplique.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Modelos MongoDB con casts de fechas, enteros y booleanos; referencias canónicas a otras entidades. No hay relaciones SQL ficticias.",
+      "evidence": "app/Models/Documento.php; app/Models/RegistroEvento.php; app/Models/SolicitudBeca.php"
+    },
+    {
+      "id": "5.5",
+      "criterion": "Se usan Resources/Transformers o respuesta controlada para JSON.",
+      "required": "Archivo Resource o estructura de respuesta.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Los controladores entregan JSON controlado; datos ocultos del modelo y proyecciones evitan exponer documentos privados o padrones en respuestas generales.",
+      "evidence": "app/Models/Organizacion.php; app/Http/Controllers/EventoController.php; app/Http/Controllers/ReporteController.php"
+    },
+    {
+      "id": "5.6",
+      "criterion": "Se evita duplicación de código importante.",
+      "required": "Ejemplo de refactor o commits relacionados.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Se reutilizan políticas y servicios. El versionado registra el mismo archivo de rutas para ambas bases sin duplicar controladores ni reglas.",
+      "evidence": "routes/web.php; app/Services/ResponsabilidadesComunidad.php; cambios-auditoria.patch"
+    },
+    {
+      "id": "5.7",
+      "criterion": "El código tiene nombres claros y legibles.",
+      "required": "Captura o enlace a archivos representativos.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Clases y métodos reflejan términos del dominio: inscripción, periodo, delegación, aval, dictamen, reporte y auditoría.",
+      "evidence": "app/Services/InscripcionesEvento.php; app/Services/DocumentosOrganizacion.php"
+    },
+    {
+      "id": "5.8",
+      "criterion": "Se registran logs útiles para errores críticos.",
+      "required": "Código de logging o captura de storage/logs.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Excepciones críticas se reportan al canal Laravel. El anexo contiene una sonda explícitamente controlada de logging y el código real que reporta fallos de limpieza documental.",
+      "evidence": "evidencias/laravel-log-sanitizado.txt; app/Services/DocumentosOrganizacion.php:138"
+    },
+    {
+      "id": "6.1",
+      "criterion": "Las pantallas principales están implementadas en Vue/Inertia.",
+      "required": "Capturas de páginas y ruta del componente Vue.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Vistas Vue 3 renderizadas mediante Inertia y compiladas por Vite.",
+      "evidence": "resources/js/Pages/Modulo6; capturas/03,04,05,06; evidencias/vite-build.log"
+    },
+    {
+      "id": "6.2",
+      "criterion": "El consumo de API se realiza con Axios donde corresponde.",
+      "required": "Código de llamadas Axios y respuesta recibida.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Axios consume la base versionada del portal; las reservas reutilizan un composable que conserva claves durante reintentos.",
+      "evidence": "resources/js/Composables/useReservasEventos.js; resources/js/Pages/Modulo6/Eventos.vue"
+    },
+    {
+      "id": "6.3",
+      "criterion": "La interfaz tiene estados de carga, éxito y error.",
+      "required": "Capturas de loading, toast o mensaje de error.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Se implementan cargando/ocupado, avisos de éxito y alertas de error. La captura muestra una falla de red inducida en el navegador.",
+      "evidence": "resources/js/Pages/Modulo6/Eventos.vue; capturas/02,11; Recorrido_Comunidad.avi"
+    },
+    {
+      "id": "6.4",
+      "criterion": "Los formularios son claros y tienen validación visible.",
+      "required": "Capturas de formulario válido e inválido.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Etiquetas, restricciones HTML y resumen visible de errores por campo en formularios.",
+      "evidence": "capturas/02-validacion-formulario.png; resources/js/Pages/Modulo6/Eventos.vue"
+    },
+    {
+      "id": "6.5",
+      "criterion": "La UI es consistente con colores, fuentes y diseño acordado.",
+      "required": "Captura comparativa o referencia a guía visual.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Layout compartido, navegación y componentes de panel mantienen la apariencia acordada. No se rediseñó el módulo durante esta revisión.",
+      "evidence": "resources/js/Layouts/Modulo6Layout.vue; capturas/03,04,05,06"
+    },
+    {
+      "id": "6.6",
+      "criterion": "El módulo es usable en pantalla de escritorio y tamaño reducido.",
+      "required": "Capturas responsive.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Se comprobó Eventos a 1440 px y 390 px. En móvil el ancho del documento coincide con el viewport: 390 px, sin desbordamiento horizontal observado. Alcance: recorrido representativo, no certificación de todos los dispositivos.",
+      "evidence": "capturas/07-eventos-movil.png; recorrido.json: responsive"
+    },
+    {
+      "id": "6.7",
+      "criterion": "Los componentes están organizados y reutilizables.",
+      "required": "Ruta de componentes y ejemplo de uso.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Componentes compartidos para documentos, comisiones, periodos, delegaciones, comité, Staff y métricas; layout común.",
+      "evidence": "resources/js/Components/ComisionesConsejo.vue; resources/js/Components/DocumentosOrganizacion.vue; resources/js/Layouts/Modulo6Layout.vue"
+    },
+    {
+      "id": "7.1",
+      "criterion": "Todas las tablas están definidas en singular conforme al estándar.",
+      "required": "Migraciones y captura de esquema.",
+      "status": "No aplica",
+      "code": "N",
+      "response": "El criterio literal exige tablas SQL en singular. E6 utiliza colecciones MongoDB con nombres existentes en plural; se conserva esa convención y se documenta. La corrección de motor fue confirmada por el solicitante. Si el docente exige singular también para colecciones, deberá ratificar ese criterio.",
+      "evidence": "Aclaración del solicitante 2026-11-10; evidencias/mongo-esquema.json; INTEGRADOR.md"
+    },
+    {
+      "id": "7.2",
+      "criterion": "Las migraciones Laravel crean la estructura necesaria sin SQL manual.",
+      "required": "Archivos de migración y ejecución php artisan migrate.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Las migraciones Laravel se ejecutaron en una base nueva y crearon estructura e índices sin SQL manual.",
+      "evidence": "evidencias/demo-migrate.log; database/migrations/2026_09_19_000000_create_comunidad_collections.php"
+    },
+    {
+      "id": "7.3",
+      "criterion": "Las claves primarias, foráneas e índices están definidos correctamente.",
+      "required": "Migraciones y diagrama o captura de relaciones.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "ObjectId como clave, índices únicos/compuestos y referencias verificadas en backend. MongoDB no ofrece FK SQL: se acredita el equivalente mediante validación, aislamiento y pruebas.",
+      "evidence": "evidencias/mongo-esquema.json; tests/Feature/ComunidadTest.php; diagramas/modelo.mmd"
+    },
+    {
+      "id": "7.4",
+      "criterion": "Los tipos de datos PostgreSQL son adecuados.",
+      "required": "Campos numeric para montos, boolean, timestamptz, jsonb si aplica.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Se evalúa BSON: fechas UTC, booleanos, enteros y documentos/arreglos nativos. Los beneficios guardan centavos; el precio de evento es decimal en la API y se normaliza a centavos al reservar. No se afirma uso de numeric/jsonb de PostgreSQL.",
+      "evidence": "app/Models/RegistroEvento.php; app/Http/Requests/GuardarConvocatoriaRequest.php; app/Services/InscripcionesEvento.php; tests/Feature/MongoArraysTest.php"
+    },
+    {
+      "id": "7.5",
+      "criterion": "Se usan seeders o datos de prueba suficientes.",
+      "required": "Archivo seeder y capturas de datos creados.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Seeders locales/de prueba crean identidades y organizaciones; la demo de auditoría persistió eventos y reportes vía API. Se prohíbe sembrar usuarios demo en producción.",
+      "evidence": "evidencias/demo-seed.log; database/seeders/DatabaseSeeder.php; recorrido.json"
+    },
+    {
+      "id": "7.6",
+      "criterion": "Se respetan relaciones con otros módulos.",
+      "required": "Diagrama ER o ejemplo de JOIN/relación Eloquent.",
+      "status": "Cumple parcialmente",
+      "code": "P",
+      "response": "Se usan User._id, IDs de organizaciones y UUID financieros canónicos. Hay clientes API para E1/E2/E5/E7; permanece un modo heredado que consulta User directamente y el directorio requiere habilitación y revisión antes de afirmar API First integral.",
+      "evidence": "app/Http/Controllers/OrganizacionController.php:39; config/identidad_comunidad.php; docs/integration/E1-DIRECTORY-D1-D4-LOCAL.md"
+    },
+    {
+      "id": "7.7",
+      "criterion": "No hay datos críticos quemados en el código.",
+      "required": "Revisión de .env, config y código.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "URLs, secretos y activaciones proceden de configuración. Los ejemplos de seeder están acotados a local/testing; no son fuentes ocultas de datos productivos.",
+      "evidence": "config/identidad_comunidad.php; config/comunidad.php; .env.example; database/seeders/DatabaseSeeder.php"
+    },
+    {
+      "id": "8.1",
+      "criterion": "Existen pruebas unitarias de reglas de negocio.",
+      "required": "Captura PHPUnit y archivo de prueba.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Se ejecutó la suite unitaria disponible: 428 casos y 942 aserciones. Incluye contratos BECA y autorización contextual relevantes para E6. No implica que las 428 pruebas pertenezcan exclusivamente a E6.",
+      "evidence": "evidencias/unitarias-verificadas.xml; evidencias/unitarias-verificadas.log; tests/Unit/CouncilBecaAuthorizationTest.php"
+    },
+    {
+      "id": "8.2",
+      "criterion": "Existen pruebas Feature/API para endpoints principales.",
+      "required": "Captura de php artisan test y archivos Feature.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Se ejecutaron 303 pruebas Feature/API del alcance declarado de Comunidad y sus bordes.",
+      "evidence": "evidencias/comunidad-suite.xml; evidencias/alcance-suite.json"
+    },
+    {
+      "id": "8.3",
+      "criterion": "Se prueban escenarios exitosos y fallidos.",
+      "required": "Casos happy path y errores 422/403/404.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Éxito y errores: permisos, falta de recurso, validación, vigencia, revocación, duplicidad y fallos externos.",
+      "evidence": "evidencias/comunidad-suite.log; tests/Feature/CommunityVersionedApiTest.php; tests/Feature/StaffNfcTest.php"
+    },
+    {
+      "id": "8.4",
+      "criterion": "Se prueban validaciones de datos.",
+      "required": "Prueba que envía datos inválidos y resultado esperado.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Se enviaron datos inválidos por HTTP y mediante pruebas automatizadas.",
+      "evidence": "evidencias/http-independiente.json; tests/Feature/EventosTest.php; tests/Feature/BecasTest.php"
+    },
+    {
+      "id": "8.5",
+      "criterion": "Se prueban permisos o roles cuando aplique.",
+      "required": "Prueba con usuario autorizado y no autorizado.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Pruebas con alumno, presidencia, comité, Tesorería, Staff y permisos vencidos/revocados.",
+      "evidence": "tests/Feature/PermisosComunidadTest.php; tests/Feature/ComiteBecasTest.php; tests/Feature/StaffEventosTest.php"
+    },
+    {
+      "id": "8.6",
+      "criterion": "El equipo muestra evidencia de TDD o pruebas tempranas.",
+      "required": "Commit inicial de test, historial o explicación con evidencia.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Para este cambio se escribieron siete pruebas primero: fallaron sin rutas versionadas y pasaron tras la implementación. Se conservan ambos resultados. No se inventa una secuencia TDD para los commits históricos.",
+      "evidence": "evidencias/red.log; evidencias/versioned.log; tests/Feature/CommunityVersionedApiTest.php"
+    },
+    {
+      "id": "8.7",
+      "criterion": "El equipo aplicó refactorización documentada.",
+      "required": "Commit de refactor y antes/después.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Refactor documentado: una definición de rutas y mismos controladores para clientes heredados y versionados. Historial anterior contiene separación documental en servicios.",
+      "evidence": "cambios-auditoria.patch; routes/web.php; commit 907c0d0; PLAN_CIERRE.md"
+    },
+    {
+      "id": "8.8",
+      "criterion": "Las pruebas se ejecutan sin fallar en la versión entregada.",
+      "required": "Captura final de suite completa en verde.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "303 Feature sin fallos ni errores, 428 unitarias aprobadas, 8 pruebas frontend aprobadas y build Vite correcto. Feature emitió 303 advertencias por ausencia deliberada de .env en el perfil protegido; no se presenta como consola sin advertencias ni como suite integral de los siete módulos.",
+      "evidence": "evidencias/comunidad-suite.xml; evidencias/unitarias-verificadas.xml; evidencias/frontend-tests.log; evidencias/vite-build.log"
+    },
+    {
+      "id": "9.1",
+      "criterion": "El módulo consume correctamente al menos una API de otro módulo cuando aplique.",
+      "required": "Captura del flujo, endpoint y respuesta JSON.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "NFC se probó contra el servidor real de Identidad por OAuth y HTTP, incluyendo revocación de tarjeta, dentro del laboratorio protegido.",
+      "evidence": "tests/Feature/StaffNfcLocalHttpTest.php; evidencias/comunidad-suite.xml"
+    },
+    {
+      "id": "9.2",
+      "criterion": "Otro módulo puede consumir la API desarrollada por este equipo.",
+      "required": "Evidencia del equipo consumidor o prueba externa.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "La API de resumen de organizaciones se probó con cliente OAuth, scopes y revocación persistidos. Las notificaciones entrantes también tienen pruebas de contrato.",
+      "evidence": "tests/Feature/OrganizationSummaryApiTest.php; tests/Feature/AvisosServiciosTest.php"
+    },
+    {
+      "id": "9.3",
+      "criterion": "Existen solicitudes de requerimientos entre módulos documentadas.",
+      "required": "Documento de solicitud firmado o compartido.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Se conservan solicitudes y respuestas entre E6 y E1/E2/E5/E7. No se atribuye firma institucional a documentos compartidos que no la tienen.",
+      "evidence": "docs/integration/SOLICITUD_EQUIPO6_A_EQUIPO1_DIRECTORIO_Y_AUTORIZACION_2026-10-17.md; docs/integration/RESPUESTA_EQUIPO6_A_EQUIPO2_2026-10-12.md"
+    },
+    {
+      "id": "9.4",
+      "criterion": "Existen validaciones de integración documentadas.",
+      "required": "Documento de validación con pruebas y resultados.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Hay contratos y resultados fechados, diferenciando pruebas de dominio, HTTP local y pilotos financieros anteriores. La auditoría actual no reemplaza sus fechas ni certifica despliegue productivo.",
+      "evidence": "docs/integration/ACCESO_NFC_EVENTOS_COMUNIDAD.md; docs/modulo-2/2.5-panel-beca-consejo.md; INTEGRADOR.md"
+    },
+    {
+      "id": "9.5",
+      "criterion": "Se manejan errores cuando el módulo externo no responde o devuelve error.",
+      "required": "Captura del error controlado y código de manejo.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Clientes externos cierran el acceso ante fallos o respuestas malformadas; el frontend mantiene alerta de conexión.",
+      "evidence": "tests/Feature/StaffNfcTest.php; tests/Feature/IntegracionIdentidadComunidadTest.php; capturas/11-error-red-controlado.png"
+    },
+    {
+      "id": "9.6",
+      "criterion": "La integración no depende de datos ficticios ocultos o hardcodeados.",
+      "required": "Prueba con datos reales de base de datos/API.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Los datos demostrativos son explícitos y persistidos. Los mocks de pruebas de dominio no se presentan como operación externa real; el ensayo NFC sí usa HTTP/OAuth y MongoDB reales.",
+      "evidence": "recorrido.json; tests/Feature/StaffNfcLocalHttpTest.php; evidencias/mongo-esquema.json"
+    },
+    {
+      "id": "10.1",
+      "criterion": "El módulo tiene dashboard propio con indicadores relevantes.",
+      "required": "Captura del dashboard y explicación de KPIs.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Dashboard de miembros activos, eventos, becas pendientes, próximo evento y pendientes personales. No inventa saldo financiero: cajaDisponible puede ser null.",
+      "evidence": "capturas/04-dashboard.png; app/Http/Controllers/DashboardController.php"
+    },
+    {
+      "id": "10.2",
+      "criterion": "Los indicadores provienen de consultas reales.",
+      "required": "Endpoint, query o método que genera los indicadores.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Los indicadores se calculan mediante consultas MongoDB, con organización y autorización del usuario.",
+      "evidence": "app/Http/Controllers/DashboardController.php; recorrido.json: GET dashboard"
+    },
+    {
+      "id": "10.3",
+      "criterion": "El módulo genera al menos un reporte útil.",
+      "required": "Captura o archivo exportado PDF/CSV/Excel.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Se generó, publicó y exportó un reporte CSV desde la API de Transparencia.",
+      "evidence": "reporte-exportado.csv; capturas/06-transparencia.png; recorrido.json"
+    },
+    {
+      "id": "10.4",
+      "criterion": "Los reportes tienen filtros o criterios claros.",
+      "required": "Captura del filtro y resultado.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Los reportes fijan organización, intervalo de fechas y corte; la API valida el periodo y la UI permite buscar reportes.",
+      "evidence": "app/Http/Requests/CrearReporteRequest.php; reporte-exportado.csv; capturas/06-transparencia.png"
+    },
+    {
+      "id": "10.5",
+      "criterion": "Los datos del dashboard/reporte coinciden con la base de datos.",
+      "required": "Comparación con consulta o registros.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Las pruebas de Reportes comparan cifras con registros creados y comprueban límites de fechas, exclusiones y otras organizaciones. El anexo de esquema y dashboard aporta una instantánea adicional.",
+      "evidence": "tests/Feature/ReportesTest.php; evidencias/comunidad-suite.xml; evidencias/mongo-esquema.json"
+    },
+    {
+      "id": "11.1",
+      "criterion": "Existe Documento Integrador del Módulo completo.",
+      "required": "Archivo Word/PDF actualizado.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Se entrega documento integrador con alcance, requisitos, roles, arquitectura, persistencia, pruebas, evidencia y plan de cierre.",
+      "evidence": "INTEGRADOR.md; Informe_Auditoria_Modulo6.pdf; Auditoria_Modulo6_Llenada.docx"
+    },
+    {
+      "id": "11.2",
+      "criterion": "Existe SRS o sección de requisitos del módulo.",
+      "required": "Documento SRS con requisitos funcionales/no funcionales.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Se trazan once historias a los puntos 6.1–6.11 y requisitos no funcionales de seguridad, integridad, interfaz y operación.",
+      "evidence": "INTEGRADOR.md: requisitos y trazabilidad"
+    },
+    {
+      "id": "11.3",
+      "criterion": "Existe documentación de API.",
+      "required": "Contrato API con endpoints, request, response y errores.",
+      "status": "Cumple parcialmente",
+      "code": "P",
+      "response": "Hay contratos específicos y catálogo OpenAPI del portal. Faltan esquemas exhaustivos de cada endpoint, por lo que la documentación técnica aún no se declara completa.",
+      "evidence": "API.md; comunidad.openapi.json; docs/integration/comunidad-notificaciones.openapi.json"
+    },
+    {
+      "id": "11.4",
+      "criterion": "Existe modelo de datos o diccionario de tablas.",
+      "required": "Diagrama, tabla o migraciones documentadas.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Diccionario de colecciones y referencias, diagrama de arquitectura y modelo lógico, más migraciones reales.",
+      "evidence": "INTEGRADOR.md: diccionario; diagramas/modelo.mmd; evidencias/mongo-esquema.json"
+    },
+    {
+      "id": "11.5",
+      "criterion": "Existe README técnico en Git.",
+      "required": "Captura o enlace al README.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "README técnico del repositorio y guía de auditoría versionable con instrucciones y límites de ejecución.",
+      "evidence": "README.md; docs/auditoria-tercer-parcial/README.md"
+    },
+    {
+      "id": "11.6",
+      "criterion": "Existe evidencia de pruebas documentada.",
+      "required": "Capturas, logs, tabla de pruebas.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Logs, JUnit, resultados HTTP, capturas y grabación acompañan la matriz de criterios.",
+      "evidence": "evidencias; capturas; Recorrido_Comunidad.avi"
+    },
+    {
+      "id": "11.7",
+      "criterion": "Existe documentación de integración si el módulo se conecta con otros.",
+      "required": "Documento de validación entre módulos.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Contratos y validaciones por dependencia se conservan bajo docs/integration.",
+      "evidence": "docs/integration/CONTRATO_PAGO_EVENTOS_E2_E6.md; docs/integration/API_AVISOS_EQUIPO_5.md; docs/integration/E1-BECA-CONSEJO.md"
+    },
+    {
+      "id": "11.8",
+      "criterion": "Los documentos tienen fecha, versión y responsables.",
+      "required": "Portadas o control de cambios.",
+      "status": "Cumple parcialmente",
+      "code": "P",
+      "response": "Se incluyen fecha, base Git y responsable de revisión. Los apellidos faltantes y las responsabilidades individuales del equipo deben confirmarse antes de entregar; no se atribuyen autores por una asignación de exposición.",
+      "evidence": "INTEGRADOR.md: identificación; Auditoria_Modulo6_Llenada.docx: datos generales"
+    },
+    {
+      "id": "12.1",
+      "criterion": "El repositorio contiene estructura clara de Laravel/Vue.",
+      "required": "URL del repositorio y captura de estructura.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Estructura Laravel/Vue consistente, archivos separados para rutas, modelos, servicios, pruebas y documentación.",
+      "evidence": "Repositorio MERGE_COMPLETO; evidencias/git-historial.txt; API.md"
+    },
+    {
+      "id": "12.2",
+      "criterion": "Hay commits frecuentes de varios integrantes.",
+      "required": "Captura de historial de commits.",
+      "status": "Cumple parcialmente",
+      "code": "P",
+      "response": "Hay commits frecuentes, pero el historial de los archivos revisados de E6 identifica a Daniel y cuentas Codex. Los autores de otros módulos no acreditan aportes de varios integrantes de E6. No se fabricaron commits ni autores.",
+      "evidence": "evidencias/git-autores-e6.txt; evidencias/git-historial.txt"
+    },
+    {
+      "id": "12.3",
+      "criterion": "Los commits describen cambios concretos.",
+      "required": "Captura de mensajes de commit.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "Los commits recientes identifican cambios concretos de becas, seguridad, finanzas e integración.",
+      "evidence": "evidencias/git-historial.txt"
+    },
+    {
+      "id": "12.4",
+      "criterion": "Se usaron ramas o flujo de integración controlado.",
+      "required": "Captura de branches o pull requests.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "La rama integrada conserva incorporaciones controladas, y las ramas de equipo permanecen separadas.",
+      "evidence": "evidencias/git-ramas.txt; docs/integration/ENTORNO_MERGE_COMPLETO.md"
+    },
+    {
+      "id": "12.5",
+      "criterion": "Los cambios importantes se pueden rastrear a historias o requisitos.",
+      "required": "Referencia en commits, Trello o documento.",
+      "status": "Cumple",
+      "code": "C",
+      "response": "La tabla HU-01–HU-11 vincula cada punto del diseño con implementación y pruebas; la matriz vincula cada criterio de auditoría con evidencia.",
+      "evidence": "INTEGRADOR.md; matriz-cumplimiento.json; cambios-auditoria.patch"
+    },
+    {
+      "id": "12.6",
+      "criterion": "No se subieron secretos, contraseñas o .env real al repositorio.",
+      "required": "Captura de .gitignore y revisión del repo.",
+      "status": "Cumple parcialmente",
+      "code": "P",
+      "response": "Git rastrea solo .env.example en los patrones .env/pem/key revisados, sin valores secretos en el ejemplo. Los fixtures contienen claves de prueba explícitas. No se realizó un escaneo exhaustivo de secretos de toda la historia, por lo que no se certifica su ausencia absoluta.",
+      "evidence": "evidencias/git-ignore.txt; .gitignore; .env.example"
+    }
+  ]
+}
