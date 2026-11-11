@@ -1,0 +1,22 @@
+{
+  "tested_source_files_matched": 35,
+  "runtime_code_mismatch": [],
+  "anonymous_http_checks": [
+    {
+      "path": "/",
+      "status": 200,
+      "final_url": "http://127.0.0.1:8086/login"
+    },
+    {
+      "path": "/login",
+      "status": 200,
+      "final_url": "http://127.0.0.1:8086/login"
+    },
+    {
+      "path": "/api/v1/comunidad/portal/bandeja",
+      "status": 401,
+      "final_url": "http://127.0.0.1:8086/api/v1/comunidad/portal/bandeja"
+    }
+  ],
+  "manifest_matches_verified_build": true
+}

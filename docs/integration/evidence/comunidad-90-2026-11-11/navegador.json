@@ -1,0 +1,46 @@
+{
+  "environment": "isolated_new_accounts",
+  "checks": [
+    {
+      "name": "Delivered redemption notification has real detail link",
+      "passed": true
+    },
+    {
+      "name": "Deep link displays one delivered redemption",
+      "passed": true
+    },
+    {
+      "name": "Selected points movement is filtered by authenticated student",
+      "passed": true
+    },
+    {
+      "name": "Student sees revocation confirmed by E5",
+      "passed": true
+    },
+    {
+      "name": "Community analytics contains actual published report",
+      "passed": true
+    },
+    {
+      "name": "Closed survey and election counts are real",
+      "passed": true
+    },
+    {
+      "name": "No JavaScript errors",
+      "passed": true
+    },
+    {
+      "name": "No HTTP 500 responses",
+      "passed": true
+    }
+  ],
+  "page_errors": [],
+  "server_errors": [],
+  "screenshots": [
+    "comunidad90-bandeja.png",
+    "comunidad90-canje.png",
+    "comunidad90-movimiento.png",
+    "comunidad90-revocacion.png",
+    "comunidad90-analitica.png"
+  ]
+}

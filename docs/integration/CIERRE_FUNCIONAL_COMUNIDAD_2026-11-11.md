@@ -54,3 +54,10 @@ La estimación funcional previa de 85.24% y la rúbrica de 94.95/100 pertenecen 
 ## Evidencias
 
 Los JSON y JUnit de `evidence/comunidad-2026-11-11/` están saneados y proceden solo de las fixtures o de agregados de activación. `resumen.json` distingue comprobaciones de un tramo y un recorrido completo. El contrato actualizado está en `comunidad-notificaciones.openapi.json`.
+
+
+## Actualización posterior: objetivo mínimo de 90%
+
+El mismo día se completaron el productor de avisos E7, los agregados analíticos E6→E7 y la revocación de servicios E5, con 106 comprobaciones HTTP y revisión visual en Edge. La matriz con los once pesos originales queda en **90.36% estimado funcional**, frente al corte intermedio de 87.14%. El detalle, los límites y los 272 casos distintos con resultado final aprobado están en [AVANCE_FUNCIONAL_COMUNIDAD_2026-11-11.md](AVANCE_FUNCIONAL_COMUNIDAD_2026-11-11.md). El pendiente E7 del apartado anterior queda resuelto para esos avisos y agregados; continúan los bloqueos BECA, directorio/segmentación E1 y aceptación física NFC. La rúbrica anterior no se modifica.
+
+La activación local nueva fue autorizada expresamente y dejó las tareas habilitadas desde 2026-11-11T10:25:08Z sin histórico, fondos, puntos ni roles nuevos. Véase [ACTIVACION_COMUNIDAD_E7_2026-11-11.md](ACTIVACION_COMUNIDAD_E7_2026-11-11.md).

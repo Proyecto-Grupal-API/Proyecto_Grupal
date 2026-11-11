@@ -26,3 +26,8 @@ Abrir primero Informe_Auditoria_Modulo6.pdf y después el Word llenado. Importar
 ## Seguimiento funcional — 11 de noviembre
 
 El cierre posterior de cobros, devoluciones, beneficios E5, avisos y métricas está documentado en [CIERRE_FUNCIONAL_COMUNIDAD_2026-11-11.md](../integration/CIERRE_FUNCIONAL_COMUNIDAD_2026-11-11.md). Esa entrega suma pruebas HTTP reales con cuentas nuevas y bases aisladas; conserva separados el resultado de la rúbrica y la aceptación funcional. BECA aún requiere presupuesto aprobado y una vía válida de designaciones fuera de testing. El directorio, la segmentación y los esquemas completos del portal siguen pendientes; no se cambia retrospectivamente la calificación del expediente.
+
+
+## Segundo corte del 11 de noviembre: avance funcional mínimo
+
+La matriz funcional de Comunidad se reevaluó con los mismos once pesos: **90.36% estimado**. Se añadieron avisos reales de Recompensas, agregados analíticos de Comunidad y revocación confirmada de servicios con historial. Las tareas quedaron activadas en el entorno integrado, con corte para registros nuevos. [Informe y límites](../integration/AVANCE_FUNCIONAL_COMUNIDAD_2026-11-11.md). Esto no modifica la autoevaluación de la rúbrica ni acredita los pendientes de BECA, directorio académico, documentación estricta completa o lector NFC físico.

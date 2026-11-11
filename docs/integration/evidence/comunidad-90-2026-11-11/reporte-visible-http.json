@@ -1,0 +1,374 @@
+{
+  "source": "report generated and published by real HTTP after the acceptance workflow",
+  "report_id": "6af4404d118908727a068e22",
+  "checks": [
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/transparencia/reportes",
+      "passed": true,
+      "status": 201
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/transparencia/reportes/6af4404d118908727a068e22/publicar",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Command comunidad:publicar-analitica",
+      "passed": true
+    }
+  ],
+  "records": [
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T10:15:41+00:00",
+        "puede_gestionar": true,
+        "organizacion": "Consejo aislado 90",
+        "miembrosActivos": 2,
+        "eventosActivos": 0,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [
+          {
+            "id": "6af43dd402f2887aa104e640",
+            "estado": "aprobada",
+            "folio": "LAB90-locker",
+            "creado_en": "2026-11-11T10:05:08.492000Z",
+            "beca": "Beca aislada locker"
+          },
+          {
+            "id": "6af43dd402f2887aa104e63c",
+            "estado": "aprobada",
+            "folio": "LAB90-impresiones",
+            "creado_en": "2026-11-11T10:05:08.474000Z",
+            "beca": "Beca aislada impresiones"
+          }
+        ],
+        "proximoEvento": null,
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": {
+          "campanas_pendientes": 0,
+          "reportes_borrador": 0
+        }
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/transparencia/reportes",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "titulo": "Reporte visible del laboratorio",
+        "descripcion": "Evidencia de agregados sin información nominal.",
+        "fecha_inicio": "2026-11-11",
+        "fecha_fin": "2026-11-11",
+        "clave_solicitud": "44ec035f-04fe-4303-93c6-bf7e51926866"
+      },
+      "response": {
+        "message": "Borrador generado. Revisa las cifras antes de publicar.",
+        "reporte": {
+          "id": "6af4404d118908727a068e22",
+          "organizacion_nombre": "Consejo aislado 90",
+          "titulo": "Reporte visible del laboratorio",
+          "descripcion": "Evidencia de agregados sin información nominal.",
+          "fecha_inicio": "2026-11-11",
+          "fecha_fin": "2026-11-11",
+          "generado_en": "2026-11-11T10:15:41.808000Z",
+          "publicado_en": null,
+          "estado": "borrador",
+          "motivo_retiro": null,
+          "retirado_en": null,
+          "version": 1,
+          "metricas": [
+            {
+              "grupo": "Eventos",
+              "clave": "eventos_iniciados",
+              "etiqueta": "Eventos publicados con inicio en el periodo",
+              "valor": 0,
+              "criterio": "Eventos publicados cuyo inicio cae en el periodo y ya ocurrió al generar; reservas según su estado al generar.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "eventos_cancelados",
+              "etiqueta": "Eventos cancelados",
+              "valor": 0,
+              "criterio": "Eventos cancelados cuyo inicio previsto cae en el periodo y ya pasó.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "reservas_confirmadas",
+              "etiqueta": "Reservas confirmadas",
+              "valor": 0,
+              "criterio": "Eventos publicados cuyo inicio cae en el periodo y ya ocurrió al generar; reservas según su estado al generar.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "reservas_espera",
+              "etiqueta": "Reservas en espera",
+              "valor": 0,
+              "criterio": "Eventos publicados cuyo inicio cae en el periodo y ya ocurrió al generar; reservas según su estado al generar.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "reservas_pago_pendiente",
+              "etiqueta": "Reservas con pago pendiente",
+              "valor": 0,
+              "criterio": "Eventos publicados cuyo inicio cae en el periodo y ya ocurrió al generar; reservas según su estado al generar. No representan cobros realizados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "asistencias",
+              "etiqueta": "Asistencias registradas",
+              "valor": 0,
+              "criterio": "Eventos publicados cuyo inicio cae en el periodo y ya ocurrió al generar; reservas según su estado al generar. Requiere check-in registrado.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "eventos_cobros_confirmados",
+              "etiqueta": "Cobros E2 (fecha E2 o cohorte de preparación)",
+              "valor": 0,
+              "criterio": "Fecha de confirmación E2 (confirmado_en); si falta, cohorte de preparación del intento (creado_en). Solo estados aplicado, devolucion_pendiente o devuelto, con comprobante UUID y monto entero positivo MXN de reservas y eventos propios. Preparación y última actualización hasta el corte; por comprobante se conserva el registro más reciente. No es saldo ni dinero disponible.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "eventos_cobrado_bruto_centavos",
+              "etiqueta": "Cobrado bruto E2 (fecha E2 o cohorte de preparación)",
+              "valor": 0,
+              "criterio": "Fecha de confirmación E2 (confirmado_en); si falta, cohorte de preparación del intento (creado_en). Solo estados aplicado, devolucion_pendiente o devuelto, con comprobante UUID y monto entero positivo MXN de reservas y eventos propios. Preparación y última actualización hasta el corte; por comprobante se conserva el registro más reciente. No es saldo ni dinero disponible.",
+              "unidad": "centavos_mxn"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "eventos_devoluciones_confirmadas",
+              "etiqueta": "Devoluciones E2 verificables de los cobros seleccionados",
+              "valor": 0,
+              "criterio": "Fecha de confirmación E2 (confirmado_en); si falta, cohorte de preparación del intento (creado_en). Solo estados aplicado, devolucion_pendiente o devuelto, con comprobante UUID y monto entero positivo MXN de reservas y eventos propios. Preparación y última actualización hasta el corte; por comprobante se conserva el registro más reciente. No es saldo ni dinero disponible. De los cobros seleccionados, solo devuelto con comprobante_devolucion UUID único. E6 no persiste fecha financiera de devolución: refleja evidencia registrada hasta el corte, no devoluciones ocurridas en el periodo.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "eventos_devuelto_centavos",
+              "etiqueta": "Devuelto E2 de los cobros seleccionados",
+              "valor": 0,
+              "criterio": "Fecha de confirmación E2 (confirmado_en); si falta, cohorte de preparación del intento (creado_en). Solo estados aplicado, devolucion_pendiente o devuelto, con comprobante UUID y monto entero positivo MXN de reservas y eventos propios. Preparación y última actualización hasta el corte; por comprobante se conserva el registro más reciente. No es saldo ni dinero disponible. De los cobros seleccionados, solo devuelto con comprobante_devolucion UUID único. E6 no persiste fecha financiera de devolución: refleja evidencia registrada hasta el corte, no devoluciones ocurridas en el periodo.",
+              "unidad": "centavos_mxn"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "eventos_cobrado_neto_centavos",
+              "etiqueta": "Cobrado neto de devoluciones verificables (no saldo)",
+              "valor": 0,
+              "criterio": "Fecha de confirmación E2 (confirmado_en); si falta, cohorte de preparación del intento (creado_en). Solo estados aplicado, devolucion_pendiente o devuelto, con comprobante UUID y monto entero positivo MXN de reservas y eventos propios. Preparación y última actualización hasta el corte; por comprobante se conserva el registro más reciente. No es saldo ni dinero disponible. De los cobros seleccionados, solo devuelto con comprobante_devolucion UUID único. E6 no persiste fecha financiera de devolución: refleja evidencia registrada hasta el corte, no devoluciones ocurridas en el periodo.",
+              "unidad": "centavos_mxn"
+            },
+            {
+              "grupo": "Becas",
+              "clave": "solicitudes_enviadas",
+              "etiqueta": "Solicitudes enviadas",
+              "valor": 0,
+              "criterio": "Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Becas",
+              "clave": "solicitudes_pendiente",
+              "etiqueta": "Pendientes de revisión",
+              "valor": 0,
+              "criterio": "Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Becas",
+              "clave": "solicitudes_en_revision",
+              "etiqueta": "En revisión",
+              "valor": 0,
+              "criterio": "Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Becas",
+              "clave": "solicitudes_aprobada",
+              "etiqueta": "Aprobadas",
+              "valor": 0,
+              "criterio": "Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Becas",
+              "clave": "solicitudes_rechazada",
+              "etiqueta": "Rechazadas",
+              "valor": 0,
+              "criterio": "Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Becas",
+              "clave": "solicitudes_retirada",
+              "etiqueta": "Retiradas",
+              "valor": 0,
+              "criterio": "Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Becas",
+              "clave": "solicitudes_cancelada",
+              "etiqueta": "Canceladas",
+              "valor": 0,
+              "criterio": "Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "aprobaciones_periodo",
+              "etiqueta": "Apoyos aprobados en el periodo",
+              "valor": 0,
+              "criterio": "Aprobaciones dictaminadas en el periodo; pueden corresponder a solicitudes enviadas antes. La aprobación local no acredita una entrega.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "personas_aprobadas",
+              "etiqueta": "Personas distintas con apoyo aprobado",
+              "valor": 0,
+              "criterio": "Aprobaciones dictaminadas en el periodo; pueden corresponder a solicitudes enviadas antes. La aprobación local no acredita una entrega.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "asignaciones_pendientes",
+              "etiqueta": "Asignaciones pendientes de integración",
+              "valor": 0,
+              "criterio": "Aprobaciones dictaminadas en el periodo; pueden corresponder a solicitudes enviadas antes. La aprobación local no acredita una entrega.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "monto_pendiente_centavos",
+              "etiqueta": "Monto aprobado pendiente de integración",
+              "valor": 0,
+              "criterio": "Aprobaciones dictaminadas en el periodo; pueden corresponder a solicitudes enviadas antes. La aprobación local no acredita una entrega. Suma los montos MXN de los contratos pendientes, no pagos ni saldo disponible.",
+              "unidad": "centavos_mxn"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "apoyos_entregados",
+              "etiqueta": "Apoyos con entrega confirmada",
+              "valor": 2,
+              "criterio": "Entregas confirmadas por E5 o emisiones confirmadas por E2, registradas en Comunidad dentro del periodo, aunque el dictamen sea anterior. Incluye entregas posteriormente revocadas: mide entregas históricas, no beneficios activos.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "apoyos_entregados_locker",
+              "etiqueta": "Lockers entregados",
+              "valor": 1,
+              "criterio": "Entregas confirmadas por E5 o emisiones confirmadas por E2, registradas en Comunidad dentro del periodo, aunque el dictamen sea anterior. Incluye entregas posteriormente revocadas: mide entregas históricas, no beneficios activos.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "apoyos_entregados_impresiones",
+              "etiqueta": "Apoyos de impresiones entregados",
+              "valor": 1,
+              "criterio": "Entregas confirmadas por E5 o emisiones confirmadas por E2, registradas en Comunidad dentro del periodo, aunque el dictamen sea anterior. Incluye entregas posteriormente revocadas: mide entregas históricas, no beneficios activos.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "apoyos_entregados_bono",
+              "etiqueta": "Bonos BECA emitidos",
+              "valor": 0,
+              "criterio": "Entregas confirmadas por E5 o emisiones confirmadas por E2, registradas en Comunidad dentro del periodo, aunque el dictamen sea anterior. Incluye entregas posteriormente revocadas: mide entregas históricas, no beneficios activos.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Comunicación",
+              "clave": "mensajes_entregados",
+              "etiqueta": "Mensajes entregados en bandeja",
+              "valor": 0,
+              "criterio": "Entregas de campañas propias creadas en el periodo, incluso archivadas o eliminadas lógicamente.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Comunicación",
+              "clave": "mensajes_leidos",
+              "etiqueta": "Entregas leídas al menos una vez",
+              "valor": 0,
+              "criterio": "De los mensajes entregados en el periodo, lecturas acumuladas al generar, aunque se hayan marcado sin leer después.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Participación",
+              "clave": "encuestas_cerradas",
+              "etiqueta": "Encuestas cerradas",
+              "valor": 1,
+              "criterio": "Cierre efectivo dentro del periodo: anticipado o por fecha. Excluye borradores, procesos abiertos y cancelados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Participación",
+              "clave": "encuestas_participaciones",
+              "etiqueta": "Participaciones en Encuestas",
+              "valor": 1,
+              "criterio": "Participaciones de los procesos cerrados en el periodo. No se publican selecciones ni padrón nominal.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Participación",
+              "clave": "votaciones_cerradas",
+              "etiqueta": "Votaciones cerradas",
+              "valor": 1,
+              "criterio": "Cierre efectivo dentro del periodo: anticipado o por fecha. Excluye borradores, procesos abiertos y cancelados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Participación",
+              "clave": "votaciones_participaciones",
+              "etiqueta": "Participaciones en Votaciones",
+              "valor": 1,
+              "criterio": "Participaciones de los procesos cerrados en el periodo. No se publican selecciones ni padrón nominal.",
+              "unidad": "cantidad"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/transparencia/reportes/6af4404d118908727a068e22/publicar",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "confirmar": true
+      },
+      "response": {
+        "message": "Reporte publicado para los integrantes de la organización."
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+INFO  Running migrations.
+
+  2026_11_11_100000_create_platform_community_notices ........... 41.42ms DONE
+
+
+
+   INFO  Running migrations.
+
+  2026_11_11_110000_create_community_analytics_deliveries ....... 42.99ms DONE

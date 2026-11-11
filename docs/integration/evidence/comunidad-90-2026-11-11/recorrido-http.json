@@ -1,0 +1,3061 @@
+{
+  "environment": "new isolated accounts and fixtures, real HTTP/OAuth/HMAC",
+  "checks": [
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /two-factor-challenge",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "Command comunidad:entregar-beneficios",
+      "passed": true
+    },
+    {
+      "check": "Two real E5 assignments",
+      "passed": true
+    },
+    {
+      "check": "E6 accepted both real receipts",
+      "passed": true
+    },
+    {
+      "check": "POST /servicios-estudiante/servicios-impresiones",
+      "passed": true,
+      "status": 302
+    },
+    {
+      "check": "Printing order exists",
+      "passed": true
+    },
+    {
+      "check": "PATCH /servicios-estudiante/servicios-impresiones/6af43e5a716404f0b80c2166/pagar-con-beca",
+      "passed": true,
+      "status": 302
+    },
+    {
+      "check": "Thirty pages consumed, seventy left",
+      "passed": true
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/solicitudes/6af43dd402f2887aa104e63c/revocacion-beneficio",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/solicitudes/6af43dd402f2887aa104e63c/revocacion-beneficio",
+      "passed": true,
+      "status": 202
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/solicitudes/6af43dd402f2887aa104e63c/revocacion-beneficio",
+      "passed": true,
+      "status": 202
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/solicitudes/6af43dd402f2887aa104e640/revocacion-beneficio",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/solicitudes/6af43dd402f2887aa104e640/revocacion-beneficio",
+      "passed": true,
+      "status": 202
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/solicitudes/6af43dd402f2887aa104e640/revocacion-beneficio",
+      "passed": true,
+      "status": 202
+    },
+    {
+      "check": "Command comunidad:entregar-beneficios",
+      "passed": true
+    },
+    {
+      "check": "Both real cancellations confirmed by E6",
+      "passed": true
+    },
+    {
+      "check": "Consumed pages preserved after cancelling remainder",
+      "passed": true
+    },
+    {
+      "check": "Locker is available after revocation",
+      "passed": true
+    },
+    {
+      "check": "Command comunidad:entregar-beneficios",
+      "passed": true
+    },
+    {
+      "check": "Retry does not repeat E5 cancellation",
+      "passed": true
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/consultas/encuestas",
+      "passed": true,
+      "status": 201
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016/preview",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016/publicar",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016/responder",
+      "passed": true,
+      "status": 201
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016/responder",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016/cerrar",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "One response and hidden roster encuestas",
+      "passed": true
+    },
+    {
+      "check": "No individual response IDs exported encuestas",
+      "passed": true
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /two-factor-challenge",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/consultas/votaciones",
+      "passed": true,
+      "status": 201
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e/preview",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e/publicar",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e/responder",
+      "passed": true,
+      "status": 201
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e/responder",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e/cerrar",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "One response and hidden roster votaciones",
+      "passed": true
+    },
+    {
+      "check": "No individual response IDs exported votaciones",
+      "passed": true
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /two-factor-challenge",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/transparencia/reportes",
+      "passed": true,
+      "status": 201
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/transparencia/reportes/6af43f18118908727a068e0d/publicar",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Command comunidad:publicar-analitica",
+      "passed": true
+    },
+    {
+      "check": "GET /api/v1/recompensas/analytics/community",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "E7 receives one report, one survey and one election",
+      "passed": true
+    },
+    {
+      "check": "E7 receives financial/benefit aggregates only",
+      "passed": true
+    },
+    {
+      "check": "Command comunidad:publicar-analitica",
+      "passed": true
+    },
+    {
+      "check": "GET /api/v1/recompensas/analytics/community",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Analytics retry preserves counts",
+      "passed": true
+    },
+    {
+      "check": "POST /api/v1/recompensas/redemptions",
+      "passed": true,
+      "status": 201
+    },
+    {
+      "check": "POST /api/v1/recompensas/redemptions/6af43f1b118908727a068e14/deliver",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/recompensas/redemptions",
+      "passed": true,
+      "status": 201
+    },
+    {
+      "check": "POST /api/v1/recompensas/redemptions/6af43f1b716404f0b80c2177/cancel",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Command plataforma:entregar-avisos-comunidad",
+      "passed": true
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/bandeja",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /two-factor-challenge",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/bandeja",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Five real point/redemption notices delivered",
+      "passed": true
+    },
+    {
+      "check": "Command plataforma:entregar-avisos-comunidad",
+      "passed": true
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/bandeja",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Notice retry creates no duplicates",
+      "passed": true
+    },
+    {
+      "check": "GET /api/v1/recompensas/redemptions/6af43f1b118908727a068e14",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/bandeja/6af43f1fc11ad6e3ca0f3153",
+      "passed": true,
+      "status": 404
+    },
+    {
+      "check": "GET /api/v1/recompensas/points/my-history?movement_id=6af43dd402f2887aa104e643",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/recompensas/points/my-balance",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Real point debit and cancellation leave eighty fixture points",
+      "passed": true
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/transparencia/reportes/6af43f18118908727a068e0d/retirar",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Command comunidad:publicar-analitica",
+      "passed": true
+    },
+    {
+      "check": "GET /api/v1/recompensas/analytics/community",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "E7 hides withdrawn report but preserves closed process counts",
+      "passed": true
+    }
+  ],
+  "records": [
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T10:07:15+00:00",
+        "puede_gestionar": true,
+        "organizacion": "Consejo aislado 90",
+        "miembrosActivos": 2,
+        "eventosActivos": 0,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [
+          {
+            "id": "6af43dd402f2887aa104e640",
+            "estado": "aprobada",
+            "folio": "LAB90-locker",
+            "creado_en": "2026-11-11T10:05:08.492000Z",
+            "beca": "Beca aislada locker"
+          },
+          {
+            "id": "6af43dd402f2887aa104e63c",
+            "estado": "aprobada",
+            "folio": "LAB90-impresiones",
+            "creado_en": "2026-11-11T10:05:08.474000Z",
+            "beca": "Beca aislada impresiones"
+          }
+        ],
+        "proximoEvento": null,
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": {
+          "campanas_pendientes": 0,
+          "reportes_borrador": 0
+        }
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T10:07:16+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo aislado 90",
+        "miembrosActivos": 2,
+        "eventosActivos": 0,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [
+          {
+            "id": "6af43dd402f2887aa104e640",
+            "estado": "aprobada",
+            "folio": "LAB90-locker",
+            "creado_en": "2026-11-11T10:05:08.492000Z",
+            "beca": "Beca aislada locker"
+          },
+          {
+            "id": "6af43dd402f2887aa104e63c",
+            "estado": "aprobada",
+            "folio": "LAB90-impresiones",
+            "creado_en": "2026-11-11T10:05:08.474000Z",
+            "beca": "Beca aislada impresiones"
+          }
+        ],
+        "proximoEvento": null,
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": null
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 403,
+      "request": null,
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 403,
+      "request": null,
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      }
+    },
+    {
+      "path": "/servicios-estudiante/servicios-impresiones",
+      "method": "POST",
+      "status": 302,
+      "request": "[PDF de prueba multipart]",
+      "response": "[HTML/empty response]"
+    },
+    {
+      "path": "/servicios-estudiante/servicios-impresiones/6af43e5a716404f0b80c2166/pagar-con-beca",
+      "method": "PATCH",
+      "status": 302,
+      "request": {},
+      "response": "[HTML/empty response]"
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af43dd402f2887aa104e63c/revocacion-beneficio",
+      "method": "POST",
+      "status": 403,
+      "request": {
+        "motivo": "Baja del beneficio en la prueba aislada de aceptación.",
+        "confirmacion": true
+      },
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af43dd402f2887aa104e63c/revocacion-beneficio",
+      "method": "POST",
+      "status": 202,
+      "request": {
+        "motivo": "Baja del beneficio en la prueba aislada de aceptación.",
+        "confirmacion": true
+      },
+      "response": {
+        "estado": "revocacion_pendiente",
+        "message": "Revocación solicitada. E5 debe confirmar la liberación; el consumo histórico se conserva."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af43dd402f2887aa104e63c/revocacion-beneficio",
+      "method": "POST",
+      "status": 202,
+      "request": {
+        "motivo": "Baja del beneficio en la prueba aislada de aceptación.",
+        "confirmacion": true
+      },
+      "response": {
+        "estado": "revocacion_pendiente",
+        "message": "Revocación solicitada. E5 debe confirmar la liberación; el consumo histórico se conserva."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af43dd402f2887aa104e640/revocacion-beneficio",
+      "method": "POST",
+      "status": 403,
+      "request": {
+        "motivo": "Baja del beneficio en la prueba aislada de aceptación.",
+        "confirmacion": true
+      },
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af43dd402f2887aa104e640/revocacion-beneficio",
+      "method": "POST",
+      "status": 202,
+      "request": {
+        "motivo": "Baja del beneficio en la prueba aislada de aceptación.",
+        "confirmacion": true
+      },
+      "response": {
+        "estado": "revocacion_pendiente",
+        "message": "Revocación solicitada. E5 debe confirmar la liberación; el consumo histórico se conserva."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af43dd402f2887aa104e640/revocacion-beneficio",
+      "method": "POST",
+      "status": 202,
+      "request": {
+        "motivo": "Baja del beneficio en la prueba aislada de aceptación.",
+        "confirmacion": true
+      },
+      "response": {
+        "estado": "revocacion_pendiente",
+        "message": "Revocación solicitada. E5 debe confirmar la liberación; el consumo histórico se conserva."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/encuestas",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "titulo": "Consulta aislada encuestas",
+        "descripcion": "Aceptación de privacidad y agregados.",
+        "fecha_inicio": "2026-11-11T04:02",
+        "fecha_fin": "2026-11-11T05:07",
+        "audiencia": "miembros",
+        "preguntas": [
+          {
+            "titulo": "Prioridad del campus",
+            "opciones": [
+              "Actividades",
+              "Servicios"
+            ]
+          }
+        ]
+      },
+      "response": {
+        "message": "Borrador guardado.",
+        "consulta": {
+          "id": "6af43e60648b276ce6046016",
+          "titulo": "Consulta aislada encuestas",
+          "descripcion": "Aceptación de privacidad y agregados.",
+          "fecha_inicio": "2026-11-11T10:02:00.000000Z",
+          "fecha_fin": "2026-11-11T11:07:00.000000Z",
+          "preguntas": [
+            {
+              "id": "b382fb8e-daa0-447a-927f-f75582931ca9",
+              "titulo": "Prioridad del campus",
+              "opciones": [
+                {
+                  "id": "3d02963f-b4f9-4338-b7f9-a54ed477e570",
+                  "texto": "Actividades"
+                },
+                {
+                  "id": "a8593668-6a0e-484d-a693-c8e145af36e1",
+                  "texto": "Servicios"
+                }
+              ]
+            }
+          ],
+          "estado": "borrador",
+          "revision": 1,
+          "audiencia": "miembros",
+          "evento_id": null,
+          "total_padron": null,
+          "motivo_cierre": null,
+          "motivo_cancelacion": null,
+          "fase": "borrador",
+          "participacion_registrada": false,
+          "puede_participar": false
+        }
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {},
+      "response": {
+        "consulta": {
+          "id": "6af43e60648b276ce6046016",
+          "titulo": "Consulta aislada encuestas",
+          "descripcion": "Aceptación de privacidad y agregados.",
+          "fecha_inicio": "2026-11-11T10:02:00.000000Z",
+          "fecha_fin": "2026-11-11T11:07:00.000000Z",
+          "preguntas": [
+            {
+              "titulo": "Prioridad del campus",
+              "opciones": [
+                {
+                  "texto": "Actividades",
+                  "id": "3d02963f-b4f9-4338-b7f9-a54ed477e570"
+                },
+                {
+                  "texto": "Servicios",
+                  "id": "a8593668-6a0e-484d-a693-c8e145af36e1"
+                }
+              ],
+              "id": "b382fb8e-daa0-447a-927f-f75582931ca9"
+            }
+          ],
+          "estado": "borrador",
+          "revision": 1,
+          "audiencia": "miembros",
+          "evento_id": null,
+          "total_padron": null,
+          "motivo_cierre": null,
+          "motivo_cancelacion": null,
+          "fase": "borrador",
+          "participacion_registrada": false,
+          "puede_participar": false
+        },
+        "total_padron": 2,
+        "evento_titulo": null,
+        "firma": "036e88906dd0858144d248b053a07ae01e73ca71f6231ae3afbaf4561e6c8782"
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016/publicar",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "firma": "036e88906dd0858144d248b053a07ae01e73ca71f6231ae3afbaf4561e6c8782"
+      },
+      "response": {
+        "message": "Consulta publicada con padrón fijo."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "consulta": {
+          "id": "6af43e60648b276ce6046016",
+          "titulo": "Consulta aislada encuestas",
+          "descripcion": "Aceptación de privacidad y agregados.",
+          "fecha_inicio": "2026-11-11T10:02:00.000000Z",
+          "fecha_fin": "2026-11-11T11:07:00.000000Z",
+          "preguntas": [
+            {
+              "titulo": "Prioridad del campus",
+              "opciones": [
+                {
+                  "texto": "Actividades",
+                  "id": "3d02963f-b4f9-4338-b7f9-a54ed477e570"
+                },
+                {
+                  "texto": "Servicios",
+                  "id": "a8593668-6a0e-484d-a693-c8e145af36e1"
+                }
+              ],
+              "id": "b382fb8e-daa0-447a-927f-f75582931ca9"
+            }
+          ],
+          "estado": "publicada",
+          "revision": 1,
+          "audiencia": "miembros",
+          "evento_id": null,
+          "total_padron": 2,
+          "motivo_cierre": null,
+          "motivo_cancelacion": null,
+          "fase": "abierta",
+          "participacion_registrada": false,
+          "puede_participar": true
+        },
+        "resultados": null
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016/responder",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "revision": 1,
+        "respuestas": [
+          {
+            "pregunta_id": "b382fb8e-daa0-447a-927f-f75582931ca9",
+            "opcion_id": "3d02963f-b4f9-4338-b7f9-a54ed477e570"
+          }
+        ]
+      },
+      "response": {
+        "message": "Participación registrada. Gracias por participar.",
+        "registrada": true
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016/responder",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "revision": 1,
+        "respuestas": [
+          {
+            "pregunta_id": "b382fb8e-daa0-447a-927f-f75582931ca9",
+            "opcion_id": "3d02963f-b4f9-4338-b7f9-a54ed477e570"
+          }
+        ]
+      },
+      "response": {
+        "message": "Tu participación ya estaba registrada. No se modificó.",
+        "registrada": true
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016",
+      "method": "GET",
+      "status": 403,
+      "request": null,
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016/cerrar",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "motivo": "Cierre de la prueba aislada de participación."
+      },
+      "response": {
+        "message": "Consulta cerrada. Los resultados agregados ya están disponibles."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/encuestas/6af43e60648b276ce6046016",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "consulta": {
+          "id": "6af43e60648b276ce6046016",
+          "titulo": "Consulta aislada encuestas",
+          "descripcion": "Aceptación de privacidad y agregados.",
+          "fecha_inicio": "2026-11-11T10:02:00.000000Z",
+          "fecha_fin": "2026-11-11T11:07:00.000000Z",
+          "preguntas": [
+            {
+              "titulo": "Prioridad del campus",
+              "opciones": [
+                {
+                  "texto": "Actividades",
+                  "id": "3d02963f-b4f9-4338-b7f9-a54ed477e570"
+                },
+                {
+                  "texto": "Servicios",
+                  "id": "a8593668-6a0e-484d-a693-c8e145af36e1"
+                }
+              ],
+              "id": "b382fb8e-daa0-447a-927f-f75582931ca9"
+            }
+          ],
+          "estado": "cerrada",
+          "revision": 1,
+          "audiencia": "miembros",
+          "evento_id": null,
+          "total_padron": 2,
+          "motivo_cierre": "Cierre de la prueba aislada de participación.",
+          "motivo_cancelacion": null,
+          "fase": "cerrada",
+          "participacion_registrada": true,
+          "puede_participar": false
+        },
+        "resultados": {
+          "total": 1,
+          "total_padron": 2,
+          "participacion_porcentaje": 50,
+          "preguntas": [
+            {
+              "id": "b382fb8e-daa0-447a-927f-f75582931ca9",
+              "titulo": "Prioridad del campus",
+              "opciones": [
+                {
+                  "texto": "Actividades",
+                  "id": "3d02963f-b4f9-4338-b7f9-a54ed477e570",
+                  "cantidad": 1,
+                  "porcentaje": 100
+                },
+                {
+                  "texto": "Servicios",
+                  "id": "a8593668-6a0e-484d-a693-c8e145af36e1",
+                  "cantidad": 0,
+                  "porcentaje": 0
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/votaciones",
+      "method": "POST",
+      "status": 422,
+      "request": {
+        "titulo": "Consulta aislada votaciones",
+        "descripcion": "Aceptación de privacidad y agregados.",
+        "fecha_inicio": "2026-11-11T04:02",
+        "fecha_fin": "2026-11-11T05:07",
+        "audiencia": "miembros",
+        "preguntas": [
+          {
+            "titulo": "Prioridad del campus",
+            "opciones": [
+              "Actividades",
+              "Servicios"
+            ]
+          }
+        ]
+      },
+      "response": {
+        "message": "Revisa los datos enviados.",
+        "errors": {
+          "audiencia": [
+            "The audiencia field is prohibited."
+          ]
+        }
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T10:08:51+00:00",
+        "puede_gestionar": true,
+        "organizacion": "Consejo aislado 90",
+        "miembrosActivos": 2,
+        "eventosActivos": 0,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [
+          {
+            "id": "6af43dd402f2887aa104e640",
+            "estado": "aprobada",
+            "folio": "LAB90-locker",
+            "creado_en": "2026-11-11T10:05:08.492000Z",
+            "beca": "Beca aislada locker"
+          },
+          {
+            "id": "6af43dd402f2887aa104e63c",
+            "estado": "aprobada",
+            "folio": "LAB90-impresiones",
+            "creado_en": "2026-11-11T10:05:08.474000Z",
+            "beca": "Beca aislada impresiones"
+          }
+        ],
+        "proximoEvento": null,
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": {
+          "campanas_pendientes": 0,
+          "reportes_borrador": 0
+        }
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T10:08:53+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo aislado 90",
+        "miembrosActivos": 2,
+        "eventosActivos": 0,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [
+          {
+            "id": "6af43dd402f2887aa104e640",
+            "estado": "aprobada",
+            "folio": "LAB90-locker",
+            "creado_en": "2026-11-11T10:05:08.492000Z",
+            "beca": "Beca aislada locker"
+          },
+          {
+            "id": "6af43dd402f2887aa104e63c",
+            "estado": "aprobada",
+            "folio": "LAB90-impresiones",
+            "creado_en": "2026-11-11T10:05:08.474000Z",
+            "beca": "Beca aislada impresiones"
+          }
+        ],
+        "proximoEvento": null,
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": null
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 403,
+      "request": null,
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 403,
+      "request": null,
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/votaciones",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "titulo": "Consulta aislada votaciones",
+        "descripcion": "Aceptación de privacidad y agregados.",
+        "fecha_inicio": "2026-11-11T04:03",
+        "fecha_fin": "2026-11-11T05:08",
+        "preguntas": [
+          {
+            "titulo": "Prioridad del campus",
+            "opciones": [
+              "Actividades",
+              "Servicios"
+            ]
+          }
+        ]
+      },
+      "response": {
+        "message": "Borrador guardado.",
+        "consulta": {
+          "id": "6af43eb7c11ad6e3ca0f314e",
+          "titulo": "Consulta aislada votaciones",
+          "descripcion": "Aceptación de privacidad y agregados.",
+          "fecha_inicio": "2026-11-11T10:03:00.000000Z",
+          "fecha_fin": "2026-11-11T11:08:00.000000Z",
+          "preguntas": [
+            {
+              "id": "7667edb0-3935-4aa5-ab58-e0a87b9dabdb",
+              "titulo": "Prioridad del campus",
+              "opciones": [
+                {
+                  "id": "819143a6-a6c5-476b-b27f-1d82cd8d1adb",
+                  "texto": "Actividades"
+                },
+                {
+                  "id": "f7088812-5b1f-458f-a6a9-b69d0261aa08",
+                  "texto": "Servicios"
+                }
+              ]
+            }
+          ],
+          "estado": "borrador",
+          "revision": 1,
+          "audiencia": null,
+          "evento_id": null,
+          "total_padron": null,
+          "motivo_cierre": null,
+          "motivo_cancelacion": null,
+          "fase": "borrador",
+          "participacion_registrada": false,
+          "puede_participar": false
+        }
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e/preview",
+      "method": "POST",
+      "status": 200,
+      "request": {},
+      "response": {
+        "consulta": {
+          "id": "6af43eb7c11ad6e3ca0f314e",
+          "titulo": "Consulta aislada votaciones",
+          "descripcion": "Aceptación de privacidad y agregados.",
+          "fecha_inicio": "2026-11-11T10:03:00.000000Z",
+          "fecha_fin": "2026-11-11T11:08:00.000000Z",
+          "preguntas": [
+            {
+              "titulo": "Prioridad del campus",
+              "opciones": [
+                {
+                  "texto": "Actividades",
+                  "id": "819143a6-a6c5-476b-b27f-1d82cd8d1adb"
+                },
+                {
+                  "texto": "Servicios",
+                  "id": "f7088812-5b1f-458f-a6a9-b69d0261aa08"
+                }
+              ],
+              "id": "7667edb0-3935-4aa5-ab58-e0a87b9dabdb"
+            }
+          ],
+          "estado": "borrador",
+          "revision": 1,
+          "audiencia": null,
+          "evento_id": null,
+          "total_padron": null,
+          "motivo_cierre": null,
+          "motivo_cancelacion": null,
+          "fase": "borrador",
+          "participacion_registrada": false,
+          "puede_participar": false
+        },
+        "total_padron": 2,
+        "evento_titulo": null,
+        "firma": "848985eb7f822edaff4dd278335de2a38a397cc619c59753568c07954e9f6f37"
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e/publicar",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "firma": "848985eb7f822edaff4dd278335de2a38a397cc619c59753568c07954e9f6f37"
+      },
+      "response": {
+        "message": "Consulta publicada con padrón fijo."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "consulta": {
+          "id": "6af43eb7c11ad6e3ca0f314e",
+          "titulo": "Consulta aislada votaciones",
+          "descripcion": "Aceptación de privacidad y agregados.",
+          "fecha_inicio": "2026-11-11T10:03:00.000000Z",
+          "fecha_fin": "2026-11-11T11:08:00.000000Z",
+          "preguntas": [
+            {
+              "titulo": "Prioridad del campus",
+              "opciones": [
+                {
+                  "texto": "Actividades",
+                  "id": "819143a6-a6c5-476b-b27f-1d82cd8d1adb"
+                },
+                {
+                  "texto": "Servicios",
+                  "id": "f7088812-5b1f-458f-a6a9-b69d0261aa08"
+                }
+              ],
+              "id": "7667edb0-3935-4aa5-ab58-e0a87b9dabdb"
+            }
+          ],
+          "estado": "publicada",
+          "revision": 1,
+          "audiencia": null,
+          "evento_id": null,
+          "total_padron": 2,
+          "motivo_cierre": null,
+          "motivo_cancelacion": null,
+          "fase": "abierta",
+          "participacion_registrada": false,
+          "puede_participar": true
+        },
+        "resultados": null
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e/responder",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "revision": 1,
+        "respuestas": [
+          {
+            "pregunta_id": "7667edb0-3935-4aa5-ab58-e0a87b9dabdb",
+            "opcion_id": "819143a6-a6c5-476b-b27f-1d82cd8d1adb"
+          }
+        ]
+      },
+      "response": {
+        "message": "Participación registrada. Gracias por participar.",
+        "registrada": true
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e/responder",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "revision": 1,
+        "respuestas": [
+          {
+            "pregunta_id": "7667edb0-3935-4aa5-ab58-e0a87b9dabdb",
+            "opcion_id": "819143a6-a6c5-476b-b27f-1d82cd8d1adb"
+          }
+        ]
+      },
+      "response": {
+        "message": "Tu participación ya estaba registrada. No se modificó.",
+        "registrada": true
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e",
+      "method": "GET",
+      "status": 403,
+      "request": null,
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e/cerrar",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "motivo": "Cierre de la prueba aislada de participación."
+      },
+      "response": {
+        "message": "Consulta cerrada. Los resultados agregados ya están disponibles."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/consultas/votaciones/6af43eb7c11ad6e3ca0f314e",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "consulta": {
+          "id": "6af43eb7c11ad6e3ca0f314e",
+          "titulo": "Consulta aislada votaciones",
+          "descripcion": "Aceptación de privacidad y agregados.",
+          "fecha_inicio": "2026-11-11T10:03:00.000000Z",
+          "fecha_fin": "2026-11-11T11:08:00.000000Z",
+          "preguntas": [
+            {
+              "titulo": "Prioridad del campus",
+              "opciones": [
+                {
+                  "texto": "Actividades",
+                  "id": "819143a6-a6c5-476b-b27f-1d82cd8d1adb"
+                },
+                {
+                  "texto": "Servicios",
+                  "id": "f7088812-5b1f-458f-a6a9-b69d0261aa08"
+                }
+              ],
+              "id": "7667edb0-3935-4aa5-ab58-e0a87b9dabdb"
+            }
+          ],
+          "estado": "cerrada",
+          "revision": 1,
+          "audiencia": null,
+          "evento_id": null,
+          "total_padron": 2,
+          "motivo_cierre": "Cierre de la prueba aislada de participación.",
+          "motivo_cancelacion": null,
+          "fase": "cerrada",
+          "participacion_registrada": true,
+          "puede_participar": false
+        },
+        "resultados": {
+          "total": 1,
+          "total_padron": 2,
+          "participacion_porcentaje": 50,
+          "preguntas": [
+            {
+              "id": "7667edb0-3935-4aa5-ab58-e0a87b9dabdb",
+              "titulo": "Prioridad del campus",
+              "opciones": [
+                {
+                  "texto": "Actividades",
+                  "id": "819143a6-a6c5-476b-b27f-1d82cd8d1adb",
+                  "cantidad": 1,
+                  "porcentaje": 100
+                },
+                {
+                  "texto": "Servicios",
+                  "id": "f7088812-5b1f-458f-a6a9-b69d0261aa08",
+                  "cantidad": 0,
+                  "porcentaje": 0
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/reportes",
+      "method": "POST",
+      "status": 404,
+      "request": {
+        "titulo": "Resultados de aceptación aislada",
+        "descripcion": "Reporte del laboratorio sin datos nominales.",
+        "fecha_inicio": "2026-11-11",
+        "fecha_fin": "2026-11-11",
+        "clave_solicitud": "53af6bb4-b149-4a30-8126-446ff94bbcf0"
+      },
+      "response": {
+        "message": "No se encontró el recurso solicitado."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T10:10:15+00:00",
+        "puede_gestionar": true,
+        "organizacion": "Consejo aislado 90",
+        "miembrosActivos": 2,
+        "eventosActivos": 0,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [
+          {
+            "id": "6af43dd402f2887aa104e640",
+            "estado": "aprobada",
+            "folio": "LAB90-locker",
+            "creado_en": "2026-11-11T10:05:08.492000Z",
+            "beca": "Beca aislada locker"
+          },
+          {
+            "id": "6af43dd402f2887aa104e63c",
+            "estado": "aprobada",
+            "folio": "LAB90-impresiones",
+            "creado_en": "2026-11-11T10:05:08.474000Z",
+            "beca": "Beca aislada impresiones"
+          }
+        ],
+        "proximoEvento": null,
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": {
+          "campanas_pendientes": 0,
+          "reportes_borrador": 0
+        }
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T10:10:16+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo aislado 90",
+        "miembrosActivos": 2,
+        "eventosActivos": 0,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [
+          {
+            "id": "6af43dd402f2887aa104e640",
+            "estado": "aprobada",
+            "folio": "LAB90-locker",
+            "creado_en": "2026-11-11T10:05:08.492000Z",
+            "beca": "Beca aislada locker"
+          },
+          {
+            "id": "6af43dd402f2887aa104e63c",
+            "estado": "aprobada",
+            "folio": "LAB90-impresiones",
+            "creado_en": "2026-11-11T10:05:08.474000Z",
+            "beca": "Beca aislada impresiones"
+          }
+        ],
+        "proximoEvento": null,
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": null
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 403,
+      "request": null,
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 403,
+      "request": null,
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/transparencia/reportes",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "titulo": "Resultados de aceptación aislada",
+        "descripcion": "Reporte del laboratorio sin datos nominales.",
+        "fecha_inicio": "2026-11-11",
+        "fecha_fin": "2026-11-11",
+        "clave_solicitud": "a927d4ba-3668-4881-aaab-7099b277fb50"
+      },
+      "response": {
+        "message": "Borrador generado. Revisa las cifras antes de publicar.",
+        "reporte": {
+          "id": "6af43f18118908727a068e0d",
+          "organizacion_nombre": "Consejo aislado 90",
+          "titulo": "Resultados de aceptación aislada",
+          "descripcion": "Reporte del laboratorio sin datos nominales.",
+          "fecha_inicio": "2026-11-11",
+          "fecha_fin": "2026-11-11",
+          "generado_en": "2026-11-11T10:10:32.765000Z",
+          "publicado_en": null,
+          "estado": "borrador",
+          "motivo_retiro": null,
+          "retirado_en": null,
+          "version": 1,
+          "metricas": [
+            {
+              "grupo": "Eventos",
+              "clave": "eventos_iniciados",
+              "etiqueta": "Eventos publicados con inicio en el periodo",
+              "valor": 0,
+              "criterio": "Eventos publicados cuyo inicio cae en el periodo y ya ocurrió al generar; reservas según su estado al generar.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "eventos_cancelados",
+              "etiqueta": "Eventos cancelados",
+              "valor": 0,
+              "criterio": "Eventos cancelados cuyo inicio previsto cae en el periodo y ya pasó.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "reservas_confirmadas",
+              "etiqueta": "Reservas confirmadas",
+              "valor": 0,
+              "criterio": "Eventos publicados cuyo inicio cae en el periodo y ya ocurrió al generar; reservas según su estado al generar.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "reservas_espera",
+              "etiqueta": "Reservas en espera",
+              "valor": 0,
+              "criterio": "Eventos publicados cuyo inicio cae en el periodo y ya ocurrió al generar; reservas según su estado al generar.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "reservas_pago_pendiente",
+              "etiqueta": "Reservas con pago pendiente",
+              "valor": 0,
+              "criterio": "Eventos publicados cuyo inicio cae en el periodo y ya ocurrió al generar; reservas según su estado al generar. No representan cobros realizados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "asistencias",
+              "etiqueta": "Asistencias registradas",
+              "valor": 0,
+              "criterio": "Eventos publicados cuyo inicio cae en el periodo y ya ocurrió al generar; reservas según su estado al generar. Requiere check-in registrado.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "eventos_cobros_confirmados",
+              "etiqueta": "Cobros E2 (fecha E2 o cohorte de preparación)",
+              "valor": 0,
+              "criterio": "Fecha de confirmación E2 (confirmado_en); si falta, cohorte de preparación del intento (creado_en). Solo estados aplicado, devolucion_pendiente o devuelto, con comprobante UUID y monto entero positivo MXN de reservas y eventos propios. Preparación y última actualización hasta el corte; por comprobante se conserva el registro más reciente. No es saldo ni dinero disponible.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "eventos_cobrado_bruto_centavos",
+              "etiqueta": "Cobrado bruto E2 (fecha E2 o cohorte de preparación)",
+              "valor": 0,
+              "criterio": "Fecha de confirmación E2 (confirmado_en); si falta, cohorte de preparación del intento (creado_en). Solo estados aplicado, devolucion_pendiente o devuelto, con comprobante UUID y monto entero positivo MXN de reservas y eventos propios. Preparación y última actualización hasta el corte; por comprobante se conserva el registro más reciente. No es saldo ni dinero disponible.",
+              "unidad": "centavos_mxn"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "eventos_devoluciones_confirmadas",
+              "etiqueta": "Devoluciones E2 verificables de los cobros seleccionados",
+              "valor": 0,
+              "criterio": "Fecha de confirmación E2 (confirmado_en); si falta, cohorte de preparación del intento (creado_en). Solo estados aplicado, devolucion_pendiente o devuelto, con comprobante UUID y monto entero positivo MXN de reservas y eventos propios. Preparación y última actualización hasta el corte; por comprobante se conserva el registro más reciente. No es saldo ni dinero disponible. De los cobros seleccionados, solo devuelto con comprobante_devolucion UUID único. E6 no persiste fecha financiera de devolución: refleja evidencia registrada hasta el corte, no devoluciones ocurridas en el periodo.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "eventos_devuelto_centavos",
+              "etiqueta": "Devuelto E2 de los cobros seleccionados",
+              "valor": 0,
+              "criterio": "Fecha de confirmación E2 (confirmado_en); si falta, cohorte de preparación del intento (creado_en). Solo estados aplicado, devolucion_pendiente o devuelto, con comprobante UUID y monto entero positivo MXN de reservas y eventos propios. Preparación y última actualización hasta el corte; por comprobante se conserva el registro más reciente. No es saldo ni dinero disponible. De los cobros seleccionados, solo devuelto con comprobante_devolucion UUID único. E6 no persiste fecha financiera de devolución: refleja evidencia registrada hasta el corte, no devoluciones ocurridas en el periodo.",
+              "unidad": "centavos_mxn"
+            },
+            {
+              "grupo": "Eventos",
+              "clave": "eventos_cobrado_neto_centavos",
+              "etiqueta": "Cobrado neto de devoluciones verificables (no saldo)",
+              "valor": 0,
+              "criterio": "Fecha de confirmación E2 (confirmado_en); si falta, cohorte de preparación del intento (creado_en). Solo estados aplicado, devolucion_pendiente o devuelto, con comprobante UUID y monto entero positivo MXN de reservas y eventos propios. Preparación y última actualización hasta el corte; por comprobante se conserva el registro más reciente. No es saldo ni dinero disponible. De los cobros seleccionados, solo devuelto con comprobante_devolucion UUID único. E6 no persiste fecha financiera de devolución: refleja evidencia registrada hasta el corte, no devoluciones ocurridas en el periodo.",
+              "unidad": "centavos_mxn"
+            },
+            {
+              "grupo": "Becas",
+              "clave": "solicitudes_enviadas",
+              "etiqueta": "Solicitudes enviadas",
+              "valor": 0,
+              "criterio": "Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Becas",
+              "clave": "solicitudes_pendiente",
+              "etiqueta": "Pendientes de revisión",
+              "valor": 0,
+              "criterio": "Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Becas",
+              "clave": "solicitudes_en_revision",
+              "etiqueta": "En revisión",
+              "valor": 0,
+              "criterio": "Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Becas",
+              "clave": "solicitudes_aprobada",
+              "etiqueta": "Aprobadas",
+              "valor": 0,
+              "criterio": "Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Becas",
+              "clave": "solicitudes_rechazada",
+              "etiqueta": "Rechazadas",
+              "valor": 0,
+              "criterio": "Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Becas",
+              "clave": "solicitudes_retirada",
+              "etiqueta": "Retiradas",
+              "valor": 0,
+              "criterio": "Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Becas",
+              "clave": "solicitudes_cancelada",
+              "etiqueta": "Canceladas",
+              "valor": 0,
+              "criterio": "Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "aprobaciones_periodo",
+              "etiqueta": "Apoyos aprobados en el periodo",
+              "valor": 0,
+              "criterio": "Aprobaciones dictaminadas en el periodo; pueden corresponder a solicitudes enviadas antes. La aprobación local no acredita una entrega.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "personas_aprobadas",
+              "etiqueta": "Personas distintas con apoyo aprobado",
+              "valor": 0,
+              "criterio": "Aprobaciones dictaminadas en el periodo; pueden corresponder a solicitudes enviadas antes. La aprobación local no acredita una entrega.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "asignaciones_pendientes",
+              "etiqueta": "Asignaciones pendientes de integración",
+              "valor": 0,
+              "criterio": "Aprobaciones dictaminadas en el periodo; pueden corresponder a solicitudes enviadas antes. La aprobación local no acredita una entrega.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "monto_pendiente_centavos",
+              "etiqueta": "Monto aprobado pendiente de integración",
+              "valor": 0,
+              "criterio": "Aprobaciones dictaminadas en el periodo; pueden corresponder a solicitudes enviadas antes. La aprobación local no acredita una entrega. Suma los montos MXN de los contratos pendientes, no pagos ni saldo disponible.",
+              "unidad": "centavos_mxn"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "apoyos_entregados",
+              "etiqueta": "Apoyos con entrega confirmada",
+              "valor": 2,
+              "criterio": "Entregas confirmadas por E5 o emisiones confirmadas por E2, registradas en Comunidad dentro del periodo, aunque el dictamen sea anterior. Incluye entregas posteriormente revocadas: mide entregas históricas, no beneficios activos.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "apoyos_entregados_locker",
+              "etiqueta": "Lockers entregados",
+              "valor": 1,
+              "criterio": "Entregas confirmadas por E5 o emisiones confirmadas por E2, registradas en Comunidad dentro del periodo, aunque el dictamen sea anterior. Incluye entregas posteriormente revocadas: mide entregas históricas, no beneficios activos.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "apoyos_entregados_impresiones",
+              "etiqueta": "Apoyos de impresiones entregados",
+              "valor": 1,
+              "criterio": "Entregas confirmadas por E5 o emisiones confirmadas por E2, registradas en Comunidad dentro del periodo, aunque el dictamen sea anterior. Incluye entregas posteriormente revocadas: mide entregas históricas, no beneficios activos.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Apoyos",
+              "clave": "apoyos_entregados_bono",
+              "etiqueta": "Bonos BECA emitidos",
+              "valor": 0,
+              "criterio": "Entregas confirmadas por E5 o emisiones confirmadas por E2, registradas en Comunidad dentro del periodo, aunque el dictamen sea anterior. Incluye entregas posteriormente revocadas: mide entregas históricas, no beneficios activos.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Comunicación",
+              "clave": "mensajes_entregados",
+              "etiqueta": "Mensajes entregados en bandeja",
+              "valor": 0,
+              "criterio": "Entregas de campañas propias creadas en el periodo, incluso archivadas o eliminadas lógicamente.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Comunicación",
+              "clave": "mensajes_leidos",
+              "etiqueta": "Entregas leídas al menos una vez",
+              "valor": 0,
+              "criterio": "De los mensajes entregados en el periodo, lecturas acumuladas al generar, aunque se hayan marcado sin leer después.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Participación",
+              "clave": "encuestas_cerradas",
+              "etiqueta": "Encuestas cerradas",
+              "valor": 1,
+              "criterio": "Cierre efectivo dentro del periodo: anticipado o por fecha. Excluye borradores, procesos abiertos y cancelados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Participación",
+              "clave": "encuestas_participaciones",
+              "etiqueta": "Participaciones en Encuestas",
+              "valor": 1,
+              "criterio": "Participaciones de los procesos cerrados en el periodo. No se publican selecciones ni padrón nominal.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Participación",
+              "clave": "votaciones_cerradas",
+              "etiqueta": "Votaciones cerradas",
+              "valor": 1,
+              "criterio": "Cierre efectivo dentro del periodo: anticipado o por fecha. Excluye borradores, procesos abiertos y cancelados.",
+              "unidad": "cantidad"
+            },
+            {
+              "grupo": "Participación",
+              "clave": "votaciones_participaciones",
+              "etiqueta": "Participaciones en Votaciones",
+              "valor": 1,
+              "criterio": "Participaciones de los procesos cerrados en el periodo. No se publican selecciones ni padrón nominal.",
+              "unidad": "cantidad"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/transparencia/reportes/6af43f18118908727a068e0d/publicar",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "confirmar": true
+      },
+      "response": {
+        "message": "Reporte publicado para los integrantes de la organización."
+      }
+    },
+    {
+      "path": "/api/v1/recompensas/analytics/community",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "linked": true,
+        "window": {
+          "days": 30,
+          "since": "2026-10-12T10:10:34.370063Z",
+          "until": "2026-11-11T10:10:34.370063Z",
+          "basis": "occurred_at",
+          "report_state": "current_until_now",
+          "description": "Ventana inclusiva por occurred_at del último snapshot publicado. Estado vigente hasta ahora: un retiro posterior prevalece; se excluyen eventos futuros. Procesos por organización, tipo e ID, con la mayor revisión válida. No se suman métricas entre reportes."
+        },
+        "stats": {
+          "report_count": 1,
+          "closed_surveys": 1,
+          "closed_elections": 1
+        },
+        "metric_units": {
+          "eventos_iniciados": "count",
+          "eventos_cancelados": "count",
+          "reservas_confirmadas": "count",
+          "reservas_espera": "count",
+          "reservas_pago_pendiente": "count",
+          "asistencias": "count",
+          "eventos_cobros_confirmados": "count",
+          "eventos_devoluciones_confirmadas": "count",
+          "eventos_cobrado_bruto_centavos": "centavos_mxn",
+          "eventos_devuelto_centavos": "centavos_mxn",
+          "eventos_cobrado_neto_centavos": "centavos_mxn",
+          "solicitudes_enviadas": "count",
+          "solicitudes_pendiente": "count",
+          "solicitudes_en_revision": "count",
+          "solicitudes_aprobada": "count",
+          "solicitudes_rechazada": "count",
+          "solicitudes_retirada": "count",
+          "solicitudes_cancelada": "count",
+          "aprobaciones_periodo": "count",
+          "personas_aprobadas": "count",
+          "asignaciones_pendientes": "count",
+          "monto_pendiente_centavos": "centavos_mxn",
+          "apoyos_entregados": "count",
+          "apoyos_entregados_locker": "count",
+          "apoyos_entregados_impresiones": "count",
+          "apoyos_entregados_bono": "count",
+          "mensajes_entregados": "count",
+          "mensajes_leidos": "count",
+          "encuestas_cerradas": "count",
+          "encuestas_participaciones": "count",
+          "votaciones_cerradas": "count",
+          "votaciones_participaciones": "count"
+        },
+        "reports": {
+          "data": [
+            {
+              "organization_id": "6af43dd402f2887aa104e631",
+              "report_id": "6af43f18118908727a068e0d",
+              "version": 1,
+              "period": {
+                "start": "2026-11-11",
+                "end": "2026-11-11"
+              },
+              "generated_at": "2026-11-11T10:10:32.000000Z",
+              "occurred_at": "2026-11-11T10:10:33.000000Z",
+              "metrics": {
+                "eventos_iniciados": 0,
+                "eventos_cancelados": 0,
+                "reservas_confirmadas": 0,
+                "reservas_espera": 0,
+                "reservas_pago_pendiente": 0,
+                "asistencias": 0,
+                "eventos_cobros_confirmados": 0,
+                "eventos_cobrado_bruto_centavos": 0,
+                "eventos_devoluciones_confirmadas": 0,
+                "eventos_devuelto_centavos": 0,
+                "eventos_cobrado_neto_centavos": 0,
+                "solicitudes_enviadas": 0,
+                "solicitudes_pendiente": 0,
+                "solicitudes_en_revision": 0,
+                "solicitudes_aprobada": 0,
+                "solicitudes_rechazada": 0,
+                "solicitudes_retirada": 0,
+                "solicitudes_cancelada": 0,
+                "aprobaciones_periodo": 0,
+                "personas_aprobadas": 0,
+                "asignaciones_pendientes": 0,
+                "monto_pendiente_centavos": 0,
+                "apoyos_entregados": 2,
+                "apoyos_entregados_locker": 1,
+                "apoyos_entregados_impresiones": 1,
+                "apoyos_entregados_bono": 0,
+                "mensajes_entregados": 0,
+                "mensajes_leidos": 0,
+                "encuestas_cerradas": 1,
+                "encuestas_participaciones": 1,
+                "votaciones_cerradas": 1,
+                "votaciones_participaciones": 1
+              }
+            }
+          ],
+          "current_page": 1,
+          "per_page": 10,
+          "total": 1,
+          "last_page": 1
+        }
+      }
+    },
+    {
+      "path": "/api/v1/recompensas/analytics/community",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "linked": true,
+        "window": {
+          "days": 30,
+          "since": "2026-10-12T10:10:35.120404Z",
+          "until": "2026-11-11T10:10:35.120404Z",
+          "basis": "occurred_at",
+          "report_state": "current_until_now",
+          "description": "Ventana inclusiva por occurred_at del último snapshot publicado. Estado vigente hasta ahora: un retiro posterior prevalece; se excluyen eventos futuros. Procesos por organización, tipo e ID, con la mayor revisión válida. No se suman métricas entre reportes."
+        },
+        "stats": {
+          "report_count": 1,
+          "closed_surveys": 1,
+          "closed_elections": 1
+        },
+        "metric_units": {
+          "eventos_iniciados": "count",
+          "eventos_cancelados": "count",
+          "reservas_confirmadas": "count",
+          "reservas_espera": "count",
+          "reservas_pago_pendiente": "count",
+          "asistencias": "count",
+          "eventos_cobros_confirmados": "count",
+          "eventos_devoluciones_confirmadas": "count",
+          "eventos_cobrado_bruto_centavos": "centavos_mxn",
+          "eventos_devuelto_centavos": "centavos_mxn",
+          "eventos_cobrado_neto_centavos": "centavos_mxn",
+          "solicitudes_enviadas": "count",
+          "solicitudes_pendiente": "count",
+          "solicitudes_en_revision": "count",
+          "solicitudes_aprobada": "count",
+          "solicitudes_rechazada": "count",
+          "solicitudes_retirada": "count",
+          "solicitudes_cancelada": "count",
+          "aprobaciones_periodo": "count",
+          "personas_aprobadas": "count",
+          "asignaciones_pendientes": "count",
+          "monto_pendiente_centavos": "centavos_mxn",
+          "apoyos_entregados": "count",
+          "apoyos_entregados_locker": "count",
+          "apoyos_entregados_impresiones": "count",
+          "apoyos_entregados_bono": "count",
+          "mensajes_entregados": "count",
+          "mensajes_leidos": "count",
+          "encuestas_cerradas": "count",
+          "encuestas_participaciones": "count",
+          "votaciones_cerradas": "count",
+          "votaciones_participaciones": "count"
+        },
+        "reports": {
+          "data": [
+            {
+              "organization_id": "6af43dd402f2887aa104e631",
+              "report_id": "6af43f18118908727a068e0d",
+              "version": 1,
+              "period": {
+                "start": "2026-11-11",
+                "end": "2026-11-11"
+              },
+              "generated_at": "2026-11-11T10:10:32.000000Z",
+              "occurred_at": "2026-11-11T10:10:33.000000Z",
+              "metrics": {
+                "eventos_iniciados": 0,
+                "eventos_cancelados": 0,
+                "reservas_confirmadas": 0,
+                "reservas_espera": 0,
+                "reservas_pago_pendiente": 0,
+                "asistencias": 0,
+                "eventos_cobros_confirmados": 0,
+                "eventos_cobrado_bruto_centavos": 0,
+                "eventos_devoluciones_confirmadas": 0,
+                "eventos_devuelto_centavos": 0,
+                "eventos_cobrado_neto_centavos": 0,
+                "solicitudes_enviadas": 0,
+                "solicitudes_pendiente": 0,
+                "solicitudes_en_revision": 0,
+                "solicitudes_aprobada": 0,
+                "solicitudes_rechazada": 0,
+                "solicitudes_retirada": 0,
+                "solicitudes_cancelada": 0,
+                "aprobaciones_periodo": 0,
+                "personas_aprobadas": 0,
+                "asignaciones_pendientes": 0,
+                "monto_pendiente_centavos": 0,
+                "apoyos_entregados": 2,
+                "apoyos_entregados_locker": 1,
+                "apoyos_entregados_impresiones": 1,
+                "apoyos_entregados_bono": 0,
+                "mensajes_entregados": 0,
+                "mensajes_leidos": 0,
+                "encuestas_cerradas": 1,
+                "encuestas_participaciones": 1,
+                "votaciones_cerradas": 1,
+                "votaciones_participaciones": 1
+              }
+            }
+          ],
+          "current_page": 1,
+          "per_page": 10,
+          "total": 1,
+          "last_page": 1
+        }
+      }
+    },
+    {
+      "path": "/api/v1/recompensas/redemptions",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "reward_id": "6af43dd402f2887aa104e647",
+        "idempotency_key": "lab90-canje-delivered"
+      },
+      "response": {
+        "success": true,
+        "redemption": {
+          "idempotency_key": "reward:f28262aa8b706b1d81a1eb57464818226c24c8e2f6474c2434c2e9d3a21f1d93",
+          "request_hash": "0eb1a29e3eb2cdf51e1bf4f2d10b24f71aac528a9820ecd708c3fc118c1f0b7e",
+          "student_id": "6af43dd402f2887aa104e628",
+          "reward_id": "6af43dd402f2887aa104e647",
+          "reward_item_id": null,
+          "points_spent": 20,
+          "status": "confirmed",
+          "redemption_code": "[omitido]",
+          "stock_reservation_reference": "59385e38-d194-42e4-a736-897e11aacfb7",
+          "requested_at": "2026-11-11T10:10:35.332000Z",
+          "ledger_entry_id": "6af43f1b118908727a068e11",
+          "updated_at": "2026-11-11T10:10:35.333000Z",
+          "created_at": "2026-11-11T10:10:35.333000Z",
+          "id": "6af43f1b118908727a068e14",
+          "reward": {
+            "name": "Reconocimiento digital de prueba",
+            "description": "Recurso exclusivo del laboratorio",
+            "points_required": 20,
+            "stock": 5,
+            "reserved_stock": 1,
+            "status": "active",
+            "updated_at": "2026-11-11T10:10:35.331000Z",
+            "created_at": "2026-11-11T10:05:08.567000Z",
+            "id": "6af43dd402f2887aa104e647"
+          }
+        },
+        "account": {
+          "student_id": "6af43dd402f2887aa104e628",
+          "balance": 80,
+          "pending_balance": 0,
+          "lifetime_earned": 100,
+          "lifetime_redeemed": 20,
+          "updated_at": "2026-11-11T10:10:35.322000Z",
+          "created_at": "2026-11-11T10:05:08.530000Z",
+          "last_ledger_entry_id": "6af43f1b118908727a068e11",
+          "id": "6af43dd402f2887aa104e644"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/recompensas/redemptions/6af43f1b118908727a068e14/deliver",
+      "method": "POST",
+      "status": 200,
+      "request": {},
+      "response": {
+        "success": true,
+        "message": "Canje marcado como entregado correctamente.",
+        "redemption": {
+          "idempotency_key": "reward:f28262aa8b706b1d81a1eb57464818226c24c8e2f6474c2434c2e9d3a21f1d93",
+          "request_hash": "0eb1a29e3eb2cdf51e1bf4f2d10b24f71aac528a9820ecd708c3fc118c1f0b7e",
+          "student_id": "6af43dd402f2887aa104e628",
+          "reward_id": "6af43dd402f2887aa104e647",
+          "reward_item_id": null,
+          "points_spent": 20,
+          "status": "delivered",
+          "redemption_code": "[omitido]",
+          "stock_reservation_reference": "59385e38-d194-42e4-a736-897e11aacfb7",
+          "requested_at": "2026-11-11T10:10:35.332000Z",
+          "ledger_entry_id": "6af43f1b118908727a068e11",
+          "updated_at": "2026-11-11T10:10:35.524000Z",
+          "created_at": "2026-11-11T10:10:35.333000Z",
+          "delivered_at": "2026-11-11T10:10:35.524000Z",
+          "id": "6af43f1b118908727a068e14",
+          "reward": {
+            "name": "Reconocimiento digital de prueba",
+            "description": "Recurso exclusivo del laboratorio",
+            "points_required": 20,
+            "stock": 4,
+            "reserved_stock": 0,
+            "status": "active",
+            "updated_at": "2026-11-11T10:10:35.527000Z",
+            "created_at": "2026-11-11T10:05:08.567000Z",
+            "id": "6af43dd402f2887aa104e647"
+          },
+          "events": [
+            {
+              "redemption_id": "6af43f1b118908727a068e14",
+              "from_status": "requested",
+              "to_status": "confirmed",
+              "actor_id": "6af43dd402f2887aa104e628",
+              "actor_role": "student",
+              "note": "Solicitud de canje creada exitosamente.",
+              "updated_at": "2026-11-11T10:10:35.338000Z",
+              "created_at": "2026-11-11T10:10:35.338000Z",
+              "id": "6af43f1b118908727a068e15"
+            },
+            {
+              "redemption_id": "6af43f1b118908727a068e14",
+              "from_status": "confirmed",
+              "to_status": "delivered",
+              "actor_id": "6af43dd402f2887aa104e62e",
+              "actor_role": "admin",
+              "note": "Recompensa entregada al estudiante.",
+              "updated_at": "2026-11-11T10:10:35.532000Z",
+              "created_at": "2026-11-11T10:10:35.532000Z",
+              "id": "6af43f1b118908727a068e17"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "path": "/api/v1/recompensas/redemptions",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "reward_id": "6af43dd402f2887aa104e647",
+        "idempotency_key": "lab90-canje-cancelled"
+      },
+      "response": {
+        "success": true,
+        "redemption": {
+          "idempotency_key": "reward:7f02b0731ad06736ec056717b3c3f19c4f93094c0ada29e0ea088fb26e96e489",
+          "request_hash": "0eb1a29e3eb2cdf51e1bf4f2d10b24f71aac528a9820ecd708c3fc118c1f0b7e",
+          "student_id": "6af43dd402f2887aa104e628",
+          "reward_id": "6af43dd402f2887aa104e647",
+          "reward_item_id": null,
+          "points_spent": 20,
+          "status": "confirmed",
+          "redemption_code": "[omitido]",
+          "stock_reservation_reference": "a05275bd-e2bf-4217-81aa-94536aa1da07",
+          "requested_at": "2026-11-11T10:10:35.772000Z",
+          "ledger_entry_id": "6af43f1b716404f0b80c2174",
+          "updated_at": "2026-11-11T10:10:35.773000Z",
+          "created_at": "2026-11-11T10:10:35.773000Z",
+          "id": "6af43f1b716404f0b80c2177",
+          "reward": {
+            "name": "Reconocimiento digital de prueba",
+            "description": "Recurso exclusivo del laboratorio",
+            "points_required": 20,
+            "stock": 4,
+            "reserved_stock": 1,
+            "status": "active",
+            "updated_at": "2026-11-11T10:10:35.770000Z",
+            "created_at": "2026-11-11T10:05:08.567000Z",
+            "id": "6af43dd402f2887aa104e647"
+          }
+        },
+        "account": {
+          "student_id": "6af43dd402f2887aa104e628",
+          "balance": 60,
+          "pending_balance": 0,
+          "lifetime_earned": 100,
+          "lifetime_redeemed": 40,
+          "updated_at": "2026-11-11T10:10:35.756000Z",
+          "created_at": "2026-11-11T10:05:08.530000Z",
+          "last_ledger_entry_id": "6af43f1b716404f0b80c2174",
+          "id": "6af43dd402f2887aa104e644"
+        }
+      }
+    },
+    {
+      "path": "/api/v1/recompensas/redemptions/6af43f1b716404f0b80c2177/cancel",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "reason": "Cancelación aislada de canje"
+      },
+      "response": {
+        "success": true,
+        "message": "Canje cancelado y puntos devueltos al estudiante.",
+        "redemption": {
+          "idempotency_key": "reward:7f02b0731ad06736ec056717b3c3f19c4f93094c0ada29e0ea088fb26e96e489",
+          "request_hash": "0eb1a29e3eb2cdf51e1bf4f2d10b24f71aac528a9820ecd708c3fc118c1f0b7e",
+          "student_id": "6af43dd402f2887aa104e628",
+          "reward_id": "6af43dd402f2887aa104e647",
+          "reward_item_id": null,
+          "points_spent": 20,
+          "status": "cancelled",
+          "redemption_code": "[omitido]",
+          "stock_reservation_reference": "a05275bd-e2bf-4217-81aa-94536aa1da07",
+          "requested_at": "2026-11-11T10:10:35.772000Z",
+          "ledger_entry_id": "6af43f1b716404f0b80c2174",
+          "updated_at": "2026-11-11T10:10:35.984000Z",
+          "created_at": "2026-11-11T10:10:35.773000Z",
+          "cancellation_reason": "Cancelación aislada de canje",
+          "cancelled_at": "2026-11-11T10:10:35.984000Z",
+          "id": "6af43f1b716404f0b80c2177",
+          "reward": {
+            "name": "Reconocimiento digital de prueba",
+            "description": "Recurso exclusivo del laboratorio",
+            "points_required": 20,
+            "stock": 4,
+            "reserved_stock": 0,
+            "status": "active",
+            "updated_at": "2026-11-11T10:10:35.983000Z",
+            "created_at": "2026-11-11T10:05:08.567000Z",
+            "id": "6af43dd402f2887aa104e647"
+          },
+          "events": [
+            {
+              "redemption_id": "6af43f1b716404f0b80c2177",
+              "from_status": "requested",
+              "to_status": "confirmed",
+              "actor_id": "6af43dd402f2887aa104e628",
+              "actor_role": "student",
+              "note": "Solicitud de canje creada exitosamente.",
+              "updated_at": "2026-11-11T10:10:35.775000Z",
+              "created_at": "2026-11-11T10:10:35.775000Z",
+              "id": "6af43f1b716404f0b80c2178"
+            },
+            {
+              "redemption_id": "6af43f1b716404f0b80c2177",
+              "from_status": "confirmed",
+              "to_status": "cancelled",
+              "actor_id": "6af43dd402f2887aa104e628",
+              "actor_role": "student",
+              "note": "Cancelación aislada de canje",
+              "updated_at": "2026-11-11T10:10:35.989000Z",
+              "created_at": "2026-11-11T10:10:35.989000Z",
+              "id": "6af43f1b648b276ce604601e"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/bandeja",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "mensajes": [
+          {
+            "id": "6af43f1fc11ad6e3ca0f3153",
+            "asunto": "Canje confirmado",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:39.536000Z"
+          },
+          {
+            "id": "6af43f1f716404f0b80c217a",
+            "asunto": "Canje cancelado",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:39.090000Z"
+          },
+          {
+            "id": "6af43f1eab9abf0c1d0fec09",
+            "asunto": "Canje entregado",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:38.655000Z"
+          },
+          {
+            "id": "6af43f1e118908727a068e19",
+            "asunto": "Canje confirmado",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:38.117000Z"
+          },
+          {
+            "id": "6af43f1dab9abf0c1d0fec08",
+            "asunto": "Puntos acreditados",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:37.489000Z"
+          }
+        ],
+        "no_leidos": 5,
+        "page": 1,
+        "last_page": 1
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T10:12:13+00:00",
+        "puede_gestionar": true,
+        "organizacion": "Consejo aislado 90",
+        "miembrosActivos": 2,
+        "eventosActivos": 0,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [
+          {
+            "id": "6af43dd402f2887aa104e640",
+            "estado": "aprobada",
+            "folio": "LAB90-locker",
+            "creado_en": "2026-11-11T10:05:08.492000Z",
+            "beca": "Beca aislada locker"
+          },
+          {
+            "id": "6af43dd402f2887aa104e63c",
+            "estado": "aprobada",
+            "folio": "LAB90-impresiones",
+            "creado_en": "2026-11-11T10:05:08.474000Z",
+            "beca": "Beca aislada impresiones"
+          }
+        ],
+        "proximoEvento": null,
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": {
+          "campanas_pendientes": 0,
+          "reportes_borrador": 0
+        }
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T10:12:14+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo aislado 90",
+        "miembrosActivos": 2,
+        "eventosActivos": 0,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [
+          {
+            "id": "6af43dd402f2887aa104e640",
+            "estado": "aprobada",
+            "folio": "LAB90-locker",
+            "creado_en": "2026-11-11T10:05:08.492000Z",
+            "beca": "Beca aislada locker"
+          },
+          {
+            "id": "6af43dd402f2887aa104e63c",
+            "estado": "aprobada",
+            "folio": "LAB90-impresiones",
+            "creado_en": "2026-11-11T10:05:08.474000Z",
+            "beca": "Beca aislada impresiones"
+          }
+        ],
+        "proximoEvento": null,
+        "personales": {
+          "no_leidos": 5,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": null
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 403,
+      "request": null,
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 403,
+      "request": null,
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/bandeja",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "mensajes": [
+          {
+            "id": "6af43f1fc11ad6e3ca0f3153",
+            "asunto": "Canje confirmado",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:39.536000Z"
+          },
+          {
+            "id": "6af43f1f716404f0b80c217a",
+            "asunto": "Canje cancelado",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:39.090000Z"
+          },
+          {
+            "id": "6af43f1eab9abf0c1d0fec09",
+            "asunto": "Canje entregado",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:38.655000Z"
+          },
+          {
+            "id": "6af43f1e118908727a068e19",
+            "asunto": "Canje confirmado",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:38.117000Z"
+          },
+          {
+            "id": "6af43f1dab9abf0c1d0fec08",
+            "asunto": "Puntos acreditados",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:37.489000Z"
+          }
+        ],
+        "no_leidos": 5,
+        "page": 1,
+        "last_page": 1
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/bandeja",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "mensajes": [
+          {
+            "id": "6af43f1fc11ad6e3ca0f3153",
+            "asunto": "Canje confirmado",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:39.536000Z"
+          },
+          {
+            "id": "6af43f1f716404f0b80c217a",
+            "asunto": "Canje cancelado",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:39.090000Z"
+          },
+          {
+            "id": "6af43f1eab9abf0c1d0fec09",
+            "asunto": "Canje entregado",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:38.655000Z"
+          },
+          {
+            "id": "6af43f1e118908727a068e19",
+            "asunto": "Canje confirmado",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:38.117000Z"
+          },
+          {
+            "id": "6af43f1dab9abf0c1d0fec08",
+            "asunto": "Puntos acreditados",
+            "emisor_nombre": "Recompensas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T10:10:37.489000Z"
+          }
+        ],
+        "no_leidos": 5,
+        "page": 1,
+        "last_page": 1
+      }
+    },
+    {
+      "path": "/api/v1/recompensas/redemptions/6af43f1b118908727a068e14",
+      "method": "GET",
+      "status": 403,
+      "request": null,
+      "response": {
+        "success": false,
+        "error": "Acceso denegado: no puedes ver los canjes de otro estudiante."
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/bandeja/6af43f1fc11ad6e3ca0f3153",
+      "method": "GET",
+      "status": 404,
+      "request": null,
+      "response": {
+        "message": "No se encontró el recurso solicitado."
+      }
+    },
+    {
+      "path": "/api/v1/recompensas/points/my-history?movement_id=6af43dd402f2887aa104e643",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "current_page": 1,
+        "data": [
+          {
+            "student_id": "6af43dd402f2887aa104e628",
+            "idempotency_key": "isolated-opening-points-90",
+            "type": "earn",
+            "amount": 100,
+            "source_domain": "community",
+            "source_reference": "isolated-fixture-opening",
+            "related_ledger_id": null,
+            "rule_id": "6af43dd402f2887aa104e642",
+            "business_id": "LAB90-BUSINESS",
+            "description": "Acumulación de puntos por venta isolated-fixture-opening",
+            "metadata": {
+              "fixture": "isolated_test_opening"
+            },
+            "updated_at": "2026-11-11T10:05:08.522000Z",
+            "created_at": "2026-11-11T10:05:08.522000Z",
+            "id": "6af43dd402f2887aa104e643"
+          }
+        ],
+        "first_page_url": "http://127.0.0.1:18086/api/v1/recompensas/points/my-history?page=1",
+        "from": 1,
+        "last_page": 1,
+        "last_page_url": "http://127.0.0.1:18086/api/v1/recompensas/points/my-history?page=1",
+        "links": [
+          {
+            "url": null,
+            "label": "&laquo; Previous",
+            "page": null,
+            "active": false
+          },
+          {
+            "url": "http://127.0.0.1:18086/api/v1/recompensas/points/my-history?page=1",
+            "label": "1",
+            "page": 1,
+            "active": true
+          },
+          {
+            "url": null,
+            "label": "Next &raquo;",
+            "page": null,
+            "active": false
+          }
+        ],
+        "next_page_url": null,
+        "path": "http://127.0.0.1:18086/api/v1/recompensas/points/my-history",
+        "per_page": 20,
+        "prev_page_url": null,
+        "to": 1,
+        "total": 1
+      }
+    },
+    {
+      "path": "/api/v1/recompensas/points/my-balance",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "student_id": "6af43dd402f2887aa104e628",
+        "balance": 80,
+        "pending_balance": 0,
+        "lifetime_earned": 100,
+        "lifetime_redeemed": 40
+      }
+    },
+    {
+      "path": "/api/v1/comunidad/portal/transparencia/reportes/6af43f18118908727a068e0d/retirar",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "motivo": "Retirada del reporte de aceptación aislada."
+      },
+      "response": {
+        "message": "Reporte retirado. Se conserva para revisión de presidencia."
+      }
+    },
+    {
+      "path": "/api/v1/recompensas/analytics/community",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "linked": true,
+        "window": {
+          "days": 30,
+          "since": "2026-10-12T10:12:35.630685Z",
+          "until": "2026-11-11T10:12:35.630685Z",
+          "basis": "occurred_at",
+          "report_state": "current_until_now",
+          "description": "Ventana inclusiva por occurred_at del último snapshot publicado. Estado vigente hasta ahora: un retiro posterior prevalece; se excluyen eventos futuros. Procesos por organización, tipo e ID, con la mayor revisión válida. No se suman métricas entre reportes."
+        },
+        "stats": {
+          "report_count": 0,
+          "closed_surveys": 1,
+          "closed_elections": 1
+        },
+        "metric_units": {
+          "eventos_iniciados": "count",
+          "eventos_cancelados": "count",
+          "reservas_confirmadas": "count",
+          "reservas_espera": "count",
+          "reservas_pago_pendiente": "count",
+          "asistencias": "count",
+          "eventos_cobros_confirmados": "count",
+          "eventos_devoluciones_confirmadas": "count",
+          "eventos_cobrado_bruto_centavos": "centavos_mxn",
+          "eventos_devuelto_centavos": "centavos_mxn",
+          "eventos_cobrado_neto_centavos": "centavos_mxn",
+          "solicitudes_enviadas": "count",
+          "solicitudes_pendiente": "count",
+          "solicitudes_en_revision": "count",
+          "solicitudes_aprobada": "count",
+          "solicitudes_rechazada": "count",
+          "solicitudes_retirada": "count",
+          "solicitudes_cancelada": "count",
+          "aprobaciones_periodo": "count",
+          "personas_aprobadas": "count",
+          "asignaciones_pendientes": "count",
+          "monto_pendiente_centavos": "centavos_mxn",
+          "apoyos_entregados": "count",
+          "apoyos_entregados_locker": "count",
+          "apoyos_entregados_impresiones": "count",
+          "apoyos_entregados_bono": "count",
+          "mensajes_entregados": "count",
+          "mensajes_leidos": "count",
+          "encuestas_cerradas": "count",
+          "encuestas_participaciones": "count",
+          "votaciones_cerradas": "count",
+          "votaciones_participaciones": "count"
+        },
+        "reports": {
+          "data": [],
+          "current_page": 1,
+          "per_page": 10,
+          "total": 0,
+          "last_page": 1
+        }
+      }
+    }
+  ],
+  "checkpoint": {
+    "commands": [
+      {
+        "command": "comunidad:entregar-beneficios",
+        "exit_code": 0,
+        "output": "Beneficios revisados: 2."
+      },
+      {
+        "command": "comunidad:entregar-beneficios",
+        "exit_code": 0,
+        "output": "Beneficios revisados: 2."
+      },
+      {
+        "command": "comunidad:entregar-beneficios",
+        "exit_code": 0,
+        "output": "Beneficios revisados: 0."
+      },
+      {
+        "command": "comunidad:publicar-analitica",
+        "exit_code": 0,
+        "output": "{\"enabled\":true,\"queued\":3,\"sent\":3,\"failed\":0,\"invalid\":0}"
+      },
+      {
+        "command": "comunidad:publicar-analitica",
+        "exit_code": 0,
+        "output": "{\"enabled\":true,\"queued\":0,\"sent\":0,\"failed\":0,\"invalid\":0}"
+      },
+      {
+        "command": "plataforma:entregar-avisos-comunidad",
+        "exit_code": 0,
+        "output": "{\"scan\":{\"scanned\":5,\"queued\":5,\"invalid\":0},\"delivery\":{\"attempted\":5,\"delivered\":5,\"omitted\":0,\"pending\":0}}"
+      },
+      {
+        "command": "plataforma:entregar-avisos-comunidad",
+        "exit_code": 0,
+        "output": "{\"scan\":{\"scanned\":5,\"queued\":0,\"invalid\":0},\"delivery\":{\"attempted\":0,\"delivered\":0,\"omitted\":0,\"pending\":0}}"
+      },
+      {
+        "command": "comunidad:publicar-analitica",
+        "exit_code": 0,
+        "output": "{\"enabled\":true,\"queued\":1,\"sent\":1,\"failed\":0,\"invalid\":0}"
+      }
+    ],
+    "print_order": "6af43e5a716404f0b80c2166",
+    "encuestas": "6af43e60648b276ce6046016",
+    "votaciones": "6af43eb7c11ad6e3ca0f314e",
+    "report_id": "6af43f18118908727a068e0d",
+    "canje": "6af43f1b118908727a068e14",
+    "notices": [
+      "6af43f1fc11ad6e3ca0f3153",
+      "6af43f1f716404f0b80c217a",
+      "6af43f1eab9abf0c1d0fec09",
+      "6af43f1e118908727a068e19",
+      "6af43f1dab9abf0c1d0fec08"
+    ]
+  },
+  "error": null,
+  "state": {
+    "awards": [
+      {
+        "solicitud_id": "6af43dd402f2887aa104e63c",
+        "estado": "revocada",
+        "error_integracion": null,
+        "recibo_servicios": {
+          "asignacion_id": "6af43e58118908727a068dfa",
+          "folio": "BEN-20261111-RJEPP",
+          "beneficio_id": "impresiones",
+          "estado": "asignado",
+          "clave_idempotencia": "beca:6af43dd402f2887aa104e63c",
+          "beneficiario_id": "6af43dd402f2887aa104e628",
+          "organizacion_id": "6af43dd402f2887aa104e631",
+          "convocatoria_id": "6af43dd402f2887aa104e63b",
+          "solicitud_id": "6af43dd402f2887aa104e63c",
+          "folio_origen": "LAB90-impresiones",
+          "cantidad": {
+            "unidad": "paginas",
+            "asignada": 100,
+            "consumida": 0,
+            "disponible": 100
+          },
+          "vigencia": {
+            "inicio": "2026-11-10T10:05:08+00:00",
+            "fin_exclusiva": "2026-12-11T10:05:08+00:00"
+          },
+          "recurso": null,
+          "evidencia": {
+            "asignado_en": "2026-11-11T10:07:20+00:00",
+            "consumos": []
+          },
+          "cancelacion": null,
+          "creado_en": "2026-11-11T10:07:20+00:00",
+          "actualizado_en": "2026-11-11T10:07:20+00:00"
+        },
+        "revocacion": {
+          "clave_idempotencia": "beca:6af43dd402f2887aa104e63c:cancelacion",
+          "solicitante_id": "6af43dd402f2887aa104e625",
+          "motivo": "Baja del beneficio en la prueba aislada de aceptación.",
+          "solicitado_en": "2026-11-11T10:07:24+00:00",
+          "confirmacion": true,
+          "asignacion_id": "6af43e58118908727a068dfa",
+          "intentos": 0,
+          "cuerpo": {
+            "motivo": "Baja del beneficio en la prueba aislada de aceptación.",
+            "referencia_origen": "beca:6af43dd402f2887aa104e63c:cancelacion"
+          },
+          "confirmada_en": "2026-11-11T10:07:26+00:00",
+          "origen_acuse": "cancelacion"
+        },
+        "recibo_cancelacion": {
+          "cancelacion_id": "CAN-20261111-3NPSF",
+          "estado": "cancelado",
+          "liberado": true,
+          "cantidad_liberada": 70,
+          "asignacion": {
+            "asignacion_id": "6af43e58118908727a068dfa",
+            "folio": "BEN-20261111-RJEPP",
+            "beneficio_id": "impresiones",
+            "estado": "cancelado",
+            "clave_idempotencia": "beca:6af43dd402f2887aa104e63c",
+            "beneficiario_id": "6af43dd402f2887aa104e628",
+            "organizacion_id": "6af43dd402f2887aa104e631",
+            "convocatoria_id": "6af43dd402f2887aa104e63b",
+            "solicitud_id": "6af43dd402f2887aa104e63c",
+            "folio_origen": "LAB90-impresiones",
+            "cantidad": {
+              "unidad": "paginas",
+              "asignada": 100,
+              "consumida": 30,
+              "disponible": 0
+            },
+            "vigencia": {
+              "inicio": "2026-11-10T10:05:08+00:00",
+              "fin_exclusiva": "2026-12-11T10:05:08+00:00"
+            },
+            "recurso": null,
+            "evidencia": {
+              "asignado_en": "2026-11-11T10:07:20+00:00",
+              "consumos": [
+                {
+                  "folio_orden": "SER-2026-0FBFF2",
+                  "paginas": 30,
+                  "consumido_en": "2026-11-11T10:07:23+00:00"
+                }
+              ]
+            },
+            "cancelacion": {
+              "cancelacion_id": "CAN-20261111-3NPSF",
+              "motivo": "Baja del beneficio en la prueba aislada de aceptación.",
+              "referencia_origen": "beca:6af43dd402f2887aa104e63c:cancelacion",
+              "cancelada_en": "2026-11-11T10:07:26+00:00",
+              "liberado": true,
+              "cantidad_liberada": 70
+            },
+            "creado_en": "2026-11-11T10:07:20+00:00",
+            "actualizado_en": "2026-11-11T10:07:26+00:00"
+          }
+        },
+        "id": "6af43dd402f2887aa104e63d"
+      },
+      {
+        "solicitud_id": "6af43dd402f2887aa104e640",
+        "estado": "revocada",
+        "error_integracion": null,
+        "recibo_servicios": {
+          "asignacion_id": "6af43e59648b276ce6046012",
+          "folio": "BEN-20261111-OZLN7",
+          "beneficio_id": "locker",
+          "estado": "asignado",
+          "clave_idempotencia": "beca:6af43dd402f2887aa104e640",
+          "beneficiario_id": "6af43dd402f2887aa104e628",
+          "organizacion_id": "6af43dd402f2887aa104e631",
+          "convocatoria_id": "6af43dd402f2887aa104e63f",
+          "solicitud_id": "6af43dd402f2887aa104e640",
+          "folio_origen": "LAB90-locker",
+          "cantidad": {
+            "unidad": "periodo",
+            "asignada": 1,
+            "consumida": 0,
+            "disponible": 1
+          },
+          "vigencia": {
+            "inicio": "2026-11-11T10:07:21+00:00",
+            "fin_exclusiva": "2027-01-11T10:05:08+00:00"
+          },
+          "recurso": {
+            "tipo": "locker",
+            "codigo": "LAB90-LKR-001",
+            "edificio": "LAB90",
+            "zona": "PB"
+          },
+          "evidencia": {
+            "asignado_en": "2026-11-11T10:07:21+00:00",
+            "folio_asignacion_locker": "LKR-ASG-20261111-XY8X0",
+            "primer_acceso_en": null,
+            "liberado_en": null
+          },
+          "cancelacion": null,
+          "creado_en": "2026-11-11T10:07:21+00:00",
+          "actualizado_en": "2026-11-11T10:07:21+00:00"
+        },
+        "revocacion": {
+          "clave_idempotencia": "beca:6af43dd402f2887aa104e640:cancelacion",
+          "solicitante_id": "6af43dd402f2887aa104e625",
+          "motivo": "Baja del beneficio en la prueba aislada de aceptación.",
+          "solicitado_en": "2026-11-11T10:07:25+00:00",
+          "confirmacion": true,
+          "asignacion_id": "6af43e59648b276ce6046012",
+          "intentos": 0,
+          "cuerpo": {
+            "motivo": "Baja del beneficio en la prueba aislada de aceptación.",
+            "referencia_origen": "beca:6af43dd402f2887aa104e640:cancelacion"
+          },
+          "confirmada_en": "2026-11-11T10:07:26+00:00",
+          "origen_acuse": "cancelacion"
+        },
+        "recibo_cancelacion": {
+          "cancelacion_id": "CAN-20261111-EFJ6K",
+          "estado": "cancelado",
+          "liberado": true,
+          "cantidad_liberada": 1,
+          "asignacion": {
+            "asignacion_id": "6af43e59648b276ce6046012",
+            "folio": "BEN-20261111-OZLN7",
+            "beneficio_id": "locker",
+            "estado": "cancelado",
+            "clave_idempotencia": "beca:6af43dd402f2887aa104e640",
+            "beneficiario_id": "6af43dd402f2887aa104e628",
+            "organizacion_id": "6af43dd402f2887aa104e631",
+            "convocatoria_id": "6af43dd402f2887aa104e63f",
+            "solicitud_id": "6af43dd402f2887aa104e640",
+            "folio_origen": "LAB90-locker",
+            "cantidad": {
+              "unidad": "periodo",
+              "asignada": 1,
+              "consumida": 0,
+              "disponible": 0
+            },
+            "vigencia": {
+              "inicio": "2026-11-11T10:07:21+00:00",
+              "fin_exclusiva": "2027-01-11T10:05:08+00:00"
+            },
+            "recurso": {
+              "tipo": "locker",
+              "codigo": "LAB90-LKR-001",
+              "edificio": "LAB90",
+              "zona": "PB"
+            },
+            "evidencia": {
+              "asignado_en": "2026-11-11T10:07:21+00:00",
+              "folio_asignacion_locker": "LKR-ASG-20261111-XY8X0",
+              "primer_acceso_en": null,
+              "liberado_en": "2026-11-11T10:07:26+00:00"
+            },
+            "cancelacion": {
+              "cancelacion_id": "CAN-20261111-EFJ6K",
+              "motivo": "Baja del beneficio en la prueba aislada de aceptación.",
+              "referencia_origen": "beca:6af43dd402f2887aa104e640:cancelacion",
+              "cancelada_en": "2026-11-11T10:07:26+00:00",
+              "liberado": true,
+              "cantidad_liberada": 1
+            },
+            "creado_en": "2026-11-11T10:07:21+00:00",
+            "actualizado_en": "2026-11-11T10:07:26+00:00"
+          }
+        },
+        "id": "6af43dd402f2887aa104e641"
+      }
+    ],
+    "benefits_e5": [
+      {
+        "benefit": "impresiones",
+        "consumed": 30,
+        "remaining": 0,
+        "status": "cancelled",
+        "cancellation": {
+          "cancellation_id": "CAN-20261111-3NPSF",
+          "idempotency_key": "beca:6af43dd402f2887aa104e63c:cancelacion",
+          "reason": "Baja del beneficio en la prueba aislada de aceptación.",
+          "origin_reference": "beca:6af43dd402f2887aa104e63c:cancelacion",
+          "cancelled_at": "2026-11-11T10:07:26+00:00",
+          "released": true,
+          "released_quantity": 70
+        },
+        "id": "6af43e58118908727a068dfa"
+      },
+      {
+        "benefit": "locker",
+        "consumed": 0,
+        "remaining": 0,
+        "status": "cancelled",
+        "cancellation": {
+          "cancellation_id": "CAN-20261111-EFJ6K",
+          "idempotency_key": "beca:6af43dd402f2887aa104e640:cancelacion",
+          "reason": "Baja del beneficio en la prueba aislada de aceptación.",
+          "origin_reference": "beca:6af43dd402f2887aa104e640:cancelacion",
+          "cancelled_at": "2026-11-11T10:07:26+00:00",
+          "released": true,
+          "released_quantity": 1
+        },
+        "id": "6af43e59648b276ce6046012"
+      }
+    ],
+    "lockers": [
+      {
+        "code": "[omitido]",
+        "status": "available",
+        "id": "6af43dd402f2887aa104e639"
+      }
+    ],
+    "print_orders": [
+      {
+        "quantity": 30,
+        "payment_status": "paid",
+        "status": "processing",
+        "id": "6af43e5a716404f0b80c2166"
+      }
+    ],
+    "e7_events": 4,
+    "e6_analytics_outbox": 4,
+    "e7_notices": [
+      {
+        "source_id": "6af43dd402f2887aa104e643",
+        "status": "DELIVERED",
+        "tipo": "puntos_acreditados",
+        "notification_id": "6af43f1dab9abf0c1d0fec08",
+        "id": "6af43f1ce3f20aed84d463bd"
+      },
+      {
+        "source_id": "6af43f1b118908727a068e15",
+        "status": "DELIVERED",
+        "tipo": "canje_confirmado",
+        "notification_id": "6af43f1e118908727a068e19",
+        "id": "6af43f1ce3f20aed84d463be"
+      },
+      {
+        "source_id": "6af43f1b118908727a068e17",
+        "status": "DELIVERED",
+        "tipo": "canje_entregado",
+        "notification_id": "6af43f1eab9abf0c1d0fec09",
+        "id": "6af43f1ce3f20aed84d463bf"
+      },
+      {
+        "source_id": "6af43f1b648b276ce604601e",
+        "status": "DELIVERED",
+        "tipo": "canje_cancelado",
+        "notification_id": "6af43f1f716404f0b80c217a",
+        "id": "6af43f1ce3f20aed84d463c0"
+      },
+      {
+        "source_id": "6af43f1b716404f0b80c2178",
+        "status": "DELIVERED",
+        "tipo": "canje_confirmado",
+        "notification_id": "6af43f1fc11ad6e3ca0f3153",
+        "id": "6af43f1ce3f20aed84d463c1"
+      }
+    ]
+  }
+}

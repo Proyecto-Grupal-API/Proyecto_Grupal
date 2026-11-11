@@ -1,0 +1,6 @@
+{
+  "mongo_database": "campus_virtual_testing",
+  "replica": "rs-e1-testing",
+  "privileges_attested": true,
+  "main_access": false
+}

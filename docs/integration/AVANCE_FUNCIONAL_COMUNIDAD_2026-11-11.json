@@ -1,0 +1,104 @@
+{
+  "date": "2026-11-11",
+  "module": 6,
+  "source": "docs/Campus_Digital_Diseno_Modulos.pdf, páginas 11–13",
+  "method": "Estimación técnica funcional: suma(peso original × porcentaje por punto) / 42. Porcentajes revisables según aceptación; no es cobertura de pruebas ni nota del profesor.",
+  "weight_sum": 42,
+  "previous_weighted_percent": 87.14,
+  "current_weighted_percent": 90.36,
+  "increase_percentage_points": 3.21,
+  "minimum_target_percent": 90,
+  "target_met_in_estimate": true,
+  "official_grade": false,
+  "production_acceptance_complete": false,
+  "items": [
+    {
+      "point": "6.1",
+      "name": "Asociaciones estudiantiles",
+      "weight": 4,
+      "previous_percent": 80,
+      "current_percent": 80,
+      "basis": "Sin cambio en este corte: estructura, miembros y expedientes propios; persiste la dependencia del directorio académico y validación de ámbitos E1."
+    },
+    {
+      "point": "6.2",
+      "name": "Consejo estudiantil",
+      "weight": 4,
+      "previous_percent": 85,
+      "current_percent": 85,
+      "basis": "Sin cambio: Consejo y atribuciones propias operativos; las designaciones financieras fuera de testing siguen bloqueadas por E1."
+    },
+    {
+      "point": "6.3",
+      "name": "Cargos y responsabilidades",
+      "weight": 3,
+      "previous_percent": 85,
+      "current_percent": 85,
+      "basis": "Sin cambio: cargo, vigencia, delegación y separación de rol institucional; falta el mecanismo productivo E1 para las atribuciones financieras."
+    },
+    {
+      "point": "6.4",
+      "name": "Convocatorias y solicitudes",
+      "weight": 5,
+      "previous_percent": 90,
+      "current_percent": 95,
+      "basis": "Se completa la salida posterior al dictamen para revocar servicios entregados: autorización exacta de Presidencia, motivo, recibo, recuperación e historial. Queda la elegibilidad académica canónica externa."
+    },
+    {
+      "point": "6.5",
+      "name": "Becas y beneficios",
+      "weight": 4,
+      "previous_percent": 90,
+      "current_percent": 90,
+      "basis": "Sin aumento: se entregan y revocan servicios E5; BECA monetaria todavía no tiene aprobación inicial de presupuesto ni designaciones válidas en local."
+    },
+    {
+      "point": "6.6",
+      "name": "Eventos y accesos",
+      "weight": 4,
+      "previous_percent": 95,
+      "current_percent": 95,
+      "basis": "Sin aumento: el corte previo acreditó cobro y devolución de $25, QR y espera. Queda la aceptación con lector físico NFC."
+    },
+    {
+      "point": "6.7",
+      "name": "Campañas y segmentación",
+      "weight": 5,
+      "previous_percent": 80,
+      "current_percent": 80,
+      "basis": "Sin aumento: audiencias propias, padrón congelado y preferencias. Campus/carrera/semestre/grupo y emisores institucionales requieren contrato y directorio E1."
+    },
+    {
+      "point": "6.8",
+      "name": "Bandeja y mensajes",
+      "weight": 4,
+      "previous_percent": 90,
+      "current_percent": 100,
+      "basis": "Se conecta el productor real E7 de puntos y estados de canje, outbox, OAuth, recuperación por clave, enlaces privados al movimiento/canje, lectura/importancia/archivo y preferencias existentes. E2/E5 ya estaban conectados. Las preferencias de correo/push/SMS de E1 no equivalen a silenciar avisos transaccionales de la bandeja."
+    },
+    {
+      "point": "6.9",
+      "name": "Encuestas",
+      "weight": 3,
+      "previous_percent": 85,
+      "current_percent": 95,
+      "basis": "Crear/publicar/participar/cerrar y repetición única probados por HTTP. Se exportan a E7 únicamente los totales cerrados; permanece pendiente el alcance académico externo."
+    },
+    {
+      "point": "6.10",
+      "name": "Votaciones académicas",
+      "weight": 4,
+      "previous_percent": 90,
+      "current_percent": 95,
+      "basis": "Padrón, una participación, repetición idempotente, rechazo de ajenos, cierre y agregados E7 probados. Queda la validación institucional del padrón académico externo."
+    },
+    {
+      "point": "6.11",
+      "name": "Transparencia y reportes",
+      "weight": 2,
+      "previous_percent": 90,
+      "current_percent": 100,
+      "basis": "Se acredita publicación y retiro hacia E7, consulta privada autorizada y cifras/CSV del reporte. Las entregas históricas no desaparecen al revocar; los periodos solapados se muestran separados y no se suman. No hay expedientes ni respuestas personales en el transporte."
+    }
+  ]
+}

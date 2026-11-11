@@ -1,0 +1,14 @@
+{
+  "comunidad:publicar-analitica": {
+    "exit_code": 0,
+    "output": "{\"enabled\":true,\"queued\":0,\"sent\":0,\"failed\":0,\"invalid\":0}"
+  },
+  "plataforma:entregar-avisos-comunidad": {
+    "exit_code": 0,
+    "output": "{\"scan\":{\"scanned\":0,\"queued\":0,\"invalid\":0},\"delivery\":{\"attempted\":0,\"delivered\":0,\"omitted\":0,\"pending\":0}}"
+  },
+  "schedule:list": {
+    "exit_code": 0,
+    "output": "0   0 * * *  php artisan security-events:prune . Next Due: 13 hours from now\n  *   * * * *  php artisan events:publish ...... Next Due: 14 seconds from now\n  *   * * * *  php artisan comunidad:entregar-beneficios  Next Due: 14 seconds from now\n  *   * * * *  php artisan servicios:avisos .... Next Due: 14 seconds from now\n  */5 * * * *  php artisan servicios:revisar-sla  Next Due: 4 minutes from now\n  */5 * * * *  php artisan inventario:expirar-reservas  Next Due: 4 minutes from now\n  *   * * * *  php artisan marketplace:reconciliar  Next Due: 14 seconds from now\n  *   * * * *  php artisan comunidad:conciliar-pagos-eventos  Next Due: 14 seconds from now\n  *   * * * *  php artisan comunidad:expirar-reservas-eventos  Next Due: 14 seconds from now\n  *   * * * *  php artisan inventario:procesar-devoluciones  Next Due: 14 seconds from now\n  *   * * * *  php artisan team4:publish-outbox  Next Due: 14 seconds from now\n  *   * * * *  php artisan comunidad:publicar-plataforma  Next Due: 14 seconds from now\n  *   * * * *  php artisan financial:team4-deliver  Next Due: 14 seconds from now\n  *   * * * *  php artisan financial:community-notices --limit=30  Next Due: 14 seconds from now\n  *   * * * *  php artisan comunidad:publicar-analitica --limit=30  Next Due: 14 seconds from now\n  *   * * * *  php artisan plataforma:entregar-avisos-comunidad --limit=30  Next Due: 14 seconds from now"
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "date": "2026-11-11",
+  "source_base": "f845782",
+  "scope": "Comunidad, nuevas integraciones E5/E7 y regresiones focalizadas",
+  "unique_feature_cases_latest_result": 272,
+  "suite_executions": 283,
+  "latest_failures": 0,
+  "suites": [
+    {
+      "name": "catalogos-avisos",
+      "tests": 22,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "name": "analytics-green2",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "name": "plataforma-emisor2",
+      "tests": 18,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "name": "analytics-read2",
+      "tests": 55,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "name": "revocaciones-enlaces",
+      "tests": 78,
+      "failures": 2,
+      "errors": 0
+    },
+    {
+      "name": "enlaces-green",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "name": "cierre90-regresion",
+      "tests": 95,
+      "failures": 0,
+      "errors": 0
+    }
+  ],
+  "junit_note": "Dos fallos de representación BSON/Carbon de enlaces en revocaciones-enlaces se corrigieron; enlaces-green prueba los siete casos finales. Se conserva el diagnóstico original. Los 272 casos son únicos por clase/nombre y su última ejecución, no una suite única sin advertencias.",
+  "warnings": "Advertencias por ausencia deliberada de .env en el perfil integrado protegido; no se relajan guardas de E1.",
+  "http_checks": 106,
+  "http_passed": true,
+  "browser_checks": 8,
+  "browser_passed": true,
+  "vite_build_passed": true,
+  "fixtures": {
+    "new_accounts": true,
+    "main_database_used_for_scenarios": false,
+    "approved_service_awards": "Precondición explícita: dos solicitudes aprobadas de locker/impresiones; esta sesión no acredita su admisión desde cero.",
+    "opening_points": 100,
+    "ending_points": 80,
+    "prints_assigned": 100,
+    "prints_consumed": 30,
+    "prints_released": 70,
+    "locker_released": 1
+  },
+  "beca_workflow_completed": false,
+  "main_flags_enabled": true,
+  "main_historical_backfill": false,
+  "main_human_grants_changed": false
+}

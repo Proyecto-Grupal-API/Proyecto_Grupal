@@ -1,0 +1,28 @@
+{
+  "environment": "integrated_local",
+  "analytics_enabled": true,
+  "notices_enabled": true,
+  "analytics_since": "2026-11-11T10:25:08+00:00",
+  "notices_since": "2026-11-11T10:25:08+00:00",
+  "before": {
+    "users": 16,
+    "roles": 9,
+    "reports": 2,
+    "benefits": 1,
+    "points_entries": 0,
+    "redemptions": 0,
+    "point_balance": 0
+  },
+  "after": {
+    "users": 16,
+    "roles": 9,
+    "reports": 2,
+    "benefits": 1,
+    "points_entries": 0,
+    "redemptions": 0,
+    "point_balance": 0
+  },
+  "human_grants_changed": false,
+  "historical_backfill": false,
+  "secrets_printed": "[omitido]"
+}

@@ -1,0 +1,7 @@
+{
+  "status": "passed",
+  "source_base": "f845782",
+  "output": "build temporal instalado mediante manifest atómico; assets anteriores conservados",
+  "verified_manifest_sha256": "601cf9dacfe68f6570422af5f92a41f4fc3ecb776c906f0b7cf4d36dd148398c",
+  "source_files_match_http_lab": true
+}
