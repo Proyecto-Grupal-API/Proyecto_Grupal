@@ -17,6 +17,7 @@ class ClienteModuloHttp
             'comunidad_finanzas' => config('comunidad.eventos_pagos'),
             'finanzas_becas_e2' => config('becas_finanzas.e2'),
             'finanzas_becas_e6' => config('becas_finanzas.e6'),
+            'financial_community_notices' => config('financial_community_notices'),
             'marketplace_finance' => config('marketplace.wallet_checkout'),
             'marketplace_community' => config('marketplace.comunidad'),
             default => config('integracion_servicios.'.$modulo),

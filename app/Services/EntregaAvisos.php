@@ -24,7 +24,10 @@ class EntregaAvisos
             $this->comparar($anterior->huella, $huella);
             return ['resultado' => $anterior->resultado_envio, 'creada' => false];
         }
-        $accion = app(CatalogoAvisosServicios::class)->accion($datos['tipo'], $datos['accion']);
+        $finanzas = CatalogoAvisosFinanzas::esClienteFinanciero($cliente);
+        $categoria = $finanzas ? 'finanzas' : 'servicios_estudiante';
+        $accion = app($finanzas ? CatalogoAvisosFinanzas::class : CatalogoAvisosServicios::class)
+            ->accion($datos['tipo'], $datos['accion']);
         if ($datos['expira_en'] && Carbon::parse($datos['expira_en'])->lte(now())) {
             throw new AvisoApiException(422, 'fecha_invalida', 'La expiración debe ser posterior al primer envío.');
         }
@@ -42,16 +45,16 @@ class EntregaAvisos
             throw new AvisoApiException(422, 'destinatario_invalido', 'Usa el identificador canónico que devuelve Identidad.');
         }
         $omitida = ! $accion['obligatoria'] && PreferenciaBandeja::where('usuario_id', $datos['destinatario_id'])
-            ->where('categoria', 'servicios_estudiante')->where('silenciada', true)->exists();
+            ->where('categoria', $categoria)->where('silenciada', true)->exists();
         $m = new Mensaje;
         // Generate the ID before the atomic insert: the receipt and inbox message are one document.
         $m->id = (string) new \MongoDB\BSON\ObjectId;
         $resultado = ['notificacion_id' => (string) $m->id, 'estado' => $omitida ? 'omitida' : 'entregada',
             'motivo' => $omitida ? 'preferencia_silenciada' : null];
         $m->fill(['cliente_id' => $cliente, 'clave_idempotencia' => $clave, 'huella' => $huella,
-            'resultado_envio' => $resultado, 'estado_entrega' => $resultado['estado'], 'categoria' => 'servicios_estudiante',
+            'resultado_envio' => $resultado, 'estado_entrega' => $resultado['estado'], 'categoria' => $categoria,
             'tipo_aviso' => $datos['tipo'], 'usuario_id' => $datos['destinatario_id'],
-            'asunto' => $datos['asunto'], 'cuerpo' => $datos['texto'], 'emisor_nombre' => 'Servicios al estudiante',
+            'asunto' => $datos['asunto'], 'cuerpo' => $datos['texto'], 'emisor_nombre' => $finanzas ? 'Finanzas' : 'Servicios al estudiante',
             'accion_url' => $accion['url'], 'texto_accion' => $accion['texto'],
             'importante' => $accion['obligatoria'] || $datos['importancia'] === 'alta', 'expira_en' => $datos['expira_en']]);
         try {

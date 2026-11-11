@@ -1,0 +1,10 @@
+{
+  "mongo_database": "campus_virtual_testing",
+  "mongo_replica": "rs-e1-testing",
+  "sql": {
+    "db_name": "campus_digital_financial_testing",
+    "user_name": "campus_financial_test",
+    "sysadmin": "0",
+    "main_access": null
+  }
+}

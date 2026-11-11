@@ -1,0 +1,27 @@
+{
+  "before": {
+    "budgets": 0,
+    "bonuses": 0,
+    "commitments": 0,
+    "ledger": 7
+  },
+  "result": {
+    "approved": false,
+    "exception": "Illuminate\\Auth\\Access\\AuthorizationException",
+    "capability": "budget.approve",
+    "authority": "App\\Domains\\Financial\\Adapters\\IdentityInstitutionalBudgetAuthorization",
+    "identity_integration_enabled": true
+  },
+  "after": {
+    "budgets": 0,
+    "bonuses": 0,
+    "commitments": 0,
+    "ledger": 7
+  },
+  "guard": {
+    "db_name": "campus_digital_financial_testing",
+    "user_name": "campus_financial_test",
+    "sysadmin": "0",
+    "main_access": null
+  }
+}

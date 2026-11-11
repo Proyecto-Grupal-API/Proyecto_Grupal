@@ -15,6 +15,16 @@ class PagosEvento
 {
     public function __construct(private InscripcionesEvento $inscripciones, private ClienteModuloHttp $http) {}
 
+    /** Consumer rollout scope; E2 still independently validates its financial recipient. */
+    public static function habilitadoParaOrganizacion(?string $id): bool
+    {
+        $allowed = config('comunidad.eventos_pagos.organizaciones');
+
+        return config('comunidad.eventos_pagos.enabled') === true && is_string($id)
+            && preg_match('/\A[a-f0-9]{24}\z/', $id) === 1
+            && ($allowed === null || (is_array($allowed) && array_is_list($allowed) && in_array($id, $allowed, true)));
+    }
+
     public function iniciar(string $eventoId, string $usuario, int $generacion): array
     {
         abort_unless(config('comunidad.eventos_pagos.enabled') === true, 404);
@@ -22,6 +32,7 @@ class PagosEvento
         abort_unless(is_string($cliente) && $cliente !== '', 503, 'Falta configurar la conexión con Finanzas.');
 
         $pago = $this->inscripciones->ejecutar($eventoId, function (Evento $evento) use ($usuario, $generacion, $cliente) {
+            abort_unless(self::habilitadoParaOrganizacion((string) $evento->organizacion_id), 404);
             $reg = RegistroEvento::where('evento_id', (string) $evento->id)->where('usuario_id', $usuario)->firstOrFail();
             $this->inscripciones->sincronizar($evento);
             $reg->refresh();
@@ -98,6 +109,9 @@ class PagosEvento
     {
         abort_unless(config('comunidad.eventos_pagos.enabled') === true
             && config('comunidad.eventos_pagos.client_id') === $pago->cliente_id, 503, 'La conexión original con Finanzas no está disponible.');
+        if ($accion === 'prepare') {
+            abort_unless(self::habilitadoParaOrganizacion($pago->organizacion_id), 404);
+        }
         $origen = '/api/v1/financial/community/event-reservations/'.$pago->registro_id.'/generations/'.$pago->generacion.'/payment';
         $snapshot = [
             'student_id' => $pago->usuario_id, 'event_id' => $pago->evento_id, 'organization_id' => $pago->organizacion_id,

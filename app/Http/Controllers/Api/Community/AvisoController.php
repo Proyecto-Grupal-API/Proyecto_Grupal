@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Community;
 
 use App\Http\Controllers\Controller;
 use App\Services\CatalogoAvisosServicios;
+use App\Services\CatalogoAvisosFinanzas;
 use App\Services\EntregaAvisos;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -15,13 +16,15 @@ class AvisoController extends Controller
         $textoPlano = function ($atributo, $valor, $fallar) {
             if (is_string($valor) && strip_tags($valor) !== $valor) { $fallar('Utiliza texto sin HTML.'); }
         };
+        $catalogo = CatalogoAvisosFinanzas::esClienteFinanciero($this->cliente($r))
+            ? CatalogoAvisosFinanzas::class : CatalogoAvisosServicios::class;
         $d = $r->validate([
             'destinatario_id' => ['required', 'string', 'max:128', 'regex:/^[a-zA-Z0-9_-]+$/'],
-            'tipo' => ['required', Rule::in(array_keys(CatalogoAvisosServicios::TIPOS))],
+            'tipo' => ['required', Rule::in(array_keys($catalogo::TIPOS))],
             'asunto' => ['required', 'string', 'max:180', $textoPlano],
             'texto' => ['required', 'string', 'max:5000', $textoPlano],
             'accion' => ['required', 'array:destino,id'],
-            'accion.destino' => ['required', Rule::in(array_keys(CatalogoAvisosServicios::DESTINOS))],
+            'accion.destino' => ['required', Rule::in(array_keys($catalogo::DESTINOS))],
             'accion.id' => ['required', 'string', 'max:128', 'regex:/^[a-zA-Z0-9_-]+$/'],
             'importancia' => ['sometimes', Rule::in(['normal', 'alta'])],
             'expira_en' => ['nullable', 'date', 'regex:/T.*(?:Z|[+-]\d{2}:\d{2})$/'],

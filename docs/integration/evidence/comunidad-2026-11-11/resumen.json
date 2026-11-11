@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-11",
+  "source_base": "61802c8",
+  "feature_tests": 175,
+  "unit_tests": 15,
+  "assertions": 2255,
+  "suites": {
+    "avisos-beneficios": {
+      "tests": "68",
+      "assertions": "474",
+      "failures": "0",
+      "errors": "0"
+    },
+    "notices-unit": {
+      "tests": "15",
+      "assertions": "108",
+      "failures": "0",
+      "errors": "0"
+    },
+    "cierre-regresion": {
+      "tests": "107",
+      "assertions": "1673",
+      "failures": "0",
+      "errors": "0"
+    }
+  },
+  "http_event_checks": 91,
+  "http_notification_checks": 17,
+  "benefits_real_assignments": 2,
+  "beca_checks": 57,
+  "beca_workflow_completed": false,
+  "browser": {
+    "passed": true,
+    "errors": [],
+    "serverFailures": [],
+    "receiptLink": "/finanzas/comprobantes/transaction/6310b960-9650-4797-a289-a73bdf5d3fb5"
+  },
+  "functional_95_percent_accredited": false
+}

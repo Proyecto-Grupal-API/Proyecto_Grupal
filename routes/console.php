@@ -65,3 +65,10 @@ if (config('financial_team4.enabled') === true) {
         ->preventOverlapsUsing(app(CacheEventMutex::class)->useStore('financial_scheduler'))
         ->withoutOverlapping(10);
 }
+
+if (config('financial_community_notices.enabled') === true) {
+    Schedule::command('financial:community-notices --limit=30')
+        ->everyMinute()
+        ->preventOverlapsUsing(app(CacheEventMutex::class)->useStore('financial_scheduler'))
+        ->withoutOverlapping(10);
+}

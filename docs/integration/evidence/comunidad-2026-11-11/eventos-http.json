@@ -1,0 +1,2085 @@
+{
+  "environment": "new isolated SQL Server/MongoDB, synthetic accounts, explicit test opening balance",
+  "checks": [
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/eventos",
+      "passed": true,
+      "status": 201
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/eventos/6af424a1f1c44ed9cb086016/publicar",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/eventos/6af424a1f1c44ed9cb086016/inscripcion",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/eventos/6af424a1f1c44ed9cb086016/pago",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /finanzas/eventos/solicitudes/970ef1df-afea-4632-90fb-06426c35365c",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /confirm-password",
+      "passed": true,
+      "status": 204
+    },
+    {
+      "check": "POST /finanzas/eventos/solicitudes/970ef1df-afea-4632-90fb-06426c35365c/confirmar",
+      "passed": true,
+      "status": 422
+    },
+    {
+      "check": "POST /finanzas/eventos/solicitudes/970ef1df-afea-4632-90fb-06426c35365c/confirmar",
+      "passed": true,
+      "status": 302
+    },
+    {
+      "check": "POST /finanzas/eventos/solicitudes/970ef1df-afea-4632-90fb-06426c35365c/confirmar",
+      "passed": true,
+      "status": 302
+    },
+    {
+      "check": "Repeated charge returns same receipt",
+      "passed": true
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/eventos/6af424a1f1c44ed9cb086016/pago/consultar",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/eventos/6af424a1f1c44ed9cb086016/boleto",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Paid reservation enables QR",
+      "passed": true
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/eventos/checkin",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/eventos/checkin",
+      "passed": true,
+      "status": 422
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/eventos",
+      "passed": true,
+      "status": 201
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/publicar",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/inscripcion",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/inscripcion",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Second applicant waits without owning a place",
+      "passed": true
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/pago",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /confirm-password",
+      "passed": true,
+      "status": 204
+    },
+    {
+      "check": "POST /finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8/confirmar",
+      "passed": true,
+      "status": 422
+    },
+    {
+      "check": "POST /finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8/confirmar",
+      "passed": true,
+      "status": 302
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /confirm-password",
+      "passed": true,
+      "status": 204
+    },
+    {
+      "check": "POST /finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8/confirmar",
+      "passed": true,
+      "status": 302
+    },
+    {
+      "check": "Retry after rate limit returns the already committed receipt",
+      "passed": true
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/pago/consultar",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Lost reservation preserves paid receipt for refund",
+      "passed": true
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/boleto",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Late paid reservation never enables QR",
+      "passed": true
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/boleto",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Waitlist applicant keeps promoted place",
+      "passed": true
+    },
+    {
+      "check": "POST /finanzas/ajustes/refunds",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /finanzas/ajustes/refunds",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /two-factor-challenge",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /two-factor-challenge",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /finanzas/ajustes/refunds/0e824025-7571-4039-bccb-d4894cd0ee40/approve",
+      "passed": true,
+      "status": 428
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /two-factor-challenge",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /finanzas/ajustes/refunds/0e824025-7571-4039-bccb-d4894cd0ee40/approve",
+      "passed": true,
+      "status": 428
+    },
+    {
+      "check": "POST /seguridad/confirmar-segundo-factor",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /finanzas/ajustes/refunds/0e824025-7571-4039-bccb-d4894cd0ee40/approve",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /two-factor-challenge",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /seguridad/confirmar-segundo-factor",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /finanzas/ajustes/refunds/0e824025-7571-4039-bccb-d4894cd0ee40/complete",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Refund completed with the real recipient wallet",
+      "passed": true
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /two-factor-challenge",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /seguridad/confirmar-segundo-factor",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /finanzas/ajustes/refunds/0e824025-7571-4039-bccb-d4894cd0ee40/complete",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /finanzas/ajustes/refunds/0e824025-7571-4039-bccb-d4894cd0ee40/complete",
+      "passed": true,
+      "status": 409
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/pago/consultar",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "E6 reconciles the actual completed refund",
+      "passed": true
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/boleto",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Refund does not revoke the promoted place",
+      "passed": true
+    },
+    {
+      "check": "Owner balance matches one paid event after refund",
+      "passed": true
+    },
+    {
+      "check": "Organization retains exactly the other event payment",
+      "passed": true
+    },
+    {
+      "check": "Opening entry, two payments and one refund: seven ledger entries",
+      "passed": true
+    }
+  ],
+  "records": [
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:17:35+00:00",
+        "puede_gestionar": true,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 1,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": {
+          "campanas_pendientes": 0,
+          "reportes_borrador": 0
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:17:36+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 1,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 1
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:17:37+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 1,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "titulo": "Pago y acceso confirmado — laboratorio",
+        "descripcion": "Prueba HTTP aislada de pago y recuperación de Comunidad.",
+        "ubicacion": "Laboratorio temporal",
+        "capacidad": 3,
+        "costo": 25,
+        "lista_espera": true,
+        "fecha_hora_inicio": "2026-11-11T02:42",
+        "fecha_hora_fin": "2026-11-11T04:17",
+        "fecha_inicio_registro": "2026-11-11T01:17",
+        "fecha_fin_registro": "2026-11-11T02:41"
+      },
+      "response": {
+        "message": "Borrador guardado.",
+        "evento": {
+          "titulo": "Pago y acceso confirmado — laboratorio",
+          "descripcion": "Prueba HTTP aislada de pago y recuperación de Comunidad.",
+          "ubicacion": "Laboratorio temporal",
+          "fecha_hora_inicio": "2026-11-11T08:42:00.000000Z",
+          "fecha_hora_fin": "2026-11-11T10:17:00.000000Z",
+          "fecha_inicio_registro": "2026-11-11T07:17:00.000000Z",
+          "fecha_fin_registro": "2026-11-11T08:41:00.000000Z",
+          "costo": 25,
+          "capacidad": 3,
+          "lista_espera": true,
+          "organizacion_id": "6af3f5771f26711543009489",
+          "slug": "pago-y-acceso-confirmado-laboratorio-bZuLO7FXcG",
+          "estado": "borrador",
+          "creado_por": "6af3f5771f26711543009482",
+          "actualizado_en": "2026-11-11T08:17:37.540000Z",
+          "creado_en": "2026-11-11T08:17:37.540000Z",
+          "id": "6af424a1f1c44ed9cb086016"
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/6af424a1f1c44ed9cb086016/publicar",
+      "method": "POST",
+      "status": 200,
+      "request": {},
+      "response": {
+        "message": "Evento publicado en el catálogo."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/6af424a1f1c44ed9cb086016/inscripcion",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "clave_solicitud": "c354f7f7-1b21-4702-aec3-9727a9150e05",
+        "generacion": 0
+      },
+      "response": {
+        "registro": {
+          "id": "6af424a1f1c44ed9cb086019",
+          "evento_id": "6af424a1f1c44ed9cb086016",
+          "usuario_id": "6af3f5771f26711543009485",
+          "reserva_hasta": "2026-11-11T08:32:37.921000Z",
+          "vencido_en": null,
+          "estado_pago": "pendiente",
+          "pago_estado": null,
+          "monto_centavos": 2500,
+          "moneda": "MXN",
+          "estado_asistencia": "pendiente",
+          "registrado_en": "2026-11-11T08:17:37.921000Z",
+          "asistio_en": null,
+          "estado": "confirmada",
+          "generacion": 1
+        },
+        "repetida": false,
+        "generacion_solicitud": 1,
+        "message": "Lugar reservado durante un máximo de 15 minutos. Abre Mis boletos para pagar."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/6af424a1f1c44ed9cb086016/pago",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "generacion": 1
+      },
+      "response": {
+        "estado": "pendiente",
+        "confirmation_path": "/finanzas/eventos/solicitudes/970ef1df-afea-4632-90fb-06426c35365c"
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/eventos/solicitudes/970ef1df-afea-4632-90fb-06426c35365c",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "component": "Financial/InstitutionalWalletCheckout",
+        "props": {
+          "errors": {},
+          "inventoryContext": null,
+          "permissions": [],
+          "dashboardKpis": [],
+          "flash": {
+            "success": null,
+            "error": null,
+            "status": null
+          },
+          "auth": {
+            "user": {
+              "name": "Prueba Comunidad student",
+              "email": "cierre-student@campus.test",
+              "email_verified_at": "2026-11-11T04:56:23.741000Z",
+              "account_activation_pending": false,
+              "updated_at": "2026-11-11T04:56:23.742000Z",
+              "created_at": "2026-11-11T04:56:23.742000Z",
+              "id": "6af3f5771f26711543009485",
+              "two_factor_enabled": false,
+              "effective_roles": []
+            },
+            "servicios_staff": false,
+            "hasStudentProfile": false,
+            "gestiona_organizaciones": false,
+            "organizacion": null,
+            "puede_editar": false,
+            "tesoreria_becas": false,
+            "comite_becas": false,
+            "capacidades_comunidad": []
+          },
+          "paymentRequest": {
+            "source_reference": "event-reservation:6af424a1f1c44ed9cb086019:1",
+            "status": "PENDING",
+            "student_id": "6af3f5771f26711543009485",
+            "event_id": "6af424a1f1c44ed9cb086016",
+            "organization_id": "6af3f5771f26711543009489",
+            "amount_cents": 2500,
+            "reservation_expires_at": "2026-11-11T08:32:37.921Z",
+            "confirmed_at": null,
+            "currency": "MXN",
+            "request_id": "970ef1df-afea-4632-90fb-06426c35365c",
+            "payment_id": null,
+            "confirmation_path": "/finanzas/eventos/solicitudes/970ef1df-afea-4632-90fb-06426c35365c"
+          },
+          "reviewToken": "[omitido]",
+          "passwordRecent": "[omitido]",
+          "recipientName": "Consejo del laboratorio de Comunidad",
+          "eventCheckout": true
+        },
+        "url": "/finanzas/eventos/solicitudes/970ef1df-afea-4632-90fb-06426c35365c",
+        "version": "f3f6ad0a6f133e2274a2c46ab05b3fbe",
+        "clearHistory": false,
+        "encryptHistory": false
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/eventos/solicitudes/970ef1df-afea-4632-90fb-06426c35365c/confirmar",
+      "method": "POST",
+      "status": 422,
+      "request": {
+        "consent": false,
+        "review_token": "[omitido]"
+      },
+      "response": {
+        "message": "The consent field must be accepted.",
+        "errors": {
+          "consent": [
+            "The consent field must be accepted."
+          ]
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/eventos/solicitudes/970ef1df-afea-4632-90fb-06426c35365c/confirmar",
+      "method": "POST",
+      "status": 302,
+      "request": {
+        "consent": true,
+        "review_token": "[omitido]"
+      },
+      "response": "[HTML/empty response]",
+      "location": "http://127.0.0.1:18086/finanzas/comprobantes/transaction/2ef2f186-8e8a-4502-a971-3b5146a7e0a4"
+    },
+    {
+      "path": "/finanzas/eventos/solicitudes/970ef1df-afea-4632-90fb-06426c35365c/confirmar",
+      "method": "POST",
+      "status": 302,
+      "request": {
+        "consent": true,
+        "review_token": "[omitido]"
+      },
+      "response": "[HTML/empty response]",
+      "location": "http://127.0.0.1:18086/finanzas/comprobantes/transaction/2ef2f186-8e8a-4502-a971-3b5146a7e0a4"
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/6af424a1f1c44ed9cb086016/pago/consultar",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "generacion": 1
+      },
+      "response": {
+        "estado": "aplicado"
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/6af424a1f1c44ed9cb086016/boleto",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "id": "6af424a1f1c44ed9cb086019",
+        "evento_id": "6af424a1f1c44ed9cb086016",
+        "usuario_id": "6af3f5771f26711543009485",
+        "reserva_hasta": "2026-11-11T08:32:37.921000Z",
+        "vencido_en": null,
+        "estado_pago": "pagado",
+        "pago_estado": "aplicado",
+        "monto_centavos": 2500,
+        "moneda": "MXN",
+        "estado_asistencia": "pendiente",
+        "registrado_en": "2026-11-11T08:17:37.921000Z",
+        "asistio_en": null,
+        "estado": "confirmada",
+        "generacion": 1,
+        "titulo": "Pago y acceso confirmado — laboratorio",
+        "ubicacion": "Laboratorio temporal",
+        "fecha_hora_inicio": "2026-11-11T08:42:00.000000Z",
+        "fecha_hora_fin": "2026-11-11T10:17:00.000000Z",
+        "motivo_cancelacion": null,
+        "evento_estado": "publicado",
+        "posicion_espera": null,
+        "organizacion_activa": true,
+        "qr_habilitado": true,
+        "token_qr": "[omitido]",
+        "puede_pagar": false,
+        "puede_consultar_pago": false,
+        "puede_cancelar": false,
+        "zona_horaria": "America/Mexico_City"
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/checkin",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "evento_id": "6af424a1f1c44ed9cb086016",
+        "token_qr": "[omitido]"
+      },
+      "response": {
+        "message": "Acceso autorizado. Asistencia registrada.",
+        "asistente": {
+          "name": "Prueba Comunidad student",
+          "matricula": null
+        },
+        "asistio_en": "2026-11-11T08:17:39.899000Z"
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/checkin",
+      "method": "POST",
+      "status": 422,
+      "request": {
+        "evento_id": "6af424a1f1c44ed9cb086016",
+        "token_qr": "[omitido]"
+      },
+      "response": {
+        "message": "Revisa los datos enviados.",
+        "errors": {
+          "token_qr": "[omitido]"
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "titulo": "Pago confirmado con lugar perdido — laboratorio",
+        "descripcion": "Prueba HTTP aislada de pago y recuperación de Comunidad.",
+        "ubicacion": "Laboratorio temporal",
+        "capacidad": 1,
+        "costo": 25,
+        "lista_espera": true,
+        "fecha_hora_inicio": "2026-11-11T02:42",
+        "fecha_hora_fin": "2026-11-11T04:17",
+        "fecha_inicio_registro": "2026-11-11T01:17",
+        "fecha_fin_registro": "2026-11-11T02:41"
+      },
+      "response": {
+        "message": "Borrador guardado.",
+        "evento": {
+          "titulo": "Pago confirmado con lugar perdido — laboratorio",
+          "descripcion": "Prueba HTTP aislada de pago y recuperación de Comunidad.",
+          "ubicacion": "Laboratorio temporal",
+          "fecha_hora_inicio": "2026-11-11T08:42:00.000000Z",
+          "fecha_hora_fin": "2026-11-11T10:17:00.000000Z",
+          "fecha_inicio_registro": "2026-11-11T07:17:00.000000Z",
+          "fecha_fin_registro": "2026-11-11T08:41:00.000000Z",
+          "costo": 25,
+          "capacidad": 1,
+          "lista_espera": true,
+          "organizacion_id": "6af3f5771f26711543009489",
+          "slug": "pago-confirmado-con-lugar-perdido-laboratorio-0dqGJQYAvV",
+          "estado": "borrador",
+          "creado_por": "6af3f5771f26711543009482",
+          "actualizado_en": "2026-11-11T08:17:40.272000Z",
+          "creado_en": "2026-11-11T08:17:40.272000Z",
+          "id": "6af424a421836b205200f15a"
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/publicar",
+      "method": "POST",
+      "status": 200,
+      "request": {},
+      "response": {
+        "message": "Evento publicado en el catálogo."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/inscripcion",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "clave_solicitud": "aca394f4-9e42-45b5-8624-5bd9ebbf274b",
+        "generacion": 0
+      },
+      "response": {
+        "registro": {
+          "id": "6af424a421836b205200f15d",
+          "evento_id": "6af424a421836b205200f15a",
+          "usuario_id": "6af3f5771f26711543009485",
+          "reserva_hasta": "2026-11-11T08:32:40.622000Z",
+          "vencido_en": null,
+          "estado_pago": "pendiente",
+          "pago_estado": null,
+          "monto_centavos": 2500,
+          "moneda": "MXN",
+          "estado_asistencia": "pendiente",
+          "registrado_en": "2026-11-11T08:17:40.622000Z",
+          "asistio_en": null,
+          "estado": "confirmada",
+          "generacion": 1
+        },
+        "repetida": false,
+        "generacion_solicitud": 1,
+        "message": "Lugar reservado durante un máximo de 15 minutos. Abre Mis boletos para pagar."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/inscripcion",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "clave_solicitud": "36562b7d-d906-47d3-bb60-fbb0f3dec4bc",
+        "generacion": 0
+      },
+      "response": {
+        "registro": {
+          "id": "6af424a43e601cd3b90d90e8",
+          "evento_id": "6af424a421836b205200f15a",
+          "usuario_id": "6af3f5771f26711543009488",
+          "reserva_hasta": null,
+          "vencido_en": null,
+          "estado_pago": "pendiente",
+          "pago_estado": null,
+          "monto_centavos": 2500,
+          "moneda": "MXN",
+          "estado_asistencia": "pendiente",
+          "registrado_en": "2026-11-11T08:17:40.858000Z",
+          "asistio_en": null,
+          "estado": "espera",
+          "generacion": 1
+        },
+        "repetida": false,
+        "generacion_solicitud": 1,
+        "message": "Estás en lista de espera."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/pago",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "generacion": 1
+      },
+      "response": {
+        "estado": "pendiente",
+        "confirmation_path": "/finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8"
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "component": "Financial/InstitutionalWalletCheckout",
+        "props": {
+          "errors": {},
+          "inventoryContext": null,
+          "permissions": [],
+          "dashboardKpis": [],
+          "flash": {
+            "success": null,
+            "error": null,
+            "status": null
+          },
+          "auth": {
+            "user": {
+              "name": "Prueba Comunidad student",
+              "email": "cierre-student@campus.test",
+              "email_verified_at": "2026-11-11T04:56:23.741000Z",
+              "account_activation_pending": false,
+              "updated_at": "2026-11-11T04:56:23.742000Z",
+              "created_at": "2026-11-11T04:56:23.742000Z",
+              "id": "6af3f5771f26711543009485",
+              "two_factor_enabled": false,
+              "effective_roles": []
+            },
+            "servicios_staff": false,
+            "hasStudentProfile": false,
+            "gestiona_organizaciones": false,
+            "organizacion": null,
+            "puede_editar": false,
+            "tesoreria_becas": false,
+            "comite_becas": false,
+            "capacidades_comunidad": []
+          },
+          "paymentRequest": {
+            "source_reference": "event-reservation:6af424a421836b205200f15d:1",
+            "status": "PENDING",
+            "student_id": "6af3f5771f26711543009485",
+            "event_id": "6af424a421836b205200f15a",
+            "organization_id": "6af3f5771f26711543009489",
+            "amount_cents": 2500,
+            "reservation_expires_at": "2026-11-11T08:32:40.622Z",
+            "confirmed_at": null,
+            "currency": "MXN",
+            "request_id": "9da2f855-9a6c-454a-9f32-8cce2e52d0e8",
+            "payment_id": null,
+            "confirmation_path": "/finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8"
+          },
+          "reviewToken": "[omitido]",
+          "passwordRecent": "[omitido]",
+          "recipientName": "Consejo del laboratorio de Comunidad",
+          "eventCheckout": true
+        },
+        "url": "/finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8",
+        "version": "f3f6ad0a6f133e2274a2c46ab05b3fbe",
+        "clearHistory": false,
+        "encryptHistory": false
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8/confirmar",
+      "method": "POST",
+      "status": 422,
+      "request": {
+        "consent": false,
+        "review_token": "[omitido]"
+      },
+      "response": {
+        "message": "The consent field must be accepted.",
+        "errors": {
+          "consent": [
+            "The consent field must be accepted."
+          ]
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8/confirmar",
+      "method": "POST",
+      "status": 302,
+      "request": {
+        "consent": true,
+        "review_token": "[omitido]"
+      },
+      "response": "[HTML/empty response]",
+      "location": "http://127.0.0.1:18086/finanzas/comprobantes/transaction/74daa14c-82bf-4f75-bc75-890b0d86d5b4"
+    },
+    {
+      "path": "/finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8/confirmar",
+      "method": "POST",
+      "status": 429,
+      "request": {
+        "consent": true,
+        "review_token": "[omitido]"
+      },
+      "response": {
+        "message": "Servicio temporalmente no disponible."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:22:55+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 3
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:22:56+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 1
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "component": "Financial/InstitutionalWalletCheckout",
+        "props": {
+          "errors": {},
+          "inventoryContext": null,
+          "permissions": [],
+          "dashboardKpis": [],
+          "flash": {
+            "success": null,
+            "error": null,
+            "status": null
+          },
+          "auth": {
+            "user": {
+              "name": "Prueba Comunidad student",
+              "email": "cierre-student@campus.test",
+              "email_verified_at": "2026-11-11T04:56:23.741000Z",
+              "account_activation_pending": false,
+              "updated_at": "2026-11-11T04:56:23.742000Z",
+              "created_at": "2026-11-11T04:56:23.742000Z",
+              "id": "6af3f5771f26711543009485",
+              "two_factor_enabled": false,
+              "effective_roles": []
+            },
+            "servicios_staff": false,
+            "hasStudentProfile": false,
+            "gestiona_organizaciones": false,
+            "organizacion": null,
+            "puede_editar": false,
+            "tesoreria_becas": false,
+            "comite_becas": false,
+            "capacidades_comunidad": []
+          },
+          "paymentRequest": {
+            "source_reference": "event-reservation:6af424a421836b205200f15d:1",
+            "status": "CONFIRMED",
+            "student_id": "6af3f5771f26711543009485",
+            "event_id": "6af424a421836b205200f15a",
+            "organization_id": "6af3f5771f26711543009489",
+            "amount_cents": 2500,
+            "reservation_expires_at": "2026-11-11T08:32:40.622Z",
+            "confirmed_at": "2026-11-11T08:17:41.964Z",
+            "currency": "MXN",
+            "request_id": "9da2f855-9a6c-454a-9f32-8cce2e52d0e8",
+            "payment_id": "74daa14c-82bf-4f75-bc75-890b0d86d5b4",
+            "confirmation_path": null
+          },
+          "reviewToken": "[omitido]",
+          "passwordRecent": "[omitido]",
+          "recipientName": "Consejo del laboratorio de Comunidad",
+          "eventCheckout": true
+        },
+        "url": "/finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8",
+        "version": "f3f6ad0a6f133e2274a2c46ab05b3fbe",
+        "clearHistory": false,
+        "encryptHistory": false
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/eventos/solicitudes/9da2f855-9a6c-454a-9f32-8cce2e52d0e8/confirmar",
+      "method": "POST",
+      "status": 302,
+      "request": {
+        "consent": true,
+        "review_token": "[omitido]"
+      },
+      "response": "[HTML/empty response]",
+      "location": "http://127.0.0.1:18086/finanzas/comprobantes/transaction/74daa14c-82bf-4f75-bc75-890b0d86d5b4"
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/pago/consultar",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "generacion": 1
+      },
+      "response": {
+        "estado": "devolucion_pendiente"
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/boleto",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "id": "6af424a421836b205200f15d",
+        "evento_id": "6af424a421836b205200f15a",
+        "usuario_id": "6af3f5771f26711543009485",
+        "reserva_hasta": "2026-11-11T08:32:40.622000Z",
+        "vencido_en": "2026-11-11T08:33:00.000000Z",
+        "estado_pago": "pendiente",
+        "pago_estado": "devolucion_pendiente",
+        "monto_centavos": 2500,
+        "moneda": "MXN",
+        "estado_asistencia": "pendiente",
+        "registrado_en": "2026-11-11T08:17:40.622000Z",
+        "asistio_en": null,
+        "estado": "vencida",
+        "generacion": 1,
+        "titulo": "Pago confirmado con lugar perdido — laboratorio",
+        "ubicacion": "Laboratorio temporal",
+        "fecha_hora_inicio": "2026-11-11T08:42:00.000000Z",
+        "fecha_hora_fin": "2026-11-11T10:17:00.000000Z",
+        "motivo_cancelacion": null,
+        "evento_estado": "publicado",
+        "posicion_espera": null,
+        "organizacion_activa": true,
+        "qr_habilitado": false,
+        "token_qr": "[omitido]",
+        "puede_pagar": false,
+        "puede_consultar_pago": true,
+        "puede_cancelar": false,
+        "zona_horaria": "America/Mexico_City"
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/boleto",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "id": "6af424a43e601cd3b90d90e8",
+        "evento_id": "6af424a421836b205200f15a",
+        "usuario_id": "6af3f5771f26711543009488",
+        "reserva_hasta": "2026-11-11T08:42:00.000000Z",
+        "vencido_en": null,
+        "estado_pago": "pendiente",
+        "pago_estado": null,
+        "monto_centavos": 2500,
+        "moneda": "MXN",
+        "estado_asistencia": "pendiente",
+        "registrado_en": "2026-11-11T08:17:40.858000Z",
+        "asistio_en": null,
+        "estado": "confirmada",
+        "generacion": 1,
+        "titulo": "Pago confirmado con lugar perdido — laboratorio",
+        "ubicacion": "Laboratorio temporal",
+        "fecha_hora_inicio": "2026-11-11T08:42:00.000000Z",
+        "fecha_hora_fin": "2026-11-11T10:17:00.000000Z",
+        "motivo_cancelacion": null,
+        "evento_estado": "publicado",
+        "posicion_espera": null,
+        "organizacion_activa": true,
+        "qr_habilitado": false,
+        "token_qr": "[omitido]",
+        "puede_pagar": true,
+        "puede_consultar_pago": false,
+        "puede_cancelar": true,
+        "zona_horaria": "America/Mexico_City"
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/ajustes/refunds",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "original_transaction_id": "74daa14c-82bf-4f75-bc75-890b0d86d5b4",
+        "amount_cents": 2500,
+        "reason": "Pago confirmado sin lugar válido en prueba aislada"
+      },
+      "response": {
+        "data": {
+          "id": "eee6bcdb-744a-49c3-bc9a-f5aad31d4c3a"
+        },
+        "meta": {
+          "request_id": "a078d925-7d34-4e08-ba5c-6fcd841ddb65",
+          "api_version": "v1"
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/ajustes/refunds",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "original_transaction_id": "74daa14c-82bf-4f75-bc75-890b0d86d5b4",
+        "amount_cents": 2500,
+        "reason": "Pago confirmado sin lugar válido en prueba aislada"
+      },
+      "response": {
+        "data": {
+          "id": "eee6bcdb-744a-49c3-bc9a-f5aad31d4c3a"
+        },
+        "meta": {
+          "request_id": "21cafbb6-d2f4-4cca-85d7-6ded90b1dd44",
+          "api_version": "v1"
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:23:01+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/ajustes/refunds/0e824025-7571-4039-bccb-d4894cd0ee40/approve",
+      "method": "POST",
+      "status": 428,
+      "request": {
+        "reason": "Revisión en laboratorio"
+      },
+      "response": {
+        "message": "Servicio temporalmente no disponible."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:23:35+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 2
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:23:36+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 1
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:23:38+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/ajustes/refunds/0e824025-7571-4039-bccb-d4894cd0ee40/approve",
+      "method": "POST",
+      "status": 428,
+      "request": {
+        "reason": "Revisión en laboratorio"
+      },
+      "response": {
+        "message": "Servicio temporalmente no disponible."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:26:12+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 2
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:26:14+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 1
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:26:31+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/ajustes/refunds/0e824025-7571-4039-bccb-d4894cd0ee40/approve",
+      "method": "POST",
+      "status": 428,
+      "request": {
+        "reason": "Revisión en laboratorio"
+      },
+      "response": {
+        "message": "Servicio temporalmente no disponible."
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/ajustes/refunds/0e824025-7571-4039-bccb-d4894cd0ee40/approve",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "reason": "Comprobado cobro sin lugar válido"
+      },
+      "response": {
+        "data": {
+          "id": "0e824025-7571-4039-bccb-d4894cd0ee40"
+        },
+        "meta": {
+          "request_id": "ba786c56-c6d5-4f0e-9dbc-70f24808955d",
+          "api_version": "v1"
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:27:31+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/ajustes/refunds/0e824025-7571-4039-bccb-d4894cd0ee40/complete",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "reason": "Ejecutar devolución aprobada"
+      },
+      "response": {
+        "data": {
+          "id": "6310b960-9650-4797-a289-a73bdf5d3fb5"
+        },
+        "meta": {
+          "request_id": "a81957ef-79ef-4289-89c6-af0e2659d382",
+          "api_version": "v1"
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/ajustes/refunds/0e824025-7571-4039-bccb-d4894cd0ee40/complete",
+      "method": "POST",
+      "status": 409,
+      "request": {
+        "reason": "Reintento de la misma devolución"
+      },
+      "response": {
+        "message": "La clave pertenece a una solicitud con otro responsable o motivo.",
+        "meta": {
+          "request_id": "673d5cef-d739-4ae5-a1a9-a5c7f00ef302",
+          "api_version": "v1"
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:29:49+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 2
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:29:50+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 1
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:30:01+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 1,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/ajustes/refunds/0e824025-7571-4039-bccb-d4894cd0ee40/complete",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "reason": "Ejecutar devolución aprobada"
+      },
+      "response": {
+        "data": {
+          "id": "6310b960-9650-4797-a289-a73bdf5d3fb5"
+        },
+        "meta": {
+          "request_id": "6c68dacb-bbb9-47c4-8805-b4065bfa6583",
+          "api_version": "v1"
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/ajustes/refunds/0e824025-7571-4039-bccb-d4894cd0ee40/complete",
+      "method": "POST",
+      "status": 409,
+      "request": {
+        "reason": "Intento con un motivo alterado"
+      },
+      "response": {
+        "message": "La clave pertenece a una solicitud con otro responsable o motivo.",
+        "meta": {
+          "request_id": "b1f71f5c-466c-492a-ac27-9393a139c1c6",
+          "api_version": "v1"
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/pago/consultar",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "generacion": 1
+      },
+      "response": {
+        "estado": "devuelto"
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/eventos/6af424a421836b205200f15a/boleto",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "id": "6af424a43e601cd3b90d90e8",
+        "evento_id": "6af424a421836b205200f15a",
+        "usuario_id": "6af3f5771f26711543009488",
+        "reserva_hasta": "2026-11-11T08:42:00.000000Z",
+        "vencido_en": null,
+        "estado_pago": "pendiente",
+        "pago_estado": null,
+        "monto_centavos": 2500,
+        "moneda": "MXN",
+        "estado_asistencia": "pendiente",
+        "registrado_en": "2026-11-11T08:17:40.858000Z",
+        "asistio_en": null,
+        "estado": "confirmada",
+        "generacion": 1,
+        "titulo": "Pago confirmado con lugar perdido — laboratorio",
+        "ubicacion": "Laboratorio temporal",
+        "fecha_hora_inicio": "2026-11-11T08:42:00.000000Z",
+        "fecha_hora_fin": "2026-11-11T10:17:00.000000Z",
+        "motivo_cancelacion": null,
+        "evento_estado": "publicado",
+        "posicion_espera": null,
+        "organizacion_activa": true,
+        "qr_habilitado": false,
+        "token_qr": "[omitido]",
+        "puede_pagar": true,
+        "puede_consultar_pago": false,
+        "puede_cancelar": true,
+        "zona_horaria": "America/Mexico_City"
+      },
+      "location": null
+    }
+  ],
+  "state": {
+    "wallets": [
+      {
+        "public_id": "3CC55E62-1D9F-4B0C-96F3-E7C9FDED2E7D",
+        "owner_type": "ORGANIZATION",
+        "owner_id": "6af3f5771f26711543009489",
+        "available_balance_cents": 2500,
+        "held_balance_cents": 0
+      },
+      {
+        "public_id": "4B47AD4B-F0FB-4980-895B-08160D69264D",
+        "owner_type": "USER",
+        "owner_id": "6af3f5771f26711543009485",
+        "available_balance_cents": 2500,
+        "held_balance_cents": 0
+      }
+    ],
+    "payments": [
+      {
+        "public_id": "419F1FD5-5188-4362-843B-F8F1D9EB379E",
+        "source_reference": "event-reservation:6af3f83bf1c44ed9cb086005:1",
+        "status": "PENDING",
+        "transaction_id": null,
+        "student_id": "6af3f5771f26711543009485",
+        "event_id": "6af3f83bf1c44ed9cb086002",
+        "amount_cents": 2500
+      },
+      {
+        "public_id": "34540CD9-6B7C-416F-9EF1-4D536EF36CB7",
+        "source_reference": "event-reservation:6af4244bd07782a34302f586:1",
+        "status": "PENDING",
+        "transaction_id": null,
+        "student_id": "6af3f5771f26711543009485",
+        "event_id": "6af4244b25f67dd04e047086",
+        "amount_cents": 2500
+      },
+      {
+        "public_id": "970EF1DF-AFEA-4632-90FB-06426C35365C",
+        "source_reference": "event-reservation:6af424a1f1c44ed9cb086019:1",
+        "status": "CONFIRMED",
+        "transaction_id": "2EF2F186-8E8A-4502-A971-3B5146A7E0A4",
+        "student_id": "6af3f5771f26711543009485",
+        "event_id": "6af424a1f1c44ed9cb086016",
+        "amount_cents": 2500
+      },
+      {
+        "public_id": "9DA2F855-9A6C-454A-9F32-8CCE2E52D0E8",
+        "source_reference": "event-reservation:6af424a421836b205200f15d:1",
+        "status": "CONFIRMED",
+        "transaction_id": "74DAA14C-82BF-4F75-BC75-890B0D86D5B4",
+        "student_id": "6af3f5771f26711543009485",
+        "event_id": "6af424a421836b205200f15a",
+        "amount_cents": 2500
+      }
+    ],
+    "refunds": [
+      {
+        "public_id": "0E824025-7571-4039-BCCB-D4894CD0EE40",
+        "original_transaction_id": "74DAA14C-82BF-4F75-BC75-890B0D86D5B4",
+        "status": "COMPLETADA",
+        "financial_transaction_id": "6310B960-9650-4797-A289-A73BDF5D3FB5",
+        "amount_cents": 2500,
+        "requested_by": "user:6af3f5771f26711543009485",
+        "reviewed_by": "user:6af3f5771f26711543009486"
+      }
+    ],
+    "transactions": [
+      {
+        "public_id": "DA2EF329-4E5B-4AA4-B8B3-6F007606BEE6",
+        "idempotency_key": "isolated-community-fixture-opening",
+        "status": "COMPLETADA"
+      },
+      {
+        "public_id": "2EF2F186-8E8A-4502-A971-3B5146A7E0A4",
+        "idempotency_key": "event-payment:970ef1df-afea-4632-90fb-06426c35365c",
+        "status": "COMPLETADA"
+      },
+      {
+        "public_id": "74DAA14C-82BF-4F75-BC75-890B0D86D5B4",
+        "idempotency_key": "event-payment:9da2f855-9a6c-454a-9f32-8cce2e52d0e8",
+        "status": "COMPLETADA"
+      },
+      {
+        "public_id": "EEE6BCDB-744A-49C3-BC9A-F5AAD31D4C3A",
+        "idempotency_key": "lab-refund-ff2886ab-cb38-4d17-bbf9-313231e90693",
+        "status": "COMPLETADA"
+      },
+      {
+        "public_id": "6310B960-9650-4797-A289-A73BDF5D3FB5",
+        "idempotency_key": "lab-refund-execution-39914dcf-7ca4-4eb8-8107-c793266906ad",
+        "status": "COMPLETADA"
+      }
+    ],
+    "ledger_count": 7,
+    "registrations": [
+      {
+        "evento_id": "6af3f83bf1c44ed9cb086002",
+        "usuario_id": "6af3f5771f26711543009485",
+        "generacion": 1,
+        "pago_estado": "pendiente",
+        "estado": "confirmada",
+        "estado_pago": "pendiente",
+        "estado_asistencia": "pendiente",
+        "id": "6af3f83bf1c44ed9cb086005"
+      },
+      {
+        "evento_id": "6af4244b25f67dd04e047086",
+        "usuario_id": "6af3f5771f26711543009485",
+        "generacion": 1,
+        "pago_estado": "pendiente",
+        "estado": "confirmada",
+        "estado_pago": "pendiente",
+        "estado_asistencia": "pendiente",
+        "id": "6af4244bd07782a34302f586"
+      },
+      {
+        "evento_id": "6af424a1f1c44ed9cb086016",
+        "usuario_id": "6af3f5771f26711543009485",
+        "generacion": 1,
+        "pago_estado": "aplicado",
+        "estado": "confirmada",
+        "estado_pago": "pagado",
+        "estado_asistencia": "asistio",
+        "id": "6af424a1f1c44ed9cb086019"
+      },
+      {
+        "evento_id": "6af424a421836b205200f15a",
+        "usuario_id": "6af3f5771f26711543009485",
+        "generacion": 1,
+        "pago_estado": "devuelto",
+        "estado": "vencida",
+        "estado_pago": "pendiente",
+        "estado_asistencia": "pendiente",
+        "id": "6af424a421836b205200f15d"
+      },
+      {
+        "evento_id": "6af424a421836b205200f15a",
+        "usuario_id": "6af3f5771f26711543009488",
+        "generacion": 1,
+        "pago_estado": null,
+        "estado": "confirmada",
+        "estado_pago": "pendiente",
+        "estado_asistencia": "pendiente",
+        "id": "6af424a43e601cd3b90d90e8"
+      }
+    ],
+    "community_payments": [
+      {
+        "registro_id": "6af3f83bf1c44ed9cb086005",
+        "estado": "pendiente",
+        "id": "6af3f83bf1c44ed9cb086008"
+      },
+      {
+        "registro_id": "6af4244bd07782a34302f586",
+        "estado": "pendiente",
+        "id": "6af4244cd07782a34302f589"
+      },
+      {
+        "registro_id": "6af424a1f1c44ed9cb086019",
+        "estado": "aplicado",
+        "comprobante": "2ef2f186-8e8a-4502-a971-3b5146a7e0a4",
+        "id": "6af424a2f1c44ed9cb08601c"
+      },
+      {
+        "registro_id": "6af424a421836b205200f15d",
+        "estado": "devuelto",
+        "comprobante": "74daa14c-82bf-4f75-bc75-890b0d86d5b4",
+        "comprobante_devolucion": "6310b960-9650-4797-a289-a73bdf5d3fb5",
+        "id": "6af424a5f1c44ed9cb08601d"
+      }
+    ]
+  },
+  "error": null
+}

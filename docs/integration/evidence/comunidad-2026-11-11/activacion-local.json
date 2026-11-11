@@ -1,0 +1,20 @@
+{
+  "environment": "integrated_local",
+  "enabled": true,
+  "historical_delivery": false,
+  "since": "2026-11-11T08:45:31+00:00",
+  "before": {
+    "wallets": 7,
+    "available_cents": 58000,
+    "held_cents": 0,
+    "ledger_entries": 10
+  },
+  "after": {
+    "wallets": 7,
+    "available_cents": 58000,
+    "held_cents": 0,
+    "ledger_entries": 10
+  },
+  "roles_changed": false,
+  "secrets_printed": false
+}

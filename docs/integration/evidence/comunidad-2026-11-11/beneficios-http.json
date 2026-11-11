@@ -1,0 +1,87 @@
+{
+  "transport": "real HTTP/OAuth E6->E5->E1; no mocks; new isolated identities",
+  "checks": 4,
+  "passed": true,
+  "evidence": {
+    "assignments": [
+      {
+        "type": "impresiones",
+        "state": "asignada",
+        "receipt": {
+          "asignacion_id": "6af42886f1c44ed9cb08602a",
+          "folio": "BEN-20261111-NUTK4",
+          "beneficio_id": "impresiones",
+          "estado": "asignado",
+          "clave_idempotencia": "beca:lab-service-impresiones",
+          "beneficiario_id": "6af3f5771f26711543009485",
+          "organizacion_id": "6af3f5771f26711543009489",
+          "convocatoria_id": "6af42885946629c7ea0bb5b2",
+          "solicitud_id": "6af42885946629c7ea0bb5b3",
+          "folio_origen": "LAB-SERVICE-impresiones",
+          "cantidad": {
+            "unidad": "paginas",
+            "asignada": 100,
+            "consumida": 0,
+            "disponible": 100
+          },
+          "vigencia": {
+            "inicio": "2026-11-11T07:34:00+00:00",
+            "fin_exclusiva": "2026-12-11T08:34:00+00:00"
+          },
+          "recurso": null,
+          "evidencia": {
+            "asignado_en": "2026-11-11T08:34:14+00:00",
+            "consumos": []
+          },
+          "cancelacion": null,
+          "creado_en": "2026-11-11T08:34:14+00:00",
+          "actualizado_en": "2026-11-11T08:34:14+00:00"
+        }
+      },
+      {
+        "type": "locker",
+        "state": "asignada",
+        "receipt": {
+          "asignacion_id": "6af428dff1c44ed9cb08602c",
+          "folio": "BEN-20261111-EQQXM",
+          "beneficio_id": "locker",
+          "estado": "asignado",
+          "clave_idempotencia": "beca:lab-service-locker",
+          "beneficiario_id": "6af3f5771f26711543009485",
+          "organizacion_id": "6af3f5771f26711543009489",
+          "convocatoria_id": "6af428df97c51f88ff0e7ff3",
+          "solicitud_id": "6af428df97c51f88ff0e7ff4",
+          "folio_origen": "LAB-SERVICE-locker",
+          "cantidad": {
+            "unidad": "periodo",
+            "asignada": 1,
+            "consumida": 0,
+            "disponible": 1
+          },
+          "vigencia": {
+            "inicio": "2026-11-11T08:35:43+00:00",
+            "fin_exclusiva": "2027-01-11T08:34:12+00:00"
+          },
+          "recurso": {
+            "tipo": "locker",
+            "codigo": "LAB-LKR-A-001",
+            "edificio": "LAB",
+            "zona": "PB"
+          },
+          "evidencia": {
+            "asignado_en": "2026-11-11T08:35:43+00:00",
+            "folio_asignacion_locker": "LKR-ASG-20261111-81DAH",
+            "primer_acceso_en": null,
+            "liberado_en": null
+          },
+          "cancelacion": null,
+          "creado_en": "2026-11-11T08:35:43+00:00",
+          "actualizado_en": "2026-11-11T08:35:43+00:00"
+        }
+      }
+    ],
+    "e5_count": 2,
+    "locker_assignments": 1,
+    "ledger_count": 7
+  }
+}

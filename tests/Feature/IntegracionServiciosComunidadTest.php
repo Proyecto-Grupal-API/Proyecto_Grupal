@@ -59,14 +59,26 @@ class IntegracionServiciosComunidadTest extends TestCase
 
     public function test_beca_aprobada_se_entrega_por_api_y_reintentar_no_cambia_clave(): void
     {
-        $a = AsignacionBeneficio::create(['estado' => 'pendiente_integracion', 'contrato' => ['equipo_destino' => 5, 'tipo' => 'impresiones',
-            'clave_idempotencia' => 'beca:prueba', 'beneficiario_id' => (string) $this->alumno->id, 'cantidad' => 100]]);
-        Http::fake(['https://beneficios.test/api/v1/servicios/asignaciones' => Http::response(['data' => ['asignacion_id' => 'beneficio-api-1', 'tipo' => 'impresiones', 'estado' => 'asignado']], 201)]);
+        $contract = ['equipo_destino' => 5, 'tipo' => 'impresiones', 'clave_idempotencia' => 'beca:prueba',
+            'beneficiario_id' => (string) $this->alumno->id, 'cantidad' => 100,
+            'organizacion_id' => 'org-prueba', 'convocatoria_id' => 'conv-prueba', 'solicitud_id' => 'sol-prueba',
+            'folio' => 'BEC-PRUEBA', 'vigencia_inicio' => now()->toIso8601String(),
+            'vigencia_fin_exclusiva' => now()->addMonth()->toIso8601String()];
+        $a = AsignacionBeneficio::create(['estado' => 'pendiente_integracion', 'contrato' => $contract]);
+        $receipt = ['asignacion_id' => 'beneficio-api-1', 'beneficio_id' => 'impresiones', 'estado' => 'asignado',
+            'clave_idempotencia' => 'beca:prueba', 'beneficiario_id' => $contract['beneficiario_id'],
+            'organizacion_id' => 'org-prueba', 'convocatoria_id' => 'conv-prueba', 'solicitud_id' => 'sol-prueba',
+            'folio_origen' => 'BEC-PRUEBA', 'cantidad' => ['unidad' => 'paginas', 'asignada' => 100, 'consumida' => 0, 'disponible' => 100],
+            'vigencia' => ['inicio' => $contract['vigencia_inicio'], 'fin_exclusiva' => $contract['vigencia_fin_exclusiva']],
+            'recurso' => null, 'cancelacion' => null];
+        Http::fake(['https://beneficios.test/api/v1/servicios/asignaciones*' => fn ($request) => $request->method() === 'GET'
+            ? Http::response(['data' => [], 'meta' => ['siguiente_cursor' => null]])
+            : Http::response(['data' => $receipt], 201)]);
         app(EntregaBeneficiosServicios::class)->entregar($a);
         $this->assertSame('asignada', $a->fresh()->estado);
         $this->assertSame('beneficio-api-1', $a->fresh()->recibo_servicios['asignacion_id']);
         app(EntregaBeneficiosServicios::class)->entregar($a->fresh());
-        Http::assertSentCount(2);
+        Http::assertSentCount(4);
         Http::assertSent(fn ($r) => str_ends_with($r->url(), '/asignaciones') && $r->hasHeader('Idempotency-Key', 'beca:prueba'));
         $this->assertSame(0, BenefitAssignment::count()); // Community only stores E5's receipt.
     }

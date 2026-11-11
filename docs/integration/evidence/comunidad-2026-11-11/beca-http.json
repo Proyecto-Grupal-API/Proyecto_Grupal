@@ -1,0 +1,1136 @@
+{
+  "scope": "Synthetic-only, guarded HTTP/OAuth BECA E6-E2-E6 laboratory",
+  "checks": [
+    {
+      "check": "Initial protected ledger remains seven entries",
+      "passed": true
+    },
+    {
+      "check": "Both protected event balances remain 2500 cents",
+      "passed": true
+    },
+    {
+      "check": "BECA flag and E1 financial integration enabled only in lab",
+      "passed": true
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/becas?gestion=1",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas",
+      "passed": true,
+      "status": 201
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/6af429c3f1c44ed9cb086030/estado",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/6af429c3f1c44ed9cb086030/solicitud",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "PUT /api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/6af429c3f1c44ed9cb086030/estado",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/dictamen",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/dictamen",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Presidency verdict stored with pending integration",
+      "passed": true
+    },
+    {
+      "check": "Financial reference binds exact application",
+      "passed": true
+    },
+    {
+      "check": "POST /api/oauth/token",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "OAuth actual community scope",
+      "passed": true
+    },
+    {
+      "check": "POST /api/oauth/token",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "OAuth actual financial scope",
+      "passed": true
+    },
+    {
+      "check": "POST /api/oauth/token",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "OAuth actual financial_identity scope",
+      "passed": true
+    },
+    {
+      "check": "GET /api/v1/comunidad/becas/6af429c421836b205200f178/bono",
+      "passed": true,
+      "status": 401
+    },
+    {
+      "check": "GET /api/v1/comunidad/becas/6af429c421836b205200f178/bono",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "OAuth award exports no motivation or documents",
+      "passed": true
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/becas/tesoreria",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/aval-tesoreria",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/aval-tesoreria",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/aval-tesoreria",
+      "passed": true,
+      "status": 409
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/aval-tesoreria",
+      "passed": true,
+      "status": 409
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/aval-tesoreria",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/aval-tesoreria",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/becas/6af429c421836b205200f178/bono",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Two distinct officers and exact budget/amount persisted",
+      "passed": true
+    },
+    {
+      "check": "POST /api/v1/identity/financial-authorization/check",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "E1 HTTP OAuth validates scoped issuer designation",
+      "passed": true
+    },
+    {
+      "check": "POST /api/v1/identity/financial-authorization/check",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "E1 HTTP OAuth denies unassigned student issuer",
+      "passed": true
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "POST /two-factor-challenge",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /finanzas/bonos/administracion/beca/comunidad/6af429c421836b205200f178",
+      "passed": true,
+      "status": 403
+    },
+    {
+      "check": "Step-up uses a later TOTP time window than login",
+      "passed": true
+    },
+    {
+      "check": "POST /seguridad/confirmar-segundo-factor",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /finanzas/bonos/administracion/beca/comunidad/6af429c421836b205200f178",
+      "passed": true,
+      "status": 404
+    },
+    {
+      "check": "Treasury and issuer approved but no budget exists",
+      "passed": true
+    },
+    {
+      "check": "GET /api/v1/financial/community/becas/6af429c421836b205200f178/issuance",
+      "passed": true,
+      "status": 404
+    },
+    {
+      "check": "Official E6 reconciliation command exits successfully",
+      "passed": true
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "E6 never invents an issuance receipt",
+      "passed": true
+    },
+    {
+      "check": "Original event wallets untouched",
+      "passed": true
+    },
+    {
+      "check": "No wallet ledger movement added by BECA",
+      "passed": true
+    },
+    {
+      "check": "Missing budget produced no bonus or commitment",
+      "passed": true
+    }
+  ],
+  "records": [
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:39:28+00:00",
+        "puede_gestionar": true,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 0,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": {
+          "campanas_pendientes": 0,
+          "reportes_borrador": 0
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:39:29+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 0,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 2,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 1
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:39:30+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 0,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas?gestion=1",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "convocatorias": [],
+        "tipos": [
+          {
+            "slug": "dinero",
+            "nombre": "Apoyo monetario",
+            "equipo": 2,
+            "es_monetario": true,
+            "es_servicio": false,
+            "actualizado_en": "2026-11-11T04:53:43.767000Z",
+            "creado_en": "2026-11-11T04:53:43.767000Z",
+            "id": "6af3f4d77a03269c0d09d652"
+          },
+          {
+            "slug": "bono",
+            "nombre": "Bono restringido",
+            "equipo": 2,
+            "es_monetario": true,
+            "es_servicio": false,
+            "actualizado_en": "2026-11-11T04:53:43.773000Z",
+            "creado_en": "2026-11-11T04:53:43.773000Z",
+            "id": "6af3f4d77a03269c0d09d653"
+          },
+          {
+            "slug": "comidas",
+            "nombre": "Comidas",
+            "equipo": 5,
+            "es_monetario": false,
+            "es_servicio": true,
+            "actualizado_en": "2026-11-11T04:53:43.776000Z",
+            "creado_en": "2026-11-11T04:53:43.776000Z",
+            "id": "6af3f4d77a03269c0d09d654"
+          },
+          {
+            "slug": "impresiones",
+            "nombre": "Impresiones",
+            "equipo": 5,
+            "es_monetario": false,
+            "es_servicio": true,
+            "actualizado_en": "2026-11-11T04:53:43.780000Z",
+            "creado_en": "2026-11-11T04:53:43.780000Z",
+            "id": "6af3f4d77a03269c0d09d655"
+          },
+          {
+            "slug": "transporte",
+            "nombre": "Transporte",
+            "equipo": 5,
+            "es_monetario": false,
+            "es_servicio": true,
+            "actualizado_en": "2026-11-11T04:53:43.783000Z",
+            "creado_en": "2026-11-11T04:53:43.783000Z",
+            "id": "6af3f4d77a03269c0d09d656"
+          },
+          {
+            "slug": "locker",
+            "nombre": "Locker",
+            "equipo": 5,
+            "es_monetario": false,
+            "es_servicio": true,
+            "actualizado_en": "2026-11-11T04:53:43.786000Z",
+            "creado_en": "2026-11-11T04:53:43.786000Z",
+            "id": "6af3f4d77a03269c0d09d657"
+          }
+        ],
+        "puede_gestionar": true,
+        "puede_revisar": true,
+        "page": 1,
+        "last_page": 1
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas",
+      "method": "POST",
+      "status": 201,
+      "request": {
+        "titulo": "BECA HTTP laboratorio 3d3ac33d",
+        "descripcion": "Validación real de dictamen, aval exacto y emisión presupuestada.",
+        "requisitos": "Solicitud sintética exclusiva del laboratorio aislado.",
+        "tipo_beneficio_id": "6af3f4d77a03269c0d09d653",
+        "monto": "30.00",
+        "cantidad": 1,
+        "total_espacios": 1,
+        "fecha_inicio": "2026-11-11",
+        "fecha_fin": "2026-11-11",
+        "vigencia_inicio": "2026-11-12",
+        "vigencia_fin": "2026-11-26",
+        "requisitos_documentos": []
+      },
+      "response": {
+        "message": "Borrador guardado.",
+        "convocatoria": {
+          "titulo": "BECA HTTP laboratorio 3d3ac33d",
+          "descripcion": "Validación real de dictamen, aval exacto y emisión presupuestada.",
+          "requisitos": "Solicitud sintética exclusiva del laboratorio aislado.",
+          "tipo_beneficio_id": "6af3f4d77a03269c0d09d653",
+          "cantidad": 1,
+          "total_espacios": 1,
+          "fecha_inicio": "2026-11-11T06:00:00.000000Z",
+          "fecha_fin": "2026-11-12T06:00:00.000000Z",
+          "vigencia_inicio": "2026-11-12T06:00:00.000000Z",
+          "vigencia_fin": "2026-11-27T06:00:00.000000Z",
+          "requisitos_documentos": [],
+          "monto_centavos": 3000,
+          "beneficio": {
+            "slug": "bono",
+            "nombre": "Bono restringido",
+            "equipo": 2,
+            "es_monetario": true,
+            "es_servicio": false
+          },
+          "requiere_documentos": false,
+          "organizacion_id": "6af3f5771f26711543009489",
+          "creado_por": "6af3f5771f26711543009482",
+          "estado": "borrador",
+          "actualizado_en": "2026-11-11T08:39:31.073000Z",
+          "creado_en": "2026-11-11T08:39:31.073000Z",
+          "id": "6af429c3f1c44ed9cb086030",
+          "tiene_comite": false,
+          "puede_revisar": true,
+          "puede_configurar_comite": true,
+          "recepcion_abierta": false,
+          "revision_abierta": false,
+          "espacios_ocupados": 0,
+          "porcentaje": 0
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/6af429c3f1c44ed9cb086030/estado",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "estado": "publicada"
+      },
+      "response": {
+        "message": "Estado de la convocatoria actualizado."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/6af429c3f1c44ed9cb086030/solicitud",
+      "method": "POST",
+      "status": 200,
+      "request": {},
+      "response": {
+        "message": "Solicitud disponible.",
+        "solicitud": {
+          "id": "6af429c421836b205200f178",
+          "convocatoria_id": "6af429c3f1c44ed9cb086030",
+          "folio": "BECA-XUZ2IEHSJTSX",
+          "estado": "borrador",
+          "enviado_en": null,
+          "dictamen": null,
+          "dictaminado_en": null,
+          "motivo_cancelacion": null
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178",
+      "method": "PUT",
+      "status": 200,
+      "request": {
+        "motivacion": "Solicitud completamente sintética para comprobar el recorrido financiero BECA del laboratorio.",
+        "enviar": true
+      },
+      "response": {
+        "message": "Solicitud enviada para revisión."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/6af429c3f1c44ed9cb086030/estado",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "estado": "en_revision"
+      },
+      "response": {
+        "message": "Estado de la convocatoria actualizado."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/dictamen",
+      "method": "POST",
+      "status": 403,
+      "request": {
+        "estado": "aprobada",
+        "motivo": "Solicitud propia no debe poder aprobarse"
+      },
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/dictamen",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "estado": "aprobada",
+        "motivo": "Presidencia valida la solicitud sintética del laboratorio."
+      },
+      "response": {
+        "message": "Solicitud aprobada. La entrega del beneficio está pendiente."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "solicitud": {
+          "id": "6af429c421836b205200f178",
+          "convocatoria_id": "6af429c3f1c44ed9cb086030",
+          "folio": "BECA-XUZ2IEHSJTSX",
+          "estado": "aprobada",
+          "enviado_en": "2026-11-11T08:39:32.398000Z",
+          "dictamen": {
+            "motivo": "Presidencia valida la solicitud sintética del laboratorio."
+          },
+          "dictaminado_en": "2026-11-11T08:39:33.023000Z",
+          "motivo_cancelacion": null,
+          "motivacion": "Solicitud completamente sintética para comprobar el recorrido financiero BECA del laboratorio.",
+          "documentos": []
+        },
+        "convocatoria": {
+          "titulo": "BECA HTTP laboratorio 3d3ac33d",
+          "descripcion": "Validación real de dictamen, aval exacto y emisión presupuestada.",
+          "requisitos": "Solicitud sintética exclusiva del laboratorio aislado.",
+          "tipo_beneficio_id": "6af3f4d77a03269c0d09d653",
+          "cantidad": 1,
+          "total_espacios": 1,
+          "fecha_inicio": "2026-11-11T06:00:00.000000Z",
+          "fecha_fin": "2026-11-12T06:00:00.000000Z",
+          "vigencia_inicio": "2026-11-12T06:00:00.000000Z",
+          "vigencia_fin": "2026-11-27T06:00:00.000000Z",
+          "requisitos_documentos": [],
+          "monto_centavos": 3000,
+          "beneficio": {
+            "slug": "bono",
+            "nombre": "Bono restringido",
+            "equipo": 2,
+            "es_monetario": true,
+            "es_servicio": false
+          },
+          "requiere_documentos": false,
+          "organizacion_id": "6af3f5771f26711543009489",
+          "creado_por": "6af3f5771f26711543009482",
+          "estado": "en_revision",
+          "actualizado_en": "2026-11-11T08:39:32.596000Z",
+          "creado_en": "2026-11-11T08:39:31.073000Z",
+          "motivo_cancelacion": null,
+          "id": "6af429c3f1c44ed9cb086030",
+          "tiene_comite": false,
+          "puede_revisar": true,
+          "puede_configurar_comite": true,
+          "recepcion_abierta": false,
+          "revision_abierta": true,
+          "espacios_ocupados": 1,
+          "porcentaje": 100
+        },
+        "propia": false,
+        "puede_editar": false,
+        "puede_retirar": false,
+        "puede_dictaminar": false,
+        "comite_revision": null,
+        "beneficio": {
+          "id": "6af429c525f67dd04e04709f",
+          "estado": "pendiente_integracion",
+          "recibo_servicios": null,
+          "recibo_finanzas": null,
+          "error_integracion": null
+        },
+        "puede_confirmar_presidencia": false,
+        "referencia_bono": "beca:6af429c421836b205200f178"
+      },
+      "location": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/oauth/token",
+      "client": "community",
+      "status": 200,
+      "granted_scope": "community:beca-award:read",
+      "credentials": "omitted"
+    },
+    {
+      "method": "POST",
+      "path": "/api/oauth/token",
+      "client": "financial",
+      "status": 200,
+      "granted_scope": "financial:beca-issuance:read",
+      "credentials": "omitted"
+    },
+    {
+      "method": "POST",
+      "path": "/api/oauth/token",
+      "client": "financial_identity",
+      "status": 200,
+      "granted_scope": "identity:financial-authorization:check",
+      "credentials": "omitted"
+    },
+    {
+      "path": "/api/v1/comunidad/becas/6af429c421836b205200f178/bono",
+      "method": "GET",
+      "status": 401,
+      "request": null,
+      "response": {
+        "message": "A service access token is required."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/becas/6af429c421836b205200f178/bono",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "data": {
+          "solicitud_id": "6af429c421836b205200f178",
+          "beneficiario_id": "6af3f5771f26711543009485",
+          "organizacion_id": "6af3f5771f26711543009489",
+          "convocatoria_id": "6af429c3f1c44ed9cb086030",
+          "monto_centavos": 3000,
+          "moneda": "MXN",
+          "vigencia_inicio": "2026-11-12T06:00:00+00:00",
+          "vigencia_fin_exclusiva": "2026-11-27T06:00:00+00:00",
+          "aval_tesoreria": null
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/tesoreria",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "solicitudes": [
+          {
+            "id": "6af429c421836b205200f178",
+            "folio": "BECA-XUZ2IEHSJTSX",
+            "convocatoria": "BECA HTTP laboratorio 3d3ac33d",
+            "presupuesto_id": "1955c620-b7fa-4448-9548-7d0f32624155",
+            "monto_centavos": 3000,
+            "huella_dictamen": "ead50bd6870ccc5af18135fb15778f3b61924b496f82b3599103f7dfea1c0ddb",
+            "avalada": false,
+            "puede_avalar": true
+          }
+        ],
+        "page": 1,
+        "last_page": 1
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/aval-tesoreria",
+      "method": "POST",
+      "status": 403,
+      "request": {
+        "presupuesto_id": "1955c620-b7fa-4448-9548-7d0f32624155",
+        "monto_centavos": 3000,
+        "huella_dictamen": "ead50bd6870ccc5af18135fb15778f3b61924b496f82b3599103f7dfea1c0ddb"
+      },
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/aval-tesoreria",
+      "method": "POST",
+      "status": 403,
+      "request": {
+        "presupuesto_id": "1955c620-b7fa-4448-9548-7d0f32624155",
+        "monto_centavos": 3000,
+        "huella_dictamen": "ead50bd6870ccc5af18135fb15778f3b61924b496f82b3599103f7dfea1c0ddb"
+      },
+      "response": {
+        "message": "No tienes permiso para esta operación."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/aval-tesoreria",
+      "method": "POST",
+      "status": 409,
+      "request": {
+        "presupuesto_id": "562c8ca3-bd19-4c6f-a02e-925315382cf4",
+        "monto_centavos": 3000,
+        "huella_dictamen": "ead50bd6870ccc5af18135fb15778f3b61924b496f82b3599103f7dfea1c0ddb"
+      },
+      "response": {
+        "message": "Cambió el dictamen o el presupuesto. Vuelve a revisar."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/aval-tesoreria",
+      "method": "POST",
+      "status": 409,
+      "request": {
+        "presupuesto_id": "1955c620-b7fa-4448-9548-7d0f32624155",
+        "monto_centavos": 3001,
+        "huella_dictamen": "ead50bd6870ccc5af18135fb15778f3b61924b496f82b3599103f7dfea1c0ddb"
+      },
+      "response": {
+        "message": "Cambió el dictamen o el presupuesto. Vuelve a revisar."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/aval-tesoreria",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "presupuesto_id": "1955c620-b7fa-4448-9548-7d0f32624155",
+        "monto_centavos": 3000,
+        "huella_dictamen": "ead50bd6870ccc5af18135fb15778f3b61924b496f82b3599103f7dfea1c0ddb"
+      },
+      "response": {
+        "message": "El aval de Tesorería está registrado."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178/aval-tesoreria",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "presupuesto_id": "1955c620-b7fa-4448-9548-7d0f32624155",
+        "monto_centavos": 3000,
+        "huella_dictamen": "ead50bd6870ccc5af18135fb15778f3b61924b496f82b3599103f7dfea1c0ddb"
+      },
+      "response": {
+        "message": "El aval de Tesorería está registrado."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/becas/6af429c421836b205200f178/bono",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "data": {
+          "solicitud_id": "6af429c421836b205200f178",
+          "beneficiario_id": "6af3f5771f26711543009485",
+          "organizacion_id": "6af3f5771f26711543009489",
+          "convocatoria_id": "6af429c3f1c44ed9cb086030",
+          "monto_centavos": 3000,
+          "moneda": "MXN",
+          "vigencia_inicio": "2026-11-12T06:00:00+00:00",
+          "vigencia_fin_exclusiva": "2026-11-27T06:00:00+00:00",
+          "aval_tesoreria": {
+            "presidencia_id": "6af3f5771f26711543009482",
+            "tesoreria_id": "6af3f5771f26711543009483",
+            "presupuesto_id": "1955c620-b7fa-4448-9548-7d0f32624155",
+            "monto_centavos": 3000,
+            "huella_dictamen": "ead50bd6870ccc5af18135fb15778f3b61924b496f82b3599103f7dfea1c0ddb",
+            "avalado_en": "2026-11-11T08:39:35+00:00"
+          }
+        }
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/identity/financial-authorization/check",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "subject_id": "6af3f5771f26711543009484",
+        "bonus_type": "BECA",
+        "operation": "issue",
+        "scope_type": "council",
+        "scope_id": "6af3f5771f26711543009489"
+      },
+      "response": {
+        "authorized": true
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/identity/financial-authorization/check",
+      "method": "POST",
+      "status": 200,
+      "request": {
+        "subject_id": "6af3f5771f26711543009485",
+        "bonus_type": "BECA",
+        "operation": "issue",
+        "scope_type": "council",
+        "scope_id": "6af3f5771f26711543009489"
+      },
+      "response": {
+        "authorized": false
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:39:37+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 0,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 0
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/bonos/administracion/beca/comunidad/6af429c421836b205200f178",
+      "method": "GET",
+      "status": 403,
+      "request": null,
+      "response": {
+        "message": "Sin permiso para esta operación."
+      },
+      "location": null
+    },
+    {
+      "path": "/finanzas/bonos/administracion/beca/comunidad/6af429c421836b205200f178",
+      "method": "GET",
+      "status": 404,
+      "request": null,
+      "response": {
+        "message": "Recurso no encontrado."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/financial/community/becas/6af429c421836b205200f178/issuance",
+      "method": "GET",
+      "status": 404,
+      "request": null,
+      "response": {
+        "message": "Recurso no encontrado."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/becas/solicitudes/6af429c421836b205200f178",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "solicitud": {
+          "id": "6af429c421836b205200f178",
+          "convocatoria_id": "6af429c3f1c44ed9cb086030",
+          "folio": "BECA-XUZ2IEHSJTSX",
+          "estado": "aprobada",
+          "enviado_en": "2026-11-11T08:39:32.398000Z",
+          "dictamen": {
+            "motivo": "Presidencia valida la solicitud sintética del laboratorio."
+          },
+          "dictaminado_en": "2026-11-11T08:39:33.023000Z",
+          "motivo_cancelacion": null,
+          "motivacion": "Solicitud completamente sintética para comprobar el recorrido financiero BECA del laboratorio.",
+          "documentos": []
+        },
+        "convocatoria": {
+          "titulo": "BECA HTTP laboratorio 3d3ac33d",
+          "descripcion": "Validación real de dictamen, aval exacto y emisión presupuestada.",
+          "requisitos": "Solicitud sintética exclusiva del laboratorio aislado.",
+          "tipo_beneficio_id": "6af3f4d77a03269c0d09d653",
+          "cantidad": 1,
+          "total_espacios": 1,
+          "fecha_inicio": "2026-11-11T06:00:00.000000Z",
+          "fecha_fin": "2026-11-12T06:00:00.000000Z",
+          "vigencia_inicio": "2026-11-12T06:00:00.000000Z",
+          "vigencia_fin": "2026-11-27T06:00:00.000000Z",
+          "requisitos_documentos": [],
+          "monto_centavos": 3000,
+          "beneficio": {
+            "slug": "bono",
+            "nombre": "Bono restringido",
+            "equipo": 2,
+            "es_monetario": true,
+            "es_servicio": false
+          },
+          "requiere_documentos": false,
+          "organizacion_id": "6af3f5771f26711543009489",
+          "creado_por": "6af3f5771f26711543009482",
+          "estado": "en_revision",
+          "actualizado_en": "2026-11-11T08:39:32.596000Z",
+          "creado_en": "2026-11-11T08:39:31.073000Z",
+          "motivo_cancelacion": null,
+          "id": "6af429c3f1c44ed9cb086030",
+          "tiene_comite": false,
+          "puede_revisar": false,
+          "puede_configurar_comite": false,
+          "recepcion_abierta": false,
+          "revision_abierta": true,
+          "espacios_ocupados": 1,
+          "porcentaje": 100
+        },
+        "propia": true,
+        "puede_editar": false,
+        "puede_retirar": false,
+        "puede_dictaminar": false,
+        "comite_revision": null,
+        "beneficio": {
+          "id": "6af429c525f67dd04e04709f",
+          "estado": "pendiente_integracion",
+          "recibo_servicios": null,
+          "recibo_finanzas": null,
+          "error_integracion": null
+        },
+        "puede_confirmar_presidencia": false,
+        "referencia_bono": "beca:6af429c421836b205200f178"
+      },
+      "location": null
+    }
+  ],
+  "context": {
+    "initial_ledger_count": 7,
+    "convocatoria_id": "6af429c3f1c44ed9cb086030",
+    "budget_id": "1955c620-b7fa-4448-9548-7d0f32624155",
+    "business_id": "BECA_LAB_ONLY",
+    "budget_is_preexisting": false,
+    "treasury_assignment": {
+      "assignment_id": "6af429c3620c3bec9c028982",
+      "scope_id": "1955c620-b7fa-4448-9548-7d0f32624155"
+    },
+    "solicitud_id": "6af429c421836b205200f178",
+    "issuer_review_http_status": 404
+  },
+  "blockers": [
+    {
+      "code": "[omitido]",
+      "capability": "budget.approve",
+      "official_service": "InstitutionalBudgetService::approve",
+      "authority": "InstitutionalBudgetAuthorizationService only supports budget.commit",
+      "issuer_review_http_status": 404,
+      "budget_id_is_configured_only": "1955c620-b7fa-4448-9548-7d0f32624155",
+      "consequence": "No approved SQL budget exists; issuance, retry, receipt and consumption cannot be truthfully completed without replacing authority or inserting a fabricated budget."
+    }
+  ],
+  "state": {
+    "guard": {
+      "db_name": "campus_digital_financial_testing",
+      "user_name": "campus_financial_test",
+      "sysadmin": "0",
+      "main_access": null
+    },
+    "beca_enabled": true,
+    "identity_financial_enabled": true,
+    "budget_authority": "App\\Domains\\Financial\\Adapters\\IdentityInstitutionalBudgetAuthorization",
+    "budget_approve_allowed": false,
+    "budgets": [],
+    "bonus_count": 0,
+    "commitments": 0,
+    "budget_operations": 0,
+    "bonus_ledger_count": 0,
+    "wallets": [
+      {
+        "public_id": "3CC55E62-1D9F-4B0C-96F3-E7C9FDED2E7D",
+        "available_balance_cents": 2500,
+        "held_balance_cents": 0
+      },
+      {
+        "public_id": "4B47AD4B-F0FB-4980-895B-08160D69264D",
+        "available_balance_cents": 2500,
+        "held_balance_cents": 0
+      }
+    ],
+    "ledger_count": 7,
+    "awards": [
+      {
+        "solicitud_id": "6af429c421836b205200f178",
+        "estado": "pendiente_integracion",
+        "contrato": {
+          "version": 1,
+          "clave_idempotencia": "beca:6af429c421836b205200f178",
+          "equipo_destino": 2,
+          "beneficiario_id": "6af3f5771f26711543009485",
+          "organizacion_id": "6af3f5771f26711543009489",
+          "convocatoria_id": "6af429c3f1c44ed9cb086030",
+          "solicitud_id": "6af429c421836b205200f178",
+          "folio": "BECA-XUZ2IEHSJTSX",
+          "tipo": "bono",
+          "monto_centavos": 3000,
+          "moneda": "MXN",
+          "cantidad": 1,
+          "vigencia_inicio": "2026-11-12T06:00:00+00:00",
+          "vigencia_fin_exclusiva": "2026-11-27T06:00:00+00:00",
+          "reglas": "Solicitud sintética exclusiva del laboratorio aislado."
+        },
+        "aprobacion_presidencia": {
+          "actor_id": "6af3f5771f26711543009482",
+          "aprobado_en": "2026-11-11T08:39:33+00:00",
+          "huella_dictamen": "ead50bd6870ccc5af18135fb15778f3b61924b496f82b3599103f7dfea1c0ddb"
+        },
+        "aval_tesoreria": {
+          "presidencia_id": "6af3f5771f26711543009482",
+          "tesoreria_id": "6af3f5771f26711543009483",
+          "presupuesto_id": "1955c620-b7fa-4448-9548-7d0f32624155",
+          "monto_centavos": 3000,
+          "huella_dictamen": "ead50bd6870ccc5af18135fb15778f3b61924b496f82b3599103f7dfea1c0ddb",
+          "avalado_en": "2026-11-11T08:39:35+00:00"
+        },
+        "error_integracion": null,
+        "id": "6af429c525f67dd04e04709f"
+      }
+    ],
+    "beca_authorization_events": "[omitido]"
+  },
+  "error": null,
+  "status": "blocked",
+  "workflow_completed": false,
+  "unexecuted_due_to_blocker": [
+    "institutional_budget_approval",
+    "issuance",
+    "issuance_retry",
+    "successful_receipt_reconciliation",
+    "bonus_consumption"
+  ]
+}

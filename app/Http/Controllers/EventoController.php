@@ -9,6 +9,7 @@ use App\Models\PagoReservaEvento;
 use App\Models\RegistroEvento;
 use App\Models\User;
 use App\Services\InscripcionesEvento;
+use App\Services\PagosEvento;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -48,7 +49,7 @@ class EventoController extends Controller
             return [...$e->toArray(), 'organizacion_nombre' => $orgs->get($e->organizacion_id)?->nombre, 'mi_registro' => $mio ? $this->resumen($mio) : null, 'stats' => ['confirmados' => $todos->filter(fn ($r) => $r->estado_efectivo === 'confirmada')->count(), 'espera' => $todos->where('estado', 'espera')->count(), 'asistieron' => $todos->where('estado_asistencia', 'asistio')->count()], 'registro_abierto' => $e->estado === 'publicado' && $e->fecha_inicio_registro && $e->fecha_fin_registro && now()->gte($e->fecha_inicio_registro) && now()->lt($e->fecha_fin_registro)];
         });
 
-        return response()->json(['eventos' => $eventos, 'puede_gestionar' => (bool) $gestiona, 'zona_horaria' => config('comunidad.eventos_timezone'), 'page' => $p->currentPage(), 'last_page' => $p->lastPage(), 'total' => $p->total()]);
+        return response()->json(['eventos' => $eventos, 'puede_gestionar' => (bool) $gestiona, 'pagos_habilitados' => PagosEvento::habilitadoParaOrganizacion($org ? (string) $org->id : null), 'zona_horaria' => config('comunidad.eventos_timezone'), 'page' => $p->currentPage(), 'last_page' => $p->lastPage(), 'total' => $p->total()]);
     }
 
     public function store(GuardarEventoRequest $request)
@@ -143,7 +144,7 @@ class EventoController extends Controller
                 $resultado['repetida'] => 'Solicitud ya procesada. Se muestra tu inscripción actual.',
                 $reg->estado_efectivo === 'vencida' => 'La reserva venció. Actualiza para solicitar un nuevo lugar.',
                 $reg->estado === 'espera' => 'Estás en lista de espera.',
-                $reg->estado_pago === 'pendiente' => config('comunidad.eventos_pagos.enabled') === true
+                $reg->estado_pago === 'pendiente' => PagosEvento::habilitadoParaOrganizacion((string) $e->organizacion_id)
                     ? 'Lugar reservado durante un máximo de 15 minutos. Abre Mis boletos para pagar.'
                     : 'Lugar reservado durante un máximo de 15 minutos. El pago aún no está disponible.',
                 default => 'Inscripción confirmada.',
@@ -294,7 +295,7 @@ class EventoController extends Controller
             $posicion = $idx === false ? null : $idx + 1;
         }
 
-        return [...$this->resumen($reg), 'estado' => $estado, 'titulo' => $e?->titulo ?? 'Evento no disponible', 'ubicacion' => $e?->ubicacion, 'fecha_hora_inicio' => $e?->fecha_hora_inicio, 'fecha_hora_fin' => $e?->fecha_hora_fin, 'motivo_cancelacion' => $e?->motivo_cancelacion, 'evento_estado' => $e?->estado, 'posicion_espera' => $posicion, 'organizacion_activa' => (bool) $organizacionActiva, 'qr_habilitado' => $habilitado, 'token_qr' => $habilitado ? $reg->token_qr : null, 'puede_pagar' => config('comunidad.eventos_pagos.enabled') === true && $vigente && $estado === 'confirmada'
+        return [...$this->resumen($reg), 'estado' => $estado, 'titulo' => $e?->titulo ?? 'Evento no disponible', 'ubicacion' => $e?->ubicacion, 'fecha_hora_inicio' => $e?->fecha_hora_inicio, 'fecha_hora_fin' => $e?->fecha_hora_fin, 'motivo_cancelacion' => $e?->motivo_cancelacion, 'evento_estado' => $e?->estado, 'posicion_espera' => $posicion, 'organizacion_activa' => (bool) $organizacionActiva, 'qr_habilitado' => $habilitado, 'token_qr' => $habilitado ? $reg->token_qr : null, 'puede_pagar' => PagosEvento::habilitadoParaOrganizacion($e?->organizacion_id) && $vigente && $estado === 'confirmada'
             && $reg->estado_pago === 'pendiente' && $reg->reserva_hasta?->isFuture() && $reg->monto_centavos > 0
             && ! in_array($reg->pago_estado, ['cancelacion_pendiente', 'devolucion_pendiente', 'devuelto'], true),
             'puede_consultar_pago' => config('comunidad.eventos_pagos.enabled') === true && in_array($reg->pago_estado, ['pendiente', 'cancelacion_pendiente', 'devolucion_pendiente'], true), 'puede_cancelar' => $e && now()->lt($e->fecha_hora_inicio) && in_array($estado, ['confirmada', 'espera'], true) && $reg->estado_asistencia !== 'asistio' && $reg->estado_pago !== 'pagado', 'zona_horaria' => config('comunidad.eventos_timezone')];

@@ -1,0 +1,299 @@
+{
+  "checks": [
+    {
+      "check": "Three immutable financial notices were delivered",
+      "passed": true
+    },
+    {
+      "check": "One inbox message per financial fact",
+      "passed": true
+    },
+    {
+      "check": "Repeated worker queues and sends nothing",
+      "passed": true
+    },
+    {
+      "check": "Repeated worker preserves receipt IDs and ledger",
+      "passed": true
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/bandeja",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "Student sees all own receipts in actual inbox",
+      "passed": true
+    },
+    {
+      "check": "GET /login",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/dashboard",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/bandeja/6af4279025f67dd04e04709b",
+      "passed": true,
+      "status": 404
+    },
+    {
+      "check": "GET /finanzas/comprobantes/transaction/2ef2f186-8e8a-4502-a971-3b5146a7e0a4",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/bandeja/6af4279125f67dd04e04709c",
+      "passed": true,
+      "status": 404
+    },
+    {
+      "check": "GET /finanzas/comprobantes/transaction/74daa14c-82bf-4f75-bc75-890b0d86d5b4",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "GET /api/v1/comunidad/portal/bandeja/6af42791d07782a34302f595",
+      "passed": true,
+      "status": 404
+    },
+    {
+      "check": "GET /finanzas/comprobantes/transaction/6310b960-9650-4797-a289-a73bdf5d3fb5",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "check": "No new money movements from notifications",
+      "passed": true
+    }
+  ],
+  "records": [
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:32:01+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 0,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 3,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 1
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/bandeja",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "mensajes": [
+          {
+            "id": "6af42791d07782a34302f595",
+            "asunto": "Devolución confirmada",
+            "emisor_nombre": "Finanzas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T08:30:09.654000Z"
+          },
+          {
+            "id": "6af4279125f67dd04e04709c",
+            "asunto": "Pago de evento confirmado",
+            "emisor_nombre": "Finanzas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T08:30:09.210000Z"
+          },
+          {
+            "id": "6af4279025f67dd04e04709b",
+            "asunto": "Pago de evento confirmado",
+            "emisor_nombre": "Finanzas",
+            "organizacion_id": null,
+            "leido_en": null,
+            "archivado_en": null,
+            "importante": true,
+            "creado_en": "2026-11-11T08:30:08.737000Z"
+          }
+        ],
+        "no_leidos": 3,
+        "page": 1,
+        "last_page": 1
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/dashboard",
+      "method": "GET",
+      "status": 200,
+      "request": null,
+      "response": {
+        "generado_en": "2026-11-11T08:32:03+00:00",
+        "puede_gestionar": false,
+        "organizacion": "Consejo del laboratorio de Comunidad",
+        "miembrosActivos": 7,
+        "eventosActivos": 3,
+        "cajaDisponible": null,
+        "becasPendientes": 0,
+        "ultimasBecas": [],
+        "proximoEvento": {
+          "id": "6af4244b25f67dd04e047086",
+          "nombre": "Pago y acceso confirmado — laboratorio",
+          "lugar": "Laboratorio temporal",
+          "fecha": "2026-11-11T08:41:00+00:00",
+          "en_curso": false,
+          "reservas": 0,
+          "capacidad": 3,
+          "asistencias": 0
+        },
+        "personales": {
+          "no_leidos": 0,
+          "consultas": {
+            "encuestas": 0,
+            "votaciones": 0
+          },
+          "boletos": 1
+        },
+        "gestion": null
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/bandeja/6af4279025f67dd04e04709b",
+      "method": "GET",
+      "status": 404,
+      "request": null,
+      "response": {
+        "message": "No se encontró el recurso solicitado."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/bandeja/6af4279125f67dd04e04709c",
+      "method": "GET",
+      "status": 404,
+      "request": null,
+      "response": {
+        "message": "No se encontró el recurso solicitado."
+      },
+      "location": null
+    },
+    {
+      "path": "/api/v1/comunidad/portal/bandeja/6af42791d07782a34302f595",
+      "method": "GET",
+      "status": 404,
+      "request": null,
+      "response": {
+        "message": "No se encontró el recurso solicitado."
+      },
+      "location": null
+    }
+  ],
+  "worker_retry": {
+    "scan": {
+      "scanned": 0,
+      "queued": 0,
+      "invalid": 0
+    },
+    "delivery": {
+      "attempted": 0,
+      "delivered": 0,
+      "omitted": 0,
+      "pending": 0
+    }
+  },
+  "state": {
+    "notices": [
+      {
+        "tipo": "pago_evento_confirmado",
+        "operation_id": "2EF2F186-8E8A-4502-A971-3B5146A7E0A4",
+        "status": "DELIVERED",
+        "attempts": 1,
+        "notification_id": "6af4279025f67dd04e04709b",
+        "last_error": null
+      },
+      {
+        "tipo": "pago_evento_confirmado",
+        "operation_id": "74DAA14C-82BF-4F75-BC75-890B0D86D5B4",
+        "status": "DELIVERED",
+        "attempts": 1,
+        "notification_id": "6af4279125f67dd04e04709c",
+        "last_error": null
+      },
+      {
+        "tipo": "devolucion_confirmada",
+        "operation_id": "6310B960-9650-4797-A289-A73BDF5D3FB5",
+        "status": "DELIVERED",
+        "attempts": 1,
+        "notification_id": "6af42791d07782a34302f595",
+        "last_error": null
+      }
+    ],
+    "messages": [
+      {
+        "estado_entrega": "entregada",
+        "categoria": "finanzas",
+        "tipo_aviso": "pago_evento_confirmado",
+        "usuario_id": "6af3f5771f26711543009485",
+        "accion_url": "/finanzas/comprobantes/transaction/2ef2f186-8e8a-4502-a971-3b5146a7e0a4",
+        "id": "6af4279025f67dd04e04709b"
+      },
+      {
+        "estado_entrega": "entregada",
+        "categoria": "finanzas",
+        "tipo_aviso": "pago_evento_confirmado",
+        "usuario_id": "6af3f5771f26711543009485",
+        "accion_url": "/finanzas/comprobantes/transaction/74daa14c-82bf-4f75-bc75-890b0d86d5b4",
+        "id": "6af4279125f67dd04e04709c"
+      },
+      {
+        "estado_entrega": "entregada",
+        "categoria": "finanzas",
+        "tipo_aviso": "devolucion_confirmada",
+        "usuario_id": "6af3f5771f26711543009485",
+        "accion_url": "/finanzas/comprobantes/transaction/6310b960-9650-4797-a289-a73bdf5d3fb5",
+        "id": "6af42791d07782a34302f595"
+      }
+    ],
+    "ledger_count": 7
+  }
+}

@@ -8,6 +8,7 @@ use App\Models\Eleccion;
 use App\Models\Encuesta;
 use App\Models\Evento;
 use App\Models\Mensaje;
+use App\Models\PagoReservaEvento;
 use App\Models\RegistroEvento;
 use App\Models\RespuestaEncuesta;
 use App\Models\SolicitudBeca;
@@ -37,6 +38,57 @@ class MetricasComunidad
         $agregar('Eventos', 'reservas_espera', 'Reservas en espera', (clone $registros)->where('estado', 'espera')->count(), $criterio);
         $agregar('Eventos', 'reservas_pago_pendiente', 'Reservas con pago pendiente', (clone $confirmados)->where('estado_pago', 'pendiente')->count(), $criterio.' No representan cobros realizados.');
         $agregar('Eventos', 'asistencias', 'Asistencias registradas', (clone $confirmados)->where('estado_asistencia', 'asistio')->whereNotNull('asistio_en')->where('asistio_en', '<=', $corte)->count(), $criterio.' Requiere check-in registrado.');
+        // El cobro no depende de que el evento ya haya iniciado ni de que siga publicado.
+        $eventosCobro = Evento::where('organizacion_id', $org)->pluck('id');
+        $reservasCobro = RegistroEvento::whereIn('evento_id', $eventosCobro)->where('moneda', 'MXN')
+            ->get(['id', 'evento_id', 'usuario_id'])->keyBy('id');
+        $cobros = PagoReservaEvento::where('organizacion_id', $org)->whereIn('evento_id', $eventosCobro)
+            ->whereIn('registro_id', $reservasCobro->keys())->whereIn('estado', ['aplicado', 'devolucion_pendiente', 'devuelto'])
+            ->where('creado_en', '<=', $corte)->where('actualizado_en', '<=', $corte)
+            ->orderBy('actualizado_en', 'desc')->orderBy('_id', 'desc')
+            ->get(['registro_id', 'evento_id', 'usuario_id', 'estado', 'monto_centavos', 'comprobante', 'comprobante_devolucion', 'confirmado_en', 'creado_en'])
+            ->filter(fn (PagoReservaEvento $pago) => Str::isUuid($pago->comprobante))
+            ->unique(fn (PagoReservaEvento $pago) => strtolower($pago->comprobante))
+            ->filter(function (PagoReservaEvento $pago) use ($reservasCobro, $desde, $hasta, $corte) {
+                $reserva = $reservasCobro->get((string) $pago->registro_id);
+                // El cast integer del modelo ocultaría strings, floats y booleanos mal formados.
+                $monto = $pago->getRawOriginal('monto_centavos');
+                if (! $reserva || $reserva->evento_id !== $pago->evento_id || $reserva->usuario_id !== $pago->usuario_id
+                    || ! is_int($monto) || $monto <= 0) {
+                    return false;
+                }
+                // PagosEvento guarda el confirmed_at de E2 como string UTC con milisegundos.
+                $confirmado = $pago->getRawOriginal('confirmado_en');
+                if ($confirmado !== null) {
+                    if (! is_string($confirmado) || ! preg_match('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\z/', $confirmado)) { return false; }
+                    try {
+                        $fecha = CarbonImmutable::createFromFormat('!Y-m-d\TH:i:s.v\Z', $confirmado, 'UTC');
+                        if ($fecha->format('Y-m-d\TH:i:s.v\Z') !== $confirmado) { return false; }
+                    } catch (\Exception) {
+                        return false;
+                    }
+                } else {
+                    $fecha = $pago->creado_en;
+                }
+
+                return $fecha && $fecha->gte($desde) && $fecha->lt($hasta) && $fecha->lte($corte);
+            });
+        $devoluciones = $cobros->filter(fn (PagoReservaEvento $pago) => $pago->estado === 'devuelto'
+            && Str::isUuid($pago->comprobante_devolucion))
+            ->unique(fn (PagoReservaEvento $pago) => strtolower($pago->comprobante_devolucion));
+        $bruto = $cobros->sum('monto_centavos');
+        $devuelto = $devoluciones->sum('monto_centavos');
+        $criterioCobros = 'Fecha de confirmación E2 (confirmado_en); si falta, cohorte de preparación del intento (creado_en). '
+            .'Solo estados aplicado, devolucion_pendiente o devuelto, con comprobante UUID y monto entero positivo MXN de reservas y eventos propios. '
+            .'Preparación y última actualización hasta el corte; por comprobante se conserva el registro más reciente. No es saldo ni dinero disponible.';
+        $criterioDevoluciones = $criterioCobros.' De los cobros seleccionados, solo devuelto con comprobante_devolucion UUID único. '
+            .'E6 no persiste fecha financiera de devolución: refleja evidencia registrada hasta el corte, no devoluciones ocurridas en el periodo.';
+        $agregar('Eventos', 'eventos_cobros_confirmados', 'Cobros E2 (fecha E2 o cohorte de preparación)', $cobros->count(), $criterioCobros);
+        $agregar('Eventos', 'eventos_cobrado_bruto_centavos', 'Cobrado bruto E2 (fecha E2 o cohorte de preparación)', $bruto, $criterioCobros, 'centavos_mxn');
+        $agregar('Eventos', 'eventos_devoluciones_confirmadas', 'Devoluciones E2 verificables de los cobros seleccionados', $devoluciones->count(), $criterioDevoluciones);
+        $agregar('Eventos', 'eventos_devuelto_centavos', 'Devuelto E2 de los cobros seleccionados', $devuelto, $criterioDevoluciones, 'centavos_mxn');
+        $agregar('Eventos', 'eventos_cobrado_neto_centavos', 'Cobrado neto de devoluciones verificables (no saldo)', $bruto - $devuelto, $criterioDevoluciones, 'centavos_mxn');
+
         $solicitudes = $periodo(SolicitudBeca::where('organizacion_id', $org)->where('estado', '!=', 'borrador'), 'enviado_en');
         $criterio = 'Solicitudes enviadas en el periodo, según su estado al generar. Excluye borradores y expedientes nunca enviados.';
         $agregar('Becas', 'solicitudes_enviadas', 'Solicitudes enviadas', (clone $solicitudes)->count(), $criterio);

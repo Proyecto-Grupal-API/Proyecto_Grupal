@@ -678,7 +678,12 @@ function cerrar() {
                     />Habilitar lista de espera</label
                 >
                 <p v-if="formulario.costo > 0" class="text-sm text-amber-800">
-                    Las reservas con pago pendiente vencerán a los 15 minutos o al inicio del evento, lo que ocurra primero. El pago todavía no está disponible.
+                    Las reservas con pago pendiente vencerán a los 15 minutos o al inicio del evento, lo que ocurra primero.
+                    {{
+                        datos?.pagos_habilitados
+                            ? "El pago está disponible en Mis boletos para las reservas vigentes con pago pendiente."
+                            : "El pago todavía no está disponible."
+                    }}
                 </p>
             </form>
             <template #footer

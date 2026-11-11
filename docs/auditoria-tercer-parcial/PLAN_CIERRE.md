@@ -22,3 +22,7 @@ Se escribieron siete pruebas antes de implementar: resultado RED registrado; res
 ## Cómo revisar las evidencias
 
 Abrir primero Informe_Auditoria_Modulo6.pdf y después el Word llenado. Importar los JSON JUnit en un lector de resultados o consultar sus logs. El video y las capturas pertenecen al laboratorio de auditoría, no afirman que se hayan habilitado nuevos fondos o usuarios productivos. La colección Postman se entrega para reproducir; las pruebas HTTP aportadas se ejecutaron con Python y navegador.
+
+## Seguimiento funcional — 11 de noviembre
+
+El cierre posterior de cobros, devoluciones, beneficios E5, avisos y métricas está documentado en [CIERRE_FUNCIONAL_COMUNIDAD_2026-11-11.md](../integration/CIERRE_FUNCIONAL_COMUNIDAD_2026-11-11.md). Esa entrega suma pruebas HTTP reales con cuentas nuevas y bases aisladas; conserva separados el resultado de la rúbrica y la aceptación funcional. BECA aún requiere presupuesto aprobado y una vía válida de designaciones fuera de testing. El directorio, la segmentación y los esquemas completos del portal siguen pendientes; no se cambia retrospectivamente la calificación del expediente.
