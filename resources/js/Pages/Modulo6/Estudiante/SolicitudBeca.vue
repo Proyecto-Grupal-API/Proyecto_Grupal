@@ -6,6 +6,8 @@ import RevisionComiteBeca from "@/Components/RevisionComiteBeca.vue";
 import Modulo6Layout from "@/Layouts/Modulo6Layout.vue";
 const props = defineProps({ solicitudId: String });
 const datos = ref(null),
+    motivoRevocacion = ref(""),
+    confirmarRevocacion = ref(false),
     motivacion = ref(""),
     motivo = ref(""),
     decision = ref("en_revision"),
@@ -110,6 +112,13 @@ function retirar() {
             axios.post(`/api/v1/comunidad/portal/becas/solicitudes/${props.solicitudId}/retirar`),
         );
 }
+async function revocarBeneficio() {
+    if (!confirmarRevocacion.value || !confirm("¿Solicitar a E5 la revocación del servicio entregado? El consumo histórico se conserva.")) return;
+    await ejecutar(() => axios.post(`/api/v1/comunidad/portal/becas/solicitudes/${props.solicitudId}/revocacion-beneficio`, {
+        motivo: motivoRevocacion.value,
+        confirmacion: confirmarRevocacion.value,
+    }));
+}
 function confirmarPresidencia() {
     if (!confirm("¿Confirmar este dictamen para que Tesorería revise el presupuesto?")) return;
     ejecutar(() => axios.post(`/api/v1/comunidad/portal/becas/solicitudes/${props.solicitudId}/confirmacion-presidencia`));
@@ -146,7 +155,8 @@ function dictaminar() {
             <p
                 v-if="aviso"
                 role="status"
-                class="rounded-lg bg-green-50 text-green-800 p-4"
+                :class="datos?.beneficio?.estado === 'revocacion_pendiente' ? 'bg-amber-50 text-amber-900' : 'bg-green-50 text-green-800'"
+                class="rounded-lg p-4"
             >
                 {{ aviso }}
             </p>
@@ -196,19 +206,59 @@ function dictaminar() {
                         class="rounded-lg bg-amber-50 p-4 text-amber-900"
                     >
                         <h2 class="font-semibold">
-                            {{ datos.beneficio?.recibo_finanzas ? 'Apoyo aprobado · bono emitido' : datos.beneficio?.estado === 'asignada' ? 'Apoyo aprobado · servicio asignado' : 'Apoyo aprobado · entrega pendiente' }}
+                            {{ datos.beneficio?.estado === 'revocacion_pendiente' ? 'Revocación pendiente de E5'
+                                : datos.beneficio?.estado === 'revision_requerida' ? 'Revocación requiere revisión'
+                                : datos.beneficio?.estado === 'revocada' ? 'Beneficio revocado · confirmado por E5'
+                                : datos.beneficio?.recibo_finanzas ? 'Apoyo aprobado · bono emitido'
+                                : datos.beneficio?.estado === 'asignada' ? 'Apoyo aprobado · servicio asignado' : 'Apoyo aprobado · entrega pendiente' }}
                         </h2>
                         <p class="text-sm mt-1">
-                            <template v-if="datos.beneficio?.recibo_finanzas">
+                            <template v-if="datos.beneficio?.estado === 'revocacion_pendiente'">
+                                E5 debe confirmar la liberación del locker o del saldo de impresiones no consumido. El consumo histórico y los cobros previos se conservan.
+                            </template>
+                            <template v-else-if="datos.beneficio?.estado === 'revision_requerida'">
+                                E5 rechazó la cancelación. Presidencia debe revisar el caso; el historial de entrega y consumo se conserva.
+                            </template>
+                            <template v-else-if="datos.beneficio?.estado === 'revocada'">
+                                E5 confirmó la liberación del recurso o del remanente. El dictamen y el consumo histórico se conservan.
+                            </template>
+                            <template v-else-if="datos.beneficio?.recibo_finanzas">
                                 Finanzas registró el bono. <Link v-if="datos.propia" :href="route('financial.bonuses.index')" class="font-semibold underline">Consultar Mis bonos</Link>
                             </template>
-                            <template v-else-if="datos.beneficio?.estado === 'asignada'">Tu beneficio de {{ datos.beneficio.recibo_servicios?.tipo || 'servicio' }} fue asignado. Consulta el saldo o recurso en Servicios al estudiante.</template>
+                            <template v-else-if="datos.beneficio?.estado === 'asignada'">Tu beneficio de {{ datos.beneficio.recibo_servicios?.beneficio_id || 'servicio' }} fue asignado. Consulta el saldo o recurso en Servicios al estudiante.</template>
                             <template v-else>La aprobación reserva tu apoyo. La entrega está pendiente de confirmación del módulo responsable.</template>
                         </p>
+                        <p v-if="datos.beneficio?.error_integracion" role="alert" class="text-sm mt-2">
+                            {{ datos.beneficio.error_integracion }}
+                        </p>
+                        <button v-if="['revocacion_pendiente', 'revision_requerida'].includes(datos.beneficio?.estado)"
+                            type="button" @click="cargar" :disabled="ocupado || cargando"
+                            class="mt-3 rounded-lg border px-4 py-2 font-semibold disabled:opacity-50">
+                            Consultar estado
+                        </button>
                         <p v-if="datos.referencia_bono && !datos.propia && !datos.beneficio?.recibo_finanzas" class="mt-2 break-all text-sm">
                             Referencia para Finanzas <code>{{ datos.referencia_bono }}</code>
                         </p>
                     </div>
+                </section>
+                <section v-if="datos.puede_revocar_beneficio" class="rounded-xl border bg-white p-5 space-y-4" aria-labelledby="revocar-beneficio-titulo">
+                    <h2 id="revocar-beneficio-titulo" class="text-lg font-semibold">Solicitar revocación del servicio</h2>
+                    <p id="revocar-beneficio-ayuda" class="text-sm text-gray-600">
+                        E5 confirmará si puede liberar el locker o el saldo de impresiones no consumido. El consumo histórico y los cobros previos no se borran.
+                    </p>
+                    <form @submit.prevent="revocarBeneficio" class="space-y-3">
+                        <label for="revocar-beneficio-motivo" class="block text-sm font-semibold">Motivo de revocación (10 a 1000 caracteres)</label>
+                        <textarea id="revocar-beneficio-motivo" v-model="motivoRevocacion" required minlength="10" maxlength="1000" rows="3"
+                            :disabled="ocupado" aria-describedby="revocar-beneficio-ayuda" class="w-full rounded-lg border-gray-300"></textarea>
+                        <label class="flex items-start gap-2 text-sm">
+                            <input v-model="confirmarRevocacion" type="checkbox" required :disabled="ocupado" class="mt-1 rounded border-gray-300" />
+                            Confirmo la solicitud de revocación y entiendo que E5 debe autorizarla.
+                        </label>
+                        <button type="submit" :disabled="ocupado || !confirmarRevocacion || motivoRevocacion.trim().length < 10"
+                            class="rounded-lg border border-red-700 text-red-800 px-4 py-2 font-semibold disabled:opacity-50">
+                            {{ ocupado ? 'Registrando solicitud…' : 'Solicitar revocación a E5' }}
+                        </button>
+                    </form>
                 </section>
                 <section class="rounded-xl border bg-white p-5 space-y-4">
                     <h2 class="text-lg font-semibold">

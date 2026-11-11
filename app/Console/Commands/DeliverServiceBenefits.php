@@ -2,18 +2,21 @@
 namespace App\Console\Commands;
 use App\Models\AsignacionBeneficio;
 use App\Services\EntregaBeneficiosServicios;
+use App\Services\RevocacionBeneficiosServicios;
 use Illuminate\Console\Command;
 class DeliverServiceBenefits extends Command
 {
     protected $signature = 'comunidad:entregar-beneficios';
-    protected $description = 'Entrega por HTTP las becas de lockers e impresiones aprobadas al módulo 5.';
-    public function handle(EntregaBeneficiosServicios $delivery): int
+    protected $description = 'Entrega becas E5 de lockers e impresiones y procesa sus revocaciones pendientes.';
+    public function handle(EntregaBeneficiosServicios $delivery, RevocacionBeneficiosServicios $revocations): int
     {
         $count = 0;
-        foreach (AsignacionBeneficio::where('estado', 'pendiente_integracion')
+        foreach (AsignacionBeneficio::whereIn('estado', ['pendiente_integracion', 'revocacion_pendiente'])
             ->where('contrato.equipo_destino', 5)->whereIn('contrato.tipo', ['locker', 'impresiones'])
             ->where(fn ($q) => $q->whereNull('proximo_intento_en')->orWhere('proximo_intento_en', '<=', now()))->limit(100)->get() as $a) {
-            $delivery->entregar($a); $count++;
+            if ($a->estado === 'revocacion_pendiente') { $revocations->procesar($a); }
+            else { $delivery->entregar($a); }
+            $count++;
         }
         $this->info('Beneficios revisados: '.$count.'.');
         return self::SUCCESS;

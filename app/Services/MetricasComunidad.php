@@ -104,7 +104,7 @@ class MetricasComunidad
         $monto = $asignaciones->sum(fn ($a) => ($a->contrato['moneda'] ?? null) === 'MXN' ? max(0, (int) ($a->contrato['monto_centavos'] ?? 0)) : 0);
         $agregar('Apoyos', 'monto_pendiente_centavos', 'Monto aprobado pendiente de integración', $monto, $criterio.' Suma los montos MXN de los contratos pendientes, no pagos ni saldo disponible.', 'centavos_mxn');
         $tiposEntrega = ['locker' => 'Lockers entregados', 'impresiones' => 'Apoyos de impresiones entregados', 'bono' => 'Bonos BECA emitidos'];
-        $entregadas = $periodo(AsignacionBeneficio::where('organizacion_id', $org)->where('estado', 'asignada')
+        $entregadas = $periodo(AsignacionBeneficio::where('organizacion_id', $org)->whereIn('estado', ['asignada', 'revocacion_pendiente', 'revocada', 'revision_requerida'])
             ->whereIn('contrato.tipo', array_keys($tiposEntrega)), 'entregado_en')
             ->get(['solicitud_id', 'contrato', 'recibo_servicios', 'recibo_finanzas'])
             ->filter(function (AsignacionBeneficio $a) {
@@ -119,7 +119,7 @@ class MetricasComunidad
 
                 return ($a->contrato['equipo_destino'] ?? null) === 5 && is_string($recibo) && trim($recibo) !== '';
             })->unique('solicitud_id')->countBy(fn (AsignacionBeneficio $a) => $a->contrato['tipo']);
-        $criterio = 'Entregas confirmadas por E5 o emisiones confirmadas por E2, registradas en Comunidad dentro del periodo, aunque el dictamen sea anterior.';
+        $criterio = 'Entregas confirmadas por E5 o emisiones confirmadas por E2, registradas en Comunidad dentro del periodo, aunque el dictamen sea anterior. Incluye entregas posteriormente revocadas: mide entregas históricas, no beneficios activos.';
         $agregar('Apoyos', 'apoyos_entregados', 'Apoyos con entrega confirmada', $entregadas->sum(), $criterio);
         foreach ($tiposEntrega as $tipo => $etiqueta) {
             $agregar('Apoyos', 'apoyos_entregados_'.$tipo, $etiqueta, $entregadas->get($tipo, 0), $criterio);

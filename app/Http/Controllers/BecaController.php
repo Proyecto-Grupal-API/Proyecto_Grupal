@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\BeneficiosBeca;
 use App\Services\ComiteBecas;
 use App\Services\ResponsabilidadesComunidad;
+use App\Services\RevocacionBeneficiosServicios;
 use App\Support\BecaFinanceContract;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
@@ -155,7 +156,9 @@ class BecaController extends Controller
             'puede_retirar' => $propia && in_array($s->estado, ['borrador', 'pendiente']) && $this->recepcionAbierta($c),
             'puede_dictaminar' => ! $propia && app(ComiteBecas::class)->puedeDictaminar($r->user(), $c) && $this->revisionAbierta($c) && in_array($s->estado, ['pendiente', 'en_revision']),
             'comite_revision' => ! $propia ? app(ComiteBecas::class)->resumen($r->user(), $s, $c) : null,
-            'beneficio' => $award?->only(['id', 'estado', 'recibo_servicios', 'recibo_finanzas', 'error_integracion']),
+            'beneficio' => $award?->only(['id', 'estado', 'recibo_servicios', 'recibo_finanzas', 'error_integracion', 'revocacion', 'recibo_cancelacion']),
+            'puede_revocar_beneficio' => $presidencia && $s->estado === 'aprobada' && $award !== null
+                && app(RevocacionBeneficiosServicios::class)->puedeSolicitar($award),
             'puede_confirmar_presidencia' => $presidencia && $reference !== null && $s->estado === 'aprobada'
                 && $award->estado === 'pendiente_integracion' && $award->aprobacion_presidencia === null,
             'referencia_bono' => $reference])->header('Cache-Control', 'private, no-store');
@@ -305,6 +308,27 @@ class BecaController extends Controller
 
             return response()->json(['message' => $s->estado === 'aprobada' ? 'Solicitud aprobada. La entrega del beneficio está pendiente.' : 'Dictamen guardado.']);
         })));
+    }
+
+    public function revocarBeneficio(Request $r, string $id)
+    {
+        $d = $r->validate(['motivo' => ['required', 'string', 'min:10', 'max:1000'],
+            'confirmacion' => ['required', 'accepted']]);
+
+        return app(ResponsabilidadesComunidad::class)->ejecutar(fn () => $this->conSolicitud($r, $id, 'update', function ($s, $c) use ($r, $d) {
+            abort_if((string) $s->usuario_id === (string) $r->user()->id, 403);
+            abort_unless($s->estado === 'aprobada', 409, 'La solicitud requiere un dictamen aprobado.');
+            $award = AsignacionBeneficio::where('solicitud_id', (string) $s->id)->firstOrFail();
+            abort_unless($award->organizacion_id === (string) $c->organizacion_id
+                && $award->convocatoria_id === (string) $c->id && $award->usuario_id === (string) $s->usuario_id, 409);
+            app(RevocacionBeneficiosServicios::class)->solicitar($award, (string) $r->user()->id, $d['motivo']);
+
+            return response()->json(['estado' => $award->estado, 'message' => match ($award->estado) {
+                'revocada' => 'E5 confirmó la revocación del beneficio. Se conserva el consumo histórico.',
+                'revision_requerida' => 'E5 rechazó la cancelación. La solicitud requiere revisión.',
+                default => 'Revocación solicitada. E5 debe confirmar la liberación; el consumo histórico se conserva.',
+            }], $award->estado === 'revocacion_pendiente' ? 202 : 200);
+        }));
     }
 
     public function confirmarPresidencia(Request $r, string $id)

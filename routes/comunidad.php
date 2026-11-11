@@ -81,6 +81,7 @@ Route::prefix('becas/solicitudes/{id}')->where(['id' => '[a-fA-F0-9]{24}'])->gro
     Route::get('/documentos/{documento}', [BecaController::class, 'descargarDocumento'])->whereUuid('documento');
     Route::delete('/documentos/{documento}', [BecaController::class, 'eliminarDocumento'])->whereUuid('documento');
     Route::post('/dictamen', [BecaController::class, 'dictaminar']);
+    Route::post('/revocacion-beneficio', [BecaController::class, 'revocarBeneficio'])->middleware('throttle:30,1');
     Route::post('/confirmacion-presidencia', [BecaController::class, 'confirmarPresidencia'])->middleware('throttle:30,1');
     Route::post('/aval-tesoreria', [BecaController::class, 'avalarPresupuesto'])->middleware('throttle:30,1');
     Route::put('/recomendacion', [BecaController::class, 'recomendar'])->middleware('throttle:30,1');
