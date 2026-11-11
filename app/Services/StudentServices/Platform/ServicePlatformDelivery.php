@@ -14,9 +14,11 @@ use Throwable;
  * (REQ-M5-E7-001, POST /api/v1/plataforma/eventos). La auditoría la publica
  * el piloto de Daniel (PlatformAuditDelivery); este emisor no la toca.
  *
- * Usa la misma configuración que ese piloto (platform.services_delivery) y
- * el mismo transporte: firma HMAC-SHA256 con el secreto del dominio
- * "services" sobre "timestamp|POST|/ruta|sha256(cuerpo)".
+ * Comparte con ese piloto el receptor (platform.services_delivery.url) y el
+ * transporte: firma HMAC-SHA256 con el secreto del dominio "services" sobre
+ * "timestamp|POST|/ruta|sha256(cuerpo)". Se enciende con su propia bandera,
+ * platform.services_delivery.analytics_enabled (PLATFORM_SERVICES_ANALYTICS_ENABLED),
+ * apagada por defecto: encender la auditoría no envía eventos analíticos.
  *
  * Reglas de entrega (sección 5 de la respuesta del Equipo 7):
  *  - 200/202 con el mismo event_id y estado aceptado/duplicado: entregado.
@@ -41,7 +43,7 @@ class ServicePlatformDelivery
     {
         $result = ['enabled' => false, 'sent' => 0, 'retry' => 0, 'rejected' => 0];
 
-        if (config('platform.services_delivery.enabled') !== true) {
+        if (config('platform.services_delivery.analytics_enabled') !== true) {
             return $result;
         }
 

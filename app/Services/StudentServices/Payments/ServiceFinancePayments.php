@@ -20,7 +20,10 @@ use MongoDB\BSON\ObjectId;
  *     registra con su payment_id.
  *  3. beforeCancel(): si ya se pidió el cobro, primero se cancela en
  *     Finanzas; si Finanzas ya lo había cobrado, se registra el pago en vez
- *     de cancelar.
+ *     de cancelar. Con la integración apagada no se cancela: queda pendiente
+ *     hasta que Finanzas confirme.
+ *  4. guardOtherPayment(): con el cobro ya pedido a Finanzas no se registra
+ *     un pago manual ni con beca, para no cobrar dos veces.
  */
 class ServiceFinancePayments
 {
@@ -91,8 +94,14 @@ class ServiceFinancePayments
     {
         $record->refresh();
 
-        if ($record->finance_requested !== true || ! $this->isPending($record) || ! $this->enabled()) {
+        if ($record->finance_requested !== true || ! $this->isPending($record)) {
             return;
+        }
+
+        // El cobro ya se pidió a Finanzas: sin su respuesta no sabemos si se
+        // cobró, así que con la integración apagada la solicitud sigue pendiente.
+        if (! $this->enabled()) {
+            throw new PaymentException('La solicitud ya se envió a Finanzas y la conexión está apagada. Queda pendiente hasta que Finanzas confirme el cobro o la cancelación.');
         }
 
         $result = $this->finance->cancel($this->concept($record), (string) $record->id, (string) $record->student_id, $this->amount($record));
@@ -105,6 +114,20 @@ class ServiceFinancePayments
 
         if ($result['status'] !== 'CANCELLED') {
             throw new PaymentException('Finanzas aún no confirmó el cierre de la solicitud de pago.');
+        }
+    }
+
+    /**
+     * Un pago manual o con beca no se registra si el cobro ya se pidió a Finanzas.
+     *
+     * @throws PaymentException
+     */
+    public function guardOtherPayment(LockerRequest|ServiceOrder $record): void
+    {
+        $record->refresh();
+
+        if ($record->finance_requested === true) {
+            throw new PaymentException('Esta solicitud ya tiene un cobro en Finanzas. Consulta ese pago en lugar de registrar otro.');
         }
     }
 

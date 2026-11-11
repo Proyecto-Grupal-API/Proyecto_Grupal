@@ -9,6 +9,7 @@ use App\Models\StudentServices\ServiceAccess\ServiceCheckin;
 use App\Models\StudentServices\Services\ServiceOrder;
 use App\Services\StudentServices\Audit\ServiceAuditor;
 use App\Services\StudentServices\Lockers\LockerAssignmentService;
+use App\Services\StudentServices\Payments\ServiceFinancePayments;
 use App\Services\StudentServices\Platform\ServicePlatformObserver;
 use App\Services\StudentServices\Services\ServiceOrderService;
 use Carbon\Carbon;
@@ -451,6 +452,8 @@ class ServiceBenefitService
         if ($order->status !== 'awaiting_payment' || $order->payment_status !== 'pending') {
             throw new RuntimeException('Esta solicitud no está pendiente de pago.');
         }
+
+        app(ServiceFinancePayments::class)->guardOtherPayment($order);
 
         $pages = (int) $order->quantity;
         $now = now();

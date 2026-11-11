@@ -116,7 +116,7 @@ test('an overdue ticket is escalated once by the SLA review and the history show
         ->and($ticket->sla_escalated_at)->not->toBeNull()
         ->and($onTime->fresh()->priority)->toBe('low')
         ->and(TicketEvent::where('ticket_id', new ObjectId((string) $ticket->id))->where('event_type', 'sla_escalated')->count())->toBe(1)
-        ->and(App\Models\StudentServices\Platform\ServicePlatformEvent::where('event_name', 'services.ticket.sla_escalated.v1')->where('aggregate_id', (string) $ticket->id)->count())->toBe(1);
+        ->and(App\Models\StudentServices\Audit\ServiceAuditLog::where('action', 'support.ticket.sla_escalated')->where('entity_id', (string) $ticket->id)->count())->toBe(1);
 
     // Una segunda pasada no lo vuelve a escalar.
     $this->travel(30)->hours();

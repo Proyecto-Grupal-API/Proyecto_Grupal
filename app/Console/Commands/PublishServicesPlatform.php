@@ -10,7 +10,8 @@ use Throwable;
 /**
  * Envía al Equipo 7 los eventos pendientes del Equipo 5 (la auditoría va
  * por servicios:publicar-auditoria). Lo ejecuta el scheduler cada minuto
- * cuando PLATFORM_SERVICES_DELIVERY_ENABLED=true.
+ * cuando PLATFORM_SERVICES_ANALYTICS_ENABLED=true (independiente de
+ * PLATFORM_SERVICES_DELIVERY_ENABLED, que solo controla la auditoría).
  */
 class PublishServicesPlatform extends Command
 {
@@ -31,7 +32,7 @@ class PublishServicesPlatform extends Command
         }
 
         if (! $result['enabled']) {
-            $this->warn('Envío al Equipo 7 deshabilitado (PLATFORM_SERVICES_DELIVERY_ENABLED=false). No se envió nada.');
+            $this->warn('Envío al Equipo 7 deshabilitado (PLATFORM_SERVICES_ANALYTICS_ENABLED=false). No se envió nada.');
 
             return self::SUCCESS;
         }

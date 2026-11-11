@@ -192,6 +192,8 @@ class ServiceOrderController extends Controller
                 $order
             );
 
+            app(ServiceFinancePayments::class)->guardOtherPayment($order);
+
             $this->serviceOrderService
                 ->markAsPaid(
                     $order,

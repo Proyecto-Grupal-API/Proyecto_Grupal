@@ -11,9 +11,10 @@ toca, para no mandar dos versiones del mismo `event_id`.
    (`ServicePlatformObserver`) convierte altas y cambios de estado en eventos y
    los guarda en `service_platform_events`. Si guardar el evento falla, se
    reporta y la operación del alumno sigue: **nunca depende del Equipo 7**.
-2. **El scheduler envía.** `servicios:publicar-eventos` corre cada minuto junto
-   con el piloto de auditoría (solo con `PLATFORM_SERVICES_DELIVERY_ENABLED=true`)
-   y manda hasta 100 eventos por pasada.
+2. **El scheduler envía.** `servicios:publicar-eventos` corre cada minuto solo
+   con `PLATFORM_SERVICES_ANALYTICS_ENABLED=true` y manda hasta 100 eventos por
+   pasada. Es una bandera propia, apagada por defecto: encender la auditoría
+   (`PLATFORM_SERVICES_DELIVERY_ENABLED`) no inicia el envío de eventos.
 3. **Reintentos con la misma identidad.** El sobre se guarda completo; un
    reintento manda exactamente el mismo cuerpo con el mismo `event_id`.
 
@@ -38,7 +39,8 @@ Variables (`.env`, nunca en el repositorio ni en el chat):
 | Variable | Valor |
 |---|---|
 | `PLATFORM_SERVICES_SECRET` | Secreto compartido con el receptor, mínimo 20 caracteres |
-| `PLATFORM_SERVICES_DELIVERY_ENABLED` | `true` para que el scheduler envíe eventos (y auditoría del piloto) |
+| `PLATFORM_SERVICES_DELIVERY_ENABLED` | `true` para que el scheduler envíe la auditoría del piloto |
+| `PLATFORM_SERVICES_ANALYTICS_ENABLED` | `true` para que el scheduler envíe los eventos analíticos (apagada por defecto) |
 | `PLATFORM_SERVICES_API_URL` | URL base del receptor (`http://app` dentro del contenedor; `https://…` fuera) |
 | `PLATFORM_INGEST_ENABLED` | `true` en la app que recibe (receptor del Equipo 7) |
 

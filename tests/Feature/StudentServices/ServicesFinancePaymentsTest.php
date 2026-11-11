@@ -157,3 +157,66 @@ test('a print order is paid with the wallet and moves to processing', function (
         ->and($order->fresh()->status)->toBe('processing')
         ->and($order->fresh()->payment_reference_id)->toBe($this->finance[$key]['payment_id']);
 });
+
+/** Peticiones de cancelación que recibió "Finanzas". */
+function financeCancelCalls(object $test): int
+{
+    return count(array_filter($test->sent, fn (HttpRequest $request) => str_ends_with((string) parse_url($request->url(), PHP_URL_PATH), '/cancel')));
+}
+
+test('a locker request sent to Finance stays pending if the integration is turned off before cancelling', function () {
+    $period = financeLockerSetup();
+    $this->actingAs($this->student)->post('/servicios-estudiante/lockers/solicitudes', ['period_id' => (string) $period->id, 'size' => 'small']);
+    $request = LockerRequest::firstOrFail();
+    $web = '/servicios-estudiante/lockers/solicitudes/'.$request->id;
+    $key = 'locker_rental/'.$request->id;
+
+    $this->withHeader('X-Inertia', 'true')->post($web.'/iniciar-pago')->assertStatus(409);
+    expect($request->fresh()->finance_requested)->toBeTrue();
+
+    // Se apaga la integración con el cobro ya preparado: no se cancela a ciegas.
+    config(['integracion_servicios.finanzas_servicios.enabled' => false]);
+    $this->withHeaders(['X-Inertia' => ''])->patch($web.'/cancelar')->assertSessionHasErrors('status');
+
+    expect($request->fresh()->status)->toBe('pending')
+        ->and($request->fresh()->finance_requested)->toBeTrue()
+        ->and(financeCancelCalls($this))->toBe(0);
+
+    // Al volver a encender, Finanzas confirma el cobro y E5 lo registra.
+    config(['integracion_servicios.finanzas_servicios.enabled' => true]);
+    financeConfirms($this, $key);
+    $this->post($web.'/consultar-pago')->assertSessionHasNoErrors();
+
+    expect($request->fresh()->payment_reference)->toBe($this->finance[$key]['payment_id'])
+        ->and(LockerAssignment::count())->toBe(1);
+});
+
+test('a print order sent to Finance is only closed after Finance confirms the cancellation', function () {
+    $order = ServiceOrder::create([
+        'folio' => 'SRV-F-2', 'student_id' => (string) $this->student->id, 'service_type' => 'printing', 'quantity' => 5,
+        'quoted_amount_cents' => 600, 'payment_status' => 'pending', 'status' => 'awaiting_payment', 'requested_at' => now(),
+    ]);
+    $web = '/servicios-estudiante/servicios-impresiones/'.$order->id;
+    $key = 'print_order/'.$order->id;
+
+    $this->actingAs($this->student)->withHeader('X-Inertia', 'true')->post($web.'/iniciar-pago')->assertStatus(409);
+
+    config(['integracion_servicios.finanzas_servicios.enabled' => false]);
+    $this->withHeaders(['X-Inertia' => ''])->patch($web.'/cancelar')->assertSessionHasErrors('order');
+
+    // Tampoco se paga con beca encima del cobro de Finanzas.
+    $this->patch($web.'/pagar-con-beca')->assertSessionHasErrors('order');
+    expect(session('errors')->first('order'))->toContain('Finanzas');
+
+    expect($order->fresh()->status)->toBe('awaiting_payment')
+        ->and($order->fresh()->payment_status)->toBe('pending')
+        ->and(financeCancelCalls($this))->toBe(0);
+
+    // Con la integración encendida, Finanzas confirma la cancelación y E5 cierra la orden.
+    config(['integracion_servicios.finanzas_servicios.enabled' => true]);
+    $this->patch($web.'/cancelar')->assertSessionHasNoErrors();
+
+    expect($this->finance[$key]['status'])->toBe('CANCELLED')
+        ->and($order->fresh()->status)->toBe('cancelled')
+        ->and(financeCancelCalls($this))->toBe(1);
+});

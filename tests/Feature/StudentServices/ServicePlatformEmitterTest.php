@@ -29,6 +29,7 @@ beforeEach(function () {
     useStudentServicesTestDatabase();
     config([
         'platform.services_delivery.enabled' => true,
+        'platform.services_delivery.analytics_enabled' => true,
         'platform.services_delivery.url' => 'http://app',
         'platform.ingest.secrets.services' => E5_PLATFORM_SECRET,
     ]);
@@ -273,14 +274,29 @@ test('invalid content is rejected without retries and a wrong receipt is retried
 test('nothing is sent while disabled and a missing secret fails loudly', function () {
     app(ServicePlatformEvents::class)->emit('loan.created', 'loan-1', ['student_id' => 'student-1']);
 
-    config(['platform.services_delivery.enabled' => false]);
+    config(['platform.services_delivery.analytics_enabled' => false]);
     $this->artisan('servicios:publicar-eventos')->assertSuccessful();
 
-    config(['platform.services_delivery.enabled' => true, 'platform.ingest.secrets.services' => 'corto']);
+    config(['platform.services_delivery.analytics_enabled' => true, 'platform.ingest.secrets.services' => 'corto']);
     $this->artisan('servicios:publicar-eventos')->assertFailed();
 
     Http::assertNothingSent();
     expect(ServicePlatformEvent::query()->firstOrFail()->attempts)->toBe(0);
+});
+
+test('turning on only the audit delivery does not start sending analytics events', function () {
+    app(ServicePlatformEvents::class)->emit('loan.created', 'loan-1', ['student_id' => 'student-1']);
+
+    // Un entorno que ya tenía la auditoría encendida y no conoce la bandera nueva.
+    config(['platform.services_delivery' => ['enabled' => true, 'url' => 'http://app']]);
+
+    expect(config('platform.services_delivery.analytics_enabled'))->toBeNull()
+        ->and(app(ServicePlatformDelivery::class)->deliver())->toMatchArray(['enabled' => false, 'sent' => 0]);
+    $this->artisan('servicios:publicar-eventos')->assertSuccessful();
+
+    Http::assertNothingSent();
+    expect(ServicePlatformEvent::query()->firstOrFail()->status)->toBe(ServicePlatformEvent::PENDING)
+        ->and(ServicePlatformEvent::query()->firstOrFail()->attempts)->toBe(0);
 });
 
 test('the real receiver in this application accepts our events and recognises a lost response', function () {

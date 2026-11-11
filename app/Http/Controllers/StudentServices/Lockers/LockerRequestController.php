@@ -356,6 +356,8 @@ class LockerRequestController extends Controller
             );
 
         try {
+            app(ServiceFinancePayments::class)->guardOtherPayment($lockerRequest);
+
             $assignment =
                 $this->requests
                     ->confirmPayment(

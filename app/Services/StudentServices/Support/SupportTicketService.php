@@ -5,12 +5,10 @@ namespace App\Services\StudentServices\Support;
 use App\Models\StudentServices\Support\SupportTicket;
 use App\Models\StudentServices\Support\TicketEvent;
 use App\Services\StudentServices\Audit\ServiceAuditor;
-use App\Services\StudentServices\Platform\ServicePlatformEvents;
 use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
-use MongoDB\BSON\ObjectId;
 use RuntimeException;
 use Throwable;
 
@@ -472,15 +470,6 @@ class SupportTicketService
         };
     }
 
-    /**
-     * Escalamiento automático del SLA (5.9): un ticket abierto, asignado o en
-     * proceso cuyo plazo ya venció sube un nivel de prioridad (crítico se
-     * queda en crítico), se marca como escalado y queda en su historial y en
-     * la auditoría. Cada ticket se escala una sola vez; la marca atómica evita
-     * escalarlo dos veces si el comando corre en paralelo.
-     *
-     * @return int tickets escalados en esta pasada
-     */
     public function escalateOverdue(?CarbonInterface $now = null): int
     {
         $now ??= now();
@@ -489,52 +478,52 @@ class SupportTicketService
         $overdue = SupportTicket::query()
             ->whereIn('status', ['open', 'assigned', 'in_progress'])
             ->where('sla_due_at', '<=', $now)
-            ->whereNull('sla_escalated_at')
-            ->get();
+            ->whereNull('sla_escalated_at');
 
-        foreach ($overdue as $ticket) {
+        foreach ((clone $overdue)->cursor() as $ticket) {
             $from = (string) $ticket->priority;
-            $index = array_search($from, self::PRIORITIES, true);
-            $to = self::PRIORITIES[min(count(self::PRIORITIES) - 1, ($index === false ? 0 : $index) + 1)];
-
-            $claimed = SupportTicket::query()
-                ->where('_id', new ObjectId((string) $ticket->id))
-                ->whereNull('sla_escalated_at')
-                ->update([
-                    'sla_escalated_at' => $now,
-                    'priority_before_escalation' => $from,
-                    'priority' => $to,
-                ]);
-
-            if ($claimed === 0) {
-                continue;
-            }
-
+            $to = match ($from) {
+                'low' => 'medium',
+                'medium' => 'high',
+                'high', 'critical' => 'critical',
+                default => $from,
+            };
             $message = $from === $to
-                ? 'Venció el SLA; el ticket ya tenía prioridad crítica.'
+                ? 'Venció el SLA; el ticket conserva su prioridad.'
                 : "Venció el SLA; prioridad {$this->priorityLabel($from)} → {$this->priorityLabel($to)}.";
 
-            $this->registerEvent($ticket, 'sla_escalated', (string) $ticket->status, (string) $ticket->status, 'system', $message);
+            $recorded = $ticket->getConnection()->transaction(function () use ($overdue, $ticket, $now, $from, $to, $message) {
+                $updated = (clone $overdue)
+                    ->whereKey($ticket->getKey())
+                    ->where('priority', $from)
+                    ->where('status', $ticket->status)
+                    ->update([
+                        'sla_escalated_at' => $now,
+                        'priority_before_escalation' => $from,
+                        'priority' => $to,
+                    ]);
 
-            app(ServiceAuditor::class)->record(
-                'support.ticket.sla_escalated',
-                'support_ticket',
-                (string) $ticket->id,
-                ['priority' => $from, 'sla_due_at' => $ticket->sla_due_at?->toIso8601String()],
-                ['priority' => $to, 'sla_escalated_at' => $now->toIso8601String()],
-                $message,
-                'system'
-            );
+                if ($updated !== 1) {
+                    return false;
+                }
 
-            // Analítica del Equipo 7 (la actualización masiva no pasa por el observador).
-            app(ServicePlatformEvents::class)->emit('ticket.sla_escalated', (string) $ticket->id, [
-                'student_id' => $ticket->student_id,
-                'ticket_id' => $ticket->id,
-                'from_priority' => $from,
-                'to_priority' => $to,
-            ]);
+                $this->registerEvent($ticket, 'sla_escalated', $ticket->status, $ticket->status, 'system', $message);
 
-            $escalated++;
+                return true;
+            }, 3);
+
+            if ($recorded) {
+                app(ServiceAuditor::class)->record(
+                    'support.ticket.sla_escalated',
+                    'support_ticket',
+                    (string) $ticket->id,
+                    ['priority' => $from, 'sla_due_at' => $ticket->sla_due_at?->toIso8601String()],
+                    ['priority' => $to, 'sla_escalated_at' => $now->toIso8601String()],
+                    $message,
+                    'system',
+                );
+                $escalated++;
+            }
         }
 
         return $escalated;
