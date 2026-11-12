@@ -1,8 +1,11 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import axios from 'axios';
+import { useIdempotentAttempt } from '@/Composables/useIdempotentAttempt';
+
+const attempt = useIdempotentAttempt(reactive({ pending: false, retryable: false, readOnly: false }));
 
 const props = defineProps({
     wallet: { type: Object, default: null }, canRequest: Boolean,
@@ -21,8 +24,30 @@ const history = ref(null);
 const historyPage = ref(1);
 const historyTotal = ref(0);
 const lookupWallet = ref('');
-const form = reactive({ kind: '', title: '', id: '', action: '', key: '', reason: '', amount: '',
+const form = reactive({ kind: '', title: '', id: '', action: '', reason: '', amount: '',
     selectedId: '', walletAmount: '0', bonusAmounts: {}, operationType: '', maxSeconds: '', active: true, version: 1, receipt: '' });
+// Guard installation is synchronous with pending=true, before HTTP transport starts.
+const leaveWarning = ref('');
+const leaveMessage = 'Hay una solicitud pendiente de confirmar. Se bloqueó la navegación para conservar su clave y sus datos. Verifica el resultado o vuelve al intento; no inicies otra operación.';
+function returnToAttempt() {
+    if (!dialog.value.open) dialog.value.showModal();
+}
+function warnLeaving() {
+    leaveWarning.value = leaveMessage;
+    returnToAttempt();
+}
+let removeNavigationGuard = () => {};
+watch(() => attempt.state.pending, pending => {
+    removeNavigationGuard();
+    if (pending) removeNavigationGuard = attempt.protectNavigation(router, window, warnLeaving);
+    else { removeNavigationGuard = () => {}; leaveWarning.value = ''; }
+}, { flush: 'sync' });
+onBeforeUnmount(() => {
+    // Fallback notification for non-cancelable history traversal or a visit that
+    // started before the financial request. This cannot cancel Vue unmounting.
+    if (attempt.state.pending) window.alert('Se va a perder el intento pendiente de esta pantalla. Antes de iniciar otra operación verifica su resultado. El navegador no permite bloquear todas las salidas.');
+    removeNavigationGuard();
+});
 const can = (action) => Boolean(props.permissions[action]);
 const money = (cents) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: props.wallet?.currency || 'MXN' }).format((cents || 0) / 100);
 const date = (value) => value ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—';
@@ -42,8 +67,10 @@ const cents = (input) => {
     return value;
 };
 function open(kind, title, row = {}, action = '') {
+    if (busy.value) return;
+    if (attempt.state.pending) { dialog.value.showModal(); return; }
     error.value = ''; notice.value = '';
-    Object.assign(form, { kind, title, id: row.id || '', action, key: crypto.randomUUID(), reason: '', amount: '', selectedId: '',
+    Object.assign(form, { kind, title, id: row.id || '', action, reason: '', amount: '', selectedId: '',
         walletAmount: '0', bonusAmounts: {}, operationType: row.operation_type || '', maxSeconds: row.max_duration_seconds || '',
         active: row.active ?? true, version: row.version || 1, receipt: '' });
     dialog.value.showModal();
@@ -52,32 +79,37 @@ function close() { if (!busy.value) dialog.value.close(); }
 async function submit() {
     if (busy.value) return;
     error.value = '';
-    let url; let method = 'post'; let payload = { reason: form.reason };
+    busy.value = true;
     try {
-        if (!form.reason.trim()) throw new Error('Escribe el motivo de la operación.');
-        switch (form.kind) {
-        case 'request-refund':
-            url = route('financial.adjustments.refunds.store');
-            payload = { ...payload, original_transaction_id: form.selectedId, amount_cents: cents(form.amount) }; break;
-        case 'request-purchase':
-            url = route('financial.adjustments.purchase-refunds.store');
-            payload = { ...payload, purchase_payment_id: form.selectedId, wallet_amount_cents: cents(form.walletAmount),
-                bonus_refunds: Object.entries(form.bonusAmounts).filter(([, amount]) => String(amount).trim() && cents(amount) > 0)
-                    .map(([bonus_id, amount]) => ({ bonus_id, amount_cents: cents(amount) })) }; break;
-        case 'refund':
-            url = route('financial.adjustments.refunds.action', { refundId: form.id, action: form.action });
-            if (form.action === 'recover') payload.recovery_reference = form.receipt; break;
-        case 'purchase-refund': url = route('financial.adjustments.purchase-refunds.action', { refundId: form.id, action: form.action }); break;
-        case 'hold': url = route('financial.adjustments.holds.action', { holdId: form.id, action: form.action }); break;
-        case 'reverse': url = route('financial.adjustments.reverse', { transactionId: form.id }); break;
-        case 'policy':
-            payload = { ...payload, max_duration_seconds: Number(form.maxSeconds), active: form.active };
-            if (form.id) { url = route('financial.adjustments.policies.update', { policyId: form.id }); method = 'patch'; payload.expected_version = form.version; }
-            else { url = route('financial.adjustments.policies.store'); payload.operation_type = form.operationType; }
-            break;
-        }
-        busy.value = true;
-        await axios({ method, url, data: payload, headers: { 'Idempotency-Key': form.key } });
+        await attempt.send(() => {
+            let url; let method = 'post'; let payload = { reason: form.reason };
+            if (!form.reason.trim()) throw new Error('Escribe el motivo de la operación.');
+            switch (form.kind) {
+            case 'request-refund':
+                url = route('financial.adjustments.refunds.store');
+                payload = { ...payload, original_transaction_id: form.selectedId, amount_cents: cents(form.amount) }; break;
+            case 'request-purchase':
+                url = route('financial.adjustments.purchase-refunds.store');
+                payload = { ...payload, purchase_payment_id: form.selectedId, wallet_amount_cents: cents(form.walletAmount),
+                    bonus_refunds: Object.entries(form.bonusAmounts).filter(([, amount]) => String(amount).trim() && cents(amount) > 0)
+                        .map(([bonus_id, amount]) => ({ bonus_id, amount_cents: cents(amount) })) }; break;
+            case 'refund':
+                url = route('financial.adjustments.refunds.action', { refundId: form.id, action: form.action });
+                if (form.action === 'recover') payload.recovery_reference = form.receipt; break;
+            case 'purchase-refund': url = route('financial.adjustments.purchase-refunds.action', { refundId: form.id, action: form.action }); break;
+            case 'hold': url = route('financial.adjustments.holds.action', { holdId: form.id, action: form.action }); break;
+            case 'reverse': url = route('financial.adjustments.reverse', { transactionId: form.id }); break;
+            case 'policy':
+                payload = { ...payload, max_duration_seconds: Number(form.maxSeconds), active: form.active };
+                if (form.id) { url = route('financial.adjustments.policies.update', { policyId: form.id }); method = 'patch'; payload.expected_version = form.version; }
+                else { url = route('financial.adjustments.policies.store'); payload.operation_type = form.operationType; }
+                break;
+            }
+            // These services look up the stored transaction/request before executing again.
+            const retryable = ['request-refund', 'request-purchase', 'hold', 'reverse'].includes(form.kind)
+                || (['refund', 'purchase-refund'].includes(form.kind) && form.action === 'complete');
+            return { method, url, data: payload, retryable, headers: { Accept: 'application/json' } };
+        }, request => axios(request));
         dialog.value.close(); notice.value = 'Operación registrada correctamente.';
         router.reload({ preserveScroll: true });
     } catch (exception) {
@@ -112,6 +144,11 @@ function selectWallet() {
         </template>
         <main class="min-h-screen bg-[#F5F8FC] px-4 py-7 sm:px-6">
             <div class="mx-auto max-w-7xl space-y-6">
+                <section v-if="attempt.state.pending" role="alert" class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                    <p>Hay una solicitud pendiente de confirmar. La navegación por enlaces y el cambio de wallet se bloquean para conservar el intento. Cerrar el diálogo no lo descarta.</p>
+                    <p class="mt-2">No recargues ni cierres esta pestaña. El aviso del navegador puede no aparecer y no garantiza conservar los datos. Atrás/Adelante tampoco se pueden bloquear en todos los navegadores. Verifica el resultado en otra pestaña.</p>
+                    <button type="button" @click="returnToAttempt" class="mt-2 font-semibold underline">Volver al intento pendiente</button>
+                </section>
                 <p v-if="notice" role="status" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">{{ notice }}</p>
                 <p v-if="error && !dialog?.open" role="alert" class="rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">{{ error }}</p>
                 <section class="rounded-2xl bg-[#00338D] p-6 text-white">
@@ -185,13 +222,20 @@ function selectWallet() {
             <form @submit.prevent="submit" class="space-y-4 p-6">
                 <h2 class="text-xl font-bold text-[#00338D]">{{ form.title }}</h2>
                 <p v-if="error" role="alert" class="rounded-lg bg-red-50 p-3 text-sm text-red-800">{{ error }}</p>
-                <template v-if="form.kind === 'request-refund'"><label class="field">Operación original<select v-model="form.selectedId" required><option value="">Selecciona una operación</option><option v-for="row in refundable" :key="row.id" :value="row.id">{{ row.movement_type }} · {{ money(-row.amount_cents) }} · {{ short(row.id) }}</option></select></label><label class="field">Importe a devolver<input v-model="form.amount" inputmode="decimal" placeholder="0.00" required /></label></template>
-                <template v-if="form.kind === 'request-purchase'"><label class="field">Compra original<select v-model="form.selectedId" @change="form.bonusAmounts = {}; form.walletAmount = '0'" required><option value="">Selecciona una compra</option><option v-for="row in purchases" :key="row.id" :value="row.id">{{ short(row.id) }} · {{ money(row.total_amount_cents) }}</option></select></label><template v-if="selectedPurchase"><label class="field">Parte a devolver a la wallet (pagado {{ money(selectedPurchase.wallet_amount_cents) }})<input v-model="form.walletAmount" inputmode="decimal" required /></label><label v-for="line in selectedPurchase.bonuses" :key="line.bonus_id" class="field">Bono {{ short(line.bonus_id) }} (pagado {{ money(line.amount_cents) }})<input v-model="form.bonusAmounts[line.bonus_id]" inputmode="decimal" placeholder="0.00" /></label><p class="text-xs text-slate-500">Cada parte vuelve a su fuente original. Deja en cero las partes que no quieras devolver.</p></template></template>
-                <template v-if="form.kind === 'policy'"><label class="field">Tipo de operación<input v-model="form.operationType" :disabled="Boolean(form.id)" required placeholder="COMPRA_PENDIENTE" /></label><label class="field">Duración máxima (segundos)<input v-model="form.maxSeconds" type="number" min="1" max="2147483647" step="1" required /></label><label class="flex items-center gap-2 text-sm"><input v-model="form.active" type="checkbox" class="rounded border-slate-300" />Habilitar nuevas retenciones de esta operación</label></template>
-                <label v-if="form.action === 'recover'" class="field">Referencia de recuperación externa<input v-model="form.receipt" required maxlength="255" /></label>
-                <p v-if="form.kind === 'reverse'" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Se registrarán movimientos compensatorios. Las compras con bonos, retiros y retenciones requieren sus flujos específicos.</p>
-                <label class="field">Motivo<textarea v-model="form.reason" required maxlength="1000" rows="3"></textarea></label>
-                <div class="flex justify-end gap-3"><button type="button" :disabled="busy" @click="close" class="action">Cancelar</button><button :disabled="busy" class="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{{ busy ? 'Procesando…' : 'Confirmar' }}</button></div>
+                <p v-if="leaveWarning" role="alert" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{{ leaveWarning }}</p>
+                <p v-if="attempt.state.pending" role="status" class="text-sm text-amber-800">{{ attempt.state.retryable ? 'El resultado está pendiente de confirmar. Solo puedes reintentar con los mismos datos.' : 'El resultado está pendiente de verificar. Consulta los registros antes de realizar otra operación; esta operación no admite reintentos seguros.' }}</p>
+                <p v-if="attempt.state.pending && attempt.state.readOnly" class="text-sm text-slate-600">La evaluación es una consulta sin escrituras. Al repetirla con los mismos datos, el resultado puede cambiar si cambian los límites o los movimientos.</p>
+                <p v-if="attempt.state.pending && !attempt.state.readOnly" class="text-sm text-slate-600">Para verificar, abre esta misma sección en otra pestaña y consulta la retención, devolución, operación o historial de la política correspondiente. Compara identificador, estado, importe y motivo. Si no puedes confirmar el resultado, solicita su verificación al responsable financiero; la ausencia en la lista no demuestra que no se ejecutó.</p>
+                <p v-if="attempt.state.pending" class="text-sm text-amber-800">No recargues ni abandones esta pestaña: el intento solo se conserva en memoria. Cerrar este diálogo no cancela ni descarta la solicitud. Una recarga pierde la clave y los datos del intento; antes de iniciar otra operación debes verificar su resultado.</p>
+                <fieldset :disabled="busy || attempt.state.pending" class="space-y-4">
+                    <template v-if="form.kind === 'request-refund'"><label class="field">Operación original<select v-model="form.selectedId" required><option value="">Selecciona una operación</option><option v-for="row in refundable" :key="row.id" :value="row.id">{{ row.movement_type }} · {{ money(-row.amount_cents) }} · {{ short(row.id) }}</option></select></label><label class="field">Importe a devolver<input v-model="form.amount" inputmode="decimal" placeholder="0.00" required /></label></template>
+                    <template v-if="form.kind === 'request-purchase'"><label class="field">Compra original<select v-model="form.selectedId" @change="form.bonusAmounts = {}; form.walletAmount = '0'" required><option value="">Selecciona una compra</option><option v-for="row in purchases" :key="row.id" :value="row.id">{{ short(row.id) }} · {{ money(row.total_amount_cents) }}</option></select></label><template v-if="selectedPurchase"><label class="field">Parte a devolver a la wallet (pagado {{ money(selectedPurchase.wallet_amount_cents) }})<input v-model="form.walletAmount" inputmode="decimal" required /></label><label v-for="line in selectedPurchase.bonuses" :key="line.bonus_id" class="field">Bono {{ short(line.bonus_id) }} (pagado {{ money(line.amount_cents) }})<input v-model="form.bonusAmounts[line.bonus_id]" inputmode="decimal" placeholder="0.00" /></label><p class="text-xs text-slate-500">Cada parte vuelve a su fuente original. Deja en cero las partes que no quieras devolver.</p></template></template>
+                    <template v-if="form.kind === 'policy'"><label class="field">Tipo de operación<input v-model="form.operationType" :disabled="Boolean(form.id)" required placeholder="COMPRA_PENDIENTE" /></label><label class="field">Duración máxima (segundos)<input v-model="form.maxSeconds" type="number" min="1" max="2147483647" step="1" required /></label><label class="flex items-center gap-2 text-sm"><input v-model="form.active" type="checkbox" class="rounded border-slate-300" />Habilitar nuevas retenciones de esta operación</label></template>
+                    <label v-if="form.action === 'recover'" class="field">Referencia de recuperación externa<input v-model="form.receipt" required maxlength="255" /></label>
+                    <p v-if="form.kind === 'reverse'" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Se registrarán movimientos compensatorios. Las compras con bonos, retiros y retenciones requieren sus flujos específicos.</p>
+                    <label class="field">Motivo<textarea v-model="form.reason" required maxlength="1000" rows="3"></textarea></label>
+                </fieldset>
+                <div class="flex justify-end gap-3"><button type="button" :disabled="busy" @click="close" class="action">Cancelar</button><button :disabled="busy || (attempt.state.pending && !attempt.state.retryable)" class="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{{ busy ? 'Procesando…' : 'Confirmar' }}</button></div>
             </form>
         </dialog>
     </AuthenticatedLayout>

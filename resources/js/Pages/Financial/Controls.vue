@@ -1,8 +1,11 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import axios from 'axios';
+import { useIdempotentAttempt } from '@/Composables/useIdempotentAttempt';
+
+const attempt = useIdempotentAttempt(reactive({ pending: false, retryable: false, readOnly: false }));
 
 const props = defineProps({ permissions: Object, catalogs: Object, businessDate: String });
 const tabs = { limits: 'Límites', alerts: 'Alertas', reconciliations: 'Conciliación' };
@@ -11,9 +14,31 @@ const can = action => props.permissions[action] === true;
 const viewAction = { limits: 'limits.view', alerts: 'alerts.view', reconciliations: 'reconciliation.view' };
 const rows = ref([]), pagination = ref(null), loading = ref(false), busy = ref(false);
 const error = ref(''), success = ref(''), detail = ref(null), detailPage = ref(null), detailKind = ref('');
-const dialog = ref(null), mode = ref(''), selected = ref(null), key = ref('');
+const dialog = ref(null), mode = ref(''), selected = ref(null);
 const filters = reactive({ operation: '', active: '', status: '', wallet_id: '', business_date: '', outcome: '', correlation_id: '' });
 const form = reactive({});
+// Guard installation is synchronous with pending=true, before HTTP transport starts.
+const leaveWarning = ref('');
+const leaveMessage = 'Hay una solicitud pendiente de confirmar. Se bloqueó la navegación para conservar su clave y sus datos. Verifica el resultado o vuelve al intento; no inicies otra operación.';
+function returnToAttempt() {
+    if (!dialog.value.open) dialog.value.showModal();
+}
+function warnLeaving() {
+    leaveWarning.value = leaveMessage;
+    returnToAttempt();
+}
+let removeNavigationGuard = () => {};
+watch(() => attempt.state.pending, pending => {
+    removeNavigationGuard();
+    if (pending) removeNavigationGuard = attempt.protectNavigation(router, window, warnLeaving);
+    else { removeNavigationGuard = () => {}; leaveWarning.value = ''; }
+}, { flush: 'sync' });
+onBeforeUnmount(() => {
+    // Fallback notification for non-cancelable history traversal or a visit that
+    // started before the financial request. This cannot cancel Vue unmounting.
+    if (attempt.state.pending) window.alert('Se va a perder el intento pendiente de esta pantalla. Antes de iniciar otra operación verifica su resultado. El navegador no permite bloquear todas las salidas.');
+    removeNavigationGuard();
+});
 const visibleFilters = computed(() => tab.value === 'limits' ? ['operation', 'active'] : tab.value === 'alerts'
     ? ['status', 'wallet_id', 'outcome', 'correlation_id'] : ['status', 'business_date']);
 const labels = { operation: 'Operación', active: 'Vigencia', status: 'Estado', wallet_id: 'Wallet (UUID)', business_date: 'Fecha contable', outcome: 'Resultado', correlation_id: 'Correlación' };
@@ -47,7 +72,9 @@ function cents(value) {
     return amount;
 }
 function open(action, row = null) {
-    mode.value = action; selected.value = row; error.value = ''; success.value = ''; key.value = crypto.randomUUID();
+    if (busy.value) return;
+    if (attempt.state.pending) { dialog.value.showModal(); return; }
+    mode.value = action; selected.value = row; error.value = ''; success.value = '';
     for (const name of Object.keys(form)) delete form[name];
     if (action === 'create' || action === 'edit') Object.assign(form, {
         name: row?.name ?? '', subject_type: row?.subject_type ?? 'GLOBAL', subject_id: row?.subject_id ?? '',
@@ -79,26 +106,29 @@ async function submit() {
     if (busy.value) return;
     busy.value = true; error.value = '';
     try {
-        let url, payload, method = 'post';
-        if (mode.value === 'create' || mode.value === 'edit') {
-            payload = { name: form.name, action: form.action, active: form.active, reason: form.reason || null,
-                valid_from: form.valid_from || null, valid_until: form.valid_until || null, change_reason: form.change_reason,
-                max_amount_cents: form.metric === 'MONTO' ? cents(form.amount) : null,
-                max_count: form.metric === 'CONTEO' ? Number(form.max_count) : null };
-            if (mode.value === 'create') {
-                Object.assign(payload, { subject_type: form.subject_type, subject_id: form.subject_type === 'GLOBAL' ? null : form.subject_id,
-                    operation: form.operation, period: form.period, metric: form.metric, currency: form.currency });
-                url = routeFor('limits.store');
-            } else { method = 'patch'; url = routeFor('limits.update', { limitId: selected.value.id }); payload.expected_revision = selected.value.revision; }
-        }
-        if (mode.value === 'evaluate') { url = routeFor('limits.evaluate'); payload = { wallet_id: form.wallet_id, operation: form.operation, amount_cents: cents(form.amount) }; }
-        if (mode.value === 'status') { url = routeFor('alerts.status', { alertId: selected.value.id }); payload = { status: form.status, note: form.note }; }
-        if (mode.value === 'run') {
-            url = routeFor('reconciliations.store'); payload = { business_date: form.business_date };
-            if (form.wallet_ids.trim()) payload.wallet_ids = form.wallet_ids.split(/[\s,]+/).filter(Boolean);
-        }
-        if (mode.value === 'resolve') { url = routeFor('reconciliations.resolve', { reconciliationId: detail.value.row.id, differenceId: selected.value.id }); payload = { note: form.note }; }
-        const response = await axios({ method, url, data: payload, headers: { 'Idempotency-Key': key.value, Accept: 'application/json' } });
+        const response = await attempt.send(() => {
+            let url, payload, method = 'post';
+            if (mode.value === 'create' || mode.value === 'edit') {
+                payload = { name: form.name, action: form.action, active: form.active, reason: form.reason || null,
+                    valid_from: form.valid_from || null, valid_until: form.valid_until || null, change_reason: form.change_reason,
+                    max_amount_cents: form.metric === 'MONTO' ? cents(form.amount) : null,
+                    max_count: form.metric === 'CONTEO' ? Number(form.max_count) : null };
+                if (mode.value === 'create') {
+                    Object.assign(payload, { subject_type: form.subject_type, subject_id: form.subject_type === 'GLOBAL' ? null : form.subject_id,
+                        operation: form.operation, period: form.period, metric: form.metric, currency: form.currency });
+                    url = routeFor('limits.store');
+                } else { method = 'patch'; url = routeFor('limits.update', { limitId: selected.value.id }); payload.expected_revision = selected.value.revision; }
+            }
+            if (mode.value === 'evaluate') { url = routeFor('limits.evaluate'); payload = { wallet_id: form.wallet_id, operation: form.operation, amount_cents: cents(form.amount) }; }
+            if (mode.value === 'status') { url = routeFor('alerts.status', { alertId: selected.value.id }); payload = { status: form.status, note: form.note }; }
+            if (mode.value === 'run') {
+                url = routeFor('reconciliations.store'); payload = { business_date: form.business_date };
+                if (form.wallet_ids.trim()) payload.wallet_ids = form.wallet_ids.split(/[\s,]+/).filter(Boolean);
+            }
+            if (mode.value === 'resolve') { url = routeFor('reconciliations.resolve', { reconciliationId: detail.value.row.id, differenceId: selected.value.id }); payload = { note: form.note }; }
+            // Only run replays a stored result; evaluate is repeatable because it writes nothing.
+            return { method, url, data: payload, retryable: mode.value === 'run', readOnly: mode.value === 'evaluate', headers: { Accept: 'application/json' } };
+        }, request => axios(request));
         if (mode.value === 'evaluate') {
             detail.value = { row: { name: 'Evaluación preventiva' }, data: response.data.data }; detailKind.value = 'evaluation'; detailPage.value = null;
         } else {
@@ -121,6 +151,11 @@ const title = computed(() => ({ create: 'Crear límite', edit: 'Editar límite',
         <main class="min-h-screen bg-[#F5F8FC] px-4 py-8 sm:px-6"><div class="mx-auto max-w-7xl space-y-5">
             <div class="flex flex-wrap items-center justify-between gap-3"><p class="text-slate-600">Límites de operación, seguimiento de alertas y conciliación contable.</p><Link :href="route('financial.dashboard')" class="text-sm font-semibold text-blue-800">Volver a Finanzas</Link></div>
             <p class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">La consulta y las acciones requieren autorización administrativa global. Los permisos se comprueban en el servidor; si todavía no están habilitados, solicita su integración al administrador.</p>
+            <section v-if="attempt.state.pending" role="alert" class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                <p>Hay una solicitud pendiente de confirmar. La navegación por enlaces se bloquea para conservar el intento. Cerrar el diálogo no lo descarta.</p>
+                <p class="mt-2">No recargues ni cierres esta pestaña. El aviso del navegador puede no aparecer y no garantiza conservar los datos. Atrás/Adelante tampoco se pueden bloquear en todos los navegadores. Verifica el resultado en otra pestaña.</p>
+                <button type="button" @click="returnToAttempt" class="mt-2 font-semibold underline">Volver al intento pendiente</button>
+            </section>
             <p v-if="error" role="alert" class="rounded-xl bg-red-50 p-4 text-red-800">{{ error }}</p>
             <p v-if="success" role="status" class="rounded-xl bg-emerald-50 p-4 text-emerald-800">{{ success }}</p>
             <nav class="flex flex-wrap gap-2" aria-label="Controles financieros"><button v-for="(label, name) in tabs" :key="name" :disabled="busy || loading" @click="tab = name" :aria-pressed="tab === name" class="rounded-xl px-5 py-3 font-semibold" :class="tab === name ? 'bg-[#00338D] text-white' : 'bg-white text-slate-600'">{{ label }}</button></nav>
@@ -170,7 +205,12 @@ const title = computed(() => ({ create: 'Crear límite', edit: 'Editar límite',
         </div></main>
         <dialog ref="dialog" class="w-full max-w-2xl rounded-2xl p-0 backdrop:bg-slate-900/50" @cancel="busy && $event.preventDefault()">
             <form @submit.prevent="submit" class="space-y-4 p-6"><h3 class="text-xl font-bold text-[#00338D]">{{ title }}</h3><p v-if="error" role="alert" class="rounded-lg bg-red-50 p-3 text-red-800">{{ error }}</p>
-                <fieldset :disabled="busy" class="space-y-4">
+                <p v-if="leaveWarning" role="alert" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{{ leaveWarning }}</p>
+                <p v-if="attempt.state.pending" role="status" class="text-sm text-amber-800">{{ attempt.state.retryable ? 'El resultado está pendiente de confirmar. Solo puedes reintentar con los mismos datos.' : 'El resultado está pendiente de verificar. Consulta los registros antes de realizar otra operación; esta operación no admite reintentos seguros.' }}</p>
+                <p v-if="attempt.state.pending && attempt.state.readOnly" class="text-sm text-slate-600">La evaluación es una consulta sin escrituras. Al repetirla con los mismos datos, el resultado puede cambiar si cambian los límites o los movimientos.</p>
+                <p v-if="attempt.state.pending && !attempt.state.readOnly" class="text-sm text-slate-600">Para verificar, abre esta misma sección en otra pestaña. Consulta la conciliación por fecha, alcance y estado; para los otros cambios, revisa el límite y su historial, la alerta o las diferencias de la conciliación. Si no puedes identificar el resultado, solicita su verificación al responsable financiero; la ausencia en la lista no demuestra que no se ejecutó.</p>
+                <p v-if="attempt.state.pending" class="text-sm text-amber-800">No recargues ni abandones esta pestaña: el intento solo se conserva en memoria. Cerrar este diálogo no cancela ni descarta la solicitud. Una recarga pierde la clave y los datos del intento; antes de iniciar otra operación debes verificar su resultado.</p>
+                <fieldset :disabled="busy || attempt.state.pending" class="space-y-4">
                     <template v-if="['create', 'edit'].includes(mode)">
                         <label class="block text-sm">Nombre<input v-model="form.name" required maxlength="150" class="field" /></label>
                         <div class="grid gap-3 sm:grid-cols-2"><label class="text-sm">Ámbito<select v-model="form.subject_type" :disabled="mode === 'edit'" class="field"><option v-for="value in catalogs.subjects" :key="value">{{ value }}</option></select></label><label v-if="form.subject_type !== 'GLOBAL'" class="text-sm">Identificador del ámbito<select v-if="form.subject_type === 'WALLET_TYPE'" v-model="form.subject_id" :disabled="mode === 'edit'" required class="field"><option v-for="value in catalogs.walletTypes" :key="value">{{ value }}</option></select><input v-else v-model="form.subject_id" :disabled="mode === 'edit'" required maxlength="255" class="field" /></label></div>
@@ -186,7 +226,7 @@ const title = computed(() => ({ create: 'Crear límite', edit: 'Editar límite',
                     <template v-if="mode === 'run'"><label class="block text-sm">Fecha contable<input v-model="form.business_date" type="date" required class="field" /></label><label class="block text-sm">Wallets (UUID separados por coma; vacío para toda la institución)<textarea v-model="form.wallet_ids" class="field" /></label><p class="text-sm text-slate-500">La conciliación compara registros y saldos. La integración de caja se reportará según su disponibilidad.</p></template>
                     <label v-if="mode === 'resolve'" class="block text-sm">Motivo de resolución<textarea v-model="form.note" required maxlength="1000" class="field" /></label>
                 </fieldset>
-                <div class="flex justify-end gap-3"><button type="button" class="btn-secondary" :disabled="busy" @click="dialog.close()">Cancelar</button><button class="btn" :disabled="busy">{{ busy ? 'Procesando…' : 'Confirmar' }}</button></div>
+                <div class="flex justify-end gap-3"><button type="button" class="btn-secondary" :disabled="busy" @click="dialog.close()">Cancelar</button><button class="btn" :disabled="busy || (attempt.state.pending && !attempt.state.retryable)">{{ busy ? 'Procesando…' : 'Confirmar' }}</button></div>
             </form>
         </dialog>
     </AuthenticatedLayout>
