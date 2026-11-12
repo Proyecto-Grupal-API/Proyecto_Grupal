@@ -5,6 +5,7 @@ namespace App\Services\StudentServices\Support;
 use App\Models\StudentServices\Support\SupportTicket;
 use App\Models\StudentServices\Support\TicketEvent;
 use App\Services\StudentServices\Audit\ServiceAuditor;
+use App\Services\StudentServices\Platform\ServicePlatformEvents;
 use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -522,6 +523,13 @@ class SupportTicketService
                     $message,
                     'system',
                 );
+                // The bulk update bypasses model observers; enqueue the documented event once.
+                app(ServicePlatformEvents::class)->emit('ticket.sla_escalated', (string) $ticket->id, [
+                    'student_id' => $ticket->student_id,
+                    'ticket_id' => (string) $ticket->id,
+                    'from_priority' => $from,
+                    'to_priority' => $to,
+                ], $now);
                 $escalated++;
             }
         }

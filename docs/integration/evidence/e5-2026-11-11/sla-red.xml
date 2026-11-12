@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="Tests\Feature\StudentServices\SupportTicketsTest" file="tests/Feature/StudentServices/SupportTicketsTest.php" tests="1" assertions="14" errors="0" failures="1" skipped="0" time="2.093136">
+    <testcase name="an overdue ticket is escalated once by the SLA review and the history shows it" file="tests/Feature/StudentServices/SupportTicketsTest.php::an overdue ticket is escalated once by the SLA review and the history shows it" class="Tests\Feature\StudentServices\SupportTicketsTest" classname="Tests.Feature.StudentServices.SupportTicketsTest" assertions="14" time="2.093136">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">an overdue ticket is escalated once by the SLA review and the history shows itFailed asserting that 0 is identical to 1.
+at tests/Feature/StudentServices/SupportTicketsTest.php:120</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

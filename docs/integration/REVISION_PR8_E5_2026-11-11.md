@@ -29,3 +29,10 @@ La configuración privada revisada no tiene todavía cliente/receptor y banderas
 La compatibilidad declarada por E5 para revocaciones de apoyos se conserva; garantías de renta, consentimiento y vigencia se documentan por separado en `equipo5/GARANTIAS-DEFINICION-E5.md`. No se da por cerrada esa aceptación con estos resultados.
 
 Evidencias: `evidence/e5-2026-11-11/`. Los servicios de la copia original y las bases persistentes no se iniciaron ni modificaron para estas pruebas.
+
+
+## Corrección posterior del SLA
+
+Al contrastar `EMISOR-PLATAFORMA-E7.md` con el código fusionado se encontró que el escalamiento masivo no pasaba por el observador y había perdido la emisión explícita de `services.ticket.sla_escalated.v1`. Se reprodujo con una prueba: se esperaba un evento y había cero. Se restableció su encolado local solo cuando la actualización atómica gana, preservando el historial y la auditoría. La segunda pasada conserva un solo evento.
+
+Después pasaron las 21 pruebas focalizadas de soporte y emisor, con 197 aserciones, cero fallos/errores y las mismas advertencias de dotenv. La analítica sigue apagada por defecto; esto no envía eventos HTTP ni modifica puntos. Se conservan el JUnit RED y el resultado GREEN, identificados expresamente; el fallo inicial no se oculta como una prueba aprobada. No fue necesario recompilar vistas ni repetir las pruebas SQL: el cambio solo afecta el evento local de SLA.

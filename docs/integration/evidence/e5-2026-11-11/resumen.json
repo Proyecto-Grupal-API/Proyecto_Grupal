@@ -14,5 +14,14 @@
   "vite_build_passed": true,
   "flags_activated": false,
   "main_data_modified": false,
-  "pr8_merged": true
+  "pr8_merged": true,
+  "sla_follow_up": {
+    "regression_observed": true,
+    "red_failures": 1,
+    "green_tests": 21,
+    "green_assertions": 197,
+    "green_failures": 0,
+    "warnings_preserved": true,
+    "change": "Restituye evento analítico documentado de SLA después del escalamiento atomico; repetir no duplica."
+  }
 }
