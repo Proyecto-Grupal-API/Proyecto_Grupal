@@ -1,0 +1,10 @@
+{
+  "network": "campus-e5-review-20261111",
+  "internal": true,
+  "database": "campus_virtual_testing",
+  "replica": "rs-e1-testing",
+  "limited_user": true,
+  "source_base": "1b648b7",
+  "source_e5": "4ffb39c",
+  "main_containers_started": false
+}

@@ -1,0 +1,18 @@
+{
+  "source_base": "1b648b7",
+  "source_e5": "4ffb39c",
+  "merge_commit": "09633653fee292b892a93648d1caf609252bd9ce",
+  "feature_tests": 161,
+  "assertions": 1305,
+  "failures": 0,
+  "errors": 0,
+  "warnings": "dotenv deliberadamente ausente en el perfil Mongo integrado protegido",
+  "sql_domain_checks": 25,
+  "sql_engine": "Microsoft SQL Server 2022",
+  "sql_native_testcase_run": false,
+  "sql_scope": "Servicios de dominio reales y persistencia SQL/Mongo con fixtures de usuario/sesión E1; no navegador o transporte HTTP completo",
+  "vite_build_passed": true,
+  "flags_activated": false,
+  "main_data_modified": false,
+  "pr8_merged": true
+}

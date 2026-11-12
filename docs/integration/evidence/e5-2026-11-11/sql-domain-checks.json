@@ -1,0 +1,109 @@
+{
+    "scope": "domain service and persistence on real SQL Server plus real E1 Mongo fixtures; no browser or external HTTP claimed",
+    "fixture_opening_cents": 100000,
+    "payer_final_cents": 75000,
+    "recipient_final_cents": 25000,
+    "checks": [
+        {
+            "check": "runtime target testing",
+            "passed": true
+        },
+        {
+            "check": "Mongo server and privileges attested",
+            "passed": true
+        },
+        {
+            "check": "SQL configured isolated testing target",
+            "passed": true
+        },
+        {
+            "check": "SQL actual isolated database, limited user, no main database access",
+            "passed": true
+        },
+        {
+            "check": "financial migrations on new SQL database only",
+            "passed": true
+        },
+        {
+            "check": "only configured OAuth service accepted",
+            "passed": true
+        },
+        {
+            "check": "wrong service denied",
+            "passed": true
+        },
+        {
+            "check": "pending locker request",
+            "passed": true
+        },
+        {
+            "check": "prepare replay same identity",
+            "passed": true
+        },
+        {
+            "check": "changed amount conflicts",
+            "passed": true
+        },
+        {
+            "check": "real E1 fixture session and recent password",
+            "passed": true
+        },
+        {
+            "check": "SQL confirms payment",
+            "passed": true
+        },
+        {
+            "check": "transfer debits and credits exact cents",
+            "passed": true
+        },
+        {
+            "check": "confirmation replay no second financial transaction",
+            "passed": true
+        },
+        {
+            "check": "cancel after payment preserves evidence",
+            "passed": true
+        },
+        {
+            "check": "cancel pending request",
+            "passed": true
+        },
+        {
+            "check": "cancelled cannot charge",
+            "passed": true
+        },
+        {
+            "check": "cancelled origin cannot reprepare",
+            "passed": true
+        },
+        {
+            "check": "cancel before prepare persists tombstone",
+            "passed": true
+        },
+        {
+            "check": "tombstone prevents delayed charge",
+            "passed": true
+        },
+        {
+            "check": "insufficient funds rejected",
+            "passed": true
+        },
+        {
+            "check": "rejection no money movement",
+            "passed": true
+        },
+        {
+            "check": "expired password confirmation rejected",
+            "passed": true
+        },
+        {
+            "check": "revoked service rejected",
+            "passed": true
+        },
+        {
+            "check": "final balances conserved",
+            "passed": true
+        }
+    ],
+    "passed": true
+}
