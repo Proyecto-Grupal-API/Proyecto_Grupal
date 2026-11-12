@@ -52,7 +52,7 @@ use Throwable;
  *  - saldo de bono vs suma del ledger de bonos.
  * Comprobaciones del día de negocio:
  *  - transacciones pendientes o sin movimientos;
- *  - transferencias cuyo total no suma cero;
+ *  - transferencias sin un par válido de salida y entrada;
  *  - recargas/retiros completados sin movimiento o con monto distinto;
  *  - compras con totales descuadrados o sin el cargo a wallet esperado.
  */
@@ -609,7 +609,10 @@ class ReconciliationService
 
         $base()
             ->where('status', TransactionStatus::PENDIENTE->value)
-            ->whereNotIn('reference_type', ['REFUND_REQUEST', 'PURCHASE_REFUND_REQUEST'])
+            ->where(function ($query) {
+                $query->whereNull('reference_type')
+                    ->orWhereNotIn('reference_type', ['REFUND_REQUEST', 'PURCHASE_REFUND_REQUEST']);
+            })
             ->orderBy('id')
             ->chunk(self::CHUNK, function ($transactions) {
                 foreach ($transactions as $transaction) {
@@ -630,7 +633,10 @@ class ReconciliationService
 
         $base()
             ->where('status', TransactionStatus::COMPLETADA->value)
-            ->whereNotIn('reference_type', ['REFUND_REQUEST', 'PURCHASE_REFUND_REQUEST'])
+            ->where(function ($query) {
+                $query->whereNull('reference_type')
+                    ->orWhereNotIn('reference_type', ['REFUND_REQUEST', 'PURCHASE_REFUND_REQUEST']);
+            })
             ->whereNotExists(function ($query) {
                 $query->selectRaw('1')->from('bonus_ledger_entries')
                     ->join('purchase_refund_requests', 'purchase_refund_requests.financial_transaction_id', '=', 'financial_transactions.public_id')
@@ -669,12 +675,19 @@ class ReconciliationService
     private function checkTransfers(): void
     {
         LedgerEntry::query()
-            ->whereIn('movement_type', [
-                MovementType::TRANSFERENCIA_SALIDA->value,
-                MovementType::TRANSFERENCIA_ENTRADA->value,
-            ])
-            ->where('created_at', '>=', $this->windowStart)
-            ->where('created_at', '<', $this->windowEnd)
+            // Select transfers by their legs in the business window, then
+            // validate the entire transaction, including other movement types
+            // and legs across midnight. Filtering the aggregate hides extra
+            // entries and incorrectly reports otherwise valid midnight pairs.
+            ->whereIn('transaction_id', LedgerEntry::query()
+                ->select('transaction_id')
+                ->whereIn('movement_type', [
+                    MovementType::TRANSFERENCIA_SALIDA->value,
+                    MovementType::TRANSFERENCIA_ENTRADA->value,
+                ])
+                ->where('created_at', '>=', $this->windowStart)
+                ->where('created_at', '<', $this->windowEnd)
+            )
             ->when($this->scopeWalletIds !== null, function ($q) {
                 $q->whereIn(
                     'transaction_id',
@@ -684,7 +697,17 @@ class ReconciliationService
                 );
             })
             ->groupBy('transaction_id')
-            ->havingRaw('SUM(amount_cents) <> 0')
+            // LedgerService::transfer writes exactly one negative outgoing
+            // and one positive incoming entry, for two different wallets.
+            // A zero total alone also accepts duplicated or inverted pairs.
+            ->havingRaw('SUM(amount_cents) <> 0
+                OR COUNT(*) <> 2
+                OR COUNT(DISTINCT wallet_id) <> 2
+                OR SUM(CASE WHEN movement_type = ? AND amount_cents < 0 THEN 1 ELSE 0 END) <> 1
+                OR SUM(CASE WHEN movement_type = ? AND amount_cents > 0 THEN 1 ELSE 0 END) <> 1', [
+                MovementType::TRANSFERENCIA_SALIDA->value,
+                MovementType::TRANSFERENCIA_ENTRADA->value,
+            ])
             ->selectRaw('transaction_id, SUM(amount_cents) AS total_cents, COUNT(*) AS entries')
             ->get()
             ->each(function ($row) {
