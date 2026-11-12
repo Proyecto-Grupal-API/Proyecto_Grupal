@@ -48,18 +48,33 @@ class WithdrawalService
             $agentId
         );
 
-        return Withdrawal::create([
-            'public_id' => (string) Str::uuid(),
-            'folio' => null,
-            'wallet_id' => $wallet->public_id,
-            'amount_cents' => $amountCents,
-            'currency' => $wallet->currency,
-            'method' => $method,
-            'status' => WithdrawalStatus::PENDIENTE,
-            'agent_id' => $agentId,
-            'cash_shift_id' => null,
-            'external_reference' => $externalReference,
-        ]);
+        return DB::connection('sqlsrv')->transaction(function () use (
+            $wallet, $amountCents, $method, $agentId, $externalReference
+        ) {
+            // Re-read persisted state: the caller's wallet may be stale.
+            $lockedWallet = Wallet::where('public_id', $wallet->public_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedWallet->status !== WalletStatus::ACTIVA) {
+                throw new InvalidArgumentException(
+                    'La wallet debe estar activa para solicitar un retiro.'
+                );
+            }
+
+            return Withdrawal::create([
+                'public_id' => (string) Str::uuid(),
+                'folio' => null,
+                'wallet_id' => $lockedWallet->public_id,
+                'amount_cents' => $amountCents,
+                'currency' => $lockedWallet->currency,
+                'method' => $method,
+                'status' => WithdrawalStatus::PENDIENTE,
+                'agent_id' => $agentId,
+                'cash_shift_id' => null,
+                'external_reference' => $externalReference,
+            ]);
+        });
     }
 
     public function complete(
@@ -95,7 +110,10 @@ class WithdrawalService
                 $wallet = Wallet::where(
                     'public_id',
                     $lockedWithdrawal->wallet_id
-                )->firstOrFail();
+                )
+                    // Hold the lock through the ledger debit and withdrawal save.
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
                 if ($wallet->status !== WalletStatus::ACTIVA) {
                     throw new InvalidArgumentException(
