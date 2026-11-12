@@ -1,127 +1,135 @@
-# API de Comunidad · 10 de noviembre de 2026
+# API de Comunidad: inventario y estado de contratos
 
-Versión: `MERGE_COMPLETO`, revisión de auditoría. Portal canónico: `/api/v1/comunidad/portal`. Los alias `/api/*` se conservan. No se desactiva CSRF ni la validación de sesiones. Las APIs OAuth de notificaciones y bonos conservan sus contratos y scopes propios.
+Corte documental: 11 de noviembre de 2026. Fuente de rutas: `contracts/runtime-routes.json`.
 
-El catálogo registra todas las rutas observadas, su controlador y parámetros de ruta. OpenAPI incluye ejemplos capturados donde existen. **Pendiente de 4.8:** completar esquemas y ejemplos de request/response por cada operación; un esquema genérico no acredita ese criterio al 100%.
+- Operaciones inventariadas: **120** (HEAD implícito excluido).
+- Operaciones con esquema revisado: **105**.
+- Operaciones parciales o pendientes: **15**.
 
-| Método | Ruta | Parámetros de ruta | Implementación |
-|---|---|---|---|
-| GET|HEAD | `/api/v1/comunidad/becas/{solicitud}/bono` | solicitud | [BecaAwardController](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/Api/Community/BecaAwardController.php) |
-| GET|HEAD | `/api/v1/comunidad/notificaciones` | — | [AvisoController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/Api/Community/AvisoController.php) |
-| POST | `/api/v1/comunidad/notificaciones` | — | [AvisoController@store](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/Api/Community/AvisoController.php) |
-| POST | `/api/v1/comunidad/notificaciones/{id}/retiro` | id | [AvisoController@retiro](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/Api/Community/AvisoController.php) |
-| GET|HEAD | `/api/v1/comunidad/organizaciones/comercio` | — | [OrganizationCommerceController](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/Api/Community/OrganizationCommerceController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/bandeja` | — | [BandejaController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BandejaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/bandeja/categorias` | — | [BandejaController@categorias](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BandejaController.php) |
-| PUT | `/api/v1/comunidad/portal/bandeja/categorias/servicios_estudiante` | — | [BandejaController@categoria](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BandejaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/bandeja/preferencias` | — | [BandejaController@preferencias](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BandejaController.php) |
-| PUT | `/api/v1/comunidad/portal/bandeja/preferencias/{id}` | id | [BandejaController@preferencia](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BandejaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/bandeja/{id}` | id | [BandejaController@show](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BandejaController.php) |
-| PUT | `/api/v1/comunidad/portal/bandeja/{id}` | id | [BandejaController@update](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BandejaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/becas` | — | [BecaController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| POST | `/api/v1/comunidad/portal/becas` | — | [BecaController@store](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/becas/mis-solicitudes` | — | [BecaController@misSolicitudes](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/becas/solicitudes/{id}` | id | [BecaController@showSolicitud](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| PUT | `/api/v1/comunidad/portal/becas/solicitudes/{id}` | id | [BecaController@guardarSolicitud](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| POST | `/api/v1/comunidad/portal/becas/solicitudes/{id}/aval-tesoreria` | id | [BecaController@avalarPresupuesto](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| POST | `/api/v1/comunidad/portal/becas/solicitudes/{id}/confirmacion-presidencia` | id | [BecaController@confirmarPresidencia](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/becas/solicitudes/{id}/contrato` | id | [BecaController@contrato](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| POST | `/api/v1/comunidad/portal/becas/solicitudes/{id}/dictamen` | id | [BecaController@dictaminar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| POST | `/api/v1/comunidad/portal/becas/solicitudes/{id}/documentos` | id | [BecaController@subirDocumento](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/becas/solicitudes/{id}/documentos/{documento}` | id, documento | [BecaController@descargarDocumento](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| DELETE | `/api/v1/comunidad/portal/becas/solicitudes/{id}/documentos/{documento}` | id, documento | [BecaController@eliminarDocumento](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| PUT | `/api/v1/comunidad/portal/becas/solicitudes/{id}/recomendacion` | id | [BecaController@recomendar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| POST | `/api/v1/comunidad/portal/becas/solicitudes/{id}/retirar` | id | [BecaController@retirar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/becas/tesoreria` | — | [BecaController@tesoreria](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| PUT | `/api/v1/comunidad/portal/becas/{id}` | id | [BecaController@update](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/becas/{id}/comite` | id | [BecaController@comite](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| PUT | `/api/v1/comunidad/portal/becas/{id}/comite` | id | [BecaController@guardarComite](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| POST | `/api/v1/comunidad/portal/becas/{id}/estado` | id | [BecaController@cambiarEstado](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| POST | `/api/v1/comunidad/portal/becas/{id}/solicitud` | id | [BecaController@crearSolicitud](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/becas/{id}/solicitudes` | id | [BecaController@solicitudes](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/BecaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/comunicacion` | — | [ComunicacionController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComunicacionController.php) |
-| POST | `/api/v1/comunidad/portal/comunicacion` | — | [ComunicacionController@store](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComunicacionController.php) |
-| PUT | `/api/v1/comunidad/portal/comunicacion/{id}` | id | [ComunicacionController@update](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComunicacionController.php) |
-| POST | `/api/v1/comunidad/portal/comunicacion/{id}/cancelar` | id | [ComunicacionController@cancelar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComunicacionController.php) |
-| POST | `/api/v1/comunidad/portal/comunicacion/{id}/enviar` | id | [ComunicacionController@enviar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComunicacionController.php) |
-| POST | `/api/v1/comunidad/portal/comunicacion/{id}/preview` | id | [ComunicacionController@preview](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComunicacionController.php) |
-| POST | `/api/v1/comunidad/portal/comunicacion/{id}/reintentar` | id | [ComunicacionController@reintentar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComunicacionController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/consultas/encuestas/eventos` | — | [ConsultaController@eventos](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/consultas/{tipo}` | tipo | [ConsultaController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php) |
-| POST | `/api/v1/comunidad/portal/consultas/{tipo}` | tipo | [ConsultaController@store](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/consultas/{tipo}/{id}` | tipo, id | [ConsultaController@show](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php) |
-| PUT | `/api/v1/comunidad/portal/consultas/{tipo}/{id}` | tipo, id | [ConsultaController@update](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php) |
-| POST | `/api/v1/comunidad/portal/consultas/{tipo}/{id}/cancelar` | tipo, id | [ConsultaController@cancelar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php) |
-| POST | `/api/v1/comunidad/portal/consultas/{tipo}/{id}/cerrar` | tipo, id | [ConsultaController@cerrar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php) |
-| POST | `/api/v1/comunidad/portal/consultas/{tipo}/{id}/preview` | tipo, id | [ConsultaController@preview](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php) |
-| POST | `/api/v1/comunidad/portal/consultas/{tipo}/{id}/publicar` | tipo, id | [ConsultaController@publicar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php) |
-| POST | `/api/v1/comunidad/portal/consultas/{tipo}/{id}/responder` | tipo, id | [ConsultaController@responder](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ConsultaController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/dashboard` | — | [DashboardController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DashboardController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/estudiante/boletos` | — | [EventoController@boletos](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/estudiante/mi-boleto` | — | [EventoController@miBoleto](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/eventos` | — | [EventoController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php) |
-| POST | `/api/v1/comunidad/portal/eventos` | — | [EventoController@store](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php) |
-| POST | `/api/v1/comunidad/portal/eventos/checkin` | — | [EventoController@checkin](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php) |
-| PUT | `/api/v1/comunidad/portal/eventos/{id}` | id | [EventoController@update](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/eventos/{id}/boleto` | id | [EventoController@miBoleto](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php) |
-| POST | `/api/v1/comunidad/portal/eventos/{id}/cancelar` | id | [EventoController@cancelarEvento](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php) |
-| POST | `/api/v1/comunidad/portal/eventos/{id}/inscripcion` | id | [EventoController@inscribir](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php) |
-| DELETE | `/api/v1/comunidad/portal/eventos/{id}/inscripcion` | id | [EventoController@cancelarInscripcion](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/eventos/{id}/inscritos` | id | [EventoController@inscritos](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php) |
-| POST | `/api/v1/comunidad/portal/eventos/{id}/pago` | id | [PagoEventoController@iniciar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PagoEventoController.php) |
-| POST | `/api/v1/comunidad/portal/eventos/{id}/pago/consultar` | id | [PagoEventoController@consultar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PagoEventoController.php) |
-| POST | `/api/v1/comunidad/portal/eventos/{id}/publicar` | id | [EventoController@publicar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/EventoController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/eventos/{id}/staff` | id | [StaffEventoController@asignados](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/StaffEventoController.php) |
-| POST | `/api/v1/comunidad/portal/eventos/{id}/staff` | id | [StaffEventoController@asignar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/StaffEventoController.php) |
-| DELETE | `/api/v1/comunidad/portal/eventos/{id}/staff/{staff}` | id, staff | [StaffEventoController@retirar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/StaffEventoController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/gestion-organizaciones` | — | [GestionOrganizacionesController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/GestionOrganizacionesController.php) |
-| POST | `/api/v1/comunidad/portal/gestion-organizaciones` | — | [GestionOrganizacionesController@store](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/GestionOrganizacionesController.php) |
-| POST | `/api/v1/comunidad/portal/gestion-organizaciones/titular` | — | [GestionOrganizacionesController@titular](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/GestionOrganizacionesController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/gestion-organizaciones/{id}` | id | [GestionOrganizacionesController@show](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/GestionOrganizacionesController.php) |
-| POST | `/api/v1/comunidad/portal/gestion-organizaciones/{id}/completar` | id | [GestionOrganizacionesController@completar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/GestionOrganizacionesController.php) |
-| POST | `/api/v1/comunidad/portal/gestion-organizaciones/{id}/estado` | id | [GestionOrganizacionesController@estado](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/GestionOrganizacionesController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/identidad/mi-condicion` | — | [IdentidadComunidadController](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/IdentidadComunidadController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/notificaciones` | — | [NotificacionController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/NotificacionController.php) |
-| PUT | `/api/v1/comunidad/portal/notificaciones/leer` | — | [NotificacionController@marcarLeidas](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/NotificacionController.php) |
-| DELETE | `/api/v1/comunidad/portal/notificaciones/leidas` | — | [NotificacionController@eliminarLeidas](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/NotificacionController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/organizaciones` | — | [OrganizacionController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/organizaciones/comisiones` | — | [ComisionConsejoController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComisionConsejoController.php) |
-| POST | `/api/v1/comunidad/portal/organizaciones/comisiones` | — | [ComisionConsejoController@store](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComisionConsejoController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/organizaciones/comisiones/{id}` | id | [ComisionConsejoController@show](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComisionConsejoController.php) |
-| PUT | `/api/v1/comunidad/portal/organizaciones/comisiones/{id}` | id | [ComisionConsejoController@update](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComisionConsejoController.php) |
-| POST | `/api/v1/comunidad/portal/organizaciones/comisiones/{id}/cerrar` | id | [ComisionConsejoController@cerrar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComisionConsejoController.php) |
-| POST | `/api/v1/comunidad/portal/organizaciones/comisiones/{id}/integrantes` | id | [ComisionConsejoController@asignar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComisionConsejoController.php) |
-| POST | `/api/v1/comunidad/portal/organizaciones/comisiones/{id}/integrantes/{asignacion}/retirar` | id, asignacion | [ComisionConsejoController@retirar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ComisionConsejoController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/organizaciones/delegaciones` | — | [DelegacionOrganizacionController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DelegacionOrganizacionController.php) |
-| POST | `/api/v1/comunidad/portal/organizaciones/delegaciones` | — | [DelegacionOrganizacionController@store](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DelegacionOrganizacionController.php) |
-| POST | `/api/v1/comunidad/portal/organizaciones/delegaciones/{id}/revocar` | id | [DelegacionOrganizacionController@revocar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DelegacionOrganizacionController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/organizaciones/documentos` | — | [DocumentoOrganizacionController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php) |
-| POST | `/api/v1/comunidad/portal/organizaciones/documentos` | — | [DocumentoOrganizacionController@store](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php) |
-| PUT | `/api/v1/comunidad/portal/organizaciones/documentos/{id}` | id | [DocumentoOrganizacionController@update](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/organizaciones/documentos/{id}/descargar` | id | [DocumentoOrganizacionController@descargar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php) |
-| POST | `/api/v1/comunidad/portal/organizaciones/documentos/{id}/retirar` | id | [DocumentoOrganizacionController@retirar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/organizaciones/documentos/{id}/versiones` | id | [DocumentoOrganizacionController@versiones](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php) |
-| POST | `/api/v1/comunidad/portal/organizaciones/documentos/{id}/versiones` | id | [DocumentoOrganizacionController@nuevaVersion](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/organizaciones/documentos/{id}/versiones/{version}/descargar` | id, version | [DocumentoOrganizacionController@descargar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/DocumentoOrganizacionController.php) |
-| POST | `/api/v1/comunidad/portal/organizaciones/miembros` | — | [OrganizacionController@addMiembro](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php) |
-| DELETE | `/api/v1/comunidad/portal/organizaciones/miembros/{id}` | id | [OrganizacionController@removeMiembro](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php) |
-| PUT | `/api/v1/comunidad/portal/organizaciones/perfil` | — | [OrganizacionController@updatePerfil](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/organizaciones/periodos` | — | [PeriodoOrganizacionController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PeriodoOrganizacionController.php) |
-| POST | `/api/v1/comunidad/portal/organizaciones/periodos` | — | [PeriodoOrganizacionController@store](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PeriodoOrganizacionController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/organizaciones/periodos/{id}` | id | [PeriodoOrganizacionController@show](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PeriodoOrganizacionController.php) |
-| PUT | `/api/v1/comunidad/portal/organizaciones/periodos/{id}` | id | [PeriodoOrganizacionController@update](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PeriodoOrganizacionController.php) |
-| POST | `/api/v1/comunidad/portal/organizaciones/periodos/{id}/cancelar` | id | [PeriodoOrganizacionController@cancelar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PeriodoOrganizacionController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/organizaciones/periodos/{id}/historial` | id | [PeriodoOrganizacionController@historial](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/PeriodoOrganizacionController.php) |
-| POST | `/api/v1/comunidad/portal/organizaciones/roles` | — | [OrganizacionController@assignRol](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php) |
-| PUT | `/api/v1/comunidad/portal/organizaciones/roles/{id}` | id | [OrganizacionController@assignRol](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php) |
-| DELETE | `/api/v1/comunidad/portal/organizaciones/roles/{id}` | id | [OrganizacionController@removeRol](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php) |
-| POST | `/api/v1/comunidad/portal/organizaciones/seleccionar` | — | [OrganizacionController@seleccionar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/OrganizacionController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/staff/eventos` | — | [StaffEventoController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/StaffEventoController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/staff/eventos/{id}` | id | [StaffEventoController@show](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/StaffEventoController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/transparencia` | — | [TransparenciaController@index](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/TransparenciaController.php) |
-| POST | `/api/v1/comunidad/portal/transparencia/reportes` | — | [ReporteController@store](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ReporteController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/transparencia/reportes/{id}` | id | [ReporteController@show](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ReporteController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/transparencia/reportes/{id}/csv` | id | [ReporteController@csv](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ReporteController.php) |
-| GET|HEAD | `/api/v1/comunidad/portal/transparencia/reportes/{id}/imprimir` | id | [ReporteController@imprimir](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ReporteController.php) |
-| POST | `/api/v1/comunidad/portal/transparencia/reportes/{id}/publicar` | id | [ReporteController@publicar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ReporteController.php) |
-| POST | `/api/v1/comunidad/portal/transparencia/reportes/{id}/retirar` | id | [ReporteController@retirar](https://github.com/Proyecto-Grupal-API/Proyecto_Grupal/blob/MERGE_COMPLETO/app/Http/Controllers/ReporteController.php) |
+La cobertura de rutas no implica aceptación integral. `reviewed` acredita revisión estática y validación documental; únicamente las respuestas históricas contrastadas en el reporte tienen evidencia de DTO ejecutado.
+Los contratos usan OpenAPI3.1 y distinguen sesión/CSRF del portal y OAuth de servicios. No habilitan fondos, concesiones o transportes al importarlos.
+
+Construcción y verificación: véase [contracts/README.md](contracts/README.md). El [OpenAPI](comunidad.openapi.json) contiene los esquemas, fuentes, reglas y estados por operación.
+
+| Método | Ruta | Estado del contrato |
+|---|---|---|
+| GET | `/api/v1/comunidad/becas/{solicitud}/bono` | Revisado |
+| GET | `/api/v1/comunidad/notificaciones` | Revisado |
+| POST | `/api/v1/comunidad/notificaciones` | Revisado |
+| POST | `/api/v1/comunidad/notificaciones/{id}/retiro` | Revisado |
+| GET | `/api/v1/comunidad/organizaciones/comercio` | Revisado |
+| GET | `/api/v1/comunidad/portal/bandeja` | Revisado |
+| GET | `/api/v1/comunidad/portal/bandeja/categorias` | Revisado |
+| PUT | `/api/v1/comunidad/portal/bandeja/categorias/servicios_estudiante` | Revisado |
+| GET | `/api/v1/comunidad/portal/bandeja/preferencias` | Revisado |
+| PUT | `/api/v1/comunidad/portal/bandeja/preferencias/{id}` | Revisado |
+| GET | `/api/v1/comunidad/portal/bandeja/{id}` | Revisado |
+| PUT | `/api/v1/comunidad/portal/bandeja/{id}` | Revisado |
+| GET | `/api/v1/comunidad/portal/becas` | Parcial / pendiente |
+| POST | `/api/v1/comunidad/portal/becas` | Parcial / pendiente |
+| GET | `/api/v1/comunidad/portal/becas/mis-solicitudes` | Revisado |
+| GET | `/api/v1/comunidad/portal/becas/solicitudes/{id}` | Parcial / pendiente |
+| PUT | `/api/v1/comunidad/portal/becas/solicitudes/{id}` | Revisado |
+| POST | `/api/v1/comunidad/portal/becas/solicitudes/{id}/aval-tesoreria` | Revisado |
+| POST | `/api/v1/comunidad/portal/becas/solicitudes/{id}/confirmacion-presidencia` | Revisado |
+| GET | `/api/v1/comunidad/portal/becas/solicitudes/{id}/contrato` | Parcial / pendiente |
+| POST | `/api/v1/comunidad/portal/becas/solicitudes/{id}/dictamen` | Revisado |
+| POST | `/api/v1/comunidad/portal/becas/solicitudes/{id}/documentos` | Revisado |
+| DELETE | `/api/v1/comunidad/portal/becas/solicitudes/{id}/documentos/{documento}` | Revisado |
+| GET | `/api/v1/comunidad/portal/becas/solicitudes/{id}/documentos/{documento}` | Revisado |
+| PUT | `/api/v1/comunidad/portal/becas/solicitudes/{id}/recomendacion` | Revisado |
+| POST | `/api/v1/comunidad/portal/becas/solicitudes/{id}/retirar` | Revisado |
+| POST | `/api/v1/comunidad/portal/becas/solicitudes/{id}/revocacion-beneficio` | Revisado |
+| GET | `/api/v1/comunidad/portal/becas/tesoreria` | Revisado |
+| PUT | `/api/v1/comunidad/portal/becas/{id}` | Revisado |
+| GET | `/api/v1/comunidad/portal/becas/{id}/comite` | Parcial / pendiente |
+| PUT | `/api/v1/comunidad/portal/becas/{id}/comite` | Revisado |
+| POST | `/api/v1/comunidad/portal/becas/{id}/estado` | Revisado |
+| POST | `/api/v1/comunidad/portal/becas/{id}/solicitud` | Revisado |
+| GET | `/api/v1/comunidad/portal/becas/{id}/solicitudes` | Parcial / pendiente |
+| GET | `/api/v1/comunidad/portal/comunicacion` | Parcial / pendiente |
+| POST | `/api/v1/comunidad/portal/comunicacion` | Parcial / pendiente |
+| PUT | `/api/v1/comunidad/portal/comunicacion/{id}` | Parcial / pendiente |
+| POST | `/api/v1/comunidad/portal/comunicacion/{id}/cancelar` | Revisado |
+| POST | `/api/v1/comunidad/portal/comunicacion/{id}/enviar` | Revisado |
+| POST | `/api/v1/comunidad/portal/comunicacion/{id}/preview` | Parcial / pendiente |
+| POST | `/api/v1/comunidad/portal/comunicacion/{id}/reintentar` | Revisado |
+| GET | `/api/v1/comunidad/portal/consultas/encuestas/eventos` | Revisado |
+| GET | `/api/v1/comunidad/portal/consultas/{tipo}` | Revisado |
+| POST | `/api/v1/comunidad/portal/consultas/{tipo}` | Revisado |
+| GET | `/api/v1/comunidad/portal/consultas/{tipo}/{id}` | Revisado |
+| PUT | `/api/v1/comunidad/portal/consultas/{tipo}/{id}` | Revisado |
+| POST | `/api/v1/comunidad/portal/consultas/{tipo}/{id}/cancelar` | Revisado |
+| POST | `/api/v1/comunidad/portal/consultas/{tipo}/{id}/cerrar` | Revisado |
+| POST | `/api/v1/comunidad/portal/consultas/{tipo}/{id}/preview` | Revisado |
+| POST | `/api/v1/comunidad/portal/consultas/{tipo}/{id}/publicar` | Revisado |
+| POST | `/api/v1/comunidad/portal/consultas/{tipo}/{id}/responder` | Revisado |
+| GET | `/api/v1/comunidad/portal/dashboard` | Revisado |
+| GET | `/api/v1/comunidad/portal/estudiante/boletos` | Revisado |
+| GET | `/api/v1/comunidad/portal/estudiante/mi-boleto` | Revisado |
+| GET | `/api/v1/comunidad/portal/eventos` | Parcial / pendiente |
+| POST | `/api/v1/comunidad/portal/eventos` | Parcial / pendiente |
+| POST | `/api/v1/comunidad/portal/eventos/checkin` | Revisado |
+| PUT | `/api/v1/comunidad/portal/eventos/{id}` | Revisado |
+| GET | `/api/v1/comunidad/portal/eventos/{id}/boleto` | Revisado |
+| POST | `/api/v1/comunidad/portal/eventos/{id}/cancelar` | Revisado |
+| DELETE | `/api/v1/comunidad/portal/eventos/{id}/inscripcion` | Revisado |
+| POST | `/api/v1/comunidad/portal/eventos/{id}/inscripcion` | Revisado |
+| GET | `/api/v1/comunidad/portal/eventos/{id}/inscritos` | Revisado |
+| POST | `/api/v1/comunidad/portal/eventos/{id}/pago` | Revisado |
+| POST | `/api/v1/comunidad/portal/eventos/{id}/pago/consultar` | Revisado |
+| POST | `/api/v1/comunidad/portal/eventos/{id}/publicar` | Revisado |
+| GET | `/api/v1/comunidad/portal/eventos/{id}/staff` | Revisado |
+| POST | `/api/v1/comunidad/portal/eventos/{id}/staff` | Revisado |
+| DELETE | `/api/v1/comunidad/portal/eventos/{id}/staff/{staff}` | Revisado |
+| GET | `/api/v1/comunidad/portal/gestion-organizaciones` | Revisado |
+| POST | `/api/v1/comunidad/portal/gestion-organizaciones` | Revisado |
+| POST | `/api/v1/comunidad/portal/gestion-organizaciones/titular` | Revisado |
+| GET | `/api/v1/comunidad/portal/gestion-organizaciones/{id}` | Parcial / pendiente |
+| POST | `/api/v1/comunidad/portal/gestion-organizaciones/{id}/completar` | Revisado |
+| POST | `/api/v1/comunidad/portal/gestion-organizaciones/{id}/estado` | Revisado |
+| GET | `/api/v1/comunidad/portal/identidad/mi-condicion` | Revisado |
+| GET | `/api/v1/comunidad/portal/notificaciones` | Revisado |
+| PUT | `/api/v1/comunidad/portal/notificaciones/leer` | Revisado |
+| DELETE | `/api/v1/comunidad/portal/notificaciones/leidas` | Revisado |
+| GET | `/api/v1/comunidad/portal/organizaciones` | Parcial / pendiente |
+| GET | `/api/v1/comunidad/portal/organizaciones/comisiones` | Revisado |
+| POST | `/api/v1/comunidad/portal/organizaciones/comisiones` | Revisado |
+| GET | `/api/v1/comunidad/portal/organizaciones/comisiones/{id}` | Revisado |
+| PUT | `/api/v1/comunidad/portal/organizaciones/comisiones/{id}` | Revisado |
+| POST | `/api/v1/comunidad/portal/organizaciones/comisiones/{id}/cerrar` | Revisado |
+| POST | `/api/v1/comunidad/portal/organizaciones/comisiones/{id}/integrantes` | Revisado |
+| POST | `/api/v1/comunidad/portal/organizaciones/comisiones/{id}/integrantes/{asignacion}/retirar` | Revisado |
+| GET | `/api/v1/comunidad/portal/organizaciones/delegaciones` | Revisado |
+| POST | `/api/v1/comunidad/portal/organizaciones/delegaciones` | Revisado |
+| POST | `/api/v1/comunidad/portal/organizaciones/delegaciones/{id}/revocar` | Revisado |
+| GET | `/api/v1/comunidad/portal/organizaciones/documentos` | Revisado |
+| POST | `/api/v1/comunidad/portal/organizaciones/documentos` | Revisado |
+| PUT | `/api/v1/comunidad/portal/organizaciones/documentos/{id}` | Revisado |
+| GET | `/api/v1/comunidad/portal/organizaciones/documentos/{id}/descargar` | Revisado |
+| POST | `/api/v1/comunidad/portal/organizaciones/documentos/{id}/retirar` | Revisado |
+| GET | `/api/v1/comunidad/portal/organizaciones/documentos/{id}/versiones` | Revisado |
+| POST | `/api/v1/comunidad/portal/organizaciones/documentos/{id}/versiones` | Revisado |
+| GET | `/api/v1/comunidad/portal/organizaciones/documentos/{id}/versiones/{version}/descargar` | Revisado |
+| POST | `/api/v1/comunidad/portal/organizaciones/miembros` | Revisado |
+| DELETE | `/api/v1/comunidad/portal/organizaciones/miembros/{id}` | Revisado |
+| PUT | `/api/v1/comunidad/portal/organizaciones/perfil` | Revisado |
+| GET | `/api/v1/comunidad/portal/organizaciones/periodos` | Revisado |
+| POST | `/api/v1/comunidad/portal/organizaciones/periodos` | Revisado |
+| GET | `/api/v1/comunidad/portal/organizaciones/periodos/{id}` | Revisado |
+| PUT | `/api/v1/comunidad/portal/organizaciones/periodos/{id}` | Revisado |
+| POST | `/api/v1/comunidad/portal/organizaciones/periodos/{id}/cancelar` | Revisado |
+| GET | `/api/v1/comunidad/portal/organizaciones/periodos/{id}/historial` | Parcial / pendiente |
+| POST | `/api/v1/comunidad/portal/organizaciones/roles` | Revisado |
+| DELETE | `/api/v1/comunidad/portal/organizaciones/roles/{id}` | Revisado |
+| PUT | `/api/v1/comunidad/portal/organizaciones/roles/{id}` | Revisado |
+| POST | `/api/v1/comunidad/portal/organizaciones/seleccionar` | Revisado |
+| GET | `/api/v1/comunidad/portal/staff/eventos` | Revisado |
+| GET | `/api/v1/comunidad/portal/staff/eventos/{id}` | Revisado |
+| GET | `/api/v1/comunidad/portal/transparencia` | Revisado |
+| POST | `/api/v1/comunidad/portal/transparencia/reportes` | Revisado |
+| GET | `/api/v1/comunidad/portal/transparencia/reportes/{id}` | Revisado |
+| GET | `/api/v1/comunidad/portal/transparencia/reportes/{id}/csv` | Revisado |
+| GET | `/api/v1/comunidad/portal/transparencia/reportes/{id}/imprimir` | Revisado |
+| POST | `/api/v1/comunidad/portal/transparencia/reportes/{id}/publicar` | Revisado |
+| POST | `/api/v1/comunidad/portal/transparencia/reportes/{id}/retirar` | Revisado |

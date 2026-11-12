@@ -1,0 +1,3807 @@
+{
+  "x-openapi-version": "3.1.0",
+  "x-scope": "Solo contratos portal de OrganizacionController, GestionOrganizacionesController, DashboardController e IdentidadComunidadController; no vista Inertia ni alias legacy /api.",
+  "x-contract-status": "partial",
+  "x-contract-reason": "Dos respuestas contienen estructuras abiertas de MongoDB: GET organizaciones y GET gestion-organizaciones/{id}; revisar sus razones específicas. Resto revisado estáticamente, sin certificar runtime ni datos persistidos.",
+  "x-parent-requirements": {
+    "schemas": [
+      "Error",
+      "ValidationError",
+      "Message"
+    ],
+    "securitySchemes": [
+      "sessionCookie"
+    ],
+    "csrf": "Usar definición CSRF del padre para escrituras web; no se redeclaran componentes compartidos."
+  },
+  "x-validation-scope": "Inspección estática del código y vendor instalados; sin bootstrap de Laravel, DB, Pest, Docker ni Git. Null usa type: null y anyOf según OpenAPI 3.1; no queda nullable: true.",
+  "paths": {
+    "/api/v1/comunidad/portal/organizaciones": {
+      "get": {
+        "summary": "OrganizacionController::index",
+        "operationId": "get_api_v1_comunidad_portal_organizaciones",
+        "x-source": "app/Http/Controllers/OrganizacionController.php@index",
+        "x-contract-status": "partial",
+        "description": "Organizaciones activas del usuario, suspendidas y contexto seleccionado por middleware (sesión o primera por nombre). Sin organización activa devuelve organizacion null, puede_editar false y listas miembros/roles/periodos vacías; no es 403 por ese solo hecho. Sin paginación ni filtros query.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxOrganizacionesResponse"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Directorio habilitado no disponible, lote o identidad inválidos; errores no HTTP de configuración pueden terminar en 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-contract-reason": "organizaciones/organizacion, miembros y roles contienen los modelos abiertos CtxOrganizacion/CtxMiembro/CtxRol. Serialización directa de Documento/MongoDB mediante toArray(), sin $visible ni Resource/DTO con lista cerrada. $fillable restringe asignación masiva, no la lectura/serialización de atributos existentes. Los atributos persistidos no ocultos adicionales siguen presentes; sus claves y tipos no se pueden cerrar estáticamente. Las propiedades conocidas describen las escrituras actuales; no se verificó la forma de documentos históricos en DB."
+      }
+    },
+    "/api/v1/comunidad/portal/organizaciones/seleccionar": {
+      "post": {
+        "summary": "OrganizacionController::seleccionar",
+        "operationId": "post_api_v1_comunidad_portal_organizaciones_seleccionar",
+        "x-source": "app/Http/Controllers/OrganizacionController.php@seleccionar",
+        "x-contract-status": "reviewed",
+        "description": "Valida ID, exige Gate view (organización activa y membresía activa) y actualiza organizacion_id en sesión. Exento del cotejo X-Organization-Id.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                },
+                "example": {
+                  "message": "Organización seleccionada."
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso no encontrado o no perteneciente a la organización activa; incluye ID que no coincide con regex de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos/reglas de negocio; body message + errors. El bloqueo comunidad:responsabilidades agotado también es 422 con errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CtxSeleccionarRequest"
+              }
+            }
+          }
+        },
+        "x-csrf": "Requiere protección CSRF web del documento padre (X-XSRF-TOKEN o X-CSRF-TOKEN, alternativas; no son dos cabeceras obligatorias simultáneas)."
+      }
+    },
+    "/api/v1/comunidad/portal/organizaciones/perfil": {
+      "put": {
+        "summary": "OrganizacionController::updatePerfil",
+        "operationId": "put_api_v1_comunidad_portal_organizaciones_perfil",
+        "x-source": "app/Http/Controllers/OrganizacionController.php@updatePerfil",
+        "x-contract-status": "reviewed",
+        "description": "Requiere organización activa y Gate update (presidencia vigente). Bloqueo global de responsabilidades y bloqueo por organización; éxito devuelve solo message.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Si se envía debe coincidir exactamente con la organización activa de sesión; distinto o sin organización seleccionada produce 409. No es una selección de contexto."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                },
+                "example": {
+                  "message": "Cambios guardados."
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Otra operación de organización mantiene el bloqueo o X-Organization-Id no coincide con la selección de sesión (409).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos/reglas de negocio; body message + errors. El bloqueo comunidad:responsabilidades agotado también es 422 con errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CtxPerfilRequest"
+              }
+            }
+          }
+        },
+        "x-csrf": "Requiere protección CSRF web del documento padre (X-XSRF-TOKEN o X-CSRF-TOKEN, alternativas; no son dos cabeceras obligatorias simultáneas)."
+      }
+    },
+    "/api/v1/comunidad/portal/organizaciones/miembros": {
+      "post": {
+        "summary": "OrganizacionController::addMiembro",
+        "operationId": "post_api_v1_comunidad_portal_organizaciones_miembros",
+        "x-source": "app/Http/Controllers/OrganizacionController.php@addMiembro",
+        "x-contract-status": "reviewed",
+        "description": "Requiere organización activa y Gate update (presidencia vigente). Bloqueo global de responsabilidades y bloqueo por organización; éxito devuelve solo message.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Si se envía debe coincidir exactamente con la organización activa de sesión; distinto o sin organización seleccionada produce 409. No es una selección de contexto."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                },
+                "example": {
+                  "message": "Cambios guardados."
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Otra operación de organización mantiene el bloqueo o X-Organization-Id no coincide con la selección de sesión (409).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos/reglas de negocio; body message + errors. El bloqueo comunidad:responsabilidades agotado también es 422 con errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Directorio de Identidad no disponible o referencia inválida; solo cuando directorio_organizaciones está habilitado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CtxMiembroRequest"
+              }
+            }
+          }
+        },
+        "x-csrf": "Requiere protección CSRF web del documento padre (X-XSRF-TOKEN o X-CSRF-TOKEN, alternativas; no son dos cabeceras obligatorias simultáneas)."
+      }
+    },
+    "/api/v1/comunidad/portal/organizaciones/miembros/{id}": {
+      "delete": {
+        "summary": "OrganizacionController::removeMiembro",
+        "operationId": "delete_api_v1_comunidad_portal_organizaciones_miembros_id",
+        "x-source": "app/Http/Controllers/OrganizacionController.php@removeMiembro",
+        "x-contract-status": "reviewed",
+        "description": "Requiere organización activa y Gate update (presidencia vigente). Bloqueo global de responsabilidades y bloqueo por organización; éxito devuelve solo message. Baja lógica; retira cargos, staff, delegaciones, comité/comisiones. No permite baja de presidencia vigente sin transferencia.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "description": "Ruta restringida por [a-fA-F0-9]{24}; formato distinto no coincide (404). Recurso inexistente o fuera de organización también 404."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Si se envía debe coincidir exactamente con la organización activa de sesión; distinto o sin organización seleccionada produce 409. No es una selección de contexto."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                },
+                "example": {
+                  "message": "Cambios guardados."
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Otra operación de organización mantiene el bloqueo o X-Organization-Id no coincide con la selección de sesión (409).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos/reglas de negocio; body message + errors. El bloqueo comunidad:responsabilidades agotado también es 422 con errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso no encontrado o no perteneciente a la organización activa; incluye ID que no coincide con regex de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-csrf": "Requiere protección CSRF web del documento padre (X-XSRF-TOKEN o X-CSRF-TOKEN, alternativas; no son dos cabeceras obligatorias simultáneas)."
+      }
+    },
+    "/api/v1/comunidad/portal/organizaciones/roles": {
+      "post": {
+        "summary": "OrganizacionController::assignRol",
+        "operationId": "post_api_v1_comunidad_portal_organizaciones_roles",
+        "x-source": "app/Http/Controllers/OrganizacionController.php@assignRol",
+        "x-contract-status": "reviewed",
+        "description": "Requiere organización activa y Gate update (presidencia vigente). Bloqueo global de responsabilidades y bloqueo por organización; éxito devuelve solo message.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Si se envía debe coincidir exactamente con la organización activa de sesión; distinto o sin organización seleccionada produce 409. No es una selección de contexto."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                },
+                "example": {
+                  "message": "Cambios guardados."
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Otra operación de organización mantiene el bloqueo o X-Organization-Id no coincide con la selección de sesión (409).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException devuelve message+errors; PeriodosOrganizacion::validarCargo aborta 422 para periodo cancelado y devuelve solo message (renderer portal).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso no encontrado o no perteneciente a la organización activa; incluye ID que no coincide con regex de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CtxRolRequest"
+              }
+            }
+          }
+        },
+        "x-csrf": "Requiere protección CSRF web del documento padre (X-XSRF-TOKEN o X-CSRF-TOKEN, alternativas; no son dos cabeceras obligatorias simultáneas)."
+      }
+    },
+    "/api/v1/comunidad/portal/organizaciones/roles/{id}": {
+      "put": {
+        "summary": "OrganizacionController::assignRol",
+        "operationId": "put_api_v1_comunidad_portal_organizaciones_roles_id",
+        "x-source": "app/Http/Controllers/OrganizacionController.php@assignRol",
+        "x-contract-status": "reviewed",
+        "description": "Requiere organización activa y Gate update (presidencia vigente). Bloqueo global de responsabilidades y bloqueo por organización; éxito devuelve solo message.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "description": "Ruta restringida por [a-fA-F0-9]{24}; formato distinto no coincide (404). Recurso inexistente o fuera de organización también 404."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Si se envía debe coincidir exactamente con la organización activa de sesión; distinto o sin organización seleccionada produce 409. No es una selección de contexto."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                },
+                "example": {
+                  "message": "Cambios guardados."
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Otra operación de organización mantiene el bloqueo o X-Organization-Id no coincide con la selección de sesión (409).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException devuelve message+errors; PeriodosOrganizacion::validarCargo aborta 422 para periodo cancelado y devuelve solo message (renderer portal).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso no encontrado o no perteneciente a la organización activa; incluye ID que no coincide con regex de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CtxRolRequest"
+              }
+            }
+          }
+        },
+        "x-csrf": "Requiere protección CSRF web del documento padre (X-XSRF-TOKEN o X-CSRF-TOKEN, alternativas; no son dos cabeceras obligatorias simultáneas)."
+      },
+      "delete": {
+        "summary": "OrganizacionController::removeRol",
+        "operationId": "delete_api_v1_comunidad_portal_organizaciones_roles_id",
+        "x-source": "app/Http/Controllers/OrganizacionController.php@removeRol",
+        "x-contract-status": "reviewed",
+        "description": "Requiere organización activa y Gate update (presidencia vigente). Bloqueo global de responsabilidades y bloqueo por organización; éxito devuelve solo message. Retiro lógico del cargo y revocación de delegaciones. No permite retirar presidencia vigente sin transferirla.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "description": "Ruta restringida por [a-fA-F0-9]{24}; formato distinto no coincide (404). Recurso inexistente o fuera de organización también 404."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Si se envía debe coincidir exactamente con la organización activa de sesión; distinto o sin organización seleccionada produce 409. No es una selección de contexto."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                },
+                "example": {
+                  "message": "Cambios guardados."
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Otra operación de organización mantiene el bloqueo o X-Organization-Id no coincide con la selección de sesión (409).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos/reglas de negocio; body message + errors. El bloqueo comunidad:responsabilidades agotado también es 422 con errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso no encontrado o no perteneciente a la organización activa; incluye ID que no coincide con regex de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-csrf": "Requiere protección CSRF web del documento padre (X-XSRF-TOKEN o X-CSRF-TOKEN, alternativas; no son dos cabeceras obligatorias simultáneas)."
+      }
+    },
+    "/api/v1/comunidad/portal/gestion-organizaciones": {
+      "get": {
+        "summary": "GestionOrganizacionesController::index",
+        "operationId": "get_api_v1_comunidad_portal_gestion_organizaciones",
+        "x-source": "app/Http/Controllers/GestionOrganizacionesController.php@index",
+        "x-contract-status": "reviewed",
+        "description": "Requiere gestionarRegistro; no requiere pertenecer a una organización. Orden nombre asc, _id asc; paginate(12).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "buscar",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "Subcadena nombre vía like %buscar%; vacío no filtra."
+          },
+          {
+            "in": "query",
+            "name": "estado",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "activa",
+                    "suspendida",
+                    "configurando"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "Vacío no filtra."
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "Sin máximo validado; tamaño fijo 12, no acepta per_page como control de tamaño."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxGestionIndexResponse"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "private, no-store"
+                  ]
+                },
+                "description": "Cabecera explícita del controlador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validación buscar/estado/page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "GestionOrganizacionesController::store",
+        "operationId": "post_api_v1_comunidad_portal_gestion_organizaciones",
+        "x-source": "app/Http/Controllers/GestionOrganizacionesController.php@store",
+        "x-contract-status": "reviewed",
+        "description": "Requiere gestionarRegistro. Alta con membresía y presidencia inicial; completa estado configurando a activa. Reintento con clave_alta coincidente también devuelve 201.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxGestionMutationResponse"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "clave_alta ya usada con otros datos o actor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos/reglas de negocio; body message + errors. El bloqueo comunidad:responsabilidades agotado también es 422 con errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "20 solicitudes por minuto según la clave resuelta por throttle de Laravel (throttle:20,1).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CtxCrearOrganizacionRequest"
+              }
+            }
+          }
+        },
+        "x-csrf": "Requiere protección CSRF web del documento padre (X-XSRF-TOKEN o X-CSRF-TOKEN, alternativas; no son dos cabeceras obligatorias simultáneas).",
+        "x-rate-limit": {
+          "requests": 20,
+          "window_seconds": 60,
+          "source": "routes/comunidad.php throttle:20,1"
+        },
+        "x-success-message": "Organización creada con presidencia asignada."
+      }
+    },
+    "/api/v1/comunidad/portal/gestion-organizaciones/{id}": {
+      "get": {
+        "summary": "GestionOrganizacionesController::show",
+        "operationId": "get_api_v1_comunidad_portal_gestion_organizaciones_id",
+        "x-source": "app/Http/Controllers/GestionOrganizacionesController.php@show",
+        "x-contract-status": "partial",
+        "description": "Requiere gestionarRegistro. Devuelve resumen y todas las entradas de historial con nombre del actor local. Sin paginación del historial.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "description": "Ruta restringida por [a-fA-F0-9]{24}; formato distinto no coincide (404). Recurso inexistente o fuera de organización también 404."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxGestionShowResponse"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "private, no-store"
+                  ]
+                },
+                "description": "Cabecera explícita del controlador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso no encontrado o no perteneciente a la organización activa; incluye ID que no coincide con regex de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-contract-reason": "show() toma historial_estados tal como está persistido y expande cada $h con [...$h, actor_nombre => ...]. No hay Arr::only ni cast/DTO que filtre las entradas; claves adicionales de cada entrada sobreviven. collect()->map() tampoco reindexa un historial persistido con claves asociativas."
+      }
+    },
+    "/api/v1/comunidad/portal/gestion-organizaciones/titular": {
+      "post": {
+        "summary": "GestionOrganizacionesController::titular",
+        "operationId": "post_api_v1_comunidad_portal_gestion_organizaciones_titular",
+        "x-source": "app/Http/Controllers/GestionOrganizacionesController.php@titular",
+        "x-contract-status": "reviewed",
+        "description": "Consulta local por matrícula exacta, sin usar IdentidadComunidadApi; requiere gestionarRegistro.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxTitularResponse"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "private, no-store"
+                  ]
+                },
+                "description": "Cabecera explícita del controlador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Matrícula inválida o inexistente; inexistente usa errors.matricula_presidencia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "20 solicitudes por minuto según la clave resuelta por throttle de Laravel (throttle:20,1).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CtxTitularRequest"
+              }
+            }
+          }
+        },
+        "x-csrf": "Requiere protección CSRF web del documento padre (X-XSRF-TOKEN o X-CSRF-TOKEN, alternativas; no son dos cabeceras obligatorias simultáneas).",
+        "x-rate-limit": {
+          "requests": 20,
+          "window_seconds": 60,
+          "source": "routes/comunidad.php throttle:20,1"
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/gestion-organizaciones/{id}/completar": {
+      "post": {
+        "summary": "GestionOrganizacionesController::completar",
+        "operationId": "post_api_v1_comunidad_portal_gestion_organizaciones_id_completar",
+        "x-source": "app/Http/Controllers/GestionOrganizacionesController.php@completar",
+        "x-contract-status": "reviewed",
+        "description": "Sin cuerpo obligatorio ni campos de request validados. Reanuda exclusivamente un alta configurando y verifica titular/vencimiento de presidencia. Requiere gestionarRegistro.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "description": "Ruta restringida por [a-fA-F0-9]{24}; formato distinto no coincide (404). Recurso inexistente o fuera de organización también 404."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxGestionMutationResponse"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso no encontrado o no perteneciente a la organización activa; incluye ID que no coincide con regex de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "La organización ya completó el alta (estado distinto de configurando).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos/reglas de negocio; body message + errors. El bloqueo comunidad:responsabilidades agotado también es 422 con errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-csrf": "Requiere protección CSRF web del documento padre (X-XSRF-TOKEN o X-CSRF-TOKEN, alternativas; no son dos cabeceras obligatorias simultáneas).",
+        "x-success-message": "Alta completada."
+      }
+    },
+    "/api/v1/comunidad/portal/gestion-organizaciones/{id}/estado": {
+      "post": {
+        "summary": "GestionOrganizacionesController::estado",
+        "operationId": "post_api_v1_comunidad_portal_gestion_organizaciones_id_estado",
+        "x-source": "app/Http/Controllers/GestionOrganizacionesController.php@estado",
+        "x-contract-status": "reviewed",
+        "description": "Requiere gestionarRegistro. Cambio de estado con historial y versión; suspender revoca delegaciones. clave_cambio identifica un reintento por actor/estado/motivo.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            },
+            "description": "Ruta restringida por [a-fA-F0-9]{24}; formato distinto no coincide (404). Recurso inexistente o fuera de organización también 404."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxGestionMutationResponse"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso no encontrado o no perteneciente a la organización activa; incluye ID que no coincide con regex de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Versión/estado cambió, alta configurando o clave_cambio reutilizada con otros datos/actor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos/reglas de negocio; body message + errors. El bloqueo comunidad:responsabilidades agotado también es 422 con errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CtxCambiarEstadoRequest"
+              }
+            }
+          }
+        },
+        "x-csrf": "Requiere protección CSRF web del documento padre (X-XSRF-TOKEN o X-CSRF-TOKEN, alternativas; no son dos cabeceras obligatorias simultáneas).",
+        "x-success-message": "Estado actualizado. Se conserva el historial."
+      }
+    },
+    "/api/v1/comunidad/portal/dashboard": {
+      "get": {
+        "summary": "DashboardController::index",
+        "operationId": "get_api_v1_comunidad_portal_dashboard",
+        "x-source": "app/Http/Controllers/DashboardController.php@index",
+        "x-contract-status": "reviewed",
+        "description": "Exige organización activa y Gate view. Si puede_gestionar, becas contempla enviadas no borrador de la organización; de otro modo solo propias. becasPendientes cuenta pendiente/en_revision; ultimasBecas toma hasta 5 por creado_en desc e id asc antes de descartar convocatoria inexistente. Consultas personales: publicadas, revision no null, en plazo, usuario en padron y aún sin respuesta. No tiene query validada.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxDashboardResponse"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "private, no-store"
+                  ]
+                },
+                "description": "Cabecera explícita del controlador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gate deniega membresía activa, presidencia vigente o permiso gestionarRegistro, según la operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/identidad/mi-condicion": {
+      "get": {
+        "summary": "IdentidadComunidadController::__invoke",
+        "operationId": "get_api_v1_comunidad_portal_identidad_mi_condicion",
+        "x-source": "app/Http/Controllers/IdentidadComunidadController.php@__invoke",
+        "x-contract-status": "reviewed",
+        "description": "Consulta únicamente el ID de usuario autenticado; cualquier student_id/user_id de query se ignora. Llama al estado académico remoto; no devuelve el documento de User ni permisos institucionales.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Respuesta confirmada por el controlador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxIdentidadResponse"
+                },
+                "example": {
+                  "data": {
+                    "student_id": "507f1f77bcf86cd799439011",
+                    "user_id": "507f1f77bcf86cd799439011",
+                    "status": "active",
+                    "restrictions": null,
+                    "benefits_eligible": null
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "private, no-store"
+                  ]
+                },
+                "description": "Cabecera explícita del controlador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web puede redirigir a login por sesión revocada; contraseña inicial/2FA pendientes redirigen cuando no expectsJson o hay X-Inertia.",
+            "headers": {
+              "Location": {
+                "description": "Destino de autenticación/configuración.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión autenticada ausente: Se requiere una sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña definitiva o 2FA pendientes; respuesta directa del middleware con Accept JSON y sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CtxAccountLocked"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no controlada; el renderer del portal devuelve message genérico sin detalles internos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "HTTP 404 de la consulta remota (incluido token si fallara así): No tienes un perfil académico registrado en Identidad.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "RequestException remota no 404: No se pudo consultar Identidad. Intenta más tarde. ConnectionException o RuntimeException (configuración/payload inválido): La consulta a Identidad no está disponible. Intenta más tarde.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CtxJsonValue": {
+        "description": "Valor JSON de un atributo persistido: string, number, boolean, null, array u object recursivos. No es una garantía de validación del documento MongoDB.",
+        "anyOf": [
+          {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CtxJsonValue"
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/CtxJsonValue"
+                }
+              }
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "CtxOrganizacion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "asociacion",
+              "consejo"
+            ]
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "type": "string"
+          },
+          "telefono": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "activa",
+              "suspendida",
+              "configurando"
+            ]
+          },
+          "creado_por": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "version_estado": {
+            "type": "integer"
+          },
+          "creado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actualizado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CtxJsonValue"
+        },
+        "description": "Organizacion oculta alta_datos, clave_alta, firma_alta e historial_estados. Grammar renombra _id a id si no existe id; si ambos existen conserva ambos. No se impone presencia a atributos no proyectados.",
+        "x-contract-status": "partial",
+        "x-contract-reason": "Serialización directa de Documento/MongoDB mediante toArray(), sin $visible ni Resource/DTO con lista cerrada. $fillable restringe asignación masiva, no la lectura/serialización de atributos existentes. Los atributos persistidos no ocultos adicionales siguen presentes; sus claves y tipos no se pueden cerrar estáticamente. Las propiedades conocidas describen las escrituras actuales; no se verificó la forma de documentos históricos en DB."
+      },
+      "CtxMiembro": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "organizacion_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "usuario_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "activo"
+            ]
+          },
+          "eliminado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "creado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actualizado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "matricula": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CtxJsonValue"
+        },
+        "description": "activos(): estado activo, eliminado_en null y fecha_inicio <= now. Cast datetime en fecha_inicio/eliminado_en; identidad superpuesta por directorio o User, fallback Usuario no disponible/null.",
+        "required": [
+          "nombre",
+          "matricula"
+        ],
+        "x-contract-status": "partial",
+        "x-contract-reason": "Serialización directa de Documento/MongoDB mediante toArray(), sin $visible ni Resource/DTO con lista cerrada. $fillable restringe asignación masiva, no la lectura/serialización de atributos existentes. Los atributos persistidos no ocultos adicionales siguen presentes; sus claves y tipos no se pueden cerrar estáticamente. Las propiedades conocidas describen las escrituras actuales; no se verificó la forma de documentos históricos en DB."
+      },
+      "CtxRol": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "organizacion_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "usuario_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "slug_rol": {
+            "type": "string",
+            "enum": [
+              "presidencia",
+              "vicepresidencia",
+              "tesoreria",
+              "secretaria",
+              "comunicacion",
+              "responsable_becas"
+            ]
+          },
+          "periodo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{24}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fecha_fin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "otorgado_por": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "eliminado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "creado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actualizado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "matricula": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vigente": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CtxJsonValue"
+        },
+        "description": "whereNull(eliminado_en); incluye cargos futuros/vencidos. vigente se añade explícitamente; no es un append global del modelo. Fechas datetime serializadas a ISO 8601 UTC.",
+        "required": [
+          "nombre",
+          "matricula",
+          "vigente"
+        ],
+        "x-contract-status": "partial",
+        "x-contract-reason": "Serialización directa de Documento/MongoDB mediante toArray(), sin $visible ni Resource/DTO con lista cerrada. $fillable restringe asignación masiva, no la lectura/serialización de atributos existentes. Los atributos persistidos no ocultos adicionales siguen presentes; sus claves y tipos no se pueden cerrar estáticamente. Las propiedades conocidas describen las escrituras actuales; no se verificó la forma de documentos históricos en DB."
+      },
+      "CtxOrganizacionSuspendida": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "nombre": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Proyección get([id,nombre]); atributos ausentes no se inventan. _id solo si también existe id almacenado."
+      },
+      "CtxPeriodoResumen": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "fecha_inicio": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "fecha_fin": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          }
+        },
+        "additionalProperties": false,
+        "description": "get([id,nombre,fecha_inicio,fecha_fin]), estado registrado, orden fecha_inicio desc. El modelo no castea estas fechas: las escrituras actuales guardan Y-m-d. No incluye situacion."
+      },
+      "CtxOrganizacionesResponse": {
+        "type": "object",
+        "properties": {
+          "organizaciones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CtxOrganizacion"
+            }
+          },
+          "organizaciones_suspendidas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CtxOrganizacionSuspendida"
+            }
+          },
+          "organizacion": {
+            "description": "Organizacion oculta alta_datos, clave_alta, firma_alta e historial_estados. Grammar renombra _id a id si no existe id; si ambos existen conserva ambos. No se impone presencia a atributos no proyectados.",
+            "x-contract-status": "partial",
+            "x-contract-reason": "Serialización directa de Documento/MongoDB mediante toArray(), sin $visible ni Resource/DTO con lista cerrada. $fillable restringe asignación masiva, no la lectura/serialización de atributos existentes. Los atributos persistidos no ocultos adicionales siguen presentes; sus claves y tipos no se pueden cerrar estáticamente. Las propiedades conocidas describen las escrituras actuales; no se verificó la forma de documentos históricos en DB.",
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{24}$"
+                  },
+                  "_id": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{24}$"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "nombre": {
+                    "type": "string"
+                  },
+                  "tipo": {
+                    "type": "string",
+                    "enum": [
+                      "asociacion",
+                      "consejo"
+                    ]
+                  },
+                  "descripcion": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "telefono": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "estado": {
+                    "type": "string",
+                    "enum": [
+                      "activa",
+                      "suspendida",
+                      "configurando"
+                    ]
+                  },
+                  "creado_por": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{24}$"
+                  },
+                  "version_estado": {
+                    "type": "integer"
+                  },
+                  "creado_en": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "actualizado_en": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/CtxJsonValue"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "puede_editar": {
+            "type": "boolean"
+          },
+          "miembros": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CtxMiembro"
+            }
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CtxRol"
+            }
+          },
+          "periodos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CtxPeriodoResumen"
+            }
+          },
+          "cargos": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "presidencia",
+                "vicepresidencia",
+                "tesoreria",
+                "secretaria",
+                "comunicacion",
+                "responsable_becas"
+              ]
+            },
+            "minItems": 6,
+            "maxItems": 6
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "organizaciones",
+          "organizaciones_suspendidas",
+          "organizacion",
+          "puede_editar",
+          "miembros",
+          "roles",
+          "periodos",
+          "cargos"
+        ],
+        "x-contract-status": "partial",
+        "x-contract-reason": "organizaciones/organizacion, miembros y roles contienen los modelos abiertos CtxOrganizacion/CtxMiembro/CtxRol. Serialización directa de Documento/MongoDB mediante toArray(), sin $visible ni Resource/DTO con lista cerrada. $fillable restringe asignación masiva, no la lectura/serialización de atributos existentes. Los atributos persistidos no ocultos adicionales siguen presentes; sus claves y tipos no se pueden cerrar estáticamente. Las propiedades conocidas describen las escrituras actuales; no se verificó la forma de documentos históricos en DB."
+      },
+      "CtxPresidencia": {
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "matricula": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fecha_fin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vigente": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Primer cargo presidencia no eliminado; no necesariamente vigente. vigente usa tienePresidencia (cargo vigente + User existente + miembro activo).",
+        "required": [
+          "nombre",
+          "matricula",
+          "fecha_fin",
+          "vigente"
+        ]
+      },
+      "CtxOrganizacionResumen": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{24}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tipo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "asociacion",
+                  "consejo"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "telefono": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "activa",
+                  "suspendida",
+                  "configurando"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version_estado": {
+            "type": "integer"
+          },
+          "presidencia": {
+            "description": "Primer cargo presidencia no eliminado; no necesariamente vigente. vigente usa tienePresidencia (cargo vigente + User existente + miembro activo).",
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "nombre": {
+                    "type": "string"
+                  },
+                  "matricula": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "fecha_fin": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "vigente": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "nombre",
+                  "matricula",
+                  "fecha_fin",
+                  "vigente"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "resumen(): Model::only([id,nombre,tipo,descripcion,email,telefono,estado]) + version_estado convertido a int (0 por defecto) + presidencia. Model::only conserva las claves con null cuando faltan; no confundir con Arr::only.",
+        "required": [
+          "id",
+          "nombre",
+          "tipo",
+          "descripcion",
+          "email",
+          "telefono",
+          "estado",
+          "version_estado",
+          "presidencia"
+        ]
+      },
+      "CtxGestionIndexResponse": {
+        "type": "object",
+        "properties": {
+          "organizaciones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CtxOrganizacionResumen"
+            },
+            "maxItems": 12
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "last_page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "organizaciones",
+          "page",
+          "last_page",
+          "total"
+        ]
+      },
+      "CtxHistorialEstado": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "desde": {
+            "type": "string",
+            "enum": [
+              "activa",
+              "suspendida",
+              "configurando"
+            ]
+          },
+          "hasta": {
+            "type": "string",
+            "enum": [
+              "activa",
+              "suspendida"
+            ]
+          },
+          "motivo": {
+            "type": "string"
+          },
+          "actor_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "actor_nombre": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CtxJsonValue"
+        },
+        "description": "Campos conocidos producidos por RegistroOrganizaciones::completar/cambiarEstado. actor_nombre reemplaza cualquier valor previo; fallback Cuenta no disponible.",
+        "required": [
+          "actor_nombre"
+        ],
+        "x-contract-status": "partial",
+        "x-contract-reason": "show() toma historial_estados tal como está persistido y expande cada $h con [...$h, actor_nombre => ...]. No hay Arr::only ni cast/DTO que filtre las entradas; claves adicionales de cada entrada sobreviven. collect()->map() tampoco reindexa un historial persistido con claves asociativas."
+      },
+      "CtxGestionShowResponse": {
+        "type": "object",
+        "properties": {
+          "organizacion": {
+            "$ref": "#/components/schemas/CtxOrganizacionResumen"
+          },
+          "historial": {
+            "oneOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CtxHistorialEstado"
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/CtxHistorialEstado"
+                }
+              }
+            ],
+            "description": "Normalmente lista; un historial con claves asociativas conserva sus claves al serializar Collection."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "organizacion",
+          "historial"
+        ],
+        "x-contract-status": "partial",
+        "x-contract-reason": "show() toma historial_estados tal como está persistido y expande cada $h con [...$h, actor_nombre => ...]. No hay Arr::only ni cast/DTO que filtre las entradas; claves adicionales de cada entrada sobreviven. collect()->map() tampoco reindexa un historial persistido con claves asociativas."
+      },
+      "CtxGestionMutationResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "organizacion": {
+            "$ref": "#/components/schemas/CtxOrganizacionResumen"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "message",
+          "organizacion"
+        ]
+      },
+      "CtxTitularResponse": {
+        "type": "object",
+        "properties": {
+          "titular": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "matricula": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "description": "User::only([name,matricula]); no devuelve email, id, roles ni datos adicionales.",
+            "required": [
+              "name",
+              "matricula"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "titular"
+        ]
+      },
+      "CtxUltimaBeca": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{24}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "borrador",
+                  "pendiente",
+                  "en_revision",
+                  "aprobada",
+                  "rechazada",
+                  "retirada",
+                  "cancelada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "folio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "creado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "beca": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "SolicitudBeca::only([id,estado,folio,creado_en]) + titulo de convocatoria. Model::only conserva claves/null. Se descartan las solicitudes sin convocatoria; values() reindexa.",
+        "required": [
+          "id",
+          "estado",
+          "folio",
+          "creado_en",
+          "beca"
+        ]
+      },
+      "CtxProximoEvento": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lugar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "en_curso": {
+            "type": "boolean"
+          },
+          "reservas": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "capacidad": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "asistencias": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "description": "Primer evento publicado con fecha_hora_fin > now, orden fecha_hora_inicio. reservas usa conCupo(); asistencias añade estado_asistencia asistio y asistio_en no null. capacidad tiene cast integer, nullable si falta.",
+        "required": [
+          "id",
+          "nombre",
+          "lugar",
+          "fecha",
+          "en_curso",
+          "reservas",
+          "capacidad",
+          "asistencias"
+        ]
+      },
+      "CtxDashboardResponse": {
+        "type": "object",
+        "properties": {
+          "generado_en": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "puede_gestionar": {
+            "type": "boolean"
+          },
+          "organizacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "miembrosActivos": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "eventosActivos": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cajaDisponible": {
+            "type": "null",
+            "description": "Siempre null en esta implementación."
+          },
+          "becasPendientes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ultimasBecas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CtxUltimaBeca"
+            },
+            "maxItems": 5
+          },
+          "proximoEvento": {
+            "description": "Primer evento publicado con fecha_hora_fin > now, orden fecha_hora_inicio. reservas usa conCupo(); asistencias añade estado_asistencia asistio y asistio_en no null. capacidad tiene cast integer, nullable si falta.",
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "nombre": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "lugar": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "fecha": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "en_curso": {
+                    "type": "boolean"
+                  },
+                  "reservas": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "capacidad": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "asistencias": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "nombre",
+                  "lugar",
+                  "fecha",
+                  "en_curso",
+                  "reservas",
+                  "capacidad",
+                  "asistencias"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "personales": {
+            "type": "object",
+            "properties": {
+              "no_leidos": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "consultas": {
+                "type": "object",
+                "properties": {
+                  "encuestas": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "votaciones": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "encuestas",
+                  "votaciones"
+                ]
+              },
+              "boletos": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "no_leidos",
+              "consultas",
+              "boletos"
+            ]
+          },
+          "gestion": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "campanas_pendientes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "reportes_borrador": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "campanas_pendientes",
+                  "reportes_borrador"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "Forma explícita de DashboardController. cajaDisponible es siempre null. gestion es null si Gate update falla; proximoEvento null cuando no hay evento. No expone modelos completos.",
+        "required": [
+          "generado_en",
+          "puede_gestionar",
+          "organizacion",
+          "miembrosActivos",
+          "eventosActivos",
+          "cajaDisponible",
+          "becasPendientes",
+          "ultimasBecas",
+          "proximoEvento",
+          "personales",
+          "gestion"
+        ]
+      },
+      "CtxIdentidadEstado": {
+        "type": "object",
+        "properties": {
+          "student_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enrollment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "program": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "campus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "semester": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "suspended",
+              "restricted",
+              "leave",
+              "graduated"
+            ]
+          },
+          "restrictions": {
+            "type": "null",
+            "description": "Siempre null en esta implementación."
+          },
+          "benefits_eligible": {
+            "type": "null",
+            "description": "Siempre null en esta implementación."
+          }
+        },
+        "additionalProperties": false,
+        "description": "IdentidadComunidadApi::estado valida IDs iguales al id de sesión, estado enum y dos null obligatorios; Arr::only conserva únicamente claves presentes. Los siete textos y semester son opcionales/nullables. effective_from solo se valida como string, NO como fecha. No devuelve scopes ni resuelve elegibilidad.",
+        "required": [
+          "student_id",
+          "user_id",
+          "status",
+          "restrictions",
+          "benefits_eligible"
+        ]
+      },
+      "CtxIdentidadResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CtxIdentidadEstado"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "data"
+        ]
+      },
+      "CtxAccountLocked": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "initial_password_change_required"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "enrollment_url": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "message",
+              "enrollment_url"
+            ]
+          }
+        ],
+        "description": "423 directo de middleware: contraseña inicial pendiente o enrolamiento 2FA requerido. Con Accept JSON y sin X-Inertia."
+      },
+      "CtxSeleccionarRequest": {
+        "type": "object",
+        "properties": {
+          "organizacion_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          }
+        },
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CtxJsonValue"
+        },
+        "description": " Las claves JSON extra se ignoran por validate(); no se rechazan por una regla de objeto cerrado.",
+        "required": [
+          "organizacion_id"
+        ]
+      },
+      "CtxPerfilRequest": {
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255
+          },
+          "telefono": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CtxJsonValue"
+        },
+        "description": "nombre debe producir slug identificable y ser único incluso frente a organizaciones suspendidas; normalización por Str::slug. No hereda min:3 de la creación. Las claves JSON extra se ignoran por validate(); no se rechazan por una regla de objeto cerrado.",
+        "required": [
+          "nombre",
+          "email"
+        ]
+      },
+      "CtxMiembroRequest": {
+        "type": "object",
+        "properties": {
+          "matricula": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "fecha_inicio": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "x-laravel-rule": "before_or_equal:today"
+          }
+        },
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CtxJsonValue"
+        },
+        "description": "fecha_inicio <= today. Matrícula de cuenta existente/utilizable y no miembro activo. Directorio opcional normaliza trim/uppercase. No hay regex local de matrícula. Las claves JSON extra se ignoran por validate(); no se rechazan por una regla de objeto cerrado.",
+        "required": [
+          "matricula",
+          "fecha_inicio"
+        ]
+      },
+      "CtxRolRequest": {
+        "type": "object",
+        "properties": {
+          "usuario_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "slug_rol": {
+            "type": "string",
+            "enum": [
+              "presidencia",
+              "vicepresidencia",
+              "tesoreria",
+              "secretaria",
+              "comunicacion",
+              "responsable_becas"
+            ]
+          },
+          "fecha_inicio": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "fecha_fin": {
+            "x-laravel-rule": "after_or_equal:fecha_inicio",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "periodo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{24}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CtxJsonValue"
+        },
+        "description": "Mismo cuerpo completo en POST y PUT. Usuario local existente y miembro activo; cargo no duplicado. fecha_fin >= fecha_inicio si no null. Si periodo_id se omite en PUT se conserva el anterior; un periodo ya vinculado no se cambia ni se elimina. Con periodo: debe estar registrado, fecha_fin no null y ambas fechas dentro del intervalo inclusivo. No se permite dejar una presidencia vigente sin titular vigente. fecha_fin omitida se guarda null cuando no hay periodo. Las claves JSON extra se ignoran por validate(); no se rechazan por una regla de objeto cerrado.",
+        "required": [
+          "usuario_id",
+          "slug_rol",
+          "fecha_inicio"
+        ]
+      },
+      "CtxTitularRequest": {
+        "type": "object",
+        "properties": {
+          "matricula": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          }
+        },
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CtxJsonValue"
+        },
+        "description": "La validación recibe matricula; si no existe User, el error usa la clave matricula_presidencia. Las claves JSON extra se ignoran por validate(); no se rechazan por una regla de objeto cerrado.",
+        "required": [
+          "matricula"
+        ]
+      },
+      "CtxCrearOrganizacionRequest": {
+        "type": "object",
+        "properties": {
+          "clave_alta": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nombre": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 150
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "asociacion",
+              "consejo"
+            ]
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 2000
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255
+          },
+          "telefono": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "matricula_presidencia": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "fecha_fin_presidencia": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "x-laravel-rule": "after_or_equal:today"
+          }
+        },
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CtxJsonValue"
+        },
+        "description": "fecha_fin_presidencia >= today. nombre/slug identificable y no duplicado aun suspendido. Matrícula de User existente. telefono ausente se normaliza null. clave_alta es idempotente por actor y firma de datos validados; reintento coincidente también devuelve 201, incluso si la organización ya está suspendida; otro actor/payload produce 409. Las claves JSON extra se ignoran por validate(); no se rechazan por una regla de objeto cerrado.",
+        "required": [
+          "clave_alta",
+          "nombre",
+          "tipo",
+          "descripcion",
+          "email",
+          "matricula_presidencia",
+          "fecha_fin_presidencia"
+        ]
+      },
+      "CtxCambiarEstadoRequest": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "type": "string",
+            "enum": [
+              "activa",
+              "suspendida"
+            ]
+          },
+          "motivo": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "version_estado": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "clave_cambio": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CtxJsonValue"
+        },
+        "description": "Comparación de versión optimista. Repetir clave_cambio con mismo actor/estado/motivo devuelve resultado previo antes de comparar versión; otros datos con la misma clave producen 409. Misma situación actual produce 422. Reactivar requiere presidencia vigente y miembro activo. Las claves JSON extra se ignoran por validate(); no se rechazan por una regla de objeto cerrado.",
+        "required": [
+          "estado",
+          "motivo",
+          "version_estado",
+          "clave_cambio"
+        ]
+      }
+    }
+  }
+}

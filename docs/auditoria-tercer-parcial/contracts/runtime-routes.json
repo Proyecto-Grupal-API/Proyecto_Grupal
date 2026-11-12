@@ -1,0 +1,1819 @@
+[
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/becas/{solicitud}/bono",
+    "name": null,
+    "action": "App\\Http\\Controllers\\Api\\Community\\BecaAwardController",
+    "middleware": [
+      "api",
+      "App\\Http\\Middleware\\ValidateServiceToken:community:beca-award:read",
+      "App\\Http\\Middleware\\AuthorizeCommunityService:community:beca-award:read",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:120,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/notificaciones",
+    "name": null,
+    "action": "App\\Http\\Controllers\\Api\\Community\\AvisoController@index",
+    "middleware": [
+      "api",
+      "App\\Http\\Middleware\\CorrelacionAviso",
+      "App\\Http\\Middleware\\ValidateServiceToken:notifications:read",
+      "App\\Http\\Middleware\\AuthorizeCommunityService:notifications:read",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:avisos-servicio"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/notificaciones",
+    "name": null,
+    "action": "App\\Http\\Controllers\\Api\\Community\\AvisoController@store",
+    "middleware": [
+      "api",
+      "App\\Http\\Middleware\\CorrelacionAviso",
+      "App\\Http\\Middleware\\ValidateServiceToken:notifications:send",
+      "App\\Http\\Middleware\\AuthorizeCommunityService:notifications:send",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:avisos-servicio"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/notificaciones/{id}/retiro",
+    "name": null,
+    "action": "App\\Http\\Controllers\\Api\\Community\\AvisoController@retiro",
+    "middleware": [
+      "api",
+      "App\\Http\\Middleware\\CorrelacionAviso",
+      "App\\Http\\Middleware\\ValidateServiceToken:notifications:send",
+      "App\\Http\\Middleware\\AuthorizeCommunityService:notifications:send",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:avisos-servicio"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/organizaciones/comercio",
+    "name": null,
+    "action": "App\\Http\\Controllers\\Api\\Community\\OrganizationCommerceController",
+    "middleware": [
+      "api",
+      "App\\Http\\Middleware\\ValidateServiceToken:community:organizations:read",
+      "App\\Http\\Middleware\\AuthorizeCommunityService:community:organizations:read",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:120,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/bandeja",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BandejaController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/bandeja/categorias",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BandejaController@categorias",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/bandeja/categorias/servicios_estudiante",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BandejaController@categoria",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/bandeja/preferencias",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BandejaController@preferencias",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/bandeja/preferencias/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BandejaController@preferencia",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/bandeja/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BandejaController@show",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/bandeja/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BandejaController@update",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/becas",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/becas",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@store",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/becas/mis-solicitudes",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@misSolicitudes",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/becas/solicitudes/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@showSolicitud",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/becas/solicitudes/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@guardarSolicitud",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/becas/solicitudes/{id}/aval-tesoreria",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@avalarPresupuesto",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:30,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/becas/solicitudes/{id}/confirmacion-presidencia",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@confirmarPresidencia",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:30,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/becas/solicitudes/{id}/contrato",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@contrato",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/becas/solicitudes/{id}/dictamen",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@dictaminar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/becas/solicitudes/{id}/documentos",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@subirDocumento",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:30,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/becas/solicitudes/{id}/documentos/{documento}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@descargarDocumento",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "DELETE",
+    "uri": "api/v1/comunidad/portal/becas/solicitudes/{id}/documentos/{documento}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@eliminarDocumento",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/becas/solicitudes/{id}/recomendacion",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@recomendar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:30,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/becas/solicitudes/{id}/retirar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@retirar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/becas/solicitudes/{id}/revocacion-beneficio",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@revocarBeneficio",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:30,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/becas/tesoreria",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@tesoreria",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/becas/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@update",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/becas/{id}/comite",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@comite",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/becas/{id}/comite",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@guardarComite",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:30,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/becas/{id}/estado",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@cambiarEstado",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/becas/{id}/solicitud",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@crearSolicitud",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:30,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/becas/{id}/solicitudes",
+    "name": null,
+    "action": "App\\Http\\Controllers\\BecaController@solicitudes",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/comunicacion",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ComunicacionController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/comunicacion",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ComunicacionController@store",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/comunicacion/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ComunicacionController@update",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/comunicacion/{id}/cancelar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ComunicacionController@cancelar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/comunicacion/{id}/enviar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ComunicacionController@enviar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:10,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/comunicacion/{id}/preview",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ComunicacionController@preview",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/comunicacion/{id}/reintentar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ComunicacionController@reintentar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:10,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/consultas/encuestas/eventos",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ConsultaController@eventos",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/consultas/{tipo}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ConsultaController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/consultas/{tipo}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ConsultaController@store",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/consultas/{tipo}/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ConsultaController@show",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/consultas/{tipo}/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ConsultaController@update",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/consultas/{tipo}/{id}/cancelar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ConsultaController@cancelar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/consultas/{tipo}/{id}/cerrar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ConsultaController@cerrar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/consultas/{tipo}/{id}/preview",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ConsultaController@preview",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/consultas/{tipo}/{id}/publicar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ConsultaController@publicar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/consultas/{tipo}/{id}/responder",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ConsultaController@responder",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:30,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/dashboard",
+    "name": null,
+    "action": "App\\Http\\Controllers\\DashboardController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/estudiante/boletos",
+    "name": null,
+    "action": "App\\Http\\Controllers\\EventoController@boletos",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/estudiante/mi-boleto",
+    "name": null,
+    "action": "App\\Http\\Controllers\\EventoController@miBoleto",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/eventos",
+    "name": null,
+    "action": "App\\Http\\Controllers\\EventoController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/eventos",
+    "name": null,
+    "action": "App\\Http\\Controllers\\EventoController@store",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/eventos/checkin",
+    "name": null,
+    "action": "App\\Http\\Controllers\\EventoController@checkin",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:60,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/eventos/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\EventoController@update",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/eventos/{id}/boleto",
+    "name": null,
+    "action": "App\\Http\\Controllers\\EventoController@miBoleto",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/eventos/{id}/cancelar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\EventoController@cancelarEvento",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/eventos/{id}/inscripcion",
+    "name": null,
+    "action": "App\\Http\\Controllers\\EventoController@inscribir",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:30,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "DELETE",
+    "uri": "api/v1/comunidad/portal/eventos/{id}/inscripcion",
+    "name": null,
+    "action": "App\\Http\\Controllers\\EventoController@cancelarInscripcion",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/eventos/{id}/inscritos",
+    "name": null,
+    "action": "App\\Http\\Controllers\\EventoController@inscritos",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/eventos/{id}/pago",
+    "name": null,
+    "action": "App\\Http\\Controllers\\PagoEventoController@iniciar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:12,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/eventos/{id}/pago/consultar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\PagoEventoController@consultar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:12,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/eventos/{id}/publicar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\EventoController@publicar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/eventos/{id}/staff",
+    "name": null,
+    "action": "App\\Http\\Controllers\\StaffEventoController@asignados",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/eventos/{id}/staff",
+    "name": null,
+    "action": "App\\Http\\Controllers\\StaffEventoController@asignar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "DELETE",
+    "uri": "api/v1/comunidad/portal/eventos/{id}/staff/{staff}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\StaffEventoController@retirar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/gestion-organizaciones",
+    "name": null,
+    "action": "App\\Http\\Controllers\\GestionOrganizacionesController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/gestion-organizaciones",
+    "name": null,
+    "action": "App\\Http\\Controllers\\GestionOrganizacionesController@store",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:20,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/gestion-organizaciones/titular",
+    "name": null,
+    "action": "App\\Http\\Controllers\\GestionOrganizacionesController@titular",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:20,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/gestion-organizaciones/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\GestionOrganizacionesController@show",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/gestion-organizaciones/{id}/completar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\GestionOrganizacionesController@completar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/gestion-organizaciones/{id}/estado",
+    "name": null,
+    "action": "App\\Http\\Controllers\\GestionOrganizacionesController@estado",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/identidad/mi-condicion",
+    "name": null,
+    "action": "App\\Http\\Controllers\\IdentidadComunidadController",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/notificaciones",
+    "name": null,
+    "action": "App\\Http\\Controllers\\NotificacionController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/notificaciones/leer",
+    "name": null,
+    "action": "App\\Http\\Controllers\\NotificacionController@marcarLeidas",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "DELETE",
+    "uri": "api/v1/comunidad/portal/notificaciones/leidas",
+    "name": null,
+    "action": "App\\Http\\Controllers\\NotificacionController@eliminarLeidas",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/organizaciones",
+    "name": null,
+    "action": "App\\Http\\Controllers\\OrganizacionController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/organizaciones/comisiones",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ComisionConsejoController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/organizaciones/comisiones",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ComisionConsejoController@store",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/organizaciones/comisiones/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ComisionConsejoController@show",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/organizaciones/comisiones/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ComisionConsejoController@update",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/organizaciones/comisiones/{id}/cerrar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ComisionConsejoController@cerrar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/organizaciones/comisiones/{id}/integrantes",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ComisionConsejoController@asignar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/organizaciones/comisiones/{id}/integrantes/{asignacion}/retirar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ComisionConsejoController@retirar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/organizaciones/delegaciones",
+    "name": null,
+    "action": "App\\Http\\Controllers\\DelegacionOrganizacionController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/organizaciones/delegaciones",
+    "name": null,
+    "action": "App\\Http\\Controllers\\DelegacionOrganizacionController@store",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/organizaciones/delegaciones/{id}/revocar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\DelegacionOrganizacionController@revocar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/organizaciones/documentos",
+    "name": null,
+    "action": "App\\Http\\Controllers\\DocumentoOrganizacionController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/organizaciones/documentos",
+    "name": null,
+    "action": "App\\Http\\Controllers\\DocumentoOrganizacionController@store",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:30,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/organizaciones/documentos/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\DocumentoOrganizacionController@update",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/organizaciones/documentos/{id}/descargar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\DocumentoOrganizacionController@descargar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/organizaciones/documentos/{id}/retirar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\DocumentoOrganizacionController@retirar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/organizaciones/documentos/{id}/versiones",
+    "name": null,
+    "action": "App\\Http\\Controllers\\DocumentoOrganizacionController@versiones",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/organizaciones/documentos/{id}/versiones",
+    "name": null,
+    "action": "App\\Http\\Controllers\\DocumentoOrganizacionController@nuevaVersion",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:30,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/organizaciones/documentos/{id}/versiones/{version}/descargar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\DocumentoOrganizacionController@descargar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/organizaciones/miembros",
+    "name": null,
+    "action": "App\\Http\\Controllers\\OrganizacionController@addMiembro",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "DELETE",
+    "uri": "api/v1/comunidad/portal/organizaciones/miembros/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\OrganizacionController@removeMiembro",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/organizaciones/perfil",
+    "name": null,
+    "action": "App\\Http\\Controllers\\OrganizacionController@updatePerfil",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/organizaciones/periodos",
+    "name": null,
+    "action": "App\\Http\\Controllers\\PeriodoOrganizacionController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/organizaciones/periodos",
+    "name": null,
+    "action": "App\\Http\\Controllers\\PeriodoOrganizacionController@store",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/organizaciones/periodos/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\PeriodoOrganizacionController@show",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/organizaciones/periodos/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\PeriodoOrganizacionController@update",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/organizaciones/periodos/{id}/cancelar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\PeriodoOrganizacionController@cancelar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/organizaciones/periodos/{id}/historial",
+    "name": null,
+    "action": "App\\Http\\Controllers\\PeriodoOrganizacionController@historial",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/organizaciones/roles",
+    "name": null,
+    "action": "App\\Http\\Controllers\\OrganizacionController@assignRol",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "PUT",
+    "uri": "api/v1/comunidad/portal/organizaciones/roles/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\OrganizacionController@assignRol",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "DELETE",
+    "uri": "api/v1/comunidad/portal/organizaciones/roles/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\OrganizacionController@removeRol",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/organizaciones/seleccionar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\OrganizacionController@seleccionar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/staff/eventos",
+    "name": null,
+    "action": "App\\Http\\Controllers\\StaffEventoController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/staff/eventos/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\StaffEventoController@show",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/transparencia",
+    "name": null,
+    "action": "App\\Http\\Controllers\\TransparenciaController@index",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/transparencia/reportes",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ReporteController@store",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion",
+      "Illuminate\\Routing\\Middleware\\ThrottleRequests:10,1"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/transparencia/reportes/{id}",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ReporteController@show",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/transparencia/reportes/{id}/csv",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ReporteController@csv",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "GET|HEAD",
+    "uri": "api/v1/comunidad/portal/transparencia/reportes/{id}/imprimir",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ReporteController@imprimir",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/transparencia/reportes/{id}/publicar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ReporteController@publicar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  },
+  {
+    "domain": null,
+    "method": "POST",
+    "uri": "api/v1/comunidad/portal/transparencia/reportes/{id}/retirar",
+    "name": null,
+    "action": "App\\Http\\Controllers\\ReporteController@retirar",
+    "middleware": [
+      "web",
+      "Illuminate\\Auth\\Middleware\\Authenticate",
+      "App\\Http\\Middleware\\EnsureSessionIsActive",
+      "App\\Http\\Middleware\\TrackDeviceSession",
+      "App\\Http\\Middleware\\SeleccionarOrganizacion"
+    ],
+    "path": null
+  }
+]

@@ -1,0 +1,5597 @@
+{
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/comunidad/portal/eventos": {
+      "get": {
+        "operationId": "evtEventoControllerIndex",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Listar eventos",
+        "description": "12 por página; orden fecha_hora_inicio y _id ascendente. No existe GET /eventos/{id} en estos controladores. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "EventoController::index",
+        "x-contract-status": "partial",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listar eventos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtEventosRespuesta"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o política de organización/acceso denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos o reglas de negocio; cuerpo message + errors. Incluye errores password si el bloqueo de ResponsabilidadesComunidad expira.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "buscar",
+            "in": "query",
+            "required": false,
+            "description": "Filtro por título, nullable|string|max:120.",
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 120
+            }
+          },
+          {
+            "name": "gestion",
+            "in": "query",
+            "required": false,
+            "description": "nullable|boolean; omitido/false muestra publicados no finalizados de organizaciones activas. true requiere gestionar la organización seleccionada.",
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/EvtBooleanEntrada"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "description": "Sólo filtra cuando gestion es true; validado aun fuera del modo gestión.",
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "borrador",
+                "publicado",
+                "cancelado",
+                null
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "nullable|integer|min:1; predeterminado efectivo 1. Sin máximo ni per_page.",
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            }
+          }
+        ],
+        "x-contract-partial-reason": "La salida incluye Evento::toArray()/modelo directo sin Resource; se documentan atributos conocidos y se permiten extras. No se afirma un contrato cerrado de documentos MongoDB históricos."
+      },
+      "post": {
+        "operationId": "evtEventoControllerStore",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Crear borrador de evento",
+        "description": "Requiere gestión de organización. estado=borrador y slug se generan; no admite crear directamente publicado. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "EventoController::store",
+        "x-contract-status": "partial",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Crear borrador de evento",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtCreadoRespuesta"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o política de organización/acceso denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id no coincide con la organización activa; ver también conflictos de esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o discrepante.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos o reglas de negocio; cuerpo message + errors. Incluye errores password si el bloqueo de ResponsabilidadesComunidad expira.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Opcional. Si está presente en una escritura debe coincidir exactamente con la organización activa de la sesión (cadena vacía si no hay selección); de lo contrario 409. No es un selector ni un campo de body.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Token CSRF de la sesión; usar este header o X-XSRF-TOKEN/canal autorizado por el padre.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-XSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Alternativa a X-CSRF-TOKEN usando la cookie XSRF-TOKEN. No se requieren ambos headers.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvtGuardarEntrada"
+              }
+            }
+          }
+        },
+        "x-contract-partial-reason": "La salida incluye Evento::toArray()/modelo directo sin Resource; se documentan atributos conocidos y se permiten extras. No se afirma un contrato cerrado de documentos MongoDB históricos."
+      }
+    },
+    "/api/v1/comunidad/portal/eventos/{id}": {
+      "put": {
+        "operationId": "evtEventoControllerUpdate",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Actualizar evento",
+        "description": "Requiere gestión. No cancelado ni iniciado; capacidad >= reservas con cupo. Con reservas activas/espera no cambian costo, ubicación, inicio o fin. Sincroniza vencimientos y promueve espera. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "EventoController::update",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Actualizar evento",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o política de organización/acceso denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de intención/generación, de concurrencia o de X-Organization-Id; los abort 409 preservan el mensaje y los catch de lock devuelven message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o discrepante.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos o reglas de negocio; cuerpo message + errors. Incluye errores password si el bloqueo de ResponsabilidadesComunidad expira.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Restricción de ruta [a-fA-F0-9]{24}; fuera del patrón no hay coincidencia (404).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Opcional. Si está presente en una escritura debe coincidir exactamente con la organización activa de la sesión (cadena vacía si no hay selección); de lo contrario 409. No es un selector ni un campo de body.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Token CSRF de la sesión; usar este header o X-XSRF-TOKEN/canal autorizado por el padre.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-XSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Alternativa a X-CSRF-TOKEN usando la cookie XSRF-TOKEN. No se requieren ambos headers.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvtGuardarEntrada"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/eventos/{id}/publicar": {
+      "post": {
+        "operationId": "evtEventoControllerPublicar",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Publicar evento",
+        "description": "Sin body validado. Requiere gestión; no cancelado/iniciado y cierre de registro futuro. Repetir publicado es válido mientras editable. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "EventoController::publicar",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Publicar evento",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o política de organización/acceso denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de intención/generación, de concurrencia o de X-Organization-Id; los abort 409 preservan el mensaje y los catch de lock devuelven message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o discrepante.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos o reglas de negocio; cuerpo message + errors. Incluye errores password si el bloqueo de ResponsabilidadesComunidad expira.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Restricción de ruta [a-fA-F0-9]{24}; fuera del patrón no hay coincidencia (404).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Opcional. Si está presente en una escritura debe coincidir exactamente con la organización activa de la sesión (cadena vacía si no hay selección); de lo contrario 409. No es un selector ni un campo de body.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Token CSRF de la sesión; usar este header o X-XSRF-TOKEN/canal autorizado por el padre.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-XSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Alternativa a X-CSRF-TOKEN usando la cookie XSRF-TOKEN. No se requieren ambos headers.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/eventos/{id}/cancelar": {
+      "post": {
+        "operationId": "evtEventoControllerCancelarEvento",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Cancelar evento",
+        "description": "Requiere gestión; no iniciado ni con asistencia, pagos confirmados en reservas confirmadas o intentos de pago pendientes vigentes. Si ya cancelado sigue devolviendo 200. Cancela inscripciones confirmada/espera. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "EventoController::cancelarEvento",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelar evento",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o política de organización/acceso denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de intención/generación, de concurrencia o de X-Organization-Id; los abort 409 preservan el mensaje y los catch de lock devuelven message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o discrepante.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos o reglas de negocio; cuerpo message + errors. Incluye errores password si el bloqueo de ResponsabilidadesComunidad expira.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Restricción de ruta [a-fA-F0-9]{24}; fuera del patrón no hay coincidencia (404).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Opcional. Si está presente en una escritura debe coincidir exactamente con la organización activa de la sesión (cadena vacía si no hay selección); de lo contrario 409. No es un selector ni un campo de body.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Token CSRF de la sesión; usar este header o X-XSRF-TOKEN/canal autorizado por el padre.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-XSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Alternativa a X-CSRF-TOKEN usando la cookie XSRF-TOKEN. No se requieren ambos headers.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvtCancelarEntrada"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/eventos/{id}/inscripcion": {
+      "post": {
+        "operationId": "evtEventoControllerInscribir",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Inscribir o recuperar inscripción",
+        "description": "No requiere ser gestor ni pertenecer a la organización anfitriona. Evento publicado de organización activa; ventana de inscripción abierta. Sin cupo usa espera si está habilitada. Reserva de pago hasta min(ahora+15 minutos,inicio); gratis exento. No cobra ni devuelve QR. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "EventoController::inscribir",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Inscribir o recuperar inscripción",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtSolicitudRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de intención/generación, de concurrencia o de X-Organization-Id; los abort 409 preservan el mensaje y los catch de lock devuelven message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o discrepante.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos o reglas de negocio; cuerpo message + errors. Incluye errores password si el bloqueo de ResponsabilidadesComunidad expira.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Throttle de ruta 30 solicitudes/1 minuto; normalizado por el portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Restricción de ruta [a-fA-F0-9]{24}; fuera del patrón no hay coincidencia (404).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Opcional. Si está presente en una escritura debe coincidir exactamente con la organización activa de la sesión (cadena vacía si no hay selección); de lo contrario 409. No es un selector ni un campo de body.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Token CSRF de la sesión; usar este header o X-XSRF-TOKEN/canal autorizado por el padre.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-XSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Alternativa a X-CSRF-TOKEN usando la cookie XSRF-TOKEN. No se requieren ambos headers.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvtSolicitudEntrada"
+              }
+            }
+          }
+        },
+        "x-throttle": {
+          "requests": 30,
+          "minutes": 1,
+          "source": "routes/comunidad.php"
+        }
+      },
+      "delete": {
+        "operationId": "evtEventoControllerCancelarInscripcion",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Cancelar inscripción propia",
+        "description": "Antes de inicio y sin asistencia; pagado exige tramitar devolución. Un intento financiero pendiente solicita cierre y puede dejar pago_estado=cancelacion_pendiente; no implica reembolso ni cancelación financiera inmediata. Admite registro ya cancelado/vencido. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "EventoController::cancelarInscripcion",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelar inscripción propia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtSolicitudRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de intención/generación, de concurrencia o de X-Organization-Id; los abort 409 preservan el mensaje y los catch de lock devuelven message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o discrepante.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos o reglas de negocio; cuerpo message + errors. Incluye errores password si el bloqueo de ResponsabilidadesComunidad expira.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Restricción de ruta [a-fA-F0-9]{24}; fuera del patrón no hay coincidencia (404).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Opcional. Si está presente en una escritura debe coincidir exactamente con la organización activa de la sesión (cadena vacía si no hay selección); de lo contrario 409. No es un selector ni un campo de body.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Token CSRF de la sesión; usar este header o X-XSRF-TOKEN/canal autorizado por el padre.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-XSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Alternativa a X-CSRF-TOKEN usando la cookie XSRF-TOKEN. No se requieren ambos headers.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvtSolicitudEntrada"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/eventos/{id}/inscritos": {
+      "get": {
+        "operationId": "evtEventoControllerInscritos",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Listar inscritos del evento",
+        "description": "Requiere gestión; 20 por página. Orden registrado_en y _id ascendente. No expone tokens QR. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "EventoController::inscritos",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listar inscritos del evento",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtInscritosRespuesta"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o política de organización/acceso denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos o reglas de negocio; cuerpo message + errors. Incluye errores password si el bloqueo de ResponsabilidadesComunidad expira.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Restricción de ruta [a-fA-F0-9]{24}; fuera del patrón no hay coincidencia (404).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "description": "nullable|in:confirmada,espera,cancelada,vencida. confirmada usa conCupo(); vencida incluye reservas temporalmente vencidas no sincronizadas.",
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "confirmada",
+                "espera",
+                "cancelada",
+                "vencida",
+                null
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "nullable|integer|min:1; predeterminado efectivo 1. Sin máximo ni per_page.",
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/estudiante/boletos": {
+      "get": {
+        "operationId": "evtEventoControllerBoletos",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Listar boletos propios",
+        "description": "12 por página; registrado_en descendente y _id ascendente. No filtra estados; incluye espera/cancelada/vencida y evento ausente. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "EventoController::boletos",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listar boletos propios",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBoletosRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos o reglas de negocio; cuerpo message + errors. Incluye errores password si el bloqueo de ResponsabilidadesComunidad expira.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "nullable|integer|min:1; predeterminado efectivo 1. Sin máximo ni per_page.",
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/eventos/{id}/boleto": {
+      "get": {
+        "operationId": "evtEventoControllerMiBoleto",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Obtener boleto propio de un evento",
+        "description": "Busca registro del usuario por evento; no requiere gestión ni pertenencia. Evento inexistente aún puede devolver boleto histórico si existe el registro. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "EventoController::miBoleto",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Obtener boleto propio de un evento",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBoleto"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Restricción de ruta [a-fA-F0-9]{24}; fuera del patrón no hay coincidencia (404).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/estudiante/mi-boleto": {
+      "get": {
+        "operationId": "evtEventoControllerMiBoletoUltimo",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Obtener el último boleto propio",
+        "description": "Sin parámetros de consulta consumidos. Devuelve el primer registro ordenado por registrado_en descendente, sin filtrar estado. No lee evento_id de query. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "EventoController::miBoleto",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Obtener el último boleto propio",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBoleto"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/eventos/checkin": {
+      "post": {
+        "operationId": "evtEventoControllerCheckin",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Validar acceso por boleto o NFC",
+        "description": "Gestor o staff asignado al evento en organización activa seleccionada. Evento publicado; acceso desde inicio menos checkin_minutos_antes (30 configurados) hasta antes de fin. Inscripción confirmada, pagado/exento, sin asistencia y usuario resoluble. NFC exige flag habilitado y validación de Identidad; su 422 se traduce a error credential_uid, fallos externos a 503. No retorna el token escaneado. Campos de texto opuestos deben omitirse: prohibited y string sin nullable se combinan tras normalización. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "EventoController::checkin",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validar acceso por boleto o NFC",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtCheckinRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o política de organización/acceso denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de intención/generación, de concurrencia o de X-Organization-Id; los abort 409 preservan el mensaje y los catch de lock devuelven message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o discrepante.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos o reglas de negocio; cuerpo message + errors. Incluye errores password si el bloqueo de ResponsabilidadesComunidad expira.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Throttle de ruta 60 solicitudes/1 minuto; normalizado por el portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "503": {
+            "description": "Integración deshabilitada/no disponible o evidencia externa inválida; el portal oculta el mensaje interno y devuelve texto genérico con 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Opcional. Si está presente en una escritura debe coincidir exactamente con la organización activa de la sesión (cadena vacía si no hay selección); de lo contrario 409. No es un selector ni un campo de body.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Token CSRF de la sesión; usar este header o X-XSRF-TOKEN/canal autorizado por el padre.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-XSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Alternativa a X-CSRF-TOKEN usando la cookie XSRF-TOKEN. No se requieren ambos headers.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvtCheckinEntrada"
+              }
+            }
+          }
+        },
+        "x-throttle": {
+          "requests": 60,
+          "minutes": 1,
+          "source": "routes/comunidad.php"
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/staff/eventos": {
+      "get": {
+        "operationId": "evtStaffEventoControllerIndex",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Listar eventos disponibles para staff",
+        "description": "Organización activa visible. Gestor ve todos; otro miembro sólo asignaciones staff no eliminadas. Publicados y no finalizados; 12 por página, inicio y _id ascendente. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "StaffEventoController::index",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listar eventos disponibles para staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtStaffEventosRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o política de organización/acceso denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos o reglas de negocio; cuerpo message + errors. Incluye errores password si el bloqueo de ResponsabilidadesComunidad expira.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "nullable|integer|min:1; predeterminado efectivo 1. Sin máximo ni per_page.",
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/staff/eventos/{id}": {
+      "get": {
+        "operationId": "evtStaffEventoControllerShow",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Ver resumen de acceso de un evento",
+        "description": "Gestor o staff asignado; evento de la organización seleccionada, publicado y no finalizado. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "StaffEventoController::show",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ver resumen de acceso de un evento",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtStaffEventoRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o política de organización/acceso denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Restricción de ruta [a-fA-F0-9]{24}; fuera del patrón no hay coincidencia (404).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/eventos/{id}/staff": {
+      "get": {
+        "operationId": "evtStaffEventoControllerAsignados",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Listar integrantes y staff asignado",
+        "description": "Requiere gestión. Lista completa sin paginación; integrantes activos y asignaciones no eliminadas; no exige evento publicado. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "StaffEventoController::asignados",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listar integrantes y staff asignado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtStaffAsignadosRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o política de organización/acceso denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Restricción de ruta [a-fA-F0-9]{24}; fuera del patrón no hay coincidencia (404).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "evtStaffEventoControllerAsignar",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Asignar personal de acceso",
+        "description": "Requiere gestión. Evento no cancelado y con fin futuro; usuario existente y miembro activo. Reasignación reactiva baja o conserva asignación vigente. Respuesta 200, no 201. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "StaffEventoController::asignar",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Asignar personal de acceso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o política de organización/acceso denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de intención/generación, de concurrencia o de X-Organization-Id; los abort 409 preservan el mensaje y los catch de lock devuelven message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o discrepante.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos o reglas de negocio; cuerpo message + errors. Incluye errores password si el bloqueo de ResponsabilidadesComunidad expira.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Restricción de ruta [a-fA-F0-9]{24}; fuera del patrón no hay coincidencia (404).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Opcional. Si está presente en una escritura debe coincidir exactamente con la organización activa de la sesión (cadena vacía si no hay selección); de lo contrario 409. No es un selector ni un campo de body.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Token CSRF de la sesión; usar este header o X-XSRF-TOKEN/canal autorizado por el padre.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-XSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Alternativa a X-CSRF-TOKEN usando la cookie XSRF-TOKEN. No se requieren ambos headers.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvtStaffEntrada"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/eventos/{id}/staff/{staff}": {
+      "delete": {
+        "operationId": "evtStaffEventoControllerRetirar",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Retirar personal de acceso",
+        "description": "Sin body validado. Requiere gestión. staff es ID de asignación StaffEvento perteneciente al evento, no usuario_id. Baja lógica; ya retirado también 200; no aplica restricción de vigencia de asignar. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "StaffEventoController::retirar",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retirar personal de acceso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o política de organización/acceso denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de intención/generación, de concurrencia o de X-Organization-Id; los abort 409 preservan el mensaje y los catch de lock devuelven message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o discrepante.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos o reglas de negocio; cuerpo message + errors. Incluye errores password si el bloqueo de ResponsabilidadesComunidad expira.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Restricción de ruta [a-fA-F0-9]{24}; fuera del patrón no hay coincidencia (404).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          },
+          {
+            "name": "staff",
+            "in": "path",
+            "required": true,
+            "description": "Restricción de ruta [a-fA-F0-9]{24}; fuera del patrón no hay coincidencia (404).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Opcional. Si está presente en una escritura debe coincidir exactamente con la organización activa de la sesión (cadena vacía si no hay selección); de lo contrario 409. No es un selector ni un campo de body.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Token CSRF de la sesión; usar este header o X-XSRF-TOKEN/canal autorizado por el padre.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-XSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Alternativa a X-CSRF-TOKEN usando la cookie XSRF-TOKEN. No se requieren ambos headers.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/eventos/{id}/pago": {
+      "post": {
+        "operationId": "evtPagoEventoControllerIniciar",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Iniciar o recuperar intento de pago",
+        "description": "Flag de pagos habilitado estrictamente true; scope de organizaciones permitido y cliente financiero configurado. Reserva propia confirmada y vigente de evento activo, misma generación, importe >0 y moneda MXN. No acepta importe, usuario, moneda ni Idempotency-Key del navegador. Clave interna estable event-reservation:{registro_id}:{generacion}. Iniciar no confirma el cobro; retorna ruta de consentimiento de Finanzas si pendiente. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "PagoEventoController::iniciar",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Iniciar o recuperar intento de pago",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtPagoInicioRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de intención/generación, de concurrencia o de X-Organization-Id; los abort 409 preservan el mensaje y los catch de lock devuelven message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o discrepante.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException (generacion o bloqueo password) o abort(422) por claves extra sin errors.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtPagoError422"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Throttle de ruta 12 solicitudes/1 minuto; normalizado por el portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "503": {
+            "description": "Integración deshabilitada/no disponible o evidencia externa inválida; el portal oculta el mensaje interno y devuelve texto genérico con 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Restricción de ruta [a-fA-F0-9]{24}; fuera del patrón no hay coincidencia (404).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          },
+          {
+            "name": "generacion",
+            "in": "query",
+            "required": false,
+            "description": "Alternativa real al campo de cuerpo: request->all() combina query/cuerpo. Se requiere generacion en alguna de ambas ubicaciones. No se admiten otras claves de query ni de body.",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 999999999
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[+-]?[0-9]+$"
+                }
+              ],
+              "description": "Laravel integer no strict: también admite cadenas que pasen FILTER_VALIDATE_INT. El valor numérico debe ser >= 1 y <= 999999999.",
+              "x-laravel-rules": [
+                "required",
+                "integer",
+                "min:1",
+                "max:999999999"
+              ]
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Opcional. Si está presente en una escritura debe coincidir exactamente con la organización activa de la sesión (cadena vacía si no hay selección); de lo contrario 409. No es un selector ni un campo de body.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Token CSRF de la sesión; usar este header o X-XSRF-TOKEN/canal autorizado por el padre.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-XSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Alternativa a X-CSRF-TOKEN usando la cookie XSRF-TOKEN. No se requieren ambos headers.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvtPagoEntrada"
+              }
+            }
+          }
+        },
+        "x-throttle": {
+          "requests": 12,
+          "minutes": 1,
+          "source": "routes/comunidad.php"
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/eventos/{id}/pago/consultar": {
+      "post": {
+        "operationId": "evtPagoEventoControllerConsultar",
+        "tags": [
+          "Eventos"
+        ],
+        "summary": "Consultar y conciliar pago propio",
+        "description": "Flag de pagos habilitado; busca pago por evento normalizado a minúsculas, usuario de sesión y generación. Es POST porque puede conciliar pago/cierre/devolución y modificar la reserva. Puede devolver devolucion_pendiente o devuelto; no cobra de nuevo ni expone confirmation_path. Autenticación cookie y CSRF heredados del documento padre. Para respuestas JSON de los middleware web enviar Accept: application/json sin X-Inertia.",
+        "x-source": "PagoEventoController::consultar",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consultar y conciliar pago propio",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtPagoConsultaRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige al login; sin Accept JSON/X-Inertia también puede redirigir a cambio de contraseña o enrolamiento 2FA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Destino de la redirección."
+              }
+            }
+          },
+          "401": {
+            "description": "AuthenticationException: se requiere sesión autenticada vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso ausente, fuera de la organización permitida o no disponible para esta operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de intención/generación, de concurrencia o de X-Organization-Id; los abort 409 preservan el mensaje y los catch de lock devuelven message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o discrepante.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException (generacion o bloqueo password) o abort(422) por claves extra sin errors.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtPagoError422"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "423": {
+            "description": "Contraseña inicial pendiente o 2FA requerido sin confirmar (Accept JSON).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvtBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Throttle de ruta 12 solicitudes/1 minuto; normalizado por el portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada; mensaje genérico del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          },
+          "503": {
+            "description": "Integración deshabilitada/no disponible o evidencia externa inválida; el portal oculta el mensaje interno y devuelve texto genérico con 503.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Valor emitido por el controlador/normalizador."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Restricción de ruta [a-fA-F0-9]{24}; fuera del patrón no hay coincidencia (404).",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          },
+          {
+            "name": "generacion",
+            "in": "query",
+            "required": false,
+            "description": "Alternativa real al campo de cuerpo: request->all() combina query/cuerpo. Se requiere generacion en alguna de ambas ubicaciones. No se admiten otras claves de query ni de body.",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 999999999
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[+-]?[0-9]+$"
+                }
+              ],
+              "description": "Laravel integer no strict: también admite cadenas que pasen FILTER_VALIDATE_INT. El valor numérico debe ser >= 1 y <= 999999999.",
+              "x-laravel-rules": [
+                "required",
+                "integer",
+                "min:1",
+                "max:999999999"
+              ]
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "required": false,
+            "description": "Opcional. Si está presente en una escritura debe coincidir exactamente con la organización activa de la sesión (cadena vacía si no hay selección); de lo contrario 409. No es un selector ni un campo de body.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Token CSRF de la sesión; usar este header o X-XSRF-TOKEN/canal autorizado por el padre.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-XSRF-TOKEN",
+            "in": "header",
+            "required": false,
+            "description": "Alternativa a X-CSRF-TOKEN usando la cookie XSRF-TOKEN. No se requieren ambos headers.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvtPagoEntrada"
+              }
+            }
+          }
+        },
+        "x-throttle": {
+          "requests": 12,
+          "minutes": 1,
+          "source": "routes/comunidad.php"
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "EvtBooleanEntrada": {
+        "enum": [
+          true,
+          false,
+          0,
+          1,
+          "0",
+          "1"
+        ],
+        "description": "Regla boolean no strict de Laravel. Las cadenas true/false no son válidas."
+      },
+      "EvtGuardarEntrada": {
+        "type": "object",
+        "properties": {
+          "titulo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000
+          },
+          "ubicacion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "fecha_hora_inicio": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$",
+            "description": "date_format:Y-m-d\\TH:i: fecha real válida, sin segundos ni offset; America/Mexico_City. Se convierte a UTC.",
+            "x-laravel-rules": [
+              "required",
+              "date_format:Y-m-d\\TH:i"
+            ]
+          },
+          "fecha_hora_fin": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$",
+            "description": "date_format:Y-m-d\\TH:i: fecha real válida, sin segundos ni offset; America/Mexico_City. Se convierte a UTC.",
+            "x-laravel-rules": [
+              "required",
+              "date_format:Y-m-d\\TH:i"
+            ]
+          },
+          "fecha_inicio_registro": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$",
+            "description": "date_format:Y-m-d\\TH:i: fecha real válida, sin segundos ni offset; America/Mexico_City. Se convierte a UTC.",
+            "x-laravel-rules": [
+              "required",
+              "date_format:Y-m-d\\TH:i"
+            ]
+          },
+          "fecha_fin_registro": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$",
+            "description": "date_format:Y-m-d\\TH:i: fecha real válida, sin segundos ni offset; America/Mexico_City. Se convierte a UTC.",
+            "x-laravel-rules": [
+              "required",
+              "date_format:Y-m-d\\TH:i"
+            ]
+          },
+          "costo": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100000
+              },
+              {
+                "type": "string",
+                "pattern": "^[+-]?(?:[0-9]+(?:\\.[0-9]{0,2})?|\\.[0-9]{1,2})$"
+              }
+            ],
+            "description": "Valor numérico de 0 a 100000, con 0 a 2 decimales. También cadena decimal; no notación exponencial textual. Los límites se aplican también a cadenas; decimal:0,2 se evalúa sobre la representación PHP del valor.",
+            "x-laravel-rules": [
+              "required",
+              "numeric",
+              "min:0",
+              "max:100000",
+              "decimal:0,2"
+            ]
+          },
+          "capacidad": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10000
+              },
+              {
+                "type": "string",
+                "pattern": "^[+-]?[0-9]+$"
+              }
+            ],
+            "description": "Laravel integer no strict: también admite cadenas que pasen FILTER_VALIDATE_INT. El valor numérico debe ser >= 1 y <= 10000.",
+            "x-laravel-rules": [
+              "required",
+              "integer",
+              "min:1",
+              "max:10000"
+            ]
+          },
+          "lista_espera": {
+            "$ref": "#/components/schemas/EvtBooleanEntrada"
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "titulo",
+          "descripcion",
+          "ubicacion",
+          "fecha_hora_inicio",
+          "fecha_hora_fin",
+          "fecha_inicio_registro",
+          "fecha_fin_registro",
+          "costo",
+          "capacidad",
+          "lista_espera"
+        ],
+        "description": "Mismo FormRequest completo en POST y PUT; PUT no es parcial. Campos extra se ignoran al usar validated(). Inicio del evento > ahora; fin > inicio; fin de registro > apertura; fin de registro <= inicio del evento. Las cadenas se recortan y las vacías se convierten a null antes de validar. Los límites numéricos de las variantes string y las comparaciones de fechas están descritos, no son aserciones JSON Schema."
+      },
+      "EvtCancelarEntrada": {
+        "type": "object",
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "motivo"
+        ]
+      },
+      "EvtSolicitudEntrada": {
+        "type": "object",
+        "properties": {
+          "clave_solicitud": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "x-laravel-rules": [
+              "nullable",
+              "uuid",
+              "required_with:generacion"
+            ]
+          },
+          "generacion": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "string",
+                "pattern": "^[+-]?[0-9]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Laravel integer no strict: también admite cadenas que pasen FILTER_VALIDATE_INT. El valor numérico debe ser >= 0.",
+            "x-laravel-rules": [
+              "nullable|required_with:clave_solicitud",
+              "integer",
+              "min:0"
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "description": "Cuerpo opcional; modo legado sin ambos campos (también ambos null). Si un campo tiene valor no vacío, el otro es obligatorio y no nulo. Generación esperada 0 si aún no existe registro. Al usar clave UUID se activa el modo versionado; misma clave/intención/generación reproduce la inscripción actual, otra intención o generación obsoleta da 409.",
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "clave_solicitud"
+              ],
+              "properties": {
+                "clave_solicitud": {
+                  "type": "string"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "generacion"
+              ],
+              "properties": {
+                "generacion": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "generacion"
+              ],
+              "properties": {
+                "generacion": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "clave_solicitud"
+              ],
+              "properties": {
+                "clave_solicitud": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "EvtPagoEntrada": {
+        "type": "object",
+        "properties": {
+          "generacion": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 999999999
+              },
+              {
+                "type": "string",
+                "pattern": "^[+-]?[0-9]+$"
+              }
+            ],
+            "description": "Laravel integer no strict: también admite cadenas que pasen FILTER_VALIDATE_INT. El valor numérico debe ser >= 1 y <= 999999999.",
+            "x-laravel-rules": [
+              "required",
+              "integer",
+              "min:1",
+              "max:999999999"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "generacion"
+        ],
+        "description": "Sólo generacion: array_diff(array_keys(request->all()), [generacion]) rechaza claves adicionales con 422 sin errors. request->all() incluye query, cuerpo y archivos; no enviar _token en cuerpo, usar header CSRF. Una clave generacion en query también puede satisfacer la validación: el cuerpo JSON es la representación recomendada."
+      },
+      "EvtStaffEntrada": {
+        "type": "object",
+        "properties": {
+          "usuario_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "usuario_id"
+        ],
+        "description": "Usuario existente y miembro activo de la organización del evento. No recibe matrícula ni rol."
+      },
+      "EvtValorProhibidoVacio": {
+        "anyOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "string",
+            "pattern": "^\\s*$"
+          },
+          {
+            "type": "array",
+            "maxItems": 0
+          },
+          {
+            "type": "object",
+            "maxProperties": 0
+          }
+        ],
+        "description": "Laravel prohibited permite ausencia o vacío (null, cadena vacía tras trim, colección vacía); no acepta una identidad no vacía."
+      },
+      "EvtCheckinBoletoEntrada": {
+        "type": "object",
+        "properties": {
+          "evento_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "usuario_id": {
+            "$ref": "#/components/schemas/EvtValorProhibidoVacio"
+          },
+          "metodo": {
+            "type": "string",
+            "const": "boleto",
+            "default": "boleto"
+          },
+          "token_qr": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "credential_uid": false
+        },
+        "additionalProperties": true,
+        "required": [
+          "evento_id",
+          "token_qr"
+        ],
+        "description": "Método omitido equivale a boleto. credential_uid tiene prohibited_unless:metodo,nfc y string sin nullable; omitirlo."
+      },
+      "EvtCheckinNfcEntrada": {
+        "type": "object",
+        "properties": {
+          "evento_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "usuario_id": {
+            "$ref": "#/components/schemas/EvtValorProhibidoVacio"
+          },
+          "metodo": {
+            "type": "string",
+            "const": "nfc"
+          },
+          "credential_uid": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "token_qr": false
+        },
+        "additionalProperties": true,
+        "required": [
+          "evento_id",
+          "metodo",
+          "credential_uid"
+        ],
+        "description": "token_qr tiene prohibited_if:metodo,nfc y string sin nullable; omitirlo. NFC resuelve al usuario en Identidad; no acepta usuario_id no vacío."
+      },
+      "EvtCheckinEntrada": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/EvtCheckinBoletoEntrada"
+          },
+          {
+            "$ref": "#/components/schemas/EvtCheckinNfcEntrada"
+          }
+        ],
+        "x-laravel-rules": {
+          "metodo": [
+            "sometimes",
+            "in:boleto,nfc"
+          ],
+          "token_qr": [
+            "required_unless:metodo,nfc",
+            "prohibited_if:metodo,nfc",
+            "string",
+            "max:255"
+          ],
+          "credential_uid": [
+            "required_if:metodo,nfc",
+            "prohibited_unless:metodo,nfc",
+            "string",
+            "max:255"
+          ],
+          "usuario_id": [
+            "prohibited"
+          ],
+          "evento_id": [
+            "required",
+            "string",
+            "regex:/^[a-f0-9]{24}$/i"
+          ]
+        }
+      },
+      "EvtEventoModelo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "organizacion_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "tipo_evento_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "titulo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "descripcion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ubicacion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fecha_hora_inicio": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "fecha_hora_fin": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "fecha_inicio_registro": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "fecha_fin_registro": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "cancelado_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "creado_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "actualizado_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "costo": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "capacidad": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "lista_espera": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "estado": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "borrador",
+              "publicado",
+              "cancelado",
+              null
+            ]
+          },
+          "motivo_cancelacion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "creado_por": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          }
+        },
+        "additionalProperties": true,
+        "description": "PARCIAL: Evento se serializa directamente; propiedades conocidas del modelo y Documento. No hay Resource ni whitelist de salida: atributos históricos/adicionales pueden aparecer y los ausentes no se fuerzan. No se trasladan límites de entrada al histórico ni se usa fillable como garantía de required. id/_id dependen de la serialización MongoDB.",
+        "x-contract-status": "partial"
+      },
+      "EvtRegistroResumen": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "evento_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "usuario_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "reserva_hasta": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "vencido_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "registrado_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "asistio_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "estado_pago": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pendiente",
+              "pagado",
+              "exento",
+              null
+            ]
+          },
+          "pago_estado": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pendiente",
+              "aplicado",
+              "cerrado",
+              "devolucion_pendiente",
+              "devuelto",
+              "cancelacion_pendiente",
+              null
+            ]
+          },
+          "monto_centavos": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "moneda": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Las nuevas inscripciones asignan MXN; el atributo histórico no tiene cast ni enum validador."
+          },
+          "estado_asistencia": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pendiente",
+              "asistio",
+              null
+            ]
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "confirmada",
+              "espera",
+              "cancelada",
+              "vencida"
+            ]
+          },
+          "generacion": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "estado",
+          "generacion"
+        ],
+        "description": "Proyección explícita de resumen(): token_qr queda fuera. Las claves de only() no se exigen como atributos almacenados; se admiten ausencias/null por documentos históricos. El vendor actual de Model::only devuelve null para atributo ausente. estado es estado_efectivo (puede ser vencida antes de persistirse) y generacion=max(1, valor)."
+      },
+      "EvtBoleto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "evento_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "usuario_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "reserva_hasta": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "vencido_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "registrado_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "asistio_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "estado_pago": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pendiente",
+              "pagado",
+              "exento",
+              null
+            ]
+          },
+          "pago_estado": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pendiente",
+              "aplicado",
+              "cerrado",
+              "devolucion_pendiente",
+              "devuelto",
+              "cancelacion_pendiente",
+              null
+            ]
+          },
+          "monto_centavos": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "moneda": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Las nuevas inscripciones asignan MXN; el atributo histórico no tiene cast ni enum validador."
+          },
+          "estado_asistencia": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pendiente",
+              "asistio",
+              null
+            ]
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "confirmada",
+              "espera",
+              "cancelada",
+              "vencida"
+            ]
+          },
+          "generacion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "ubicacion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fecha_hora_inicio": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "fecha_hora_fin": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "motivo_cancelacion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evento_estado": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "borrador",
+              "publicado",
+              "cancelado",
+              null
+            ]
+          },
+          "posicion_espera": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "organizacion_activa": {
+            "type": "boolean"
+          },
+          "qr_habilitado": {
+            "type": "boolean"
+          },
+          "token_qr": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Sólo se revela si qr_habilitado; en los demás casos null."
+          },
+          "puede_pagar": {
+            "type": "boolean"
+          },
+          "puede_consultar_pago": {
+            "type": "boolean"
+          },
+          "puede_cancelar": {
+            "type": "boolean"
+          },
+          "zona_horaria": {
+            "type": "string",
+            "description": "config(comunidad.eventos_timezone), actualmente America/Mexico_City."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "estado",
+          "generacion",
+          "titulo",
+          "ubicacion",
+          "fecha_hora_inicio",
+          "fecha_hora_fin",
+          "motivo_cancelacion",
+          "evento_estado",
+          "posicion_espera",
+          "organizacion_activa",
+          "qr_habilitado",
+          "token_qr",
+          "puede_pagar",
+          "puede_consultar_pago",
+          "puede_cancelar",
+          "zona_horaria"
+        ],
+        "description": "Si evento cancelado, estado se fuerza a cancelada. Si no existe evento, titulo=Evento no disponible, sus datos son null y banderas de vigencia/acceso/pago/cancelación son false. QR exige organización activa, evento publicado no finalizado, inscripción confirmada, pago pagado/exento y sin asistencia. Las banderas de pago son independientes de qr_habilitado; consultar puede seguir habilitado para devoluciones pendientes."
+      },
+      "EvtInscrito": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "evento_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "usuario_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "reserva_hasta": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "vencido_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "registrado_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "asistio_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "estado_pago": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pendiente",
+              "pagado",
+              "exento",
+              null
+            ]
+          },
+          "pago_estado": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pendiente",
+              "aplicado",
+              "cerrado",
+              "devolucion_pendiente",
+              "devuelto",
+              "cancelacion_pendiente",
+              null
+            ]
+          },
+          "monto_centavos": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "moneda": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Las nuevas inscripciones asignan MXN; el atributo histórico no tiene cast ni enum validador."
+          },
+          "estado_asistencia": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "pendiente",
+              "asistio",
+              null
+            ]
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "confirmada",
+              "espera",
+              "cancelada",
+              "vencida"
+            ]
+          },
+          "generacion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "matricula": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "estado",
+          "generacion",
+          "nombre",
+          "matricula"
+        ],
+        "description": "Resumen más nombre (fallback Usuario no disponible) y matrícula nullable; sin token QR."
+      },
+      "EvtSolicitudRespuesta": {
+        "type": "object",
+        "properties": {
+          "registro": {
+            "$ref": "#/components/schemas/EvtRegistroResumen"
+          },
+          "repetida": {
+            "type": "boolean"
+          },
+          "generacion_solicitud": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "registro",
+          "repetida",
+          "generacion_solicitud",
+          "message"
+        ],
+        "description": "Siempre 200, incluso nueva inscripción. Una repetición devuelve el registro actual; generacion_solicitud puede ser histórica."
+      },
+      "EvtStats": {
+        "type": "object",
+        "properties": {
+          "confirmados": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "espera": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "asistieron": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "confirmados",
+          "espera",
+          "asistieron"
+        ]
+      },
+      "EvtEventoListado": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "_id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "organizacion_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "tipo_evento_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "titulo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "descripcion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ubicacion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fecha_hora_inicio": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "fecha_hora_fin": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "fecha_inicio_registro": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "fecha_fin_registro": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "cancelado_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "creado_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "actualizado_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "costo": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "capacidad": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "lista_espera": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "estado": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "borrador",
+              "publicado",
+              "cancelado",
+              null
+            ]
+          },
+          "motivo_cancelacion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "creado_por": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "organizacion_nombre": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mi_registro": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvtRegistroResumen"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stats": {
+            "$ref": "#/components/schemas/EvtStats"
+          },
+          "registro_abierto": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "organizacion_nombre",
+          "mi_registro",
+          "stats",
+          "registro_abierto"
+        ],
+        "description": "PARCIAL: Evento::toArray() completo más cuatro claves calculadas. stats y mi_registro se calculan sin sincronizar expiraciones; no equivalen necesariamente a contadores persistidos.",
+        "x-contract-status": "partial"
+      },
+      "EvtEventosRespuesta": {
+        "type": "object",
+        "properties": {
+          "eventos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvtEventoListado"
+            },
+            "maxItems": 12
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "last_page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "puede_gestionar": {
+            "type": "boolean"
+          },
+          "pagos_habilitados": {
+            "type": "boolean"
+          },
+          "zona_horaria": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "eventos",
+          "page",
+          "last_page",
+          "total",
+          "puede_gestionar",
+          "pagos_habilitados",
+          "zona_horaria"
+        ],
+        "description": "Paginación fija de 12; no acepta un parámetro per_page. page puede superar last_page y devolver lista vacía."
+      },
+      "EvtCreadoRespuesta": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "evento": {
+            "$ref": "#/components/schemas/EvtEventoModelo"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "message",
+          "evento"
+        ]
+      },
+      "EvtInscritosRespuesta": {
+        "type": "object",
+        "properties": {
+          "registros": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvtInscrito"
+            },
+            "maxItems": 20
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "last_page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "registros",
+          "page",
+          "last_page",
+          "total"
+        ],
+        "description": "Paginación fija de 20; no acepta un parámetro per_page. page puede superar last_page y devolver lista vacía."
+      },
+      "EvtBoletosRespuesta": {
+        "type": "object",
+        "properties": {
+          "boletos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvtBoleto"
+            },
+            "maxItems": 12
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "last_page": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "boletos",
+          "page",
+          "last_page"
+        ],
+        "description": "Paginación fija de 12; no acepta un parámetro per_page. page puede superar last_page y devolver lista vacía."
+      },
+      "EvtStaffEvento": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "titulo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ubicacion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fecha_hora_inicio": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "fecha_hora_fin": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "acceso_abre_en": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          },
+          "acceso_abierto": {
+            "type": "boolean"
+          },
+          "asistencias": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "por_ingresar": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "acceso_abre_en",
+          "acceso_abierto",
+          "asistencias",
+          "por_ingresar"
+        ],
+        "description": "Proyección only más campos calculados. Cuenta conCupo; por_ingresar sólo pagos pagado/exento sin asistencia. Acceso abre checkin_minutos_antes antes del inicio y cierra al finalizar."
+      },
+      "EvtStaffEventosRespuesta": {
+        "type": "object",
+        "properties": {
+          "eventos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvtStaffEvento"
+            },
+            "maxItems": 12
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "last_page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "organizacion": {
+            "type": "string"
+          },
+          "nfc_habilitado": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "eventos",
+          "page",
+          "last_page",
+          "organizacion",
+          "nfc_habilitado"
+        ],
+        "description": "Paginación fija de 12; no acepta un parámetro per_page. page puede superar last_page y devolver lista vacía."
+      },
+      "EvtStaffEventoRespuesta": {
+        "type": "object",
+        "properties": {
+          "evento": {
+            "$ref": "#/components/schemas/EvtStaffEvento"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "evento"
+        ]
+      },
+      "EvtIntegrante": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "matricula": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "User::only(id,name,matricula), sin otros atributos de usuario; admite ausencia/null histórico."
+      },
+      "EvtStaffAsignado": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "usuario_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "nombre": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "usuario_id",
+          "nombre"
+        ]
+      },
+      "EvtStaffAsignadosRespuesta": {
+        "type": "object",
+        "properties": {
+          "integrantes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvtIntegrante"
+            }
+          },
+          "staff": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvtStaffAsignado"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "integrantes",
+          "staff"
+        ],
+        "description": "Sin paginación ni límite declarado: integrantes activos y asignaciones no eliminadas. Nombre de staff puede ser Usuario no disponible."
+      },
+      "EvtCheckinRespuesta": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "asistente": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "matricula": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "matricula"
+            ]
+          },
+          "asistio_en": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Instante serializado por Carbon en UTC (ISO 8601); no es el formato local de entrada."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "message",
+          "asistente",
+          "asistio_en"
+        ]
+      },
+      "EvtPagoEstado": {
+        "type": "string",
+        "enum": [
+          "pendiente",
+          "aplicado",
+          "cerrado",
+          "devolucion_pendiente",
+          "devuelto"
+        ]
+      },
+      "EvtPagoInicioRespuesta": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "$ref": "#/components/schemas/EvtPagoEstado"
+          },
+          "confirmation_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^/finanzas/eventos/solicitudes/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "estado",
+          "confirmation_path"
+        ],
+        "description": "confirmation_path es ruta relativa de Finanzas, no una URL ni endpoint de este fragmento; sólo string si estado=pendiente, null en otro estado.",
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "estado": {
+                  "const": "pendiente"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "confirmation_path": {
+                  "type": "string"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "confirmation_path": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "EvtPagoConsultaRespuesta": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "$ref": "#/components/schemas/EvtPagoEstado"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "estado"
+        ],
+        "description": "No devuelve confirmation_path, importe, comprobante ni objeto pago. Estados locales de PagosEvento, no los estados uppercase de Finanzas."
+      },
+      "EvtBloqueoSeguridad": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "initial_password_change_required"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "enrollment_url": {
+                "type": "string",
+                "format": "uri"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "message",
+              "enrollment_url"
+            ]
+          }
+        ],
+        "description": "423 emitido directamente por middleware web con Accept application/json y sin X-Inertia; no pasa por el normalizador de excepciones."
+      },
+      "EvtPagoError422": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/ValidationError"
+          },
+          {
+            "$ref": "#/components/schemas/Error"
+          }
+        ],
+        "description": "422 admite message+errors o sólo message: el rechazo de claves extra usa abort(422), no ValidationException."
+      }
+    }
+  }
+}

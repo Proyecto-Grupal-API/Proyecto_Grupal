@@ -1,0 +1,5798 @@
+{
+  "paths": {
+    "/api/v1/comunidad/portal/becas": {
+      "get": {
+        "summary": "index — BecaController",
+        "operationId": "beca_index",
+        "x-source": "app/Http/Controllers/BecaController.php@index",
+        "x-contract-status": "partial",
+        "x-contract-status-reason": "convocatoria() expande toArray y tipos usa get() sin proyección: se describen atributos actuales, pero extras persistidos y snapshot beneficio/requisitos_documentos no tienen validación de lectura ni cast anidado. Su detalle legacy no se deduce de fillable.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^[+-]?\\d+$"
+                    }
+                  ],
+                  "description": "Laravel integer admite enteros y cadenas enteras; los límites numéricos también se aplican a las cadenas en el servidor."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "Desde 1 (por defecto 1); tamaño fijo, sin per_page."
+          },
+          {
+            "in": "query",
+            "name": "gestion",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/BecaBooleanEntrada"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "Si true requiere organización y verGestionBecas; si no gestiona/revisa se limita por comité."
+          },
+          {
+            "in": "query",
+            "name": "buscar",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "Filtra título con like %buscar%."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Listado paginado de convocatorias y tipos de beneficios; 12 por página.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BecaIndiceRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de filtros o página.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organización/recursos asociados inexistentes durante serialización.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@index; routes/comunidad.php; bootstrap/app.php (errores JSON saneados).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@index",
+          "routes/comunidad.php",
+          "bootstrap/app.php",
+          "app/Services/ComiteBecas.php"
+        ]
+      },
+      "post": {
+        "summary": "store — BecaController",
+        "operationId": "beca_store",
+        "x-source": "app/Http/Controllers/BecaController.php@store",
+        "x-contract-status": "partial",
+        "x-contract-status-reason": "Entrada y 201 revisados. convocatoria() expande el modelo completo: atributos adicionales persistidos y snapshot beneficio no se filtran ni revalidan como DTO; se documenta núcleo creado y calculados, no se garantiza detalle de extras Mongo.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "Si se envía debe coincidir con organización activa de sesión; el middleware responde 409 si cambió. No selecciona organización ni otorga permisos."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id obsoleto (middleware). store no usa bloqueo de convocatoria.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Convocatoria creada en borrador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BecaCreadaRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "FormRequest o datos(): campos, tipo de beneficio, monto y fechas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Organización inexistente durante serialización de convocatoria.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@store; routes/comunidad.php; bootstrap/app.php (errores JSON saneados).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BecaConvocatoriaEntrada"
+              }
+            }
+          }
+        },
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@store",
+          "routes/comunidad.php",
+          "bootstrap/app.php",
+          "app/Http/Requests/GuardarConvocatoriaRequest.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/tesoreria": {
+      "get": {
+        "summary": "tesoreria — BecaController",
+        "operationId": "beca_tesoreria",
+        "x-source": "app/Http/Controllers/BecaController.php@tesoreria",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, proyección de respuesta, permisos y ramas explícitas revisados en fuentes actuales. Campos only opcionales/null para legacy; sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^[+-]?\\d+$"
+                    }
+                  ],
+                  "description": "Laravel integer admite enteros y cadenas enteras; los límites numéricos también se aplican a las cadenas en el servidor."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "Desde 1 (por defecto 1); tamaño fijo, sin per_page."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Bonos pendientes con confirmación de presidencia, excluye beneficiario actual; 20 por página.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BecaTesoreriaRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "private, no-store"
+                },
+                "description": "Respuesta privada no almacenable."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de filtros o página.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@tesoreria; routes/comunidad.php; bootstrap/app.php (errores JSON saneados).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@tesoreria",
+          "routes/comunidad.php",
+          "bootstrap/app.php",
+          "app/Support/BecaFinanceContract.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/mis-solicitudes": {
+      "get": {
+        "summary": "misSolicitudes — BecaController",
+        "operationId": "beca_misSolicitudes",
+        "x-source": "app/Http/Controllers/BecaController.php@misSolicitudes",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, proyección de respuesta, permisos y ramas explícitas revisados en fuentes actuales. Campos only opcionales/null para legacy; sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^[+-]?\\d+$"
+                    }
+                  ],
+                  "description": "Laravel integer admite enteros y cadenas enteras; los límites numéricos también se aplican a las cadenas en el servidor."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "Desde 1 (por defecto 1); tamaño fijo, sin per_page."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Solicitudes del usuario autenticado; 12 por página.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BecaMisSolicitudesRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "private, no-store"
+                },
+                "description": "Respuesta privada no almacenable."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de filtros o página.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@misSolicitudes; routes/comunidad.php; bootstrap/app.php (errores JSON saneados).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@misSolicitudes",
+          "routes/comunidad.php",
+          "bootstrap/app.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/solicitudes/{id}": {
+      "get": {
+        "summary": "showSolicitud — BecaController",
+        "operationId": "beca_showSolicitud",
+        "x-source": "app/Http/Controllers/BecaController.php@showSolicitud",
+        "x-contract-status": "partial",
+        "x-contract-status-reason": "Núcleo, visibilidad y recibos conocidos descritos. documentos se exponen mediante except(ruta), conservando metadatos legacy; recibo_servicios/recibo_cancelacion se guardan literales y revocacion.rechazo_e5 conserva JSON externo 409 verificando solo codigo. No se puede tipar su detalle remoto adicional.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de solicitud."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Expediente con visibilidad por rol y metadatos de documentos privados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BecaSolicitudDetalleRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "private, no-store"
+                },
+                "description": "Respuesta privada no almacenable."
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@showSolicitud; routes/comunidad.php; bootstrap/app.php (errores JSON saneados).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@showSolicitud",
+          "routes/comunidad.php",
+          "bootstrap/app.php",
+          "app/Services/ComiteBecas.php",
+          "app/Services/BeneficiosBeca.php",
+          "app/Services/EntregaBeneficiosServicios.php",
+          "app/Services/RevocacionBeneficiosServicios.php",
+          "app/Console/Commands/ReconcileScholarshipBonuses.php",
+          "app/Services/StudentServices/Benefits/ServiceBenefitService.php@present"
+        ]
+      },
+      "put": {
+        "summary": "guardarSolicitud — BecaController",
+        "operationId": "beca_guardarSolicitud",
+        "x-source": "app/Http/Controllers/BecaController.php@guardarSolicitud",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, respuesta y ramas explícitas revisadas en controlador y servicios; documentación estática, sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de solicitud."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "Si se envía debe coincidir con organización activa de sesión; el middleware responde 409 si cambió. No selecciona organización ni otorga permisos."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Bloqueo de convocatoria ocupado o X-Organization-Id obsoleto; estados de negocio no permitidos usan 422 cuando se verifican con exigir().",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Borrador guardado, envío confirmado o solicitud ya enviada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos/negocio; el bloqueo de responsabilidades también puede producir errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@guardarSolicitud; routes/comunidad.php; bootstrap/app.php (errores JSON saneados).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BecaSolicitudEntrada"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@guardarSolicitud",
+          "routes/comunidad.php",
+          "bootstrap/app.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/solicitudes/{id}/retirar": {
+      "post": {
+        "summary": "retirar — BecaController",
+        "operationId": "beca_retirar",
+        "x-source": "app/Http/Controllers/BecaController.php@retirar",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, respuesta y ramas explícitas revisadas en controlador y servicios; documentación estática, sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de solicitud."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "Si se envía debe coincidir con organización activa de sesión; el middleware responde 409 si cambió. No selecciona organización ni otorga permisos."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Bloqueo de convocatoria ocupado o X-Organization-Id obsoleto; estados de negocio no permitidos usan 422 cuando se verifican con exigir().",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Solicitud retirada o ya retirada; conserva historial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos/negocio; el bloqueo de responsabilidades también puede producir errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@retirar; routes/comunidad.php; bootstrap/app.php (errores JSON saneados). No lee ni exige cuerpo de entrada; no se afirma rechazo de extras.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@retirar",
+          "routes/comunidad.php",
+          "bootstrap/app.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/solicitudes/{id}/documentos": {
+      "post": {
+        "summary": "subirDocumento — BecaController",
+        "operationId": "beca_subirDocumento",
+        "x-source": "app/Http/Controllers/BecaController.php@subirDocumento",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, respuesta y ramas explícitas revisadas en controlador y servicios; documentación estática, sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de solicitud."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "Si se envía debe coincidir con organización activa de sesión; el middleware responde 409 si cambió. No selecciona organización ni otorga permisos."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje. Incluye fallo de almacenamiento o transacción; no se simula carga exitosa.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Bloqueo de convocatoria ocupado o X-Organization-Id obsoleto; estados de negocio no permitidos usan 422 cuando se verifican con exigir().",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite explícito de la ruta: 30 solicitudes por minuto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Documento privado guardado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos/negocio; el bloqueo de responsabilidades también puede producir errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@subirDocumento; routes/comunidad.php; bootstrap/app.php (errores JSON saneados).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/BecaDocumentoEntrada"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@subirDocumento",
+          "routes/comunidad.php",
+          "bootstrap/app.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/solicitudes/{id}/documentos/{documento}": {
+      "get": {
+        "summary": "descargarDocumento — BecaController",
+        "operationId": "beca_descargarDocumento",
+        "x-source": "app/Http/Controllers/BecaController.php@descargarDocumento",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Autorización, 404, descarga binaria, nombre generado y cabeceras comprobados estáticamente. Content-Type depende del documento almacenado, se declara */*.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de solicitud."
+          },
+          {
+            "in": "path",
+            "name": "documento",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID del documento privado."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Descarga privada del documento; Content-Type se toma de doc.tipo persistido, sin sobre JSON.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "private, no-store"
+                },
+                "description": "Respuesta privada no almacenable."
+              },
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "attachment; filename documento-{UUID}.{extensión persistida}."
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "const": "nosniff"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@descargarDocumento; routes/comunidad.php; bootstrap/app.php (errores JSON saneados).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@descargarDocumento",
+          "routes/comunidad.php",
+          "bootstrap/app.php"
+        ]
+      },
+      "delete": {
+        "summary": "eliminarDocumento — BecaController",
+        "operationId": "beca_eliminarDocumento",
+        "x-source": "app/Http/Controllers/BecaController.php@eliminarDocumento",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, respuesta y ramas explícitas revisadas en controlador y servicios; documentación estática, sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de solicitud."
+          },
+          {
+            "in": "path",
+            "name": "documento",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "UUID del documento privado."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "Si se envía debe coincidir con organización activa de sesión; el middleware responde 409 si cambió. No selecciona organización ni otorga permisos."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Bloqueo de convocatoria ocupado o X-Organization-Id obsoleto; estados de negocio no permitidos usan 422 cuando se verifican con exigir().",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Documento retirado; message distingue limpieza realizada o pendiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos/negocio; el bloqueo de responsabilidades también puede producir errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@eliminarDocumento; routes/comunidad.php; bootstrap/app.php (errores JSON saneados). No lee ni exige cuerpo de entrada; no se afirma rechazo de extras.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@eliminarDocumento",
+          "routes/comunidad.php",
+          "bootstrap/app.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/solicitudes/{id}/dictamen": {
+      "post": {
+        "summary": "dictaminar — BecaController",
+        "operationId": "beca_dictaminar",
+        "x-source": "app/Http/Controllers/BecaController.php@dictaminar",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, respuesta y ramas explícitas revisadas en controlador y servicios; documentación estática, sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de solicitud."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "Si se envía debe coincidir con organización activa de sesión; el middleware responde 409 si cambió. No selecciona organización ni otorga permisos."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Comité sin recomendaciones independientes vigentes, bloqueo de convocatoria o X-Organization-Id obsoleto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Dictamen registrado o repetido; aprobación no confirma entrega.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos/negocio; el bloqueo de responsabilidades también puede producir errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@dictaminar; routes/comunidad.php; bootstrap/app.php (errores JSON saneados). ResponsabilidadesComunidad puede generar 422 con errors.password por bloqueo compartido.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BecaDictamenEntrada"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@dictaminar",
+          "routes/comunidad.php",
+          "bootstrap/app.php",
+          "app/Services/ComiteBecas.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/solicitudes/{id}/revocacion-beneficio": {
+      "post": {
+        "summary": "revocarBeneficio — BecaController",
+        "operationId": "beca_revocarBeneficio",
+        "x-source": "app/Http/Controllers/BecaController.php@revocarBeneficio",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, respuesta y ramas explícitas revisadas en controlador y servicios; documentación estática, sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de solicitud."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "Si se envía debe coincidir con organización activa de sesión; el middleware responde 409 si cambió. No selecciona organización ni otorga permisos."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Solicitud no aprobada, recibo E5 inválido/no revocable, motivo distinto, bloqueo de entrega/convocatoria o contexto obsoleto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite explícito de la ruta: 30 solicitudes por minuto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Revocación previamente confirmada o rechazada por E5.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/BecaRevocacionRespuesta"
+                    }
+                  ],
+                  "properties": {
+                    "estado": {
+                      "enum": [
+                        "revocada",
+                        "revision_requerida"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos/negocio; el bloqueo de responsabilidades también puede producir errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Intención local registrada; E5 aún no confirma cancelación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/BecaRevocacionRespuesta"
+                    }
+                  ],
+                  "properties": {
+                    "estado": {
+                      "const": "revocacion_pendiente"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@revocarBeneficio; routes/comunidad.php; bootstrap/app.php (errores JSON saneados). ResponsabilidadesComunidad puede generar 422 con errors.password por bloqueo compartido.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BecaRevocacionEntrada"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@revocarBeneficio",
+          "routes/comunidad.php",
+          "bootstrap/app.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/solicitudes/{id}/confirmacion-presidencia": {
+      "post": {
+        "summary": "confirmarPresidencia — BecaController",
+        "operationId": "beca_confirmarPresidencia",
+        "x-source": "app/Http/Controllers/BecaController.php@confirmarPresidencia",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, respuesta y ramas explícitas revisadas en controlador y servicios; documentación estática, sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de solicitud."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "Si se envía debe coincidir con organización activa de sesión; el middleware responde 409 si cambió. No selecciona organización ni otorga permisos."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta. También si becas_finanzas.enabled no es true.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Solicitud/bono/estado/snapshot incompatible, bloqueo de convocatoria o contexto obsoleto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite explícito de la ruta: 30 solicitudes por minuto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Dictamen confirmado o confirmación ya existente; no emite bono.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Bloqueo de ResponsabilidadesComunidad: errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@confirmarPresidencia; routes/comunidad.php; bootstrap/app.php (errores JSON saneados). No lee ni exige cuerpo de entrada; no se afirma rechazo de extras. ResponsabilidadesComunidad puede generar 422 con errors.password por bloqueo compartido.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@confirmarPresidencia",
+          "routes/comunidad.php",
+          "bootstrap/app.php",
+          "app/Support/BecaFinanceContract.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/solicitudes/{id}/aval-tesoreria": {
+      "post": {
+        "summary": "avalarPresupuesto — BecaController",
+        "operationId": "beca_avalarPresupuesto",
+        "x-source": "app/Http/Controllers/BecaController.php@avalarPresupuesto",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, respuesta y ramas explícitas revisadas en controlador y servicios; documentación estática, sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de solicitud."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "Si se envía debe coincidir con organización activa de sesión; el middleware responde 409 si cambió. No selecciona organización ni otorga permisos."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Snapshot, presidencia, presupuesto, monto o huella no coinciden, estado incompatible, bloqueo de convocatoria o contexto obsoleto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite explícito de la ruta: 30 solicitudes por minuto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Aval registrado o repetido; no emite ni paga bono.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos/negocio; el bloqueo de responsabilidades también puede producir errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@avalarPresupuesto; routes/comunidad.php; bootstrap/app.php (errores JSON saneados). ResponsabilidadesComunidad puede generar 422 con errors.password por bloqueo compartido.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BecaAvalEntrada"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@avalarPresupuesto",
+          "routes/comunidad.php",
+          "bootstrap/app.php",
+          "app/Support/BecaFinanceContract.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/solicitudes/{id}/recomendacion": {
+      "put": {
+        "summary": "recomendar — BecaController",
+        "operationId": "beca_recomendar",
+        "x-source": "app/Http/Controllers/BecaController.php@recomendar",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, respuesta y ramas explícitas revisadas en controlador y servicios; documentación estática, sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de solicitud."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "Si se envía debe coincidir con organización activa de sesión; el middleware responde 409 si cambió. No selecciona organización ni otorga permisos."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Versión de comité/revisión de recomendación obsoleta, bloqueo de convocatoria o X-Organization-Id obsoleto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite explícito de la ruta: 30 solicitudes por minuto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Recomendación guardada o repetida; el responsable conserva el dictamen.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos/negocio; conComite puede lanzar abort(422) sin errors.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@recomendar; routes/comunidad.php; bootstrap/app.php (errores JSON saneados). ResponsabilidadesComunidad puede generar 422 con errors.password por bloqueo compartido.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BecaRecomendacionEntrada"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@recomendar",
+          "routes/comunidad.php",
+          "bootstrap/app.php",
+          "app/Services/ComiteBecas.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/solicitudes/{id}/contrato": {
+      "get": {
+        "summary": "contrato — BecaController",
+        "operationId": "beca_contrato",
+        "x-source": "app/Http/Controllers/BecaController.php@contrato",
+        "x-contract-status": "partial",
+        "x-contract-status-reason": "only y contrato generado por BeneficiosBeca revisados; firstOrCreate conserva contratos legacy. recibo_servicios guarda JSON externo literal y solo valida núcleo; no se valida evidencia/extensiones al leer. Recibo E2 normalizado sí está descrito.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de solicitud."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Snapshot del contrato y recibos de beneficio aprobado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BecaContratoRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "private, no-store"
+                },
+                "description": "Respuesta privada no almacenable."
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@contrato; routes/comunidad.php; bootstrap/app.php (errores JSON saneados).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@contrato",
+          "routes/comunidad.php",
+          "bootstrap/app.php",
+          "app/Services/ComiteBecas.php",
+          "app/Services/BeneficiosBeca.php",
+          "app/Services/EntregaBeneficiosServicios.php",
+          "app/Services/RevocacionBeneficiosServicios.php",
+          "app/Console/Commands/ReconcileScholarshipBonuses.php",
+          "app/Services/StudentServices/Benefits/ServiceBenefitService.php@present"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/{id}": {
+      "put": {
+        "summary": "update — BecaController",
+        "operationId": "beca_update",
+        "x-source": "app/Http/Controllers/BecaController.php@update",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, respuesta y ramas explícitas revisadas en controlador y servicios; documentación estática, sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de convocatoria."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "Si se envía debe coincidir con organización activa de sesión; el middleware responde 409 si cambió. No selecciona organización ni otorga permisos."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Bloqueo de convocatoria ocupado o X-Organization-Id obsoleto; estados de negocio no permitidos usan 422 cuando se verifican con exigir().",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Convocatoria actualizada; solo borrador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos/negocio; el bloqueo de responsabilidades también puede producir errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@update; routes/comunidad.php; bootstrap/app.php (errores JSON saneados).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BecaConvocatoriaEntrada"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@update",
+          "routes/comunidad.php",
+          "bootstrap/app.php",
+          "app/Http/Requests/GuardarConvocatoriaRequest.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/{id}/estado": {
+      "post": {
+        "summary": "cambiarEstado — BecaController",
+        "operationId": "beca_cambiarEstado",
+        "x-source": "app/Http/Controllers/BecaController.php@cambiarEstado",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, respuesta y ramas explícitas revisadas en controlador y servicios; documentación estática, sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de convocatoria."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "Si se envía debe coincidir con organización activa de sesión; el middleware responde 409 si cambió. No selecciona organización ni otorga permisos."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Bloqueo de convocatoria ocupado o X-Organization-Id obsoleto; estados de negocio no permitidos usan 422 cuando se verifican con exigir().",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Estado actualizado, incluido reintento idempotente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos/negocio; el bloqueo de responsabilidades también puede producir errors.password.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@cambiarEstado; routes/comunidad.php; bootstrap/app.php (errores JSON saneados).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BecaEstadoEntrada"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@cambiarEstado",
+          "routes/comunidad.php",
+          "bootstrap/app.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/{id}/solicitudes": {
+      "get": {
+        "summary": "solicitudes — BecaController",
+        "operationId": "beca_solicitudes",
+        "x-source": "app/Http/Controllers/BecaController.php@solicitudes",
+        "x-contract-status": "partial",
+        "x-contract-status-reason": "Entrada, paginación y resumen de solicitudes revisados; convocatoria() incorpora toArray completo con beneficio/requisitos_documentos sin cast ni validación de lectura. Extras persistidos de convocatoria quedan abiertos.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de convocatoria."
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^[+-]?\\d+$"
+                    }
+                  ],
+                  "description": "Laravel integer admite enteros y cadenas enteras; los límites numéricos también se aplican a las cadenas en el servidor."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "Desde 1 (por defecto 1); tamaño fijo, sin per_page."
+          },
+          {
+            "in": "query",
+            "name": "estado",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pendiente",
+                    "en_revision",
+                    "aprobada",
+                    "rechazada",
+                    "retirada",
+                    "cancelada"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "Solo solicitudes con enviado_en no nulo; omitir no filtra estado."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Solicitudes enviadas de convocatoria con gestión autorizada; 20 por página.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BecaSolicitudesRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "private, no-store"
+                },
+                "description": "Respuesta privada no almacenable."
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de filtros o página.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@solicitudes; routes/comunidad.php; bootstrap/app.php (errores JSON saneados).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@solicitudes",
+          "routes/comunidad.php",
+          "bootstrap/app.php",
+          "app/Services/ComiteBecas.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/{id}/comite": {
+      "get": {
+        "summary": "comite — BecaController",
+        "operationId": "beca_comite",
+        "x-source": "app/Http/Controllers/BecaController.php@comite",
+        "x-contract-status": "partial",
+        "x-contract-status-reason": "Configuración, versión y visibilidad revisadas; historial entrega AuditoriaComunidad completo por get(), con antes/despues históricos no revalidados. Configuración/snapshots legacy y atributos extra de auditoría no se reconstruyen al leer.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de convocatoria."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Comité y, para presidencia, hasta diez registros históricos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BecaComiteRespuesta"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "const": "private, no-store"
+                },
+                "description": "Respuesta privada no almacenable."
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@comite; routes/comunidad.php; bootstrap/app.php (errores JSON saneados).",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@comite",
+          "routes/comunidad.php",
+          "bootstrap/app.php",
+          "app/Services/ComiteBecas.php"
+        ]
+      },
+      "put": {
+        "summary": "guardarComite — BecaController",
+        "operationId": "beca_guardarComite",
+        "x-source": "app/Http/Controllers/BecaController.php@guardarComite",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, respuesta y ramas explícitas revisadas en controlador y servicios; documentación estática, sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de convocatoria."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "Si se envía debe coincidir con organización activa de sesión; el middleware responde 409 si cambió. No selecciona organización ni otorga permisos."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de versión de comité, bloqueo de convocatoria o X-Organization-Id obsoleto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite explícito de la ruta: 30 solicitudes por minuto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Comité guardado; versión incrementada y recomendaciones históricas conservadas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BecaVersionRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validación de campos/negocio; conComite puede lanzar abort(422) sin errors.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@guardarComite; routes/comunidad.php; bootstrap/app.php (errores JSON saneados). ResponsabilidadesComunidad puede generar 422 con errors.password por bloqueo compartido.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BecaComiteEntrada"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@guardarComite",
+          "routes/comunidad.php",
+          "bootstrap/app.php",
+          "app/Services/ComiteBecas.php"
+        ]
+      }
+    },
+    "/api/v1/comunidad/portal/becas/{id}/solicitud": {
+      "post": {
+        "summary": "crearSolicitud — BecaController",
+        "operationId": "beca_crearSolicitud",
+        "x-source": "app/Http/Controllers/BecaController.php@crearSolicitud",
+        "x-contract-status": "reviewed",
+        "x-contract-status-reason": "Entrada, proyección de respuesta, permisos y ramas explícitas revisados en fuentes actuales. Campos only opcionales/null para legacy; sin ejecución Laravel.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "ObjectId de convocatoria."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "Si se envía debe coincidir con organización activa de sesión; el middleware responde 409 si cambió. No selecciona organización ni otorga permisos."
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Sesión autenticada requerida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acceso denegado por sesión/contexto, Gate, comité o separación de personas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Fallo inesperado; el renderizador del portal sanea el mensaje.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente, ajeno u oculto por autorización; UUID/ObjectId inválido no resuelve ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Bloqueo de convocatoria ocupado o X-Organization-Id obsoleto; estados de negocio no permitidos usan 422 cuando se verifican con exigir().",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite explícito de la ruta: 30 solicitudes por minuto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "EnsureSessionIsActive redirige al login si la sesión se revocó remotamente; no pasa por el renderizador de excepciones JSON.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                },
+                "description": "URL del login."
+              }
+            },
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Solicitud creada o recuperada (firstOrCreate); ambas devuelven 200.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BecaSolicitudDisponibleRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Recepción cerrada; exigir() genera errors.beca.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Portal web con sesión vigente y CSRF en escrituras. Sin OAuth de servicio. Fuentes: BecaController@crearSolicitud; routes/comunidad.php; bootstrap/app.php (errores JSON saneados). No exige ni lee cuerpo de entrada. firstOrCreate conserva solicitud existente aun si ya no es borrador, siempre que la recepción siga abierta.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "x-contract-evidence": [
+          "app/Http/Controllers/BecaController.php@crearSolicitud",
+          "routes/comunidad.php",
+          "bootstrap/app.php"
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BecaBooleanEntrada": {
+        "enum": [
+          true,
+          false,
+          0,
+          1,
+          "0",
+          "1"
+        ]
+      },
+      "BecaConvocatoriaEntrada": {
+        "type": "object",
+        "properties": {
+          "titulo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000
+          },
+          "requisitos": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000
+          },
+          "tipo_beneficio_id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "monto": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{1,6}(\\.\\d{1,2})?$"
+              },
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 999999.99
+              }
+            ],
+            "description": "regex de GuardarConvocatoriaRequest; en números JSON Laravel aplica regex a su representación textual. Máximo dos decimales; monto positivo solo si el tipo es monetario."
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10000
+              },
+              {
+                "type": "string",
+                "pattern": "^[+-]?\\d+$"
+              }
+            ],
+            "description": "Laravel integer admite enteros y cadenas enteras; los límites numéricos también se aplican a las cadenas en el servidor."
+          },
+          "total_espacios": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10000
+              },
+              {
+                "type": "string",
+                "pattern": "^[+-]?\\d+$"
+              }
+            ],
+            "description": "Laravel integer admite enteros y cadenas enteras; los límites numéricos también se aplican a las cadenas en el servidor."
+          },
+          "fecha_inicio": {
+            "type": "string",
+            "format": "date"
+          },
+          "fecha_fin": {
+            "type": "string",
+            "format": "date"
+          },
+          "vigencia_inicio": {
+            "type": "string",
+            "format": "date"
+          },
+          "vigencia_fin": {
+            "type": "string",
+            "format": "date"
+          },
+          "requisitos_documentos": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 150
+                },
+                "minItems": 0,
+                "maxItems": 5
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 150
+                },
+                "minProperties": 0,
+                "maxProperties": 5
+              }
+            ],
+            "description": "Regla Laravel array: acepta lista o mapa JSON. Valores distintos según distinct de Laravel."
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "titulo",
+          "descripcion",
+          "requisitos",
+          "tipo_beneficio_id",
+          "monto",
+          "cantidad",
+          "total_espacios",
+          "fecha_inicio",
+          "fecha_fin",
+          "vigencia_inicio",
+          "vigencia_fin",
+          "requisitos_documentos"
+        ],
+        "description": "Mismo cuerpo completo en POST y PUT; no es PATCH. fecha_fin >= fecha_inicio; vigencia_inicio > fecha_fin; vigencia_fin >= vigencia_inicio. datos() exige tipo existente de equipo 2/5 y cierre futuro. Fechas civiles America/Mexico_City: fines se almacenan al día siguiente (límite exclusivo), en UTC. Tipos monetarios fuerzan cantidad=1; servicios monto_centavos=0. Campos extra admitidos/ignorados por validación, sin rechazo general."
+      },
+      "BecaEstadoEntrada": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "enum": [
+              "publicada",
+              "en_revision",
+              "finalizada",
+              "cancelada"
+            ]
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "estado"
+        ],
+        "description": "motivo requerido y no nulo al cancelar. Transiciones, cierre de recepción, solicitudes pendientes/aprobadas se verifican en servidor (422). Repetir el estado es idempotente; cancelar vuelve a actualizar solicitudes sin dictaminar.",
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "estado": {
+                  "const": "cancelada"
+                }
+              },
+              "required": [
+                "estado"
+              ]
+            },
+            "then": {
+              "required": [
+                "motivo"
+              ],
+              "properties": {
+                "motivo": {
+                  "type": "string",
+                  "minLength": 10,
+                  "maxLength": 2000
+                }
+              }
+            }
+          }
+        ]
+      },
+      "BecaSolicitudEntrada": {
+        "type": "object",
+        "properties": {
+          "motivacion": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 3000
+          },
+          "enviar": {
+            "$ref": "#/components/schemas/BecaBooleanEntrada"
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "motivacion",
+          "enviar"
+        ],
+        "description": "enviar=true verifica documentos por índice de requisito; enviar repetido en pendiente/en_revision/aprobada/rechazada devuelve 200 sin modificar. En otro caso requiere borrador con recepción abierta."
+      },
+      "BecaDocumentoEntrada": {
+        "type": "object",
+        "properties": {
+          "archivo": {
+            "type": "string",
+            "format": "binary",
+            "description": "Archivo obligatorio: mimes y extensions pdf,jpg,jpeg,png; máximo Laravel 5120 KiB (5 MiB). Se valida contenido y extensión."
+          },
+          "requisito": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[+-]?\\d+$"
+                  }
+                ],
+                "description": "Laravel integer admite enteros y cadenas enteras; los límites numéricos también se aplican a las cadenas en el servidor."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "archivo"
+        ],
+        "description": "multipart/form-data. Máximo cinco documentos; índice opcional debe existir y no estar ocupado. Requiere borrador editable. No se expone ruta privada."
+      },
+      "BecaDictamenEntrada": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "enum": [
+              "en_revision",
+              "aprobada",
+              "rechazada"
+            ]
+          },
+          "motivo": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 2000
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "estado",
+          "motivo"
+        ],
+        "description": "Responsable autorizado, no solicitante; recepción cerrada y solicitud pendiente/en_revision. Aprobar requiere cupo y vigencia; con comité requiere recomendaciones independientes vigentes (409). Repetir dictamen terminal devuelve 200."
+      },
+      "BecaRevocacionEntrada": {
+        "type": "object",
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 1000
+          },
+          "confirmacion": {
+            "$ref": "#/components/schemas/Accepted"
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "motivo",
+          "confirmacion"
+        ],
+        "description": "Solo presidencia ajena al solicitante y servicios E5 ya asignados con recibo válido. Motivo repetido debe coincidir. Registra intención local, conserva consumo; no entrega ni cancela remotamente dentro de este endpoint."
+      },
+      "BecaAvalEntrada": {
+        "type": "object",
+        "properties": {
+          "presupuesto_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "monto_centavos": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string",
+                "pattern": "^[+-]?\\d+$"
+              }
+            ],
+            "description": "Laravel integer admite enteros y cadenas enteras; los límites numéricos también se aplican a las cadenas en el servidor."
+          },
+          "huella_dictamen": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "presupuesto_id",
+          "monto_centavos",
+          "huella_dictamen"
+        ],
+        "description": "No hay min en la regla de entrada de monto_centavos; el snapshot positivo, el monto exacto, la huella y el presupuesto configurado se cotejan con el dictamen (409). Tesorería debe diferir de presidencia y beneficiario (403)."
+      },
+      "BecaComiteEntrada": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "string",
+                "pattern": "^[+-]?\\d+$"
+              }
+            ],
+            "description": "Laravel integer admite enteros y cadenas enteras; los límites numéricos también se aplican a las cadenas en el servidor."
+          },
+          "responsable_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              }
+            ],
+            "pattern": "^[a-f0-9]{24}$"
+          },
+          "revisor_ids": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/MongoId"
+                    }
+                  ],
+                  "pattern": "^[a-f0-9]{24}$"
+                },
+                "minItems": 1,
+                "maxItems": 10
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/MongoId"
+                    }
+                  ],
+                  "pattern": "^[a-f0-9]{24}$"
+                },
+                "minProperties": 1,
+                "maxProperties": 10
+              }
+            ],
+            "description": "Regla Laravel array: acepta lista o mapa JSON. Valores distintos según distinct de Laravel."
+          },
+          "motivo": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 2000
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "version",
+          "responsable_id",
+          "revisor_ids",
+          "motivo"
+        ],
+        "description": "Responsable y revisores deben ser integrantes activos distintos. version se compara estrictamente con el entero vigente: cadena numérica puede pasar integer pero produce 409. No se configura convocatoria finalizada/cancelada (422 sin errors)."
+      },
+      "BecaRecomendacionEntrada": {
+        "type": "object",
+        "properties": {
+          "version_comite": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "string",
+                "pattern": "^[+-]?\\d+$"
+              }
+            ],
+            "description": "Laravel integer admite enteros y cadenas enteras; los límites numéricos también se aplican a las cadenas en el servidor."
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "string",
+                "pattern": "^[+-]?\\d+$"
+              }
+            ],
+            "description": "Laravel integer admite enteros y cadenas enteras; los límites numéricos también se aplican a las cadenas en el servidor."
+          },
+          "recomendacion": {
+            "enum": [
+              "favorable",
+              "desfavorable"
+            ]
+          },
+          "motivo": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 2000
+          },
+          "usuario_id": {
+            "enum": [
+              null,
+              "",
+              [],
+              {}
+            ],
+            "description": "prohibited permite ausencia o valor vacío Laravel; no acepta identidad no vacía. La identidad efectiva proviene de sesión."
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "version_comite",
+          "revision",
+          "recomendacion",
+          "motivo"
+        ],
+        "description": "Solo revisor ajeno al solicitante. Recepción cerrada y solicitud enviada pendiente/en_revision; control de versión/revisión estricto (cadenas numéricas pueden dar 409). Repetir contenido ya guardado es idempotente antes de comprobar revision."
+      },
+      "BecaVersionRespuesta": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "message",
+          "version"
+        ]
+      },
+      "BecaRevocacionRespuesta": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "estado": {
+            "enum": [
+              "revocacion_pendiente",
+              "revocada",
+              "revision_requerida"
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "message",
+          "estado"
+        ]
+      },
+      "BecaSolicitudResumen": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "convocatoria_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "folio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "enum": [
+                  "borrador",
+                  "pendiente",
+                  "en_revision",
+                  "aprobada",
+                  "rechazada",
+                  "retirada",
+                  "cancelada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enviado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dictamen": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "motivo": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dictaminado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "motivo_cancelacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "description": "BecaController::resumen usa only. Todos los campos son opcionales por compatibilidad con documentos legacy; también pueden ser null. No se deducen requeridos de fillable ni del flujo de creación."
+      },
+      "BecaBeneficioTipo": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "equipo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "es_monetario": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "es_servicio": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "description": "Snapshot de TipoBeneficio construido por GuardarConvocatoriaRequest::datos; sin cast anidado en ConvocatoriaBeca."
+      },
+      "BecaTipoCatalogo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "creado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actualizado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "equipo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "es_monetario": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "es_servicio": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "description": "Modelo TipoBeneficio serializado con get(), sin proyección. Consulta filtra equipo 2 o 5; campos persistidos ausentes son opcionales, extras se conservan."
+      },
+      "BecaConvocatoria": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "creado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actualizado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "referencia_demo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "organizacion_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "creado_por": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "titulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requisitos": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tipo_beneficio_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "beneficio": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaBeneficioTipo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "monto_centavos": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_espacios": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fecha_fin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vigencia_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vigencia_fin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requisitos_documentos": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 0
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "minProperties": 0
+                  }
+                ],
+                "description": "Regla Laravel array: acepta lista o mapa JSON."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requiere_documentos": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "enum": [
+                  "borrador",
+                  "publicada",
+                  "en_revision",
+                  "finalizada",
+                  "cancelada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "motivo_cancelacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tiene_comite": {
+            "type": "boolean"
+          },
+          "puede_revisar": {
+            "type": "boolean"
+          },
+          "puede_configurar_comite": {
+            "type": "boolean"
+          },
+          "recepcion_abierta": {
+            "type": "boolean"
+          },
+          "revision_abierta": {
+            "type": "boolean"
+          },
+          "espacios_ocupados": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "porcentaje": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "tiene_comite",
+          "puede_revisar",
+          "puede_configurar_comite",
+          "recepcion_abierta",
+          "revision_abierta",
+          "espacios_ocupados",
+          "porcentaje"
+        ],
+        "description": "convocatoria() expande toArray y añade siete valores calculados. comite está hidden y no se publica aquí. Campos persistidos opcionales; beneficio/requisitos_documentos no tienen cast ni validación de lectura. No se limita porcentaje a 100 (round sobre datos persistidos). Extras de Mongo se conservan: no es DTO cerrado."
+      },
+      "BecaConvocatoriaListado": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BecaConvocatoria"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "organizacion_nombre": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "mi_solicitud": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BecaSolicitudResumen"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": true,
+            "required": [
+              "organizacion_nombre",
+              "mi_solicitud"
+            ]
+          }
+        ]
+      },
+      "BecaIndiceRespuesta": {
+        "type": "object",
+        "properties": {
+          "convocatorias": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BecaConvocatoriaListado"
+            }
+          },
+          "tipos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BecaTipoCatalogo"
+            }
+          },
+          "puede_gestionar": {
+            "type": "boolean"
+          },
+          "puede_revisar": {
+            "type": "boolean"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "last_page": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "convocatorias",
+          "tipos",
+          "puede_gestionar",
+          "puede_revisar",
+          "page",
+          "last_page"
+        ]
+      },
+      "BecaCreadaRespuesta": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "convocatoria": {
+            "$ref": "#/components/schemas/BecaConvocatoria"
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "message",
+          "convocatoria"
+        ]
+      },
+      "BecaMisSolicitudesRespuesta": {
+        "type": "object",
+        "properties": {
+          "solicitudes": {
+            "type": "array",
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BecaSolicitudResumen"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "titulo": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": true,
+                  "required": [
+                    "titulo"
+                  ]
+                }
+              ]
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "last_page": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "solicitudes",
+          "page",
+          "last_page"
+        ]
+      },
+      "BecaSolicitudesRespuesta": {
+        "type": "object",
+        "properties": {
+          "convocatoria": {
+            "$ref": "#/components/schemas/BecaConvocatoria"
+          },
+          "solicitudes": {
+            "type": "array",
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BecaSolicitudResumen"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "nombre": {
+                      "type": "string"
+                    },
+                    "matricula": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": true,
+                  "required": [
+                    "nombre",
+                    "matricula"
+                  ]
+                }
+              ]
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "last_page": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "convocatoria",
+          "solicitudes",
+          "page",
+          "last_page"
+        ]
+      },
+      "BecaSolicitudDisponibleRespuesta": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "solicitud": {
+            "$ref": "#/components/schemas/BecaSolicitudResumen"
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "message",
+          "solicitud"
+        ]
+      },
+      "BecaDocumentoPublico": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nombre": {
+            "type": "string",
+            "maxLength": 180
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "tamano": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "requisito": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "description": "Campos de documentos creados por subirDocumento; se devuelven con except(ruta), no allowlist. Opcionales para legacy; tipo MIME se copia del archivo. La ruta de disco se elimina, otros metadatos persistidos se conservan."
+      },
+      "BecaRecomendacion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "creado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actualizado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "organizacion_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "convocatoria_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "solicitud_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usuario_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version_comite": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recomendacion": {
+            "anyOf": [
+              {
+                "enum": [
+                  "favorable",
+                  "desfavorable"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "description": "RecomendacionBeca serializado directamente; campos persistidos opcionales y atributos extra conservados."
+      },
+      "BecaDictamenComite": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer"
+          },
+          "responsable_id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "recomendaciones_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MongoId"
+            }
+          },
+          "revisiones": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/components/schemas/MongoId"
+                },
+                "revision": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "id",
+                "revision"
+              ]
+            }
+          }
+        },
+        "additionalProperties": true,
+        "description": "Snapshot de ComiteBecas::validarResolucion; optional en lecturas legacy sin revalidación."
+      },
+      "BecaRevisionComite": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer"
+          },
+          "version_recomendaciones": {
+            "type": "integer"
+          },
+          "dictamen_utilizado": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaDictamenComite"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "funcion": {
+            "anyOf": [
+              {
+                "enum": [
+                  "responsable",
+                  "revisor"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "puede_recomendar": {
+            "type": "boolean"
+          },
+          "puede_resolver": {
+            "type": "boolean"
+          },
+          "integrantes_vigentes": {
+            "type": "boolean"
+          },
+          "revisiones_pendientes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "recomendacion_propia": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaRecomendacion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recomendaciones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BecaRecomendacion"
+            }
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "version",
+          "version_recomendaciones",
+          "dictamen_utilizado",
+          "funcion",
+          "puede_recomendar",
+          "puede_resolver",
+          "integrantes_vigentes",
+          "revisiones_pendientes",
+          "recomendacion_propia",
+          "recomendaciones"
+        ],
+        "description": "ComiteBecas::resumen; null para solicitante/sin comité/no autorizado. Presidencia/responsable reciben recomendaciones y dictamen_utilizado; otros revisores solo su recomendacion_propia y lista vacía. version_recomendaciones puede ser la del dictamen histórico."
+      },
+      "BecaComiteConfiguracion": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer"
+          },
+          "responsable_id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "revisor_ids": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MongoId"
+                },
+                "minItems": 0
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/MongoId"
+                },
+                "minProperties": 0
+              }
+            ],
+            "description": "Regla Laravel array: acepta lista o mapa JSON."
+          },
+          "retirados_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MongoId"
+            }
+          },
+          "motivo": {
+            "type": "string"
+          },
+          "configurado_por": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "configurado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Snapshot de configurar/retirar; campos legacy opcionales. revisor_ids conserva claves recibidas; retirar agrega retirados_ids sin incrementar versión."
+      },
+      "BecaAuditoriaComite": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "creado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actualizado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "organizacion_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usuario_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "accion": {
+            "enum": [
+              "beca_comite_configurado",
+              "beca_comite_baja"
+            ]
+          },
+          "entidad_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "antes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaComiteConfiguracion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "despues": {
+            "$ref": "#/components/schemas/BecaComiteConfiguracion"
+          }
+        },
+        "additionalProperties": true,
+        "description": "AuditoriaComunidad completo por get(); antes/despues conservan snapshots persistidos sin reconstruir; extras permitidos."
+      },
+      "BecaComiteRespuesta": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer"
+          },
+          "comite": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaComiteConfiguracion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "puede_configurar": {
+            "type": "boolean"
+          },
+          "historial": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BecaAuditoriaComite"
+            },
+            "maxItems": 10
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "version",
+          "comite",
+          "puede_configurar",
+          "historial"
+        ],
+        "description": "Solo presidencia recibe historial, máximo diez registros descendentes por creado_en y _id; demás integrantes reciben []. version=0 cuando no hay comité."
+      },
+      "BecaTesoreriaItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "folio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "convocatoria": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "presupuesto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "monto_centavos": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "huella_dictamen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "avalada": {
+            "type": "boolean"
+          },
+          "puede_avalar": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "folio",
+          "convocatoria",
+          "presupuesto_id",
+          "monto_centavos",
+          "huella_dictamen",
+          "avalada",
+          "puede_avalar"
+        ],
+        "description": "BecaFinanceContract::snapshot/budgetMapping: presupuesto y monto/huella pueden ser null por configuración o snapshot inválido. avalada/puede_avalar siempre boolean por &&. Presidencia debe confirmar la misma huella y ser persona distinta; no representa emisión de bono."
+      },
+      "BecaTesoreriaRespuesta": {
+        "type": "object",
+        "properties": {
+          "solicitudes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BecaTesoreriaItem"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "last_page": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "solicitudes",
+          "page",
+          "last_page"
+        ]
+      },
+      "BecaContratoEntrega": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer"
+          },
+          "clave_idempotencia": {
+            "type": "string"
+          },
+          "equipo_destino": {
+            "type": "integer"
+          },
+          "beneficiario_id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "organizacion_id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "convocatoria_id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "solicitud_id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "folio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "monto_centavos": {
+            "type": "integer"
+          },
+          "moneda": {
+            "type": "string"
+          },
+          "cantidad": {
+            "type": "integer"
+          },
+          "vigencia_inicio": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "vigencia_fin_exclusiva": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reglas": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "description": "BeneficiosBeca::preparar crea version=1, clave beca:{solicitud}, moneda MXN y equipo/tipo del snapshot de convocatoria. firstOrCreate conserva contratos existentes; contrato() no los revalida, campos opcionales y extras legacy permitidos."
+      },
+      "BecaReciboFinanzas": {
+        "type": "object",
+        "properties": {
+          "reference": {
+            "type": "string"
+          },
+          "bonus_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "operation_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": true,
+        "description": "ReconcileScholarshipBonuses::lookup guarda solo reference y UUIDs normalizados. fingerprint se comprueba pero no se guarda ni se devuelve. Campos optional por lectura legacy sin revalidación."
+      },
+      "BecaCancelacionE5": {
+        "type": "object",
+        "properties": {
+          "cancelacion_id": {
+            "type": "string"
+          },
+          "motivo": {
+            "type": "string"
+          },
+          "referencia_origen": {
+            "type": "string"
+          },
+          "cancelada_en": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "liberado": {
+            "type": "boolean"
+          },
+          "cantidad_liberada": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Campos verificados por validarCancelacion; entrega original conserva cancelacion=null."
+      },
+      "BecaRecursoE5": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "const": "locker"
+          },
+          "codigo": {
+            "type": "string"
+          },
+          "edificio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zona": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "BecaEvidenciaE5": {
+        "type": "object",
+        "properties": {
+          "asignado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "folio_asignacion_locker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "primer_acceso_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "liberado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "consumos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "folio_orden": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "paginas": {
+                  "type": "integer"
+                },
+                "consumido_en": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": true,
+              "required": [
+                "folio_orden",
+                "paginas",
+                "consumido_en"
+              ]
+            }
+          }
+        },
+        "additionalProperties": true,
+        "description": "ServiceBenefitService::present. Evidencia varía locker/impresiones; E6 guarda literalmente recibos externos y no valida evidencia ni sus extensiones."
+      },
+      "BecaReciboServicios": {
+        "type": "object",
+        "properties": {
+          "asignacion_id": {
+            "type": "string"
+          },
+          "folio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "beneficio_id": {
+            "enum": [
+              "locker",
+              "impresiones"
+            ]
+          },
+          "estado": {
+            "enum": [
+              "asignado",
+              "entregado",
+              "en_uso",
+              "consumido",
+              "finalizado",
+              "vencido",
+              "cancelado"
+            ]
+          },
+          "clave_idempotencia": {
+            "type": "string"
+          },
+          "beneficiario_id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "organizacion_id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "convocatoria_id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "solicitud_id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "folio_origen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cantidad": {
+            "type": "object",
+            "properties": {
+              "unidad": {
+                "enum": [
+                  "periodo",
+                  "paginas"
+                ]
+              },
+              "asignada": {
+                "type": "integer"
+              },
+              "consumida": {
+                "type": "integer"
+              },
+              "disponible": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": true
+          },
+          "vigencia": {
+            "type": "object",
+            "properties": {
+              "inicio": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "fin_exclusiva": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": true
+          },
+          "recurso": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaRecursoE5"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidencia": {
+            "$ref": "#/components/schemas/BecaEvidenciaE5"
+          },
+          "cancelacion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaCancelacionE5"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "creado_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "actualizado_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": true,
+        "description": "Núcleo cotejado por EntregaBeneficiosServicios/RevocacionBeneficiosServicios y present() local de E5. Original almacenado, no lectura live: consumos/estado pueden ser históricos. Campos legacy optional; extras remotos se conservan sin validar."
+      },
+      "BecaRechazoE5": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "enum": [
+              "no_cancelable",
+              "ya_cancelada",
+              "conflicto_idempotencia"
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "codigo"
+        ],
+        "description": "Único campo remoto inspeccionado: procesar guarda respuesta JSON literal de rechazo 409. No existe normalización de los demás campos; detalle parcial y extras permitidos."
+      },
+      "BecaRevocacionDetalle": {
+        "type": "object",
+        "properties": {
+          "clave_idempotencia": {
+            "type": "string"
+          },
+          "solicitante_id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "motivo": {
+            "type": "string"
+          },
+          "solicitado_en": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "confirmacion": {
+            "const": true
+          },
+          "asignacion_id": {
+            "type": "string"
+          },
+          "intentos": {
+            "type": "integer"
+          },
+          "cuerpo": {
+            "type": "object",
+            "properties": {
+              "motivo": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "referencia_origen": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "rechazo_e5": {
+            "$ref": "#/components/schemas/BecaRechazoE5"
+          },
+          "rechazado_en": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "confirmada_en": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "origen_acuse": {
+            "enum": [
+              "consulta",
+              "cancelacion"
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "description": "Intención local y extensiones de procesar. cuerpo.motivo se trunca con SHA-256 si excede 500; motivo original se conserva. Metadatos de rechazo externo solo parcialmente verificados."
+      },
+      "BecaAcuseCancelacion": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/BecaReciboServicios"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "asignacion": {
+                "$ref": "#/components/schemas/BecaReciboServicios"
+              },
+              "cancelacion_id": {
+                "type": "string"
+              },
+              "estado": {
+                "const": "cancelado"
+              },
+              "liberado": {
+                "const": true
+              },
+              "cantidad_liberada": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": true,
+            "required": [
+              "asignacion",
+              "cancelacion_id",
+              "estado",
+              "liberado",
+              "cantidad_liberada"
+            ]
+          }
+        ],
+        "description": "confirmar guarda literalmente dos formas: consulta => asignación cancelada; POST => data con asignacion. La cancelación debe conservar cantidad consumida histórica. Extras sin normalizar."
+      },
+      "BecaBeneficioDetalle": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pendiente_integracion",
+                  "asignada",
+                  "revocacion_pendiente",
+                  "revision_requerida",
+                  "revocada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recibo_servicios": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaReciboServicios"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recibo_finanzas": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaReciboFinanzas"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error_integracion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revocacion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaRevocacionDetalle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recibo_cancelacion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaAcuseCancelacion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "description": "Proyección only de showSolicitud; campos optional y null por legacy. No afirma entrega al aprobar ni llama a E2/E5."
+      },
+      "BecaContratoRespuesta": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pendiente_integracion",
+                  "asignada",
+                  "revocacion_pendiente",
+                  "revision_requerida",
+                  "revocada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recibo_servicios": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaReciboServicios"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recibo_finanzas": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaReciboFinanzas"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error_integracion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contrato": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaContratoEntrega"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entregado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "description": "Proyección only de contrato(); campos optional y null por legacy. Requiere solicitud aprobada y responsable autorizado. No expone revocacion/aval/presidencia ni verifica recibos en cada GET."
+      },
+      "BecaSolicitudDetalleRespuesta": {
+        "type": "object",
+        "properties": {
+          "solicitud": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BecaSolicitudResumen"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "motivacion": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "documentos": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/BecaDocumentoPublico"
+                        },
+                        "minItems": 0
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": {
+                          "$ref": "#/components/schemas/BecaDocumentoPublico"
+                        },
+                        "minProperties": 0
+                      }
+                    ],
+                    "description": "Regla Laravel array: acepta lista o mapa JSON."
+                  }
+                },
+                "additionalProperties": true,
+                "required": [
+                  "motivacion",
+                  "documentos"
+                ]
+              }
+            ]
+          },
+          "convocatoria": {
+            "$ref": "#/components/schemas/BecaConvocatoria"
+          },
+          "propia": {
+            "type": "boolean"
+          },
+          "puede_editar": {
+            "type": "boolean"
+          },
+          "puede_retirar": {
+            "type": "boolean"
+          },
+          "puede_dictaminar": {
+            "type": "boolean"
+          },
+          "comite_revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaRevisionComite"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "beneficio": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BecaBeneficioDetalle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "puede_revocar_beneficio": {
+            "type": "boolean"
+          },
+          "puede_confirmar_presidencia": {
+            "type": "boolean"
+          },
+          "referencia_bono": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "solicitud",
+          "convocatoria",
+          "propia",
+          "puede_editar",
+          "puede_retirar",
+          "puede_dictaminar",
+          "comite_revision",
+          "beneficio",
+          "puede_revocar_beneficio",
+          "puede_confirmar_presidencia",
+          "referencia_bono"
+        ],
+        "description": "Propietario o gestión autorizada; gestión requiere solicitud enviada. Beneficio solo para propietario/presidencia/responsable; los demás reciben null. Referencia del bono solo con bandera enabled y contrato.tipo=bono. Documentos excluyen ruta privada."
+      }
+    }
+  }
+}

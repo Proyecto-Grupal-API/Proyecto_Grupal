@@ -1,0 +1,20 @@
+# Participación — corte estático 2026-11-11
+
+Archivo: `participacion.openapi.fragment.json`; prefijo exclusivo `/api/v1/comunidad/portal`. Fragmento OAS3.1 para incorporar al padre; se omiten alias legacy `/api` y HEAD implícito. Sin bloqueo de escritura.
+
+| Alcance | Operaciones | reviewed | partial |
+|---|---:|---:|---:|
+| ConsultaController: eventos, index, store, show, update, preview, publicar, responder, cerrar, cancelar | 10 | 10 | 0 |
+| ComunicacionController: index, store, update, preview, enviar, reintentar, cancelar | 7 | 3 | 4 |
+| Total | 17 | 13 | 4 |
+
+Las 9 operaciones parametrizadas de consultas cubren tanto encuestas como votaciones mediante `{tipo}`; la selección de eventos es una ruta estática exclusiva de encuestas. Hay **30 esquemas propios Part**. Los cuatro partial son campañas index/store/update/preview: `Campana::toArray()` serializa atributos persistidos sin proyección cerrada; `$fillable` no limita la salida. Se tipan los campos conocidos, se admiten extras y se conserva una razón concreta por operación. Completar esos tipos exigiría un DTO/proyección o evidencia adicional autorizada; no se modifica aplicación ni se consulta DB.
+
+- Fuentes actuales: `routes/comunidad.php`, `routes/web.php`, ambos controladores, `GuardarConsultaRequest::rules/after/datos`, `GuardarCampanaRequest::rules/datos`, `ConsultasComunidad`, `AudienciaCampana`, `EntregaCampanas`, `EnviarCampana`, modelos, políticas, middleware y vendor. Cada operación/esquema contiene fuentes; las rutas se contrastaron también con el snapshot sin regenerarlo.
+- Entradas y límites están en schemas/descripciones: encuestas 1–10 preguntas/2–10 opciones; votaciones 1/2–20; máximo padrón/audiencia5000; listas12/página, page mínimo1 y buscar máximo120; responder30/min y enviar/reintentar10/min. Preguntas/opciones reciben UUID nuevos al editar. Fechas locales `Y-m-dTH:i`, America/Mexico_City, cierre futuro posterior al inicio; salida UTC. Distinct, calendario, padrón, pertenencia y firmas son validaciones semánticas adicionales.
+- `PartConsultaInput` usa anyOf; su rama depende de `{tipo}` (`x-schema-by-path-tipo`). PUT usa cuerpo completo. revision es sometimes: en consultas, PUT sin ella produce409 por comparación con0; campañas no compara revisión del cliente. Firma preview obligatoria al publicar/enviar; conflicto409 si cambia contenido/padrón. Audiencia/evento de votaciones: prohibited admite ausencia/vacío, no rechazo por mera presencia.
+- Respuestas incluyen resultados agregados o null, 201/200 al responder por primera vez/repetición, 202/200 al enviar/repetir confirmación y503 al fallar dispatch. 202 no acredita entrega. Reintentos no sobrescriben mensajes entregados ni restauran eliminados. Se documentan errores de validación, estado, permisos, sesión, CSRF, contexto, locks y throttle según cada rama.
+- Campos de `.only()` opcionales para legacy; null con anyOf/type:null, sin nullable OAS3.0. El vendor actual asigna getAttribute y habitualmente null para faltantes. Extras Laravel no se prometen rechazados salvo arrays con allowlist explícita (`preguntas.*`, `respuestas.*`).
+- Compartidos del padre sin redeclarar: Error, ValidationError, Message y MongoId. Accepted es la regla accepted de Laravel, no DTO HTTP202; ninguna ruta del alcance tiene un campo accepted y no se añade referencia artificial. Auth por sesión/CSRF y Gate; X-Organization-Id opcional comprueba contexto, no lo selecciona. Accept application/json sin X-Inertia; los middleware pueden devolver302/423 según el caso.
+
+Verificación offline: JSON legible; **30 schemas Draft2020-12**, **210 referencias resueltas**, parámetros/IDs/fuentes comprobados, **17/17 operaciones coinciden con rutas actuales y snapshot**, **36 casos sintéticos positivos/negativos conformes**. reviewed acredita revisión estática, no runtime ni HTTP nuevos. Sin Laravel, DB, Git ni scripts del repositorio. Escrituras propias limitadas a estos dos documentos, con incrementos JSON válidos. Los cambios concurrentes observados en padre/validador/otros documentos no se sobrescribieron ni se atribuyen a esta tarea.

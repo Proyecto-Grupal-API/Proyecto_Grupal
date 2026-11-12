@@ -1,0 +1,13 @@
+{
+  "operations": 120,
+  "runtime_operations": 120,
+  "reviewed": 105,
+  "partial": 15,
+  "saved_http_responses_checked": 51,
+  "saved_http_responses_skipped": 13,
+  "saved_http_requests_checked": 19,
+  "saved_http_requests_redacted_skipped": 0,
+  "errors": [],
+  "database_access": false,
+  "application_code_executed": false
+}

@@ -1,0 +1,5312 @@
+{
+  "openapi": "3.1.0",
+  "x-scope": "ConsultaController (encuestas/votaciones) y ComunicacionController (campañas), solo prefijo portal; no alias /api legacy.",
+  "x-contract-status": "partial",
+  "x-contract-reason": "17/17 operaciones cubiertas: 13 reviewed; 4 partial (ComunicacionController index/store/update/preview) por serialización abierta Campana::toArray(); contratos de entrada y ramas de respuesta documentados. No se certifica contenido arbitrario de MongoDB.",
+  "x-parent-requirements": {
+    "schemas": [
+      "Error",
+      "ValidationError",
+      "Message",
+      "Accepted",
+      "MongoId"
+    ],
+    "securitySchemes": [
+      "sessionCookie"
+    ],
+    "description": "Referencias compartidas pertenecen al catálogo padre; no se redeclaran. Accepted es el esquema de valores accepted de Laravel, no un DTO HTTP202; estas rutas no consumen ningún campo accepted."
+  },
+  "x-validation-scope": "Revisión estática de rutas/controladores/FormRequests/servicios/modelos/vendor; sin ejecutar Laravel, DB, Git ni scripts del repositorio. reviewed no certifica runtime.",
+  "paths": {
+    "/api/v1/comunidad/portal/consultas/encuestas/eventos": {
+      "get": {
+        "operationId": "partConsultaControllerEventos",
+        "summary": "ConsultaController::eventos",
+        "x-source": "app/Http/Controllers/ConsultaController.php@eventos",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Models/MiembroOrganizacion.php",
+          "app/Models/RegistroEvento.php"
+        ],
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Requiere Gate update (presidencia vigente y membresía activa). Eventos publicados de organización activa; orden fecha_hora_inicio desc, _id asc; sin paginación ni filtro query. Ruta estática anterior a {tipo}/{id}. Sin requestBody; query no documentada no se promete rechazada. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Respuesta emitida por ConsultaController::eventos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartEventos"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate/política denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/consultas/{tipo}": {
+      "get": {
+        "operationId": "partConsultaControllerIndex",
+        "summary": "ConsultaController::index",
+        "x-source": "app/Http/Controllers/ConsultaController.php@index",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Models/MiembroOrganizacion.php",
+          "app/Models/RegistroEvento.php"
+        ],
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate view. whereNotNull(revision); organización activa. Presidencia ve todas las fases; otros miembros solo estados publicada/cerrada/cancelada y usuario dentro del padrón fijo. Orden creado_en desc, _id asc, 12 por página. Fase cerrada puede calcularse por fecha_fin aunque estado siga publicada. No existe endpoint independiente de resultados. Sin requestBody; query no documentada no se promete rechazada. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tipo",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "encuestas",
+                "votaciones"
+              ]
+            },
+            "description": "Restricción literal de routes/comunidad.php: encuestas|votaciones. Elecciones usa el modelo Eleccion."
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PartEnteroPositivoEntrada"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "nullable|integer|min:1; default efectivo 1, sin máximo explícito. 12 elementos por página; no per_page."
+          },
+          {
+            "in": "query",
+            "name": "buscar",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "nullable|string|max:120. LIKE %buscar% en titulo (consultas) o nombre (campañas); no enum estado/gestion/tipo de audiencia en query."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta emitida por ConsultaController::index",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartConsultaList"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate/política denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "partConsultaControllerStore",
+        "summary": "ConsultaController::store",
+        "x-source": "app/Http/Controllers/ConsultaController.php@store",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php",
+          "app/Http/Requests/GuardarConsultaRequest.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Models/MiembroOrganizacion.php",
+          "app/Models/RegistroEvento.php"
+        ],
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate update. Crea borrador revision=1, ignora revision de entrada. Encuesta con audiencia de evento exige evento publicado de la misma organización; audiencia puede omitirse. No calcula ni fija padrón al crear; los límites 5000 y padrón no vacío se verifican al preview/publicar. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tipo",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "encuestas",
+                "votaciones"
+              ]
+            },
+            "description": "Restricción literal de routes/comunidad.php: encuestas|votaciones. Elecciones usa el modelo Eleccion."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comparación literal, sin validador de formato. En escrituras, si está presente y difiere del ID activo devuelve 409; no cambia contexto."
+          },
+          {
+            "in": "header",
+            "name": "X-XSRF-TOKEN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF web: alternativa X-CSRF-TOKEN o campo _token. Cookie de sesión requerida según security; no se documenta token OAuth."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Respuesta emitida por ConsultaController::store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartConsultaCreada"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate/política denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id difiere de la selección activa; además lock/firma/revision cuando lo indique la operación. El header es opcional y no selecciona organización.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartConsultaInput"
+              }
+            }
+          },
+          "description": "Campos extra en raíz pueden aceptarse/ignorarse por Laravel; no se afirma rechazo salvo claves de arrays explícitamente restringidas."
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/consultas/{tipo}/{id}": {
+      "get": {
+        "operationId": "partConsultaControllerShow",
+        "summary": "ConsultaController::show",
+        "x-source": "app/Http/Controllers/ConsultaController.php@show",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Models/MiembroOrganizacion.php",
+          "app/Models/RegistroEvento.php"
+        ],
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate view, organización y revision no null. Sin Gate update, borrador o usuario fuera de padrón => 404. resultados null salvo fase cerrada (cierre explícito o fecha_fin alcanzada); canceladas no muestran resultados. Solo agregados sin elecciones individuales. Sin requestBody; query no documentada no se promete rechazada. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tipo",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "encuestas",
+                "votaciones"
+              ]
+            },
+            "description": "Restricción literal de routes/comunidad.php: encuestas|votaciones. Elecciones usa el modelo Eleccion."
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "where [a-fA-F0-9]{24}; identidad del documento en organización activa."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta emitida por ConsultaController::show",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartConsultaDetalle"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate/política denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Documento inexistente, de otra organización o consulta oculta por padrón; también restricciones de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "partConsultaControllerUpdate",
+        "summary": "ConsultaController::update",
+        "x-source": "app/Http/Controllers/ConsultaController.php@update",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php",
+          "app/Http/Requests/GuardarConsultaRequest.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Models/MiembroOrganizacion.php",
+          "app/Models/RegistroEvento.php"
+        ],
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate update; lock file 30s, espera 5s. Solo borrador (422). Compara (int)revision con revisión actual: ausencia => 0 => 409; tipo/min inválidos => 422. Revisión distinta =>409. Aumenta revision y regenera UUID, invalida firma previa. ValidarEvento =>422 si evento no publicado o ajeno. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tipo",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "encuestas",
+                "votaciones"
+              ]
+            },
+            "description": "Restricción literal de routes/comunidad.php: encuestas|votaciones. Elecciones usa el modelo Eleccion."
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "where [a-fA-F0-9]{24}; identidad del documento en organización activa."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comparación literal, sin validador de formato. En escrituras, si está presente y difiere del ID activo devuelve 409; no cambia contexto."
+          },
+          {
+            "in": "header",
+            "name": "X-XSRF-TOKEN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF web: alternativa X-CSRF-TOKEN o campo _token. Cookie de sesión requerida según security; no se documenta token OAuth."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta emitida por ConsultaController::update",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate/política denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Documento inexistente, de otra organización o consulta oculta por padrón; también restricciones de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id difiere de la selección activa; además lock/firma/revision cuando lo indique la operación. El header es opcional y no selecciona organización.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartConsultaInput"
+              }
+            }
+          },
+          "description": "Campos extra en raíz pueden aceptarse/ignorarse por Laravel; no se afirma rechazo salvo claves de arrays explícitamente restringidas."
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/consultas/{tipo}/{id}/preview": {
+      "post": {
+        "operationId": "partConsultaControllerPreview",
+        "summary": "ConsultaController::preview",
+        "x-source": "app/Http/Controllers/ConsultaController.php@preview",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Models/MiembroOrganizacion.php",
+          "app/Models/RegistroEvento.php"
+        ],
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate update; lock file 30s/espera5s =>409 al agotar. Solo borrador=>422. Recalcula padrón ordenado de usuarios existentes (máximo5000=>422); miembros activos y, para encuestas ligadas a evento, conCupo; asistentes además estado_asistencia=asistio y asistio_en no null. Devuelve firma HMAC de tabla,id,revision,padrón; puede preview de padrón vacío. No devuelve IDs nominales. Evento inválido=>422. Sin cuerpo requerido ni campos de body consumidos; no se promete rechazo de extras. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tipo",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "encuestas",
+                "votaciones"
+              ]
+            },
+            "description": "Restricción literal de routes/comunidad.php: encuestas|votaciones. Elecciones usa el modelo Eleccion."
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "where [a-fA-F0-9]{24}; identidad del documento en organización activa."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comparación literal, sin validador de formato. En escrituras, si está presente y difiere del ID activo devuelve 409; no cambia contexto."
+          },
+          {
+            "in": "header",
+            "name": "X-XSRF-TOKEN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF web: alternativa X-CSRF-TOKEN o campo _token. Cookie de sesión requerida según security; no se documenta token OAuth."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta emitida por ConsultaController::preview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartConsultaPreview"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate/política denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Documento inexistente, de otra organización o consulta oculta por padrón; también restricciones de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id difiere de la selección activa; además lock/firma/revision cuando lo indique la operación. El header es opcional y no selecciona organización.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/consultas/{tipo}/{id}/publicar": {
+      "post": {
+        "operationId": "partConsultaControllerPublicar",
+        "summary": "ConsultaController::publicar",
+        "x-source": "app/Http/Controllers/ConsultaController.php@publicar",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Models/MiembroOrganizacion.php",
+          "app/Models/RegistroEvento.php"
+        ],
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate update; lock30s/espera5s=>409. Solo borrador, fecha_fin futura, padrón 1..5000 (422); evento publicado propio si aplica. Recalcula firma contra padrón actual: distinto=>409. Guarda estado publicada, padrón fijo y total. No cambia revision. Mensaje confirma publicación, no participación. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tipo",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "encuestas",
+                "votaciones"
+              ]
+            },
+            "description": "Restricción literal de routes/comunidad.php: encuestas|votaciones. Elecciones usa el modelo Eleccion."
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "where [a-fA-F0-9]{24}; identidad del documento en organización activa."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comparación literal, sin validador de formato. En escrituras, si está presente y difiere del ID activo devuelve 409; no cambia contexto."
+          },
+          {
+            "in": "header",
+            "name": "X-XSRF-TOKEN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF web: alternativa X-CSRF-TOKEN o campo _token. Cookie de sesión requerida según security; no se documenta token OAuth."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta emitida por ConsultaController::publicar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate/política denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Documento inexistente, de otra organización o consulta oculta por padrón; también restricciones de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id difiere de la selección activa; además lock/firma/revision cuando lo indique la operación. El header es opcional y no selecciona organización.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartFirmaInput"
+              }
+            }
+          },
+          "description": "Campos extra en raíz pueden aceptarse/ignorarse por Laravel; no se afirma rechazo salvo claves de arrays explícitamente restringidas."
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/consultas/{tipo}/{id}/responder": {
+      "post": {
+        "operationId": "partConsultaControllerResponder",
+        "summary": "ConsultaController::responder",
+        "x-source": "app/Http/Controllers/ConsultaController.php@responder",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Models/MiembroOrganizacion.php",
+          "app/Models/RegistroEvento.php"
+        ],
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate view; lock30s/espera5s=>409. buscar oculta borradores/ajenas/fuera de padrón a no gestores con404; luego comprueba padrón con403 incluso a gestor. Participación previa devuelve200 registrada=true sin modificar elecciones y antes de comprobar periodo/revision. La validación estructural del request sí ocurre antes de ese reintento. Nueva participación: fase abierta=>422 si no; revision distinta=>409; cantidad y pertenencia de opciones=>422. Guarda todas las respuestas en una escritura. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tipo",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "encuestas",
+                "votaciones"
+              ]
+            },
+            "description": "Restricción literal de routes/comunidad.php: encuestas|votaciones. Elecciones usa el modelo Eleccion."
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "where [a-fA-F0-9]{24}; identidad del documento en organización activa."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comparación literal, sin validador de formato. En escrituras, si está presente y difiere del ID activo devuelve 409; no cambia contexto."
+          },
+          {
+            "in": "header",
+            "name": "X-XSRF-TOKEN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF web: alternativa X-CSRF-TOKEN o campo _token. Cookie de sesión requerida según security; no se documenta token OAuth."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Respuesta emitida por ConsultaController::responder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartParticipacionRegistrada"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate/política denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Documento inexistente, de otra organización o consulta oculta por padrón; también restricciones de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id difiere de la selección activa; además lock/firma/revision cuando lo indique la operación. El header es opcional y no selecciona organización.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "throttle:30,1; demasiadas solicitudes. Laravel conserva cabeceras del throttle al normalizar.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Segundos hasta reintento, cabecera propagada si la excepción la incluye."
+              },
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Reintento: participación ya registrada; no se modifica.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartParticipacionRegistrada"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartRespuestaInput"
+              }
+            }
+          },
+          "description": "Campos extra en raíz pueden aceptarse/ignorarse por Laravel; no se afirma rechazo salvo claves de arrays explícitamente restringidas."
+        },
+        "x-rate-limit": {
+          "requests": 30,
+          "minutes": 1,
+          "source": "routes/comunidad.php throttle:30,1"
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/consultas/{tipo}/{id}/cerrar": {
+      "post": {
+        "operationId": "partConsultaControllerCerrar",
+        "summary": "ConsultaController::cerrar",
+        "x-source": "app/Http/Controllers/ConsultaController.php@cerrar",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Models/MiembroOrganizacion.php",
+          "app/Models/RegistroEvento.php"
+        ],
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate update; lock30s/espera5s=>409. Requiere estado publicada y ahora>=fecha_inicio (422 si no); permite cierre incluso si fecha_fin ya pasó. Pasa a cerrada, guarda cerrado_en y motivo_cierre; permite resultados agregados. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tipo",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "encuestas",
+                "votaciones"
+              ]
+            },
+            "description": "Restricción literal de routes/comunidad.php: encuestas|votaciones. Elecciones usa el modelo Eleccion."
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "where [a-fA-F0-9]{24}; identidad del documento en organización activa."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comparación literal, sin validador de formato. En escrituras, si está presente y difiere del ID activo devuelve 409; no cambia contexto."
+          },
+          {
+            "in": "header",
+            "name": "X-XSRF-TOKEN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF web: alternativa X-CSRF-TOKEN o campo _token. Cookie de sesión requerida según security; no se documenta token OAuth."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta emitida por ConsultaController::cerrar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate/política denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Documento inexistente, de otra organización o consulta oculta por padrón; también restricciones de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id difiere de la selección activa; además lock/firma/revision cuando lo indique la operación. El header es opcional y no selecciona organización.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartMotivoInput"
+              }
+            }
+          },
+          "description": "Campos extra en raíz pueden aceptarse/ignorarse por Laravel; no se afirma rechazo salvo claves de arrays explícitamente restringidas."
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/consultas/{tipo}/{id}/cancelar": {
+      "post": {
+        "operationId": "partConsultaControllerCancelar",
+        "summary": "ConsultaController::cancelar",
+        "x-source": "app/Http/Controllers/ConsultaController.php@cancelar",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Models/MiembroOrganizacion.php",
+          "app/Models/RegistroEvento.php"
+        ],
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate update; lock30s/espera5s=>409. Fase debe ser borrador/programada/abierta; fase cerrada o cancelada=>422. Guarda estado cancelada y motivo_cancelacion; conserva participaciones sin publicar resultados. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tipo",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "encuestas",
+                "votaciones"
+              ]
+            },
+            "description": "Restricción literal de routes/comunidad.php: encuestas|votaciones. Elecciones usa el modelo Eleccion."
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "where [a-fA-F0-9]{24}; identidad del documento en organización activa."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comparación literal, sin validador de formato. En escrituras, si está presente y difiere del ID activo devuelve 409; no cambia contexto."
+          },
+          {
+            "in": "header",
+            "name": "X-XSRF-TOKEN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF web: alternativa X-CSRF-TOKEN o campo _token. Cookie de sesión requerida según security; no se documenta token OAuth."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta emitida por ConsultaController::cancelar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate/política denegada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Documento inexistente, de otra organización o consulta oculta por padrón; también restricciones de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id difiere de la selección activa; además lock/firma/revision cuando lo indique la operación. El header es opcional y no selecciona organización.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartMotivoInput"
+              }
+            }
+          },
+          "description": "Campos extra en raíz pueden aceptarse/ignorarse por Laravel; no se afirma rechazo salvo claves de arrays explícitamente restringidas."
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/comunicacion": {
+      "get": {
+        "operationId": "partComunicacionControllerIndex",
+        "summary": "ComunicacionController::index",
+        "x-source": "app/Http/Controllers/ComunicacionController.php@index",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ComunicacionController.php",
+          "app/Services/AudienciaCampana.php",
+          "app/Models/Campana.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Services/PermisosComunidad.php"
+        ],
+        "x-contract-status": "partial",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate comunicar; solo organización activa. Campañas orden creado_en desc, _id asc; paginate12. Eventos y becas de la misma organización, orden creado_en desc, todos los estados y sin paginación/tope. No filtro de estado/audiencia. No emite Cache-Control explícito en el éxito del controlador. Sin requestBody; query no documentada no se promete rechazada. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PartEnteroPositivoEntrada"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "nullable|integer|min:1; default efectivo 1, sin máximo explícito. 12 elementos por página; no per_page."
+          },
+          {
+            "in": "query",
+            "name": "buscar",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": "nullable|string|max:120. Filtra LIKE %buscar% por nombre; no hay otros filtros query consumidos."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta emitida por ComunicacionController::index",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartCampanasList"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate comunicar denegado: PermisosComunidad exige membresía activa/organización activa y capacidad comunicacion.gestionar (presidencia, comunicación o delegación vigente autorizada).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          }
+        },
+        "x-contract-reason": "ComunicacionController::resumen devuelve Campana::toArray() sin proyección: MongoDB puede contener otros atributos persistidos y relaciones, además de los campos conocidos documentados; no hay DTO cerrado ni inspección DB autorizada que permita certificar tipos/completitud de esos extras. Afecta campanas/campana y, en index, proyecciones de referencias legacy. additionalProperties se conserva true; no se usa reviewed para ocultar este límite."
+      },
+      "post": {
+        "operationId": "partComunicacionControllerStore",
+        "summary": "ComunicacionController::store",
+        "x-source": "app/Http/Controllers/ComunicacionController.php@store",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ComunicacionController.php",
+          "app/Services/AudienciaCampana.php",
+          "app/Models/Campana.php",
+          "app/Http/Requests/GuardarCampanaRequest.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Services/PermisosComunidad.php"
+        ],
+        "x-contract-status": "partial",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate comunicar; crea borrador revision=1 sin usar revision recibida. AudienciaCampana::ids valida referencia dentro de organización (404), usuarios existentes/preferencias y máximo5000 (422). Audiencia vacía admitida al guardar, rechazada al enviar. No lock por ID al crear. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comparación literal, sin validador de formato. En escrituras, si está presente y difiere del ID activo devuelve 409; no cambia contexto."
+          },
+          {
+            "in": "header",
+            "name": "X-XSRF-TOKEN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF web: alternativa X-CSRF-TOKEN o campo _token. Cookie de sesión requerida según security; no se documenta token OAuth."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Respuesta emitida por ComunicacionController::store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartCampanaGuardada"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate comunicar denegado: PermisosComunidad exige membresía activa/organización activa y capacidad comunicacion.gestionar (presidencia, comunicación o delegación vigente autorizada).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id distinto del contexto activo; si ruta {id}, lock file 60s con espera5s agotada; enviar también firma HMAC obsoleta. LockTimeout devuelve solo message y no pasa por normalizador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Evento o convocatoria de referencia inexistente o ajena a la organización.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Cabecera de la respuesta normalizada por bootstrap/app.php."
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "JSON tras middleware TrimStrings/ConvertEmptyStringsToNull. Extras raíz pueden ignorarse, sin promesa de rechazo.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartCampanaInput"
+              }
+            }
+          }
+        },
+        "x-contract-reason": "ComunicacionController::resumen devuelve Campana::toArray() sin proyección: MongoDB puede contener otros atributos persistidos y relaciones, además de los campos conocidos documentados; no hay DTO cerrado ni inspección DB autorizada que permita certificar tipos/completitud de esos extras. Afecta campanas/campana y, en index, proyecciones de referencias legacy. additionalProperties se conserva true; no se usa reviewed para ocultar este límite."
+      }
+    },
+    "/api/v1/comunidad/portal/comunicacion/{id}": {
+      "put": {
+        "operationId": "partComunicacionControllerUpdate",
+        "summary": "ComunicacionController::update",
+        "x-source": "app/Http/Controllers/ComunicacionController.php@update",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ComunicacionController.php",
+          "app/Services/AudienciaCampana.php",
+          "app/Models/Campana.php",
+          "app/Http/Requests/GuardarCampanaRequest.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Services/PermisosComunidad.php"
+        ],
+        "x-contract-status": "partial",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate comunicar antes y dentro de lock file60s/espera5s. Solo borrador=>422; aumenta revision sin comparar revision cliente. No hay control optimista equivalente a consultas. Recalcula audiencia (máximo5000=>422; referencia ajena/inexistente=>404); no la fija para envío. Firma anterior queda invalidada. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "where [a-fA-F0-9]{24}; identidad del documento en organización activa."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comparación literal, sin validador de formato. En escrituras, si está presente y difiere del ID activo devuelve 409; no cambia contexto."
+          },
+          {
+            "in": "header",
+            "name": "X-XSRF-TOKEN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF web: alternativa X-CSRF-TOKEN o campo _token. Cookie de sesión requerida según security; no se documenta token OAuth."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta emitida por ComunicacionController::update",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartCampanaGuardada"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate comunicar denegado: PermisosComunidad exige membresía activa/organización activa y capacidad comunicacion.gestionar (presidencia, comunicación o delegación vigente autorizada).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Documento inexistente, de otra organización o consulta oculta por padrón; también restricciones de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id distinto del contexto activo; si ruta {id}, lock file 60s con espera5s agotada; enviar también firma HMAC obsoleta. LockTimeout devuelve solo message y no pasa por normalizador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "JSON tras middleware TrimStrings/ConvertEmptyStringsToNull. Extras raíz pueden ignorarse, sin promesa de rechazo.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartCampanaInput"
+              }
+            }
+          }
+        },
+        "x-contract-reason": "ComunicacionController::resumen devuelve Campana::toArray() sin proyección: MongoDB puede contener otros atributos persistidos y relaciones, además de los campos conocidos documentados; no hay DTO cerrado ni inspección DB autorizada que permita certificar tipos/completitud de esos extras. Afecta campanas/campana y, en index, proyecciones de referencias legacy. additionalProperties se conserva true; no se usa reviewed para ocultar este límite."
+      }
+    },
+    "/api/v1/comunidad/portal/comunicacion/{id}/preview": {
+      "post": {
+        "operationId": "partComunicacionControllerPreview",
+        "summary": "ComunicacionController::preview",
+        "x-source": "app/Http/Controllers/ComunicacionController.php@preview",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ComunicacionController.php",
+          "app/Services/AudienciaCampana.php",
+          "app/Models/Campana.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Services/PermisosComunidad.php"
+        ],
+        "x-contract-status": "partial",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate comunicar y lock60s/espera5s. Solo borrador=>422; audiencia actual hasta5000 (422 si supera), puede ser0. Firma HMAC de id,revision,IDs ordenados; preferencias silenciadas excluidas, usuarios únicos existentes. Referencia a evento/beca debe pertenecer a organización=>404; no exige estado publicado. No expone IDs destinatarios ni ejecucion. Sin cuerpo requerido ni campos body consumidos; no se promete rechazo de extras. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "where [a-fA-F0-9]{24}; identidad del documento en organización activa."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comparación literal, sin validador de formato. En escrituras, si está presente y difiere del ID activo devuelve 409; no cambia contexto."
+          },
+          {
+            "in": "header",
+            "name": "X-XSRF-TOKEN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF web: alternativa X-CSRF-TOKEN o campo _token. Cookie de sesión requerida según security; no se documenta token OAuth."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta emitida por ComunicacionController::preview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartCampanaPreview"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate comunicar denegado: PermisosComunidad exige membresía activa/organización activa y capacidad comunicacion.gestionar (presidencia, comunicación o delegación vigente autorizada).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Documento inexistente, de otra organización o consulta oculta por padrón; también restricciones de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id distinto del contexto activo; si ruta {id}, lock file 60s con espera5s agotada; enviar también firma HMAC obsoleta. LockTimeout devuelve solo message y no pasa por normalizador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-contract-reason": "ComunicacionController::resumen devuelve Campana::toArray() sin proyección: MongoDB puede contener otros atributos persistidos y relaciones, además de los campos conocidos documentados; no hay DTO cerrado ni inspección DB autorizada que permita certificar tipos/completitud de esos extras. Afecta campanas/campana y, en index, proyecciones de referencias legacy. additionalProperties se conserva true; no se usa reviewed para ocultar este límite."
+      }
+    },
+    "/api/v1/comunidad/portal/comunicacion/{id}/enviar": {
+      "post": {
+        "operationId": "partComunicacionControllerEnviar",
+        "summary": "ComunicacionController::enviar",
+        "x-source": "app/Http/Controllers/ComunicacionController.php@enviar",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ComunicacionController.php",
+          "app/Services/AudienciaCampana.php",
+          "app/Models/Campana.php",
+          "app/Jobs/EnviarCampana.php",
+          "app/Services/EntregaCampanas.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Services/PermisosComunidad.php"
+        ],
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate comunicar y lock60s/espera5s. Body firma siempre validado primero. Estado en_cola/enviando/enviada=>200 sin recalcular firma ni crear otra campaña. En otro estado solo borrador=>422. Recalcula audiencia actual 1..5000 (422), referencia válida propia (404); firma distinta=>409. Fija destinatarios, contadores, estado en_cola, emisor/actor y UUID de ejecución; encola EnviarCampana. 202 confirma encolado, no entrega completada; cola fallida=>503 y estado error. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "where [a-fA-F0-9]{24}; identidad del documento en organización activa."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comparación literal, sin validador de formato. En escrituras, si está presente y difiere del ID activo devuelve 409; no cambia contexto."
+          },
+          {
+            "in": "header",
+            "name": "X-XSRF-TOKEN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF web: alternativa X-CSRF-TOKEN o campo _token. Cookie de sesión requerida según security; no se documenta token OAuth."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Respuesta emitida por ComunicacionController::enviar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate comunicar denegado: PermisosComunidad exige membresía activa/organización activa y capacidad comunicacion.gestionar (presidencia, comunicación o delegación vigente autorizada).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Documento inexistente, de otra organización o consulta oculta por padrón; también restricciones de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id distinto del contexto activo; si ruta {id}, lock file 60s con espera5s agotada; enviar también firma HMAC obsoleta. LockTimeout devuelve solo message y no pasa por normalizador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "throttle:10,1; cabeceras conservadas por normalizador del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Cabecera de la respuesta normalizada por bootstrap/app.php."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Segundos hasta poder reintentar, si excepción lo incluye."
+              },
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Confirmación repetida: campaña ya en_cola, enviando o enviada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Falla dispatch: campaña pasa a error; abort503 se normaliza con mensaje genérico (no el texto literal del controlador).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Cabecera de la respuesta normalizada por bootstrap/app.php."
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "JSON tras middleware TrimStrings/ConvertEmptyStringsToNull. Extras raíz pueden ignorarse, sin promesa de rechazo.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartFirmaInput"
+              }
+            }
+          }
+        },
+        "x-rate-limit": {
+          "requests": 10,
+          "minutes": 1,
+          "source": "routes/comunidad.php throttle:10,1"
+        },
+        "x-delivery-limits": {
+          "audience_max": 5000,
+          "batch_size": 100,
+          "job_tries": 3,
+          "job_timeout_seconds": 45,
+          "job_backoff_seconds": 10,
+          "source": "AudienciaCampana::ids; EntregaCampanas::lote; EnviarCampana"
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/comunicacion/{id}/reintentar": {
+      "post": {
+        "operationId": "partComunicacionControllerReintentar",
+        "summary": "ComunicacionController::reintentar",
+        "x-source": "app/Http/Controllers/ComunicacionController.php@reintentar",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ComunicacionController.php",
+          "app/Services/AudienciaCampana.php",
+          "app/Models/Campana.php",
+          "app/Jobs/EnviarCampana.php",
+          "app/Services/EntregaCampanas.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Services/PermisosComunidad.php"
+        ],
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate comunicar y lock60s/espera5s; estado en_cola/enviando/error/pausada, otro=>422. No pide firma ni revision, mantiene padrón original y avance, reinicia UUID de ejecución/estado/error/actor. Dispatch=>202 o503 si falla; no garantiza entrega. EntregaCampanas revalida permisos/audiencia por lote y no sobrescribe entregados ni restaura eliminados. Sin cuerpo requerido ni campos body consumidos; no se promete rechazo de extras. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "where [a-fA-F0-9]{24}; identidad del documento en organización activa."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comparación literal, sin validador de formato. En escrituras, si está presente y difiere del ID activo devuelve 409; no cambia contexto."
+          },
+          {
+            "in": "header",
+            "name": "X-XSRF-TOKEN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF web: alternativa X-CSRF-TOKEN o campo _token. Cookie de sesión requerida según security; no se documenta token OAuth."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Respuesta emitida por ComunicacionController::reintentar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate comunicar denegado: PermisosComunidad exige membresía activa/organización activa y capacidad comunicacion.gestionar (presidencia, comunicación o delegación vigente autorizada).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Documento inexistente, de otra organización o consulta oculta por padrón; también restricciones de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id distinto del contexto activo; si ruta {id}, lock file 60s con espera5s agotada; enviar también firma HMAC obsoleta. LockTimeout devuelve solo message y no pasa por normalizador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "throttle:10,1; cabeceras conservadas por normalizador del portal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Cabecera de la respuesta normalizada por bootstrap/app.php."
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Segundos hasta poder reintentar, si excepción lo incluye."
+              },
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dispatch falla tras marcar reintento: estado error y mensaje genérico normalizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "Cabecera de la respuesta normalizada por bootstrap/app.php."
+              }
+            }
+          }
+        },
+        "x-rate-limit": {
+          "requests": 10,
+          "minutes": 1,
+          "source": "routes/comunidad.php throttle:10,1"
+        },
+        "x-delivery-limits": {
+          "audience_max": 5000,
+          "batch_size": 100,
+          "job_tries": 3,
+          "job_timeout_seconds": 45,
+          "job_backoff_seconds": 10,
+          "source": "AudienciaCampana::ids; EntregaCampanas::lote; EnviarCampana"
+        }
+      }
+    },
+    "/api/v1/comunidad/portal/comunicacion/{id}/cancelar": {
+      "post": {
+        "operationId": "partComunicacionControllerCancelar",
+        "summary": "ComunicacionController::cancelar",
+        "x-source": "app/Http/Controllers/ComunicacionController.php@cancelar",
+        "x-source-files": [
+          "routes/comunidad.php",
+          "app/Http/Controllers/ComunicacionController.php",
+          "app/Services/AudienciaCampana.php",
+          "app/Models/Campana.php",
+          "routes/web.php",
+          "app/Http/Controllers/Controller.php",
+          "app/Policies/OrganizacionPolicy.php",
+          "bootstrap/app.php",
+          "app/Http/Middleware/SeleccionarOrganizacion.php",
+          "app/Services/PermisosComunidad.php"
+        ],
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "description": "Gate comunicar y lock60s/espera5s. motivo siempre validado, aun para repetición. Ya cancelada=>200 message; enviada=>422. En otro estado guarda cancelada y motivo; no borra mensajes ya entregados. Repetición no cambia el motivo existente. Auth web: Accept application/json sin X-Inertia; sesión y, en escrituras, CSRF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MongoId"
+            },
+            "description": "where [a-fA-F0-9]{24}; identidad del documento en organización activa."
+          },
+          {
+            "in": "header",
+            "name": "X-Organization-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comparación literal, sin validador de formato. En escrituras, si está presente y difiere del ID activo devuelve 409; no cambia contexto."
+          },
+          {
+            "in": "header",
+            "name": "X-XSRF-TOKEN",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF web: alternativa X-CSRF-TOKEN o campo _token. Cookie de sesión requerida según security; no se documenta token OAuth."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta emitida por ComunicacionController::cancelar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Middleware web: sesión revocada redirige a login incluso con Accept JSON. Contraseña inicial/2FA sin expectsJson o con X-Inertia pueden redirigir.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sesión no autenticada vigente; excepción normalizada por bootstrap/app.php.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sin organización activa o Gate comunicar denegado: PermisosComunidad exige membresía activa/organización activa y capacidad comunicacion.gestionar (presidencia, comunicación o delegación vigente autorizada).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ValidationException de campos o negocio: message y errors por campo; reglas específicas descritas por operación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Middleware devuelve JSON al exigir cambio de contraseña inicial o enrolamiento 2FA; enviar Accept: application/json sin X-Inertia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartBloqueoSeguridad"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excepción no HTTP no capturada, mensaje genérico normalizado; no constituye respuesta de negocio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Documento inexistente, de otra organización o consulta oculta por padrón; también restricciones de ruta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "419": {
+            "description": "Sesión/token CSRF vencido o inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "Normalizador de excepciones del portal (y GET de consultas) emite private, no-store.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "X-Organization-Id distinto del contexto activo; si ruta {id}, lock file 60s con espera5s agotada; enviar también firma HMAC obsoleta. LockTimeout devuelve solo message y no pasa por normalizador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "JSON tras middleware TrimStrings/ConvertEmptyStringsToNull. Extras raíz pueden ignorarse, sin promesa de rechazo.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartMotivoInput"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PartFirma": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$",
+        "minLength": 64,
+        "maxLength": 64,
+        "description": "HMAC SHA-256 obtenido de preview; no es una contraseña ni un token OAuth.",
+        "x-source": [
+          "app/Services/ConsultasComunidad.php::firma",
+          "app/Services/AudienciaCampana.php::firma",
+          "app/Http/Controllers/ConsultaController.php::publicar",
+          "app/Http/Controllers/ComunicacionController.php::enviar"
+        ]
+      },
+      "PartEnteroPositivoEntrada": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": 1
+          },
+          {
+            "type": "string",
+            "pattern": "^\\s*\\+?[1-9][0-9]*\\s*$"
+          }
+        ],
+        "description": "Laravel integer|min:1 no estricto: número entero o cadena numérica admitida por FILTER_VALIDATE_INT; no hay máximo de negocio. El validador PHP decide representaciones y rango de plataforma.",
+        "x-laravel-rules": [
+          "integer",
+          "min:1"
+        ],
+        "x-source": [
+          "vendor/laravel/framework/src/Illuminate/Validation/Concerns/ValidatesAttributes.php::validateInteger",
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Http/Requests/GuardarConsultaRequest.php"
+        ]
+      },
+      "PartFechaLocal": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$",
+        "description": "Fecha válida date_format:Y-m-d\\TH:i, sin segundos ni offset. America/Mexico_City; datos() convierte a UTC. Regex solo describe la forma; Laravel comprueba el calendario.",
+        "x-source": [
+          "app/Http/Requests/GuardarConsultaRequest.php::rules/after/datos"
+        ]
+      },
+      "PartVacioProhibido": {
+        "anyOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "string",
+            "maxLength": 0
+          },
+          {
+            "type": "array",
+            "items": {},
+            "maxItems": 0
+          },
+          {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        ],
+        "description": "Laravel prohibited significa ausente o vacío, no rechazo por mera presencia. TrimStrings y ConvertEmptyStringsToNull actúan antes de validar.",
+        "x-source": [
+          "app/Http/Requests/GuardarConsultaRequest.php::rules/after/datos"
+        ]
+      },
+      "PartMotivoInput": {
+        "type": "object",
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "motivo"
+        ],
+        "x-source": [
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Http/Controllers/ComunicacionController.php"
+        ]
+      },
+      "PartFirmaInput": {
+        "type": "object",
+        "properties": {
+          "firma": {
+            "$ref": "#/components/schemas/PartFirma"
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "firma"
+        ],
+        "x-source": [
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Http/Controllers/ComunicacionController.php"
+        ]
+      },
+      "PartEncuestaInput": {
+        "type": "object",
+        "properties": {
+          "titulo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 3000
+          },
+          "fecha_inicio": {
+            "$ref": "#/components/schemas/PartFechaLocal"
+          },
+          "fecha_fin": {
+            "$ref": "#/components/schemas/PartFechaLocal"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/PartEnteroPositivoEntrada"
+          },
+          "preguntas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "titulo": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 250
+                },
+                "opciones": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 150
+                  },
+                  "minItems": 2,
+                  "maxItems": 10
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "titulo",
+                "opciones"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 10
+          },
+          "audiencia": {
+            "type": "string",
+            "enum": [
+              "miembros",
+              "evento_inscritos",
+              "evento_asistentes"
+            ]
+          },
+          "evento_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{24}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "description": "GuardarConsultaRequest::rules/after/datos. Cuerpo completo también en PUT. revision es sometimes: no requerida por el FormRequest; en PUT su ausencia produce 409 al compararse como 0. Opciones distintas tras trim + minúsculas; fecha_fin posterior a fecha_inicio y futura al validar. Cada escritura regenera UUID de todas las preguntas/opciones. Extras raíz no se prometen rechazados; preguntas.* sí usa array:titulo,opciones.",
+        "required": [
+          "titulo",
+          "descripcion",
+          "fecha_inicio",
+          "fecha_fin",
+          "preguntas"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "audiencia"
+              ],
+              "properties": {
+                "audiencia": {
+                  "enum": [
+                    "evento_inscritos",
+                    "evento_asistentes"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "evento_id"
+              ],
+              "properties": {
+                "evento_id": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{24}$"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "evento_id": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "x-source": [
+          "app/Http/Requests/GuardarConsultaRequest.php::rules/after/datos"
+        ]
+      },
+      "PartVotacionInput": {
+        "type": "object",
+        "properties": {
+          "titulo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 3000
+          },
+          "fecha_inicio": {
+            "$ref": "#/components/schemas/PartFechaLocal"
+          },
+          "fecha_fin": {
+            "$ref": "#/components/schemas/PartFechaLocal"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/PartEnteroPositivoEntrada"
+          },
+          "preguntas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "titulo": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 250
+                },
+                "opciones": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 150
+                  },
+                  "minItems": 2,
+                  "maxItems": 20
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "titulo",
+                "opciones"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 1
+          },
+          "audiencia": {
+            "$ref": "#/components/schemas/PartVacioProhibido"
+          },
+          "evento_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "description": "GuardarConsultaRequest::rules/after/datos. Cuerpo completo también en PUT. revision es sometimes: no requerida por el FormRequest; en PUT su ausencia produce 409 al compararse como 0. Opciones distintas tras trim + minúsculas; fecha_fin posterior a fecha_inicio y futura al validar. Cada escritura regenera UUID de todas las preguntas/opciones. Extras raíz no se prometen rechazados; preguntas.* sí usa array:titulo,opciones.",
+        "required": [
+          "titulo",
+          "descripcion",
+          "fecha_inicio",
+          "fecha_fin",
+          "preguntas"
+        ],
+        "x-source": [
+          "app/Http/Requests/GuardarConsultaRequest.php::rules/after/datos"
+        ]
+      },
+      "PartConsultaInput": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/PartEncuestaInput"
+          },
+          {
+            "$ref": "#/components/schemas/PartVotacionInput"
+          }
+        ],
+        "description": "La rama depende del parámetro PATH tipo: encuestas => PartEncuestaInput; votaciones => PartVotacionInput. anyOf no puede enlazar por sí solo el path con el body; el servidor aplica esa selección.",
+        "x-schema-by-path-tipo": {
+          "encuestas": {
+            "$ref": "#/components/schemas/PartEncuestaInput"
+          },
+          "votaciones": {
+            "$ref": "#/components/schemas/PartVotacionInput"
+          }
+        },
+        "x-source": [
+          "app/Http/Requests/GuardarConsultaRequest.php::rules/after/datos"
+        ]
+      },
+      "PartRespuestaInput": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "$ref": "#/components/schemas/PartEnteroPositivoEntrada"
+          },
+          "respuestas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pregunta_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "opcion_id": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "pregunta_id",
+                "opcion_id"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 10
+          }
+        },
+        "additionalProperties": true,
+        "description": "respuestas es lista; pregunta_id distinto en cada elemento (distinct de Laravel). Una respuesta por cada pregunta guardada, sin omisiones; opcion_id debe pertenecer a esa pregunta. Votaciones tiene una pregunta; el máximo de esta validación inicial sigue siendo 10. Extras raíz pueden ignorarse; cada elemento usa array:pregunta_id,opcion_id y rechaza otras claves.",
+        "required": [
+          "revision",
+          "respuestas"
+        ],
+        "x-source": [
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php"
+        ]
+      },
+      "PartOpcion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "texto": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "texto"
+        ],
+        "x-source": [
+          "app/Http/Requests/GuardarConsultaRequest.php::datos",
+          "app/Models/ConsultaComunidad.php"
+        ]
+      },
+      "PartPregunta": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "opciones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartOpcion"
+            }
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "titulo",
+          "opciones"
+        ],
+        "x-source": [
+          "app/Http/Requests/GuardarConsultaRequest.php::datos",
+          "app/Models/ConsultaComunidad.php"
+        ]
+      },
+      "PartConsulta": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "titulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fecha_fin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preguntas": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PartPregunta"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "borrador",
+              "publicada",
+              "cerrada",
+              "cancelada"
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "audiencia": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "miembros",
+                  "evento_inscritos",
+                  "evento_asistentes"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evento_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_padron": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "motivo_cierre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "motivo_cancelacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fase": {
+            "type": "string",
+            "enum": [
+              "borrador",
+              "programada",
+              "abierta",
+              "cerrada",
+              "cancelada"
+            ]
+          },
+          "participacion_registrada": {
+            "type": "boolean"
+          },
+          "puede_participar": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "description": "ConsultaController::resumen y ConsultaComunidad. Campos de only opcionales para compatibilidad legacy; faltantes también admiten null donde procede. En vendor actual only asigna getAttribute (habitualmente null si falta). No expone padrón nominal ni respuestas individuales. Límites de creación no se imponen artificialmente a datos históricos. revision no null por filtro whereNotNull; schemas de salida describen documentos del formato revisado, no documentos corruptos.",
+        "required": [
+          "fase",
+          "participacion_registrada",
+          "puede_participar"
+        ],
+        "x-source": [
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php"
+        ]
+      },
+      "PartConsultaList": {
+        "type": "object",
+        "properties": {
+          "consultas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartConsulta"
+            },
+            "maxItems": 12
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "last_page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "puede_gestionar": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "consultas",
+          "page",
+          "last_page",
+          "puede_gestionar"
+        ],
+        "x-source": [
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php"
+        ]
+      },
+      "PartConsultaCreada": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "consulta": {
+            "$ref": "#/components/schemas/PartConsulta"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "message",
+          "consulta"
+        ],
+        "x-source": [
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php"
+        ]
+      },
+      "PartOpcionResultado": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "texto": {
+            "type": "string"
+          },
+          "cantidad": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "porcentaje": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "texto",
+          "cantidad",
+          "porcentaje"
+        ],
+        "x-source": [
+          "app/Services/ConsultasComunidad.php::resultados"
+        ]
+      },
+      "PartPreguntaResultado": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "opciones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartOpcionResultado"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "titulo",
+          "opciones"
+        ],
+        "x-source": [
+          "app/Services/ConsultasComunidad.php::resultados"
+        ]
+      },
+      "PartResultados": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total_padron": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "participacion_porcentaje": {
+            "type": "number",
+            "minimum": 0
+          },
+          "preguntas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartPreguntaResultado"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "Solo agregados. Porcentajes round(...,1), 0 sin denominador; no se presupone máximo 100 ante datos históricos inconsistentes.",
+        "required": [
+          "total",
+          "total_padron",
+          "participacion_porcentaje",
+          "preguntas"
+        ],
+        "x-source": [
+          "app/Services/ConsultasComunidad.php::resultados"
+        ]
+      },
+      "PartConsultaDetalle": {
+        "type": "object",
+        "properties": {
+          "consulta": {
+            "$ref": "#/components/schemas/PartConsulta"
+          },
+          "resultados": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PartResultados"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "consulta",
+          "resultados"
+        ],
+        "x-source": [
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php"
+        ]
+      },
+      "PartConsultaPreview": {
+        "type": "object",
+        "properties": {
+          "consulta": {
+            "$ref": "#/components/schemas/PartConsulta"
+          },
+          "total_padron": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "evento_titulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "firma": {
+            "$ref": "#/components/schemas/PartFirma"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "consulta",
+          "total_padron",
+          "evento_titulo",
+          "firma"
+        ],
+        "x-source": [
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php"
+        ]
+      },
+      "PartParticipacionRegistrada": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "registrada": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "message",
+          "registrada"
+        ],
+        "x-source": [
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php"
+        ]
+      },
+      "PartEventoSeleccion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "titulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fecha_hora_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "description": "Proyección get([id,titulo,fecha_hora_inicio]); campos legacy pueden faltar. El driver puede añadir identificador _id. Sin paginación ni límite explícito.",
+        "x-source": [
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php"
+        ]
+      },
+      "PartEventos": {
+        "type": "object",
+        "properties": {
+          "eventos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartEventoSeleccion"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "eventos"
+        ],
+        "x-source": [
+          "app/Http/Controllers/ConsultaController.php",
+          "app/Services/ConsultasComunidad.php",
+          "app/Models/ConsultaComunidad.php"
+        ]
+      },
+      "PartBloqueoSeguridad": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "const": "initial_password_change_required",
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "enrollment_url": {
+                "type": "string",
+                "format": "uri"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "message",
+              "enrollment_url"
+            ]
+          }
+        ],
+        "x-source": [
+          "app/Http/Middleware/EnsureInitialPasswordChanged.php::handle",
+          "app/Http/Middleware/EnsureRequiredTwoFactorAuthentication.php::handle"
+        ]
+      },
+      "PartCampanaInput": {
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "asunto": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 150
+          },
+          "cuerpo": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 6000
+          },
+          "audiencia": {
+            "type": "string",
+            "enum": [
+              "miembros",
+              "evento_confirmados",
+              "evento_espera",
+              "beca_solicitudes",
+              "beca_aprobadas"
+            ]
+          },
+          "referencia_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{24}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "accion": {
+            "type": "string",
+            "enum": [
+              "ninguna",
+              "eventos",
+              "becas",
+              "mis_boletos",
+              "boleto_evento",
+              "solicitud_beca"
+            ]
+          },
+          "texto_accion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "description": "GuardarCampanaRequest::rules/datos: mismo cuerpo completo en POST y PUT. referencia_id requerida y no null salvo audiencia miembros; texto_accion requerido y no vacío salvo accion ninguna. Miembros fuerza referencia_id=null; ninguna fuerza texto_accion=null. Extras raíz no se prometen rechazados; revision enviada es extra, no comparación optimista en PUT.",
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "audiencia": {
+                  "enum": [
+                    "evento_confirmados",
+                    "evento_espera",
+                    "beca_solicitudes",
+                    "beca_aprobadas"
+                  ]
+                }
+              },
+              "required": [
+                "audiencia"
+              ]
+            },
+            "then": {
+              "required": [
+                "referencia_id"
+              ],
+              "properties": {
+                "referencia_id": {
+                  "type": "string",
+                  "pattern": "^[a-fA-F0-9]{24}$"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "accion": {
+                  "enum": [
+                    "eventos",
+                    "becas",
+                    "mis_boletos",
+                    "boleto_evento",
+                    "solicitud_beca"
+                  ]
+                }
+              },
+              "required": [
+                "accion"
+              ]
+            },
+            "then": {
+              "required": [
+                "texto_accion"
+              ],
+              "properties": {
+                "texto_accion": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "accion": {
+                  "const": "boleto_evento"
+                }
+              },
+              "required": [
+                "accion"
+              ]
+            },
+            "then": {
+              "properties": {
+                "audiencia": {
+                  "enum": [
+                    "evento_confirmados",
+                    "evento_espera"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "accion": {
+                  "const": "solicitud_beca"
+                }
+              },
+              "required": [
+                "accion"
+              ]
+            },
+            "then": {
+              "properties": {
+                "audiencia": {
+                  "enum": [
+                    "beca_solicitudes",
+                    "beca_aprobadas"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "required": [
+          "nombre",
+          "asunto",
+          "cuerpo",
+          "audiencia",
+          "accion"
+        ],
+        "x-source": [
+          "app/Http/Requests/GuardarCampanaRequest.php::rules/datos"
+        ]
+      },
+      "PartCampana": {
+        "type": "object",
+        "properties": {
+          "referencia_demo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "asunto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cuerpo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "audiencia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "accion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "texto_accion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "emisor_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "motivo_cancelacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "organizacion_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "referencia_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enviado_por": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MongoId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_destinatarios": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "procesados": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "omitidos": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "creado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actualizado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "encolado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enviado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "borrador",
+                  "en_cola",
+                  "enviando",
+                  "enviada",
+                  "error",
+                  "pausada",
+                  "cancelada"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_enviados": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total_leidos": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tasa_lectura": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "additionalProperties": true,
+        "description": "ComunicacionController::resumen => Campana::toArray() + métricas calculadas. Atributos persistidos opcionales y null si legacy; toArray no es una proyección cerrada. $fillable solo controla asignación, no atributos serializados. Modelo oculta destinatarios y ejecucion. total_enviados cuenta Mensaje por campaña_id; total_leidos cuenta primera_lectura_en no null incluso si eliminado/archivado; tasa_lectura round(leidos/enviados*100), 0 si no enviados.",
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "destinatarios"
+              ]
+            },
+            {
+              "required": [
+                "ejecucion"
+              ]
+            }
+          ]
+        },
+        "required": [
+          "total_enviados",
+          "total_leidos",
+          "tasa_lectura"
+        ],
+        "x-source": [
+          "app/Http/Controllers/ComunicacionController.php::resumen/index/store/update/preview",
+          "app/Models/Campana.php"
+        ]
+      },
+      "PartReferenciaCampana": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "_id": {
+            "$ref": "#/components/schemas/MongoId"
+          },
+          "titulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "description": "Proyección de Evento o ConvocatoriaBeca get([id,titulo]); sin filtro estado, paginación ni tope. Driver puede añadir _id; datos legacy pueden omitir titulo.",
+        "x-source": [
+          "app/Http/Controllers/ComunicacionController.php::resumen/index/store/update/preview",
+          "app/Models/Campana.php"
+        ]
+      },
+      "PartCampanasList": {
+        "type": "object",
+        "properties": {
+          "campanas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartCampana"
+            },
+            "maxItems": 12
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "last_page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "eventos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartReferenciaCampana"
+            }
+          },
+          "becas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartReferenciaCampana"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "campanas",
+          "page",
+          "last_page",
+          "eventos",
+          "becas"
+        ],
+        "x-source": [
+          "app/Http/Controllers/ComunicacionController.php::resumen/index/store/update/preview",
+          "app/Models/Campana.php"
+        ]
+      },
+      "PartCampanaGuardada": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "campana": {
+            "$ref": "#/components/schemas/PartCampana"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "message",
+          "campana"
+        ],
+        "x-source": [
+          "app/Http/Controllers/ComunicacionController.php::resumen/index/store/update/preview",
+          "app/Models/Campana.php"
+        ]
+      },
+      "PartCampanaPreview": {
+        "type": "object",
+        "properties": {
+          "campana": {
+            "$ref": "#/components/schemas/PartCampana"
+          },
+          "destinatarios": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "firma": {
+            "$ref": "#/components/schemas/PartFirma"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "campana",
+          "destinatarios",
+          "firma"
+        ],
+        "x-source": [
+          "app/Http/Controllers/ComunicacionController.php::resumen/index/store/update/preview",
+          "app/Models/Campana.php"
+        ]
+      }
+    }
+  },
+  "x-source-of-truth": "routes/comunidad.php y fuentes actuales leídas del checkout el 2026-11-11; runtime-routes.json solo se usa como snapshot offline auxiliar, sin regenerarlo.",
+  "x-shared-components-note": "Error, ValidationError, Message y MongoId referenciados al padre. Accepted es regla accepted de Laravel (no HTTP202); ningún endpoint del alcance tiene campos accepted, por lo que no se crea referencia artificial."
+}

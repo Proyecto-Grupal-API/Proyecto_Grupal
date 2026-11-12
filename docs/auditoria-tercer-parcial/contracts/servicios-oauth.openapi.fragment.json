@@ -1,0 +1,1047 @@
+{
+  "paths": {
+    "/api/v1/comunidad/notificaciones": {
+      "post": {
+        "operationId": "enviarAvisoModulo",
+        "security": [
+          {
+            "OAuthServicio": [
+              "notifications:send"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[a-zA-Z0-9_.:-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/AvisosAvisoServicios"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AvisosAvisoFinanzas"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AvisosAvisoRecompensas"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recibo persistente de la entrega.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosRecibo"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Recibo persistente de la entrega.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosRecibo"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          }
+        },
+        "description": "El servidor elige el catálogo por el client_id OAuth autenticado. Solo el cliente configurado en FINANCIAL_COMMUNITY_NOTICES_CLIENT_ID puede emitir AvisoFinanzas; ese cliente no puede emitir AvisoServicios. Los demás clientes autorizados conservan el catálogo de Servicios. La categoría, el emisor y la URL se determinan en backend. Para Finanzas: pago/devolución -> comprobante_financiero y beca_emitida -> bono_financiero; requieren UUID. Los avisos financieros son obligatorios y no acreditan cupo ni reemplazan la autorización al consultar el recurso. El cliente dedicado PLATFORM_COMMUNITY_NOTICES_CLIENT_ID usa únicamente AvisoRecompensas, con categoría recompensas, emisor Recompensas y enlaces privados fijos. Puntos -> actividad?movimiento=id; canjes -> canjes?canje=id. Una configuración que comparte client_id con Finanzas falla con 503 cliente_ambiguo.",
+        "x-source": "app/Http/Controllers/Api/Community/AvisoController.php",
+        "x-contract-status": "reviewed"
+      },
+      "get": {
+        "operationId": "consultarReciboAviso",
+        "security": [
+          {
+            "OAuthServicio": [
+              "notifications:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clave_idempotencia",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recibo persistente de la entrega.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosRecibo"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "app/Http/Controllers/Api/Community/AvisoController.php",
+        "x-contract-status": "reviewed"
+      }
+    },
+    "/api/v1/comunidad/notificaciones/{id}/retiro": {
+      "post": {
+        "operationId": "retirarAvisoServicio",
+        "security": [
+          {
+            "OAuthServicio": [
+              "notifications:send"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[a-zA-Z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "motivo"
+                ],
+                "properties": {
+                  "motivo": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "example": {
+                  "motivo": "Reserva cancelada"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Aviso retirado conservando el historial de lectura.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "notificacion_id",
+                    "estado"
+                  ],
+                  "properties": {
+                    "notificacion_id": {
+                      "type": "string"
+                    },
+                    "estado": {
+                      "const": "retirada"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error de autorización, validación, conflicto, límite o servicio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvisosError"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "app/Http/Controllers/Api/Community/AvisoController.php",
+        "x-contract-status": "reviewed"
+      }
+    },
+    "/api/v1/comunidad/organizaciones/comercio": {
+      "get": {
+        "summary": "Organizaciones activas con Presidencia vigente para solicitar tienda",
+        "operationId": "get_comunidad_organizaciones_comercio",
+        "x-source": "app/Http/Controllers/Api/Community/OrganizationCommerceController.php@__invoke",
+        "x-contract-status": "reviewed",
+        "security": [
+          {
+            "serviceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "subject_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "pattern": "^[^\\x00-\\x20\\x7f]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proyección sin acceso financiero implícito",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "subject_id",
+                    "organizations"
+                  ],
+                  "properties": {
+                    "subject_id": {
+                      "type": "string"
+                    },
+                    "organizations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "name",
+                          "type",
+                          "can_request_store"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{24}$"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "enum": [
+                              "council",
+                              "association"
+                            ]
+                          },
+                          "can_request_store": {
+                            "const": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Servicio no autenticado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope insuficiente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "subject_id inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de solicitudes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comunidad/becas/{solicitud}/bono": {
+      "get": {
+        "summary": "Contrato financiero de una solicitud BECA aprobada",
+        "operationId": "get_comunidad_beca_bono",
+        "x-contract-status": "reviewed",
+        "x-source": "app/Http/Controllers/Api/Community/BecaAwardController.php@__invoke",
+        "description": "Requiere integración BECA habilitada, cliente E2 configurado y scope community:beca-award:read. Snapshot validado en BecaFinanceContract: solicitudes aprobadas, destino2, bono, contrato y clave coincidentes, estado pendiente_integracion/asignada. Exige fin de vigencia posterior al inicio; no emite dinero ni autoriza por sí mismo al humano. Aval puede ser null.",
+        "security": [
+          {
+            "serviceBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "solicitud",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Snapshot del dictamen y aval persistido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "solicitud_id",
+                        "beneficiario_id",
+                        "organizacion_id",
+                        "convocatoria_id",
+                        "monto_centavos",
+                        "moneda",
+                        "vigencia_inicio",
+                        "vigencia_fin_exclusiva",
+                        "aval_tesoreria"
+                      ],
+                      "properties": {
+                        "solicitud_id": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{24}$"
+                        },
+                        "beneficiario_id": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{24}$"
+                        },
+                        "organizacion_id": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{24}$"
+                        },
+                        "convocatoria_id": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{24}$"
+                        },
+                        "monto_centavos": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "moneda": {
+                          "const": "MXN"
+                        },
+                        "vigencia_inicio": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "vigencia_fin_exclusiva": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "aval_tesoreria": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "presidencia_id": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{24}$"
+                                },
+                                "tesoreria_id": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{24}$"
+                                },
+                                "presupuesto_id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "monto_centavos": {
+                                  "type": "integer",
+                                  "minimum": 1
+                                },
+                                "huella_dictamen": {
+                                  "type": "string",
+                                  "pattern": "^[a-f0-9]{64}$"
+                                },
+                                "avalado_en": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "additionalProperties": true,
+                              "description": "Aval persistido E6. Puede ser null antes de Tesorería. Se declara proyección conocida sin afirmar que todos los documentos históricos tienen los campos."
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cliente o scope no autorizado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Solicitud/beneficio no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Contrato incoherente o estado incompatible",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Cuota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Integración no habilitada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AvisosRecibo": {
+        "type": "object",
+        "required": [
+          "notificacion_id",
+          "estado",
+          "motivo"
+        ],
+        "properties": {
+          "notificacion_id": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "entregada",
+              "omitida"
+            ]
+          },
+          "motivo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "preferencia_silenciada",
+              null
+            ]
+          }
+        },
+        "example": {
+          "notificacion_id": "66a123456789abcdef123458",
+          "estado": "entregada",
+          "motivo": null
+        }
+      },
+      "AvisosError": {
+        "type": "object",
+        "required": [
+          "codigo",
+          "mensaje",
+          "correlacion_id"
+        ],
+        "properties": {
+          "codigo": {
+            "type": "string"
+          },
+          "mensaje": {
+            "type": "string"
+          },
+          "correlacion_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "errores": {
+            "type": "object"
+          }
+        },
+        "example": {
+          "codigo": "clave_en_conflicto",
+          "mensaje": "La clave ya se usó con un contenido diferente.",
+          "correlacion_id": "43de1399-7a77-4872-8dbf-c13a9a717dbd"
+        }
+      },
+      "AvisosAvisoServicios": {
+        "type": "object",
+        "required": [
+          "destinatario_id",
+          "tipo",
+          "asunto",
+          "texto",
+          "accion"
+        ],
+        "properties": {
+          "destinatario_id": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "User._id canónico de Identidad; se valida por su API de condición académica."
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "prestamo_por_vencer",
+              "prestamo_vencido",
+              "reserva_libro_disponible",
+              "multa_generada",
+              "locker_por_vencer",
+              "lista_espera_promovida",
+              "recordatorio_reserva",
+              "no_show_registrado",
+              "renta_por_devolver",
+              "orden_lista",
+              "ticket_actualizado"
+            ]
+          },
+          "asunto": {
+            "type": "string",
+            "maxLength": 180,
+            "description": "Texto sin HTML."
+          },
+          "texto": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "Texto sin HTML."
+          },
+          "accion": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "destino",
+              "id"
+            ],
+            "properties": {
+              "destino": {
+                "type": "string",
+                "enum": [
+                  "mis_prestamos",
+                  "mis_reservas_libros",
+                  "mis_multas",
+                  "mi_locker",
+                  "mis_reservas",
+                  "mis_rentas",
+                  "mis_ordenes",
+                  "mi_ticket"
+                ]
+              },
+              "id": {
+                "type": "string",
+                "maxLength": 128,
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              }
+            }
+          },
+          "importancia": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "alta"
+            ],
+            "default": "normal"
+          },
+          "expira_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "ISO 8601 con zona, posterior al primer envío. Un reintento posterior conserva el recibo."
+          }
+        },
+        "example": {
+          "destinatario_id": "66a123456789abcdef123456",
+          "tipo": "orden_lista",
+          "asunto": "Tu impresión está lista",
+          "texto": "Recoge tu orden en Servicios al estudiante.",
+          "accion": {
+            "destino": "mis_ordenes",
+            "id": "66a123456789abcdef123457"
+          },
+          "importancia": "normal"
+        }
+      },
+      "AvisosAvisoFinanzas": {
+        "type": "object",
+        "required": [
+          "destinatario_id",
+          "tipo",
+          "asunto",
+          "texto",
+          "accion"
+        ],
+        "properties": {
+          "destinatario_id": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "User._id canónico de Identidad; se valida por su API de condición académica."
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "pago_evento_confirmado",
+              "devolucion_confirmada",
+              "beca_emitida"
+            ]
+          },
+          "asunto": {
+            "type": "string",
+            "maxLength": 180,
+            "description": "Texto sin HTML."
+          },
+          "texto": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "Texto sin HTML."
+          },
+          "accion": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "destino",
+              "id"
+            ],
+            "properties": {
+              "destino": {
+                "type": "string",
+                "enum": [
+                  "comprobante_financiero",
+                  "bono_financiero"
+                ]
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "UUID canónico de la transacción o bono del propio destinatario; sin URLs libres."
+              }
+            }
+          },
+          "importancia": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "alta"
+            ],
+            "default": "normal"
+          },
+          "expira_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "ISO 8601 con zona, posterior al primer envío. Un reintento posterior conserva el recibo."
+          }
+        },
+        "example": {
+          "destinatario_id": "66a123456789abcdef123456",
+          "tipo": "pago_evento_confirmado",
+          "asunto": "Pago de evento confirmado",
+          "texto": "Se confirmó tu pago de evento por 25.00 MXN. Consulta el comprobante financiero.",
+          "accion": {
+            "destino": "comprobante_financiero",
+            "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+          },
+          "importancia": "normal"
+        }
+      },
+      "AvisosAvisoRecompensas": {
+        "type": "object",
+        "required": [
+          "destinatario_id",
+          "tipo",
+          "asunto",
+          "texto",
+          "accion"
+        ],
+        "properties": {
+          "destinatario_id": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "User._id canónico de Identidad; se valida por su API de condición académica."
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "puntos_acreditados",
+              "canje_confirmado",
+              "canje_entregado",
+              "canje_cancelado"
+            ]
+          },
+          "asunto": {
+            "type": "string",
+            "maxLength": 180,
+            "description": "Texto sin HTML."
+          },
+          "texto": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "Texto sin HTML."
+          },
+          "accion": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "destino",
+              "id"
+            ],
+            "properties": {
+              "destino": {
+                "type": "string",
+                "enum": [
+                  "mi_actividad_recompensas",
+                  "mi_canje_recompensas"
+                ]
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{24}$",
+                "description": "ID canónico del movimiento o canje del destinatario."
+              }
+            }
+          },
+          "importancia": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "alta"
+            ],
+            "default": "normal"
+          },
+          "expira_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "ISO 8601 con zona, posterior al primer envío. Un reintento posterior conserva el recibo."
+          }
+        },
+        "example": {
+          "destinatario_id": "66a123456789abcdef123456",
+          "tipo": "canje_entregado",
+          "asunto": "Canje entregado",
+          "texto": "Tu canje fue entregado. Consulta sus detalles.",
+          "accion": {
+            "destino": "mi_canje_recompensas",
+            "id": "66a123456789abcdef123457"
+          },
+          "importancia": "normal"
+        }
+      }
+    },
+    "securitySchemes": {
+      "OAuthServicio": {
+        "type": "oauth2",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "/api/oauth/token",
+            "scopes": {
+              "notifications:send": "Enviar y retirar avisos propios.",
+              "notifications:read": "Consultar recibos propios."
+            }
+          }
+        }
+      }
+    }
+  }
+}

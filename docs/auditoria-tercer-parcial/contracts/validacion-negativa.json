@@ -1,0 +1,25 @@
+{
+  "checks": [
+    {
+      "case": "missing_reference",
+      "rejected": true
+    },
+    {
+      "case": "missing_runtime_route",
+      "rejected": true
+    },
+    {
+      "case": "duplicate_operation_id",
+      "rejected": true
+    },
+    {
+      "case": "wrong_dto_type",
+      "rejected": true
+    },
+    {
+      "case": "wrong_openapi_version",
+      "rejected": true
+    }
+  ],
+  "deterministic_rebuild": true
+}

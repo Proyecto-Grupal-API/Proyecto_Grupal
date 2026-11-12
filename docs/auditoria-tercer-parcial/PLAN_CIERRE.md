@@ -31,3 +31,8 @@ El cierre posterior de cobros, devoluciones, beneficios E5, avisos y métricas e
 ## Segundo corte del 11 de noviembre: avance funcional mínimo
 
 La matriz funcional de Comunidad se reevaluó con los mismos once pesos: **90.36% estimado**. Se añadieron avisos reales de Recompensas, agregados analíticos de Comunidad y revocación confirmada de servicios con historial. Las tareas quedaron activadas en el entorno integrado, con corte para registros nuevos. [Informe y límites](../integration/AVANCE_FUNCIONAL_COMUNIDAD_2026-11-11.md). Esto no modifica la autoevaluación de la rúbrica ni acredita los pendientes de BECA, directorio académico, documentación estricta completa o lector NFC físico.
+
+
+## Revisión documental posterior a la integración E5
+
+El catálogo OpenAPI3.1 cubre las 120 operaciones actuales: 105 tienen esquemas revisados y 15 mantienen limitaciones concretas de serialización histórica. El validador offline contrasta 51 respuestas y 19 peticiones guardadas, sin nuevos accesos a DB. Se conservan los parciales; [estado detallado](contracts/ESTADO_2026-11-11.md). Se preparó el protocolo de NFC físico, todavía no ejecutado. Estas mejoras documentales no cambian por sí mismas la rúbrica ni el porcentaje funcional.
