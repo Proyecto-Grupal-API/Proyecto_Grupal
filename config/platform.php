@@ -20,6 +20,9 @@ return [
         'enabled' => env('PLATFORM_SERVICES_DELIVERY_ENABLED', false),
         'url' => env('PLATFORM_SERVICES_API_URL', 'http://app'),
         'since' => env('PLATFORM_SERVICES_DELIVERY_SINCE'),
+        // Eventos analíticos del Equipo 5 (servicios:publicar-eventos). Bandera
+        // propia: encender la auditoría (enabled) no inicia este envío.
+        'analytics_enabled' => env('PLATFORM_SERVICES_ANALYTICS_ENABLED', false),
     ],
     'ingest' => ['enabled' => env('PLATFORM_INGEST_ENABLED', false), 'secrets' => [
         'community' => env('PLATFORM_COMMUNITY_SECRET'), 'inventory' => env('PLATFORM_INVENTORY_SECRET'),

@@ -86,6 +86,12 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\AutorizarServicios::
             [LockerRequestController::class, 'pay']
         )->name('lockers.requests.pay');
 
+        Route::post('/lockers/solicitudes/{requestId}/iniciar-pago', [LockerRequestController::class, 'startPayment'])
+            ->where('requestId', '[a-f0-9]{24}')->middleware('throttle:12,1')->name('lockers.requests.start-payment');
+
+        Route::post('/lockers/solicitudes/{requestId}/consultar-pago', [LockerRequestController::class, 'reconcilePayment'])
+            ->where('requestId', '[a-f0-9]{24}')->middleware('throttle:12,1')->name('lockers.requests.reconcile-payment');
+
         Route::patch(
             '/lockers/solicitudes/{requestId}/cancelar',
             [LockerRequestController::class, 'cancel']
@@ -493,6 +499,12 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\AutorizarServicios::
             '/servicios-impresiones/{orderId}/pagar',
             [ServiceOrderController::class, 'pay']
         )->name('services.pay');
+
+        Route::post('/servicios-impresiones/{orderId}/iniciar-pago', [ServiceOrderController::class, 'startPayment'])
+            ->where('orderId', '[a-f0-9]{24}')->middleware('throttle:12,1')->name('services.start-payment');
+
+        Route::post('/servicios-impresiones/{orderId}/consultar-pago', [ServiceOrderController::class, 'reconcilePayment'])
+            ->where('orderId', '[a-f0-9]{24}')->middleware('throttle:12,1')->name('services.reconcile-payment');
 
         Route::patch(
             '/servicios-impresiones/{orderId}/pagar-con-beca',

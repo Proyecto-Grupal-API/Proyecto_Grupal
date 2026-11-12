@@ -39,6 +39,11 @@ if (config('platform.services_delivery.enabled') === true) {
     Schedule::command('servicios:publicar-auditoria --limit=20')->everyMinute()->withoutOverlapping(10);
 }
 
+// Eventos analíticos del Equipo 5: bandera propia, independiente de la auditoría.
+if (config('platform.services_delivery.analytics_enabled') === true) {
+    Schedule::command('servicios:publicar-eventos')->everyMinute()->withoutOverlapping(10);
+}
+
 if (config('platform.delivery.enabled') === true) {
     Schedule::command('comunidad:publicar-plataforma')->everyMinute()->withoutOverlapping();
 }

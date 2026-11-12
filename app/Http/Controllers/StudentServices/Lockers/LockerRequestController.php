@@ -12,18 +12,72 @@ use App\Models\StudentServices\Lockers\LockerRequest;
 use App\Services\StudentServices\Lockers\LockerAssignmentService;
 use App\Services\StudentServices\Lockers\LockerRequestService;
 use App\Services\StudentServices\Payments\Money;
+use App\Services\StudentServices\Payments\ServiceFinancePayments;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use MongoDB\BSON\ObjectId;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class LockerRequestController extends Controller
 {
     public function __construct(
         private readonly LockerRequestService $requests,
-        private readonly LockerAssignmentService $assignments
+        private readonly LockerAssignmentService $assignments,
+        private readonly ServiceFinancePayments $financePayments
     ) {}
+
+    /**
+     * El alumno paga su solicitud con la wallet de Finanzas: se prepara el
+     * cobro y se le lleva a la pantalla de Finanzas para autorizarlo.
+     */
+    public function startPayment(Request $request, string $requestId): HttpResponse
+    {
+        $lockerRequest = $this->ownedRequest($request, $requestId);
+
+        try {
+            $path = $this->financePayments->start($lockerRequest);
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['locker_request' => $exception->getMessage()]);
+        }
+
+        if ($path === null) {
+            return to_route('module5.lockers.requests.index')->with('success', 'Pago confirmado por Finanzas.');
+        }
+
+        return Inertia::location(url($path));
+    }
+
+    /**
+     * Al volver de Finanzas: consulta el cobro y, si está confirmado, asigna el locker.
+     */
+    public function reconcilePayment(Request $request, string $requestId): RedirectResponse
+    {
+        $lockerRequest = $this->ownedRequest($request, $requestId);
+
+        try {
+            $paid = $this->financePayments->reconcile($lockerRequest);
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['locker_request' => $exception->getMessage()]);
+        }
+
+        return $paid
+            ? to_route('module5.lockers.requests.index')->with('success', 'Pago confirmado por Finanzas.')
+            : to_route('module5.lockers.requests.index')->withErrors(['locker_request' => 'Finanzas aún no reporta un pago confirmado para esta solicitud.']);
+    }
+
+    private function ownedRequest(Request $request, string $requestId): LockerRequest
+    {
+        abort_unless($this->financePayments->enabled(), 404);
+        abort_if($request->all() !== [], 422);
+
+        return LockerRequest::query()
+            ->where('_id', new ObjectId($requestId))
+            ->where('student_id', (string) $request->user()->getAuthIdentifier())
+            ->firstOrFail();
+    }
 
     public function index(
         Request $request
@@ -53,6 +107,8 @@ class LockerRequestController extends Controller
          * Cuando Equipo 1 entregue Roles/Policies,
          * se podrá limitar por tipo de usuario.
          */
+        $userId = $request->user() !== null ? (string) $request->user()->getAuthIdentifier() : null;
+
         $requests =
             app(\App\Services\StudentServices\ServiceAuthority::class)->propias(LockerRequest::query())
                 ->orderBy(
@@ -65,7 +121,8 @@ class LockerRequestController extends Controller
                         LockerRequest $lockerRequest
                     ) use (
                         $periods,
-                        $lockers
+                        $lockers,
+                        $userId
                     ) {
                         $period =
                             $periods->get(
@@ -136,6 +193,10 @@ class LockerRequestController extends Controller
 
                             'payment_reference' => $lockerRequest
                                 ->payment_reference,
+
+                            'can_start_payment' => $this->financePayments->canStart($lockerRequest, $userId),
+
+                            'can_reconcile_payment' => $this->financePayments->canReconcile($lockerRequest, $userId),
 
                             'paid_at' => $lockerRequest
                                 ->paid_at
@@ -295,6 +356,8 @@ class LockerRequestController extends Controller
             );
 
         try {
+            app(ServiceFinancePayments::class)->guardOtherPayment($lockerRequest);
+
             $assignment =
                 $this->requests
                     ->confirmPayment(

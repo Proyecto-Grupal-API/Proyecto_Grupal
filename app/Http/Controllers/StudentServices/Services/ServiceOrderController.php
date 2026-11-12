@@ -9,6 +9,7 @@ use App\Http\Requests\StudentServices\Services\StoreServiceOrderRequest;
 use App\Models\StudentServices\Services\PrintJob;
 use App\Models\StudentServices\Services\ServiceOrder;
 use App\Services\StudentServices\Benefits\ServiceBenefitService;
+use App\Services\StudentServices\Payments\ServiceFinancePayments;
 use App\Services\StudentServices\Services\ServiceOrderService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,13 +17,71 @@ use Inertia\Inertia;
 use Inertia\Response;
 use MongoDB\BSON\ObjectId;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Throwable;
 
 class ServiceOrderController extends Controller
 {
     public function __construct(
-        private readonly ServiceOrderService $serviceOrderService
+        private readonly ServiceOrderService $serviceOrderService,
+        private readonly ServiceFinancePayments $financePayments
     ) {}
+
+    /**
+     * El alumno paga su orden con la wallet de Finanzas.
+     */
+    public function startPayment(Request $request, string $orderId): HttpResponse
+    {
+        $order = $this->ownedOrder($request, $orderId);
+
+        try {
+            $path = $this->financePayments->start($order);
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['service_order' => $exception->getMessage()]);
+        }
+
+        if ($path === null) {
+            return to_route('module5.services.index')->with('success', 'Pago confirmado por Finanzas.');
+        }
+
+        return Inertia::location(url($path));
+    }
+
+    /**
+     * Al volver de Finanzas: si el pago está confirmado, la orden pasa a proceso.
+     */
+    public function reconcilePayment(Request $request, string $orderId): RedirectResponse
+    {
+        $order = $this->ownedOrder($request, $orderId);
+
+        try {
+            $paid = $this->financePayments->reconcile($order);
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['service_order' => $exception->getMessage()]);
+        }
+
+        return $paid
+            ? to_route('module5.services.index')->with('success', 'Pago confirmado por Finanzas.')
+            : to_route('module5.services.index')->withErrors(['service_order' => 'Finanzas aún no reporta un pago confirmado para esta orden.']);
+    }
+
+    private function ownedOrder(Request $request, string $orderId): ServiceOrder
+    {
+        abort_unless($this->financePayments->enabled(), 404);
+        abort_if($request->all() !== [], 422);
+
+        return ServiceOrder::query()
+            ->where('_id', new ObjectId($orderId))
+            ->where('student_id', (string) $request->user()->getAuthIdentifier())
+            ->firstOrFail();
+    }
+
+    private function currentUserId(): ?string
+    {
+        $user = request()->user();
+
+        return $user !== null ? (string) $user->getAuthIdentifier() : null;
+    }
 
     public function index(
         Request $request
@@ -134,6 +193,8 @@ class ServiceOrderController extends Controller
                 $request,
                 $order
             );
+
+            app(ServiceFinancePayments::class)->guardOtherPayment($order);
 
             $this->serviceOrderService
                 ->markAsPaid(
@@ -403,6 +464,10 @@ class ServiceOrderController extends Controller
 
             'paymentReferenceId' => $order
                 ->payment_reference_id,
+
+            'canStartPayment' => $this->financePayments->canStart($order, $this->currentUserId()),
+
+            'canReconcilePayment' => $this->financePayments->canReconcile($order, $this->currentUserId()),
 
             'status' => $order->status,
 

@@ -4,6 +4,7 @@ namespace App\Services\StudentServices\Services;
 
 use App\Models\StudentServices\Services\PrintJob;
 use App\Models\StudentServices\Services\ServiceOrder;
+use App\Services\StudentServices\Payments\ServiceFinancePayments;
 use Illuminate\Http\UploadedFile;
 use InvalidArgumentException;
 use MongoDB\BSON\ObjectId;
@@ -276,11 +277,23 @@ class ServiceOrderService
             );
         }
 
-        $order->update([
-            'status' => 'cancelled',
+        $changes = ['status' => 'cancelled', 'cancelled_at' => now()];
+        $open = ServiceOrder::query()
+            ->where('_id', new ObjectId((string) $order->id))
+            ->whereIn('status', ['pending', 'quoted', 'awaiting_payment']);
 
-            'cancelled_at' => now(),
-        ]);
+        // Si nunca se pidió el cobro a Finanzas, se cancela directo.
+        $moved = (clone $open)->where('finance_requested', '!=', true)->update($changes);
+
+        if ($moved === 0) {
+            // Ya se pidió el cobro: primero se cancela en Finanzas (o se registra si ya cobró).
+            app(ServiceFinancePayments::class)->beforeCancel($order);
+            $moved = $open->update($changes);
+        }
+
+        if ($moved === 0) {
+            throw new RuntimeException('Esta solicitud ya no puede cancelarse.');
+        }
 
         return $order->fresh();
     }

@@ -32,6 +32,8 @@ interface ServiceOrder {
     quotedAmount: number | null;
     paymentStatus: PaymentStatus;
     paymentReferenceId?: string | null;
+    canStartPayment?: boolean;
+    canReconcilePayment?: boolean;
     status: OrderStatus;
     requestedAt: string;
     paidAt?: string | null;
@@ -397,6 +399,20 @@ function closeDetails() {
     selectedOrder.value = null;
 
     showDetails.value = false;
+}
+
+// Pago con la wallet de Finanzas: se autoriza en Finanzas y al volver se consulta.
+function financeAction(order: ServiceOrder, action: 'iniciar-pago' | 'consultar-pago') {
+    processingOrderId.value = order.id;
+    router.post(`/servicios-estudiante/servicios-impresiones/${order.id}/${action}`, {}, {
+        preserveScroll: true,
+        onError: (errors) => {
+            window.alert(String(errors.service_order ?? 'No fue posible completar el pago con Finanzas.'));
+        },
+        onFinish: () => {
+            processingOrderId.value = null;
+        },
+    });
 }
 
 function simulatePayment(order: ServiceOrder) {
@@ -967,17 +983,35 @@ function markDelivered(order: ServiceOrder) {
                                     </button>
 
                                     <button
+                                        v-if="order.canStartPayment"
+                                        type="button"
+                                        class="action-button pay"
+                                        :disabled="processingOrderId !== null"
+                                        @click="financeAction(order, 'iniciar-pago')"
+                                    >
+                                        Pagar con mi wallet
+                                    </button>
+
+                                    <button
+                                        v-if="order.canReconcilePayment"
+                                        type="button"
+                                        class="action-button details"
+                                        :disabled="processingOrderId !== null"
+                                        @click="financeAction(order, 'consultar-pago')"
+                                    >
+                                        Consultar pago
+                                    </button>
+
+                                    <button
                                         v-if="
                                             order.status ===
                                                 'awaiting_payment' &&
-                                            order.paymentStatus === 'pending'
+                                            order.paymentStatus === 'pending' &&
+                                            !order.canStartPayment
                                         "
                                         type="button"
                                         class="action-button pay"
-                                        :disabled="
-                                            processingOrderId === order.id
-                                        "
-                                        disabled title="Pendiente de conexión con cartera"
+                                        disabled title="El pago con Finanzas no está habilitado"
                                     >
                                         Pagar
                                     </button>
