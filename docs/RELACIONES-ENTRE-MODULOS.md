@@ -41,17 +41,17 @@ Las flechas son contratos HTTP/sobres verificados en el laboratorio (09b, 9.x). 
 | E3 → E1 | 1 | Comando de preparación (válido en mantenimiento) |
 | E2 → E1 | 8 | Identidad compartida; parte pasa por `Module1IdentityAdapter` (válido), el resto lee `User` directo (deuda menor) |
 | E5 → E1 | 2 | Lee `User/StudentProfile/Consent` directo (deuda) |
-| E7 → E6 | 1 | Lee `AuditoriaComunidad` de E6 al entregar sobres (deuda) |
-| E5 → E6 | 2 | Lee `AsignacionBeneficio` de E6 directo (deuda: debería ser contrato) |
+| E7 → E6 | 1 | **Falso positivo revisado:** `CommunityPlatformDelivery` es código de E6 (lee su propia auditoría); E7 recibe la proyección por HTTP: contrato válido |
+| E5 → E6 | 2 | **Falso positivo revisado:** `EntregaBeneficiosServicios`/`RevocacionBeneficiosServicios` son código de E6 que lee su propia colección y llama a E5 por HTTP/OAuth (`/api/v1/servicios/asignaciones`): contrato válido |
 | E7 → E1 | 1 | Autorización por roles E1 leída directo (deuda menor) |
 
 ## 3. Brechas concretas
-1. E5 → E6 `AsignacionBeneficio`: exponer un contrato de lectura de beneficios en E6 y consumirlo desde E5.
-2. E7 → E6 `AuditoriaComunidad`: registrar la entrega en un sobre/evento en vez de leer la colección.
-3. Lecturas directas de `User`/`Role` fuera de E1: canalizarlas por los adaptadores de identidad ya existentes (como hace E2 con `Module1IdentityAdapter`).
+1. E5 lee datos privados de perfil de E1 (`StudentProfile`, `Consent`, `CommunicationPreference` en `StudentServicesController`): sustituir por el contrato de identidad/directorio de E1.
+2. Lecturas directas de `User`/`Role`/`Permission` fuera de E1 (E2 parcialmente, E6, E7 `RewardsAuthorizationService`): canalizarlas por los adaptadores de identidad existentes (como `Module1IdentityAdapter` de E2).
+3. Entre E2–E7 no se encontraron lecturas directas de colecciones ajenas: E6→E5 y E6→E7 usan HTTP/sobres (revisado a mano).
 4. Mover los controladores de E6 del espacio raíz a `App\Http\Controllers\Community` para que la propiedad sea explícita.
 
-Estado en la rúbrica: 7.6 se mantiene «Cumple parcialmente» hasta cerrar 1–3; este documento aporta el diagrama global y el inventario que faltaban.
+Estado en la rúbrica: 7.6 se mantiene «Cumple parcialmente» hasta cerrar 1–2; este documento aporta el diagrama global y el inventario que faltaban.
 
 ## 4. Detalle por par
 
