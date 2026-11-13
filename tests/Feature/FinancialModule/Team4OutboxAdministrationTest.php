@@ -208,13 +208,16 @@ test('team4 operations validate inputs cursor and action before changing any eve
 test('team4 quarantine refuses production but read only inspection stays available', function () {
     $event = t4adminFixture();
     $original = app()['env'];
+    // The production refusal happens before any database access. The read-only inspection runs after the
+    // environment is restored because the accredited test guard (correctly) refuses database access outside testing.
     app()->instance('env', 'production');
     try {
-        expect(fn () => t4adminQuarantine($event))->toThrow(ConflictHttpException::class);
-        expect(app(Team4OutboxAdministration::class)->show($event->event_id)['state'])->toBe('PENDING');
+        expect(fn () => t4adminQuarantine($event))->toThrow(ConflictHttpException::class, 'solo se permite en local/testing');
     } finally {
         app()->instance('env', $original);
     }
+    $shown = app(Team4OutboxAdministration::class)->show($event->event_id);
+    expect($shown['state'])->toBe('PENDING')->and($shown['actions'])->toBe([])->and($shown['integrity_ok'])->toBeTrue();
     Http::assertNothingSent();
 });
 

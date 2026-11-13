@@ -29,9 +29,21 @@ beforeEach(function () {
 
 test('normal testing apply remains allowed and local default apply remains denied', function () {
     expect(app(LegacyRoleBackfillService::class)->run(true)['created'])->toBe(1);
+    // In local the service refuses on its first check, before touching any database (exact message, not the guard's).
+    $denial = 'Apply is restricted to campus_virtual_testing in this phase.';
     $this->app['env'] = 'local';
-    expect(fn () => app(LegacyRoleBackfillService::class)->run(true))->toThrow(RuntimeException::class);
-    $this->artisan('identity:backfill-role-assignments', ['--apply' => true])->assertFailed();
+    try {
+        expect(fn () => app(LegacyRoleBackfillService::class)->run(true))->toThrow(RuntimeException::class, $denial);
+    } finally {
+        $this->app['env'] = 'testing';
+    }
+    // The command maps that denial to FAILURE without writing. Exercised inside the accredited environment
+    // (the test guard forbids running console commands outside testing) with the service raising the same denial.
+    $this->mock(LegacyRoleBackfillService::class, fn ($mock) => $mock->shouldReceive('run')->once()->with(true, null)
+        ->andThrow(new RuntimeException($denial)));
+    $this->artisan('identity:backfill-role-assignments', ['--apply' => true])
+        ->expectsOutputToContain('Backfill stopped safely')->assertFailed();
+    expect(RoleAssignment::count())->toBe(1);
 });
 
 test('transition requires exact target and explicit confirmations', function (array $target, ?int $count, ?string $hash) {
