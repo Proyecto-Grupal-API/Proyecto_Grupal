@@ -195,6 +195,7 @@ async function submit() {
             pending.value = { url, payload, action: action.value, key: crypto.randomUUID() };
         } catch (exception) { error.value = exception.message; return; }
     }
+    success.value = '';
     await run(async () => {
         const request = pending.value;
         let result;

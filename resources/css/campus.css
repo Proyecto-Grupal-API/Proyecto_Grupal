@@ -335,6 +335,11 @@
     letter-spacing: -0.35px;
     overflow-wrap: anywhere;
 }
+/* Los encabezados sobre bandas oscuras conservan el texto claro de su contenedor (contraste AA). */
+.campus-page .text-white h1,
+.campus-page h1.text-white {
+    color: #fff;
+}
 .campus-page h2 {
     font-weight: 500;
 }
