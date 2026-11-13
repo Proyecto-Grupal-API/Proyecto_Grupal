@@ -81,7 +81,7 @@ const formatDate = (date) => {
                         Campus Digital
                     </p>
 
-                    <h1 class="mt-2 text-3xl font-bold text-white sm:text-4xl">
+                    <h1 class="mt-2 text-3xl font-bold !text-white sm:text-4xl">
                         Mi wallet
                     </h1>
 

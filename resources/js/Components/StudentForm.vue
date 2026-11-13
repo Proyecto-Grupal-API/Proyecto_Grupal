@@ -71,11 +71,17 @@ async function submit() {
         temporaryMode.value = 'created';
     } catch (error) {
         if (error.response?.status === 422 && error.response.data?.errors) {
+            const errors = error.response.data.errors;
             form.setError(Object.fromEntries(
-                Object.entries(error.response.data.errors).map(([field, messages]) => [
+                Object.entries(errors).map(([field, messages]) => [
                     field, Array.isArray(messages) ? messages[0] : String(messages),
                 ]),
             ));
+            // Errors for fields this form does not render must not be silently swallowed.
+            const hidden = Object.keys(errors).filter((field) => !(field in form.data()));
+            if (hidden.length > 0) {
+                requestError.value = error.response.data.message || 'No se pudo registrar la cuenta. Revisa los datos e inténtalo de nuevo.';
+            }
         } else if (error.response?.status === 403) {
             requestError.value = 'No tienes permiso para crear esta cuenta.';
         } else if (error.response?.status === 419) {
