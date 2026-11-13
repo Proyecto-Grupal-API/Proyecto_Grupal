@@ -19,6 +19,7 @@ foreach (['authorization/check' => ['post', 'check', 'identity:authorization:che
 }
 
 Route::post('/oauth/token', OAuthTokenController::class)->middleware('throttle:60,1');
+Route::post('/v1/oauth/token', OAuthTokenController::class)->middleware('throttle:60,1'); // alias versionado (4.2); la ruta histórica se conserva
 
 Route::get('/v1/comunidad/becas/{solicitud}/bono', \App\Http\Controllers\Api\Community\BecaAwardController::class)
     ->where('solicitud', \App\Support\BecaFinanceContract::ID_PATTERN)

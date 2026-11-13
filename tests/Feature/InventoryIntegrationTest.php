@@ -468,3 +468,15 @@ it('persists souvenir preorder metadata and rejects an invalid preorder limit', 
     ]])->assertUnprocessable();
     expect(Product::where('business_id', 'business-A')->where('sku', 'PREORDER-INVALID')->exists())->toBeFalse();
 });
+
+it('serves the same signed service contract under the versioned /api/v1 path and keeps the historical path',function () {
+    $line=inventoryLine();
+    $legacy=inventorySigned($this,'/api/equipo4/integration/availability',['items'=>[$line]])->assertOk()->json();
+    $versioned=inventorySigned($this,'/api/v1/inventory/equipo4/integration/availability',['items'=>[$line]])->assertOk()->json();
+    expect($versioned)->toBe($legacy);
+    // Una firma calculada sobre la ruta histórica no autoriza la ruta versionada (la firma cubre la ruta invocada).
+    $timestamp=(string) time();$json=json_encode(['items'=>[$line]]);
+    $this->postJson('/api/v1/inventory/equipo4/integration/availability',['items'=>[$line]],['X-Team-Timestamp'=>$timestamp,
+        'X-Team-Signature'=>hash_hmac('sha256',$timestamp.'|POST|/api/equipo4/integration/availability|'.hash('sha256',$json),config('team4.integration.secrets.equipo3'))])->assertUnauthorized();
+    $this->getJson('/api/v1/inventory/equipo4/products')->assertUnauthorized();
+});
