@@ -9,10 +9,13 @@ final class E1TestTarget
 {
     private static ?string $authorizedRoot = null;
 
+    /** T-01: true only after an approved "integrated-financial" activation (SQL attested separately). */
+    private static bool $financialSql = false;
+
     public static function select(mixed $profile, bool $authorized): string
     {
         if ($profile === false || $profile === null || $profile === '' || $profile === 'isolated') { return 'isolated'; }
-        E1IntegratedMongoTarget::require($profile === 'integrated' && $authorized);
+        E1IntegratedMongoTarget::require(in_array($profile, ['integrated', 'integrated-financial'], true) && $authorized);
         return 'integrated';
     }
 
@@ -33,9 +36,20 @@ final class E1TestTarget
             && ($approval['candidate_root'] ?? '') === $root
             && ($approval['guard_sha256'] ?? '') === hash_file('sha256', $root.'/tests/Support/E1MongoTestTarget.php')
             && ($approval['aliases'] ?? []) === E1IntegratedMongoTarget::ALIASES
-            && getenv('E1_TEST_PROFILE') === 'integrated');
+            && in_array(getenv('E1_TEST_PROFILE'), ['integrated', 'integrated-financial'], true));
+        if (getenv('E1_TEST_PROFILE') === 'integrated-financial') {
+            E1FinancialSqlTarget::require(($approval['financial_sql'] ?? null) === ['database' => E1FinancialSqlTarget::DATABASE,
+                'guard_sha256' => hash_file('sha256', $root.'/tests/Support/E1FinancialSqlTarget.php')]);
+            E1FinancialSqlTarget::assertBeforeBootstrap();
+            self::$financialSql = true;
+        }
         E1MongoTestTarget::assertBeforeBootstrap($root);
         self::$authorizedRoot = $root;
+    }
+
+    public static function financialSql(): bool
+    {
+        return self::$financialSql && getenv('E1_TEST_PROFILE') === 'integrated-financial';
     }
 
     public static function requireIntegrated(): void

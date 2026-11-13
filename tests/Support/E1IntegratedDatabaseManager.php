@@ -11,6 +11,15 @@ final class E1IntegratedDatabaseManager extends DatabaseManager
     public function connection($name = null)
     {
         $name ??= $this->getDefaultConnection();
+        if ($name === 'sqlsrv') {
+            // T-01: only the approved integrated-financial profile may open its single attested SQL destination.
+            E1FinancialSqlTarget::require(E1TestTarget::financialSql());
+            E1IntegratedMongoTarget::assertRuntime(false);
+            $first = ! isset($this->connections['sqlsrv']);
+            $connection = parent::connection($name);
+            if ($first) { E1FinancialSqlTarget::attest($connection); }
+            return $connection;
+        }
         E1IntegratedMongoTarget::assertName($name);
         E1IntegratedMongoTarget::assertRuntime(false);
         $connection = parent::connection($name);
@@ -21,6 +30,11 @@ final class E1IntegratedDatabaseManager extends DatabaseManager
 
     protected function makeConnection($name)
     {
+        if ($name === 'sqlsrv') {
+            E1FinancialSqlTarget::require(E1TestTarget::financialSql());
+            E1FinancialSqlTarget::assertConfig($this->configuration($name));
+            return parent::makeConnection($name);
+        }
         E1IntegratedMongoTarget::assertName($name);
         $config = $this->configuration($name);
         E1IntegratedMongoTarget::assertConnection($config);

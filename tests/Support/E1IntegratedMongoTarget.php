@@ -80,7 +80,8 @@ final class E1IntegratedMongoTarget
         self::assertRuntime();
         $manager = app('db');
         self::require($manager instanceof E1IntegratedDatabaseManager);
-        self::require(array_diff(array_keys($manager->getConnections()), self::ALIASES) === []);
+        $allowed = E1TestTarget::financialSql() ? [...self::ALIASES, 'sqlsrv'] : self::ALIASES;
+        self::require(array_diff(array_keys($manager->getConnections()), $allowed) === []);
         $found = $expected === null;
         foreach (self::ALIASES as $name) {
             $database = self::attest($manager->connection($name));
