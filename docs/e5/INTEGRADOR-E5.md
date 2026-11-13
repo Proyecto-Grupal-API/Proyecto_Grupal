@@ -2,7 +2,7 @@
 
 | Versión | Fecha | Responsables | Cambio |
 |---|---|---|---|
-| 1.0 | 2026-11-12 | Equipo 5 (Servicios estudiantiles) (autores en Git: Codex, Daniel Beltrán, Viko43, Daniel Beltran); con Claude Code | Corte MERGE_COMPLETO ffb4abd + parche de cierre; resultados del laboratorio aislado |
+| 1.0 | 2026-11-12 | Equipo 5 (Servicios estudiantiles) (autores en Git: Codex, Daniel Beltrán, Viko43, Daniel Beltran, Julian-Darkstar); con Claude Code | Corte MERGE_COMPLETO ffb4abd + parche de cierre; resultados del laboratorio aislado |
 
 Estado: **vigente para la evaluación del tercer parcial**.
 
@@ -14,7 +14,7 @@ Laravel + MongoDB. Pantallas Inertia en /servicios/*; API de cobros con E2 (PR#8
 Diccionario: `../DICCIONARIO-DE-DATOS.md` (sección E5 Servicios). Equivalencia de motores: `../EQUIVALENCIA-POSTGRESQL.md`.
 
 ## 3. Requisitos vigentes y trazabilidad
-`TRAZABILIDAD-E5.md` (12 compromisos; 12 implementados).
+`TRAZABILIDAD-E5.md` (13 compromisos; 13 implementados).
 
 ## 4. Integraciones verificadas
 - E2: cobros de multas y servicios (ServicesFinancePaymentsTest, LibraryFineFinanceTest; PR#8)
@@ -23,7 +23,7 @@ Diccionario: `../DICCIONARIO-DE-DATOS.md` (sección E5 Servicios). Equivalencia 
 - E6: avisos a la bandeja de Comunidad (F02)
 
 ## 5. Calidad y pruebas
-Pruebas Feature del módulo en la suite completa: 125 casos en verde (detalle por compromiso en la trazabilidad).
+Pruebas Feature del módulo en la suite completa: 129 casos en verde (detalle por compromiso en la trazabilidad).
 
 ## 6. Seguridad y configuración
 Autoridad por servicio con roles efectivos de E1; validaciones de servidor en cada escritura; auditoría de acciones sensibles; secretos de emisión hacia E7 y credenciales de cobro sólo por entorno.

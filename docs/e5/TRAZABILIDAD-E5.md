@@ -2,7 +2,7 @@
 
 | Versión | Fecha | Responsables | Cambio |
 |---|---|---|---|
-| 1.0 | 2026-11-12 | Equipo 5 (Servicios estudiantiles) (autores en Git: Codex, Daniel Beltrán, Viko43, Daniel Beltran); con Claude Code | Corte MERGE_COMPLETO ffb4abd + parche de cierre; resultados del laboratorio aislado |
+| 1.0 | 2026-11-12 | Equipo 5 (Servicios estudiantiles) (autores en Git: Codex, Daniel Beltrán, Viko43, Daniel Beltran, Julian-Darkstar); con Claude Code | Corte MERGE_COMPLETO ffb4abd + parche de cierre; resultados del laboratorio aislado |
 
 Fuentes de requisitos: docs/Campus_Digital_Diseno_Modulos.pdf (apartados 5.1–5.11 del módulo 5), docs/integration/API_E2_COBROS_SERVICIOS.md, COMUNIDAD_E5_E7_CONTRATOS_2026-11-11.md, PILOTO_GARANTIAS_RENTA_E5_E2.md y REVISION_PR8_E5_2026-11-11.md. Resultados: suite Feature completa (perfil integrated-financial) y Unit. Commits: git log real.
 
@@ -20,5 +20,6 @@ Fuentes de requisitos: docs/Campus_Digital_Diseno_Modulos.pdf (apartados 5.1–5
 | 5.10 | Calendarios, cupos y reglas | Diseño 5.10 | Implementado | FacilityReservationTest, RestSpaceTest (22 OK / 0 fallos) | Motor común de disponibilidad | 2 | 21e26a2 → 8c18796 |
 | 5.11 | Validación de acceso y uso | Diseño 5.11 | Implementado | ServiceAccessTest (9 OK / 0 fallos) |  | 2 | 21e26a2 → d194239 |
 | E5-X | Auditoría y analítica hacia E7 | COMUNIDAD_E5_E7_CONTRATOS | Implementado | ServiceAuditTest, PlatformAuditDeliveryTest, ServicePlatformEmitterTest (19 OK / 0 fallos) | F02 | 4 | 21e26a2 → 4ffb39c |
+| E5-R | Reporte de uso de Servicios (panel, filtros y CSV) | Rúbrica 10.x (cierre) | Implementado | ServiceUsageReportTest (4 OK / 0 fallos) | evidencias/interfaz/estados-e5 | 1 | 5e44b07 → 5e44b07 |
 
 Código por compromiso: columna `codigo` del CSV.
