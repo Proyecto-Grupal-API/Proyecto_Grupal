@@ -27,5 +27,7 @@ return [
     'ingest' => ['enabled' => env('PLATFORM_INGEST_ENABLED', false), 'secrets' => [
         'community' => env('PLATFORM_COMMUNITY_SECRET'), 'inventory' => env('PLATFORM_INVENTORY_SECRET'),
         'services' => env('PLATFORM_SERVICES_SECRET'), 'wallet' => env('PLATFORM_WALLET_SECRET'),
+        // E1 -> E7 (IdentityPlatformEnvelope, EVENTS_TRANSPORT=platform): debe coincidir con EVENTS_PLATFORM_SECRET.
+        'identity' => env('PLATFORM_IDENTITY_SECRET'),
     ]],
 ];
