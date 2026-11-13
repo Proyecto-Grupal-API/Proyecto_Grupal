@@ -18,7 +18,6 @@ const listado = computed(() => {
         <div class="campus-page space-y-5">
             <h1 v-if="title" class="text-2xl font-bold">{{ title }}</h1>
             <p v-if="subtitle" class="text-gray-600">{{ subtitle }}</p>
-            <p v-if="page.props.flash?.success" role="status" class="rounded-lg bg-green-50 text-green-800 p-4">{{ page.props.flash.success }}</p>
             <p v-if="Object.keys(page.props.errors || {}).length" role="alert" class="rounded-lg bg-red-50 text-red-800 p-4">{{ Object.values(page.props.errors).flat().join(' ') }}</p>
             <p class="text-sm rounded-lg border bg-blue-50 p-3">Los cobros y depósitos están pendientes de conectar con la cartera. Las becas de impresiones y lockers se asignan como beneficios de servicio.</p>
             <div v-if="listado" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-white p-3 text-sm">

@@ -77,7 +77,7 @@ const commentProcessing = ref(false);
 const processingTicketId = ref<string | null>(null);
 // Avisos en línea (rúbrica 3.4/6.3): reemplazan los cuadros de diálogo del navegador en el alta de tickets.
 const formNotice = ref<string>('');
-const pageNotice = ref<string>('');
+
 
 const evidenceName = ref('');
 
@@ -273,7 +273,6 @@ function handleEvidence(event: Event) {
 
 function createTicket() {
     formNotice.value = '';
-    pageNotice.value = '';
     if (ticketForm.category === '') {
         formNotice.value = 'Selecciona una categoría.';
 
@@ -305,7 +304,7 @@ function createTicket() {
         onSuccess: () => {
             closeForm();
 
-            pageNotice.value = 'Ticket registrado correctamente.';
+            // El aviso de éxito lo muestra el layout a partir del flash del servidor.
         },
 
         onError: (errors) => {
@@ -319,7 +318,8 @@ function createTicket() {
                 errors.evidence ??
                 'No fue posible registrar el ticket.';
 
-            formNotice.value = String(message);
+            // El error del servidor ya se muestra por campo y en el aviso del layout; aquí sólo se conserva si no corresponde a un campo visible.
+            if (errors.ticket) formNotice.value = String(message);
         },
     });
 }
@@ -701,7 +701,6 @@ function cancelTicket(ticket: SupportTicket) {
                 </div>
             </section>
 
-            <p v-if="pageNotice" role="status" class="form-notice form-notice--ok">{{ pageNotice }}</p>
             <div class="filters">
                 <div class="search-field">
                     <input

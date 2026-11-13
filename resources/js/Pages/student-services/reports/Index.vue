@@ -37,7 +37,6 @@ const statusLabel = s => ({ active: 'Activo', returned: 'Devuelto', overdue: 'Ve
                 <button class="rounded bg-[#00338D] px-4 py-2 font-semibold text-white disabled:opacity-60" :disabled="loading">{{ loading ? 'Consultando…' : 'Consultar' }}</button>
                 <a :href="csvUrl" class="rounded border border-[#00338D] px-4 py-2 font-semibold text-[#00338D]">Exportar CSV</a>
             </div>
-            <p v-if="Object.keys(errors).length" role="alert" class="rounded bg-red-50 p-3 text-sm text-red-800 sm:col-span-4">{{ Object.values(errors).join(' ') }}</p>
         </form>
 
         <p class="mb-4 text-sm text-slate-600" role="status">Periodo {{ report.periodo.desde }} a {{ report.periodo.hasta }} ({{ report.periodo.zona_horaria }}) · {{ report.totales.registros }} registros</p>
