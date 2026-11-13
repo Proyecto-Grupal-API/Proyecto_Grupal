@@ -1,5 +1,7 @@
 # Preflight pendiente: HTTP financiero E1
 
+> **Estado documental (2026-11-12): Histórico.** Ver `docs/CONTROL-DOCUMENTAL.md`; el estado vigente está en `docs/e1/E1-DOCUMENTO-INTEGRADOR.md`.
+
 Esta preparación NO autoriza ejecutar la suite. No se ha acreditado ni aprovisionado
 la infraestructura descrita. El phpunit.xml del merge fuerza la URI del Compose habitual. La guarda debe
 bloquear ese destino antes del bootstrap. Este documento cubre la suite financiera HTTP.

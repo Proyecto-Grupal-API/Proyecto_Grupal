@@ -1,5 +1,7 @@
 # Entrega integral E1 sobre MERGE_COMPLETO
 
+> **Estado documental (2026-11-12): Histórico.** Ver `docs/CONTROL-DOCUMENTAL.md`; el estado vigente está en `docs/e1/E1-DOCUMENTO-INTEGRADOR.md`.
+
 Base revisada: 373ce0c5079e421f1c01ce81ae87ed8716272517. Propuesta preparada, sin commit ni publicación.
 
 Incluye identidad/perfiles, autenticación/2FA, autorización contextual y separación de dominios, NFC/QR, sesiones, condición académica, consentimientos, OAuth, directorio D1–D4, consulta financiera y enriquecimiento de eventos de credenciales.
