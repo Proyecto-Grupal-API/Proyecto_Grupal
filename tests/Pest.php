@@ -24,6 +24,7 @@ pest()->group('assignment-authority-fixtures')->in(
     'Feature/RequiredTwoFactorAuthenticationTest.php', 'Feature/PrivilegeEscalationRegressionTest.php',
     'Feature/StudentManagementTest.php', 'Feature/StudentServicesPersistenceTest.php',
     'Feature/StudentImportTest.php', 'Feature/StudentPhotoTest.php',
+    'Feature/StudentDashboardCoherenceTest.php',
     'Feature/InitialPasswordLifecycleTest.php', 'Feature/AccountDeletionTest.php',
     'Feature/QrValidationAuthorizationTest.php', 'Feature/NfcCardLifecycleTest.php',
     'Feature/NfcCardRegistrationTest.php', 'Feature/NfcCardAuthorizationTest.php',
