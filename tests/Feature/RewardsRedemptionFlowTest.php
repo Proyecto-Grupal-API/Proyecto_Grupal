@@ -108,3 +108,27 @@ test('configuration changes are versioned and an administrator cannot approve th
     $this->postJson('/api/v1/recompensas/settings/versions/'.$id.'/transition', ['target_status' => 'active'])->assertStatus(403);
     expect(\App\Models\PlatformModule\ConfigurationVersion::find($id)->status)->toBe('draft');
 });
+
+test('administrative actions leave a complete audit trail with actor, origin, entity and changes', function () {
+    // Rúbrica 5.6/5.8: los 22 registros de auditoría de E7 comparten PlatformAuditTrail; esta prueba fija su contenido.
+    $rewardId = rewardsSetup($this);
+    $redemptionId = $this->actingAs($this->student)->postJson('/api/v1/recompensas/redemptions', ['reward_id' => $rewardId, 'idempotency_key' => 'canje-audit'])
+        ->assertCreated()->json('redemption.id');
+    $this->actingAs($this->admin)->postJson('/api/v1/recompensas/redemptions/'.$redemptionId.'/deliver')->assertOk();
+    $this->postJson('/api/v1/recompensas/governance/manual-adjustment', ['student_id' => (string) $this->student->getKey(), 'amount' => 2,
+        'reason' => 'Compensación auditada', 'idempotency_key' => 'ajuste-audit'])->assertSuccessful();
+    $expected = ['business.registered' => ['RewardProgramMembership', 'businesses'], 'earning_rule.created' => ['EarningRule', 'rules'],
+        'reward.created' => ['Reward', 'rewards'], 'redemption.delivered' => ['Redemption', 'rewards'], 'points.adjusted_manually' => ['PointsLedger', 'governance']];
+    foreach ($expected as $action => [$entityType, $domain]) {
+        $log = \App\Models\PlatformModule\AuditLog::where('action', $action)->sole();
+        expect($log->actor_id)->toBe((string) $this->admin->getKey())->and($log->actor_role)->toBeString()->not->toBe('')
+            ->and($log->entity_type)->toBe($entityType)->and($log->entity_id)->toBeString()->not->toBe('')
+            ->and($log->ip_address)->toBe('127.0.0.1')->and($log->device)->toBe('Symfony')->and($log->source_domain)->toBe($domain);
+    }
+    $reward = \App\Models\PlatformModule\AuditLog::where('action', 'reward.created')->sole();
+    expect($reward->entity_id)->toBe($rewardId)->and($reward->after['name'])->toBe('Café de prueba');
+    $delivered = \App\Models\PlatformModule\AuditLog::where('action', 'redemption.delivered')->sole();
+    expect($delivered->entity_id)->toBe($redemptionId)->and($delivered->before['status'])->toBeIn(['requested', 'confirmed', 'pending'])
+        ->and($delivered->after['status'])->toBe('delivered');
+    expect(\App\Models\PlatformModule\AuditLog::where('action', 'points.adjusted_manually')->sole()->reason)->toBe('Compensación auditada');
+});

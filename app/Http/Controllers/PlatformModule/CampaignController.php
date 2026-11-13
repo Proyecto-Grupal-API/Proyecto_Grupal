@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\PlatformModule;
 
-use App\Models\PlatformModule\AuditLog;
 use App\Models\PlatformModule\PointCampaign;
 use App\Services\PlatformModule\PlatformActor as User;
+use App\Services\PlatformModule\PlatformAuditTrail;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -82,16 +82,8 @@ class CampaignController
         ]);
 
         $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'campaign.created',
-            'entity_type' => 'PointCampaign',
-            'entity_id' => (string) $campaign->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'campaign.created', 'PointCampaign', (string) $campaign->_id, 'campaigns', [
             'after' => $campaign->toArray(),
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'campaigns',
         ]);
 
         return response()->json(['success' => true, 'campaign' => $campaign], 201);
@@ -127,16 +119,8 @@ class CampaignController
             'scope_ids' => $validated['scope_ids'] ?? [],
         ]);
 
-        AuditLog::create([
-            'actor_id' => (string) $user->getKey(),
-            'actor_role' => $user->role,
-            'action' => 'campaign.proposed_academic',
-            'entity_type' => 'PointCampaign',
-            'entity_id' => (string) $campaign->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'campaign.proposed_academic', 'PointCampaign', (string) $campaign->_id, 'campaigns', [
             'after' => $campaign->toArray(),
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'campaigns',
         ]);
 
         return response()->json([
@@ -179,17 +163,9 @@ class CampaignController
         $campaign->update($validated);
 
         $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'campaign.updated',
-            'entity_type' => 'PointCampaign',
-            'entity_id' => (string) $campaign->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'campaign.updated', 'PointCampaign', (string) $campaign->_id, 'campaigns', [
             'before' => $before,
             'after' => $campaign->fresh()->toArray(),
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'campaigns',
         ]);
 
         return response()->json(['success' => true, 'campaign' => $campaign->fresh()]);
@@ -207,17 +183,9 @@ class CampaignController
         $campaign->update(['status' => $newStatus]);
 
         $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'campaign.status_changed',
-            'entity_type' => 'PointCampaign',
-            'entity_id' => (string) $campaign->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'campaign.status_changed', 'PointCampaign', (string) $campaign->_id, 'campaigns', [
             'before' => ['status' => $beforeStatus],
             'after' => ['status' => $newStatus],
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'campaigns',
         ]);
 
         return response()->json(['success' => true, 'campaign' => $campaign->fresh()]);

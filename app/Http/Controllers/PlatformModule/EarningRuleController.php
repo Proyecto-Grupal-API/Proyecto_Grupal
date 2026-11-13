@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\PlatformModule;
 
-use App\Models\PlatformModule\AuditLog;
 use App\Models\PlatformModule\EarningRule;
+use App\Services\PlatformModule\PlatformAuditTrail;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -73,16 +73,8 @@ class EarningRuleController
         ]);
 
         $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'earning_rule.created',
-            'entity_type' => 'EarningRule',
-            'entity_id' => (string) $rule->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'earning_rule.created', 'EarningRule', (string) $rule->_id, 'rules', [
             'after' => $rule->toArray(),
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'rules',
         ]);
 
         return response()->json(['success' => true, 'rule' => $rule], 201);
@@ -124,17 +116,9 @@ class EarningRuleController
         $rule->update($validated);
 
         $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'earning_rule.updated',
-            'entity_type' => 'EarningRule',
-            'entity_id' => (string) $rule->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'earning_rule.updated', 'EarningRule', (string) $rule->_id, 'rules', [
             'before' => $before,
             'after' => $rule->fresh()->toArray(),
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'rules',
         ]);
 
         return response()->json(['success' => true, 'rule' => $rule->fresh()]);
@@ -152,17 +136,9 @@ class EarningRuleController
         $rule->update(['status' => $newStatus]);
 
         $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'earning_rule.status_changed',
-            'entity_type' => 'EarningRule',
-            'entity_id' => (string) $rule->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'earning_rule.status_changed', 'EarningRule', (string) $rule->_id, 'rules', [
             'before' => ['status' => $beforeStatus],
             'after' => ['status' => $newStatus],
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'rules',
         ]);
 
         return response()->json(['success' => true, 'rule' => $rule->fresh()]);

@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\PlatformModule;
 
-use App\Models\PlatformModule\AuditLog;
 use App\Models\PlatformModule\Reward;
 use App\Services\PlatformModule\PlatformActor as User;
+use App\Services\PlatformModule\PlatformAuditTrail;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -101,16 +101,8 @@ class RewardController
         ]);
 
         $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'reward.created',
-            'entity_type' => 'Reward',
-            'entity_id' => (string) $reward->getKey(),
+        app(PlatformAuditTrail::class)->record($request, $user, 'reward.created', 'Reward', (string) $reward->getKey(), 'rewards', [
             'after' => $reward->toArray(),
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'rewards',
         ]);
 
         return response()->json(['success' => true, 'reward' => $reward], 201);
@@ -159,17 +151,9 @@ class RewardController
         $reward->update($validated);
 
         $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'reward.updated',
-            'entity_type' => 'Reward',
-            'entity_id' => (string) $reward->getKey(),
+        app(PlatformAuditTrail::class)->record($request, $user, 'reward.updated', 'Reward', (string) $reward->getKey(), 'rewards', [
             'before' => $before,
             'after' => $reward->fresh()->toArray(),
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'rewards',
         ]);
 
         return response()->json([
@@ -189,16 +173,8 @@ class RewardController
         $reward->delete();
 
         $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'reward.deleted',
-            'entity_type' => 'Reward',
-            'entity_id' => $id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'reward.deleted', 'Reward', $id, 'rewards', [
             'before' => $before,
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'rewards',
         ]);
 
         return response()->json(['success' => true]);

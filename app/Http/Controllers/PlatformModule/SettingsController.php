@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\PlatformModule;
 
-use App\Models\PlatformModule\AuditLog;
 use App\Models\PlatformModule\Catalog;
 use App\Models\PlatformModule\ConfigurationVersion;
 use App\Models\PlatformModule\Setting;
 use App\Services\PlatformModule\PlatformActor as User;
+use App\Services\PlatformModule\PlatformAuditTrail;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -60,17 +60,9 @@ class SettingsController
             'description' => $validated['description'] ?? $setting->description,
         ]);
 
-        AuditLog::create([
-            'actor_id' => (string) $user->getKey(),
-            'actor_role' => $user->role,
-            'action' => 'setting.updated',
-            'entity_type' => 'Setting',
-            'entity_id' => $key,
+        app(PlatformAuditTrail::class)->record($request, $user, 'setting.updated', 'Setting', $key, 'settings', [
             'before' => $setting->is_sensitive ? ['key' => $key, 'value' => '***'] : $before,
             'after' => $setting->is_sensitive ? ['key' => $key, 'value' => '***'] : $setting->fresh()->toArray(),
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'settings',
         ]);
 
         return response()->json([
@@ -120,16 +112,8 @@ class SettingsController
             'created_by' => (string) $user->getKey(),
         ]);
 
-        AuditLog::create([
-            'actor_id' => (string) $user->getKey(),
-            'actor_role' => $user->role,
-            'action' => 'config_version.drafted',
-            'entity_type' => 'ConfigurationVersion',
-            'entity_id' => (string) $version->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'config_version.drafted', 'ConfigurationVersion', (string) $version->_id, 'settings', [
             'after' => $version->toArray(),
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'settings',
         ]);
 
         return response()->json(['success' => true, 'version' => $version], 201);
@@ -187,16 +171,8 @@ class SettingsController
 
         $version->update($updates);
 
-        AuditLog::create([
-            'actor_id' => (string) $user->getKey(),
-            'actor_role' => $user->role,
-            'action' => "config_version.{$next}",
-            'entity_type' => 'ConfigurationVersion',
-            'entity_id' => (string) $version->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, "config_version.{$next}", 'ConfigurationVersion', (string) $version->_id, 'settings', [
             'after' => $updates,
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'settings',
         ]);
 
         return response()->json(['success' => true, 'version' => $version->fresh()]);

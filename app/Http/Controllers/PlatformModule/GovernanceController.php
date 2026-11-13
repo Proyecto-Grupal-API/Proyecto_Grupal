@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\PlatformModule;
 
 use App\Models\PlatformModule\AuditCorrelation;
-use App\Models\PlatformModule\AuditLog;
 use App\Models\PlatformModule\FraudFlag;
 use App\Models\PlatformModule\PointsAccount;
 use App\Models\PlatformModule\PointsLedger;
 use App\Models\PlatformModule\PointsPolicy;
+use App\Services\PlatformModule\PlatformAuditTrail;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -45,16 +45,8 @@ class GovernanceController
         $policy = PointsPolicy::create($validated);
 
         $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'policy.created',
-            'entity_type' => 'PointsPolicy',
-            'entity_id' => (string) $policy->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'policy.created', 'PointsPolicy', (string) $policy->_id, 'governance', [
             'after' => $policy->toArray(),
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'governance',
         ]);
 
         return response()->json(['success' => true, 'policy' => $policy], 201);
@@ -82,17 +74,9 @@ class GovernanceController
         $policy->update($validated);
 
         $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'policy.updated',
-            'entity_type' => 'PointsPolicy',
-            'entity_id' => (string) $policy->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'policy.updated', 'PointsPolicy', (string) $policy->_id, 'governance', [
             'before' => $before,
             'after' => $policy->fresh()->toArray(),
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'governance',
         ]);
 
         return response()->json(['success' => true, 'policy' => $policy->fresh()]);
@@ -153,18 +137,10 @@ class GovernanceController
             'reviewed_at' => now(),
         ]);
 
-        AuditLog::create([
-            'actor_id' => (string) $user->getKey(),
-            'actor_role' => $user->role,
-            'action' => 'fraud_flag.reviewed',
-            'entity_type' => 'FraudFlag',
-            'entity_id' => (string) $flag->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'fraud_flag.reviewed', 'FraudFlag', (string) $flag->_id, 'governance', [
             'before' => $before,
             'after' => $flag->fresh()->toArray(),
             'reason' => $validated['notes'],
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'governance',
         ]);
 
         return response()->json([
@@ -244,18 +220,10 @@ class GovernanceController
                 ],
             ]);
 
-            AuditLog::create([
-                'actor_id' => (string) $user->getKey(),
-                'actor_role' => $user->role,
-                'action' => 'points.adjusted_manually',
-                'entity_type' => 'PointsLedger',
-                'entity_id' => (string) $ledgerEntry->_id,
+            app(PlatformAuditTrail::class)->record($request, $user, 'points.adjusted_manually', 'PointsLedger', (string) $ledgerEntry->_id, 'governance', [
                 'after' => ['amount' => $amount, 'student_id' => $studentId],
                 'reason' => $validated['reason'],
                 'correlation_id' => $correlationId,
-                'ip_address' => $request->ip(),
-                'device' => $request->userAgent(),
-                'source_domain' => 'governance',
             ]);
 
             return ['ledger' => $ledgerEntry, 'account' => $account->fresh()];

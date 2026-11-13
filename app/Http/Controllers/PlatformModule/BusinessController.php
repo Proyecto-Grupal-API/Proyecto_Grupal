@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\PlatformModule;
 
-use App\Models\PlatformModule\AuditLog;
 use App\Models\PlatformModule\RewardProgramMembership;
+use App\Services\PlatformModule\PlatformAuditTrail;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -58,16 +58,8 @@ class BusinessController
         ]);
 
         $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'business.registered',
-            'entity_type' => 'RewardProgramMembership',
-            'entity_id' => (string) $membership->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'business.registered', 'RewardProgramMembership', (string) $membership->_id, 'businesses', [
             'after' => $membership->toArray(),
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'businesses',
         ]);
 
         return response()->json(['success' => true, 'business' => $membership], 201);
@@ -107,17 +99,9 @@ class BusinessController
         $membership->update($validated);
 
         $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'business.updated',
-            'entity_type' => 'RewardProgramMembership',
-            'entity_id' => (string) $membership->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'business.updated', 'RewardProgramMembership', (string) $membership->_id, 'businesses', [
             'before' => $before,
             'after' => $membership->fresh()->toArray(),
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'businesses',
         ]);
 
         return response()->json(['success' => true, 'business' => $membership->fresh()]);
@@ -142,17 +126,9 @@ class BusinessController
         ]);
 
         $user = $request->attributes->get('platform_actor');
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'business.status_changed',
-            'entity_type' => 'RewardProgramMembership',
-            'entity_id' => (string) $membership->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'business.status_changed', 'RewardProgramMembership', (string) $membership->_id, 'businesses', [
             'before' => ['status' => $beforeStatus],
             'after' => ['status' => $newStatus],
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'businesses',
         ]);
 
         return response()->json(['success' => true, 'business' => $membership->fresh()]);

@@ -8,6 +8,7 @@ use App\Models\PlatformModule\Redemption;
 use App\Models\PlatformModule\RedemptionEvent;
 use App\Models\PlatformModule\Reward;
 use App\Services\PlatformModule\PlatformActor as User;
+use App\Services\PlatformModule\PlatformAuditTrail;
 use App\Services\PlatformModule\PlatformTransaction;
 use App\Services\PlatformModule\PointsLedger\DTO\RedeemPointsRequest;
 use App\Services\PlatformModule\PointsLedger\DTO\ReversePointsRequest;
@@ -294,17 +295,9 @@ class RedemptionController
                 'note' => $request->input('note', 'Recompensa entregada al estudiante.'),
             ]);
 
-            AuditLog::create([
-                'actor_id' => $user ? (string) $user->getKey() : 'system',
-                'actor_role' => $user?->role ?? 'admin',
-                'action' => 'redemption.delivered',
-                'entity_type' => 'Redemption',
-                'entity_id' => (string) $redemption->_id,
+            app(PlatformAuditTrail::class)->record($request, $user, 'redemption.delivered', 'Redemption', (string) $redemption->_id, 'rewards', [
                 'before' => ['status' => $fromStatus],
                 'after' => ['status' => 'delivered', 'delivered_at' => now()->toIso8601String()],
-                'ip_address' => $request->ip(),
-                'device' => $request->userAgent(),
-                'source_domain' => 'rewards',
             ]);
         });
 
@@ -380,18 +373,10 @@ class RedemptionController
             'note' => $reason,
         ]);
 
-        AuditLog::create([
-            'actor_id' => $user ? (string) $user->getKey() : 'system',
-            'actor_role' => $user?->role ?? 'admin',
-            'action' => 'redemption.cancelled',
-            'entity_type' => 'Redemption',
-            'entity_id' => (string) $redemption->_id,
+        app(PlatformAuditTrail::class)->record($request, $user, 'redemption.cancelled', 'Redemption', (string) $redemption->_id, 'rewards', [
             'before' => ['status' => $fromStatus],
             'after' => ['status' => 'cancelled', 'reason' => $reason],
             'reason' => $reason,
-            'ip_address' => $request->ip(),
-            'device' => $request->userAgent(),
-            'source_domain' => 'rewards',
         ]);
 
         return response()->json([
