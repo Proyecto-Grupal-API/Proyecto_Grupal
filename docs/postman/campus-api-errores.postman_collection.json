@@ -1,0 +1,1105 @@
+{
+ "info": {
+  "name": "Campus Digital — verificación de errores documentados",
+  "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+  "description": "Generada desde docs/api-referencia.json. Ejecutar: postman collection run docs/postman/campus-api-errores.postman_collection.json --env-var base=http://127.0.0.1:18090"
+ },
+ "item": [
+  {
+   "name": "E1 Identidad",
+   "item": [
+    {
+     "name": "/api/oauth/token sin credenciales → 422",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 422 documentado', () => pm.response.to.have.status(422));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/oauth/token",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "oauth",
+        "token"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    },
+    {
+     "name": "/api/v1/oauth/token (alias versionado) sin credenciales → 422",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 422 documentado', () => pm.response.to.have.status(422));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/oauth/token",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "oauth",
+        "token"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "E3 Marketplace",
+   "item": [
+    {
+     "name": "/api/tienda/catalogo sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/tienda/catalogo",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "tienda",
+        "catalogo"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/tienda/negocios sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/tienda/negocios",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "tienda",
+        "negocios"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "E4 Inventario",
+   "item": [
+    {
+     "name": "/api/equipo4/products sin secreto configurado → 503 (falla cerrado)",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 503 documentado', () => pm.response.to.have.status(503));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/equipo4/products",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "equipo4",
+        "products"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/v1/inventory/equipo4/products sin secreto configurado → 503",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 503 documentado', () => pm.response.to.have.status(503));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/inventory/equipo4/products",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "inventory",
+        "equipo4",
+        "products"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/v1/inventory/equipo4/integration/availability sin secreto → 503",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 503 documentado', () => pm.response.to.have.status(503));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/inventory/equipo4/integration/availability",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "inventory",
+        "equipo4",
+        "integration",
+        "availability"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\"items\": []}"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "E6 Comunidad",
+   "item": [
+    {
+     "name": "/api/v1/comunidad/portal/bandeja sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/comunidad/portal/bandeja",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "comunidad",
+        "portal",
+        "bandeja"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/v1/comunidad/portal/bandeja/categorias sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/comunidad/portal/bandeja/categorias",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "comunidad",
+        "portal",
+        "bandeja",
+        "categorias"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/v1/comunidad/portal/bandeja/preferencias sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/comunidad/portal/bandeja/preferencias",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "comunidad",
+        "portal",
+        "bandeja",
+        "preferencias"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/v1/comunidad/portal/becas sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/comunidad/portal/becas",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "comunidad",
+        "portal",
+        "becas"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/v1/comunidad/portal/becas/mis-solicitudes sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/comunidad/portal/becas/mis-solicitudes",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "comunidad",
+        "portal",
+        "becas",
+        "mis-solicitudes"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/v1/comunidad/portal/becas/tesoreria sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/comunidad/portal/becas/tesoreria",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "comunidad",
+        "portal",
+        "becas",
+        "tesoreria"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "E6 Comunidad (portal heredado)",
+   "item": [
+    {
+     "name": "/api/bandeja sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/bandeja",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "bandeja"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/bandeja/categorias sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/bandeja/categorias",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "bandeja",
+        "categorias"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/bandeja/preferencias sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/bandeja/preferencias",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "bandeja",
+        "preferencias"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/becas sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/becas",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "becas"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/becas/mis-solicitudes sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/becas/mis-solicitudes",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "becas",
+        "mis-solicitudes"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/becas/tesoreria sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/becas/tesoreria",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "becas",
+        "tesoreria"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "E7 Plataforma (ingesta)",
+   "item": [
+    {
+     "name": "/api/v1/plataforma/eventos con ingesta apagada → 503",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 503 documentado', () => pm.response.to.have.status(503));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/plataforma/eventos",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "plataforma",
+        "eventos"
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "E7 Recompensas",
+   "item": [
+    {
+     "name": "/api/v1/recompensas/analytics/community sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/recompensas/analytics/community",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "recompensas",
+        "analytics",
+        "community"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/v1/recompensas/analytics/overview sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/recompensas/analytics/overview",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "recompensas",
+        "analytics",
+        "overview"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/v1/recompensas/analytics/professor sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/recompensas/analytics/professor",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "recompensas",
+        "analytics",
+        "professor"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/v1/recompensas/audit/logs sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/recompensas/audit/logs",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "recompensas",
+        "audit",
+        "logs"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/v1/recompensas/businesses sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/recompensas/businesses",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "recompensas",
+        "businesses"
+       ]
+      }
+     }
+    },
+    {
+     "name": "/api/v1/recompensas/campaigns sin sesión",
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('estado 401 documentado', () => pm.response.to.have.status(401));",
+         "pm.test('cuerpo JSON con mensaje', () => { const j = pm.response.json(); pm.expect(j).to.be.an('object'); pm.expect(j.message || j.error || j.errors).to.exist; });"
+        ]
+       }
+      }
+     ],
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": {
+       "raw": "{{base}}/api/v1/recompensas/campaigns",
+       "host": [
+        "{{base}}"
+       ],
+       "path": [
+        "api",
+        "v1",
+        "recompensas",
+        "campaigns"
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ]
+}
