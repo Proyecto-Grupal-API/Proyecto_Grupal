@@ -47,7 +47,25 @@ class AnalyticsController
         })->pluck('count', '_id')->toArray();
 
         // Top recompensas más canjeadas
-        $topRewards = Reward::orderBy('stock', 'desc')->take(5)->get(['name', 'points_required', 'stock', 'reserved_stock']);
+        $ranking = Redemption::raw(fn ($collection) => $collection->aggregate([
+            ['$match' => ['status' => ['$in' => ['confirmed', 'delivered']]]],
+            ['$group' => ['_id' => '$reward_id', 'redemptions_count' => ['$sum' => 1],
+                'points_consumed' => ['$sum' => '$points_spent']]],
+            ['$sort' => ['redemptions_count' => -1, '_id' => 1]],
+            ['$limit' => 5],
+        ]));
+        $topRewards = $ranking->map(function ($row) {
+            $reward = Reward::find((string) $row['_id']);
+            return [
+                'id' => (string) $row['_id'],
+                'name' => $reward?->name ?? 'Recompensa no disponible',
+                'points_required' => $reward?->points_required,
+                'stock' => $reward?->stock,
+                'reserved_stock' => $reward?->reserved_stock,
+                'redemptions_count' => (int) $row['redemptions_count'],
+                'points_consumed' => (int) $row['points_consumed'],
+            ];
+        })->values();
 
         // Agrupación mensual o diaria de puntos
         $activityTrend = PointsLedger::where('created_at', '>=', $since)

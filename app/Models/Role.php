@@ -88,8 +88,17 @@ class Role extends Model
         'institutional_budget_committer' => 'institutional_budget',
     ];
 
+    // Proposed delegation policy: definitions only, no automatic catalog writes or grants.
+    public const ADMINISTRATIVE_ROLE_SCOPES = [
+        'financial_refund_designator' => 'wallet', 'service_damage_designator' => null,
+        'budget_administration_designator' => 'council', 'institutional_budget_approver' => 'council',
+        'institutional_budget_adjuster' => 'institutional_budget',
+        'institutional_budget_suspender' => 'institutional_budget',
+        'institutional_budget_resumer' => 'institutional_budget',
+    ];
+
     public const AUTHORIZATION_ROLES = [...self::FOUNDATION_ROLES, ...self::FINANCIAL_ROLES,
-        'financial_refund_reviewer', 'financial_refund_executor', 'operador_servicios', 'institutional_budget_committer'];
+        'financial_refund_reviewer', 'financial_refund_executor', 'operador_servicios', 'institutional_budget_committer', 'financial_refund_designator', 'service_damage_designator', 'budget_administration_designator', 'institutional_budget_approver', 'institutional_budget_adjuster', 'institutional_budget_suspender', 'institutional_budget_resumer'];
 
     public const REWARDS_ROLE_SCOPES = [];
 
@@ -103,7 +112,7 @@ class Role extends Model
         'department_head' => 'department',
     ];
 
-    public const AUTHORIZATION_ROLE_SCOPES = [...self::FOUNDATION_ROLE_SCOPES, ...self::FINANCIAL_ROLE_SCOPES, ...self::PILOT_ROLE_SCOPES];
+    public const AUTHORIZATION_ROLE_SCOPES = [...self::FOUNDATION_ROLE_SCOPES, ...self::FINANCIAL_ROLE_SCOPES, ...self::PILOT_ROLE_SCOPES, ...self::ADMINISTRATIVE_ROLE_SCOPES];
 
     /**
      * Roles que, además de "admin", pueden gestionar el perfil y

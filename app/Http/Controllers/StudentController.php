@@ -24,14 +24,7 @@ class StudentController extends Controller
         $profiles = StudentProfile::with(['user', 'campus', 'academicProgram'])->get()
             ->filter(fn (StudentProfile $profile): bool => $profile->user !== null);
         $operationalProfiles = $profiles;
-        $search = trim((string) $request->input('search'));
-        $status = $request->input('status');
-        $campus = $request->input('campus');
-        $profiles = $profiles->filter(function (StudentProfile $profile) use ($search, $status, $campus): bool {
-            $matchesSearch = ! $search || str_contains(strtolower((string) $profile->user?->name), strtolower($search)) || str_contains(strtolower((string) $profile->user?->email), strtolower($search)) || str_contains(strtolower((string) $profile->enrollment_number), strtolower($search));
-
-            return $matchesSearch && (! $status || $profile->academic_status?->value === $status) && (! $campus || (string) $profile->campus_id === (string) $campus);
-        })->values();
+        $profiles = $this->filterProfiles($profiles, $request);
         $page = LengthAwarePaginator::resolveCurrentPage();
         $students = new LengthAwarePaginator($profiles->forPage($page, 10)->values(), $profiles->count(), 10, $page, ['path' => url('/students')]);
         $students->appends($request->only(['search', 'status', 'campus']));
@@ -50,6 +43,43 @@ class StudentController extends Controller
                 'recent' => $operationalProfiles->filter(fn (StudentProfile $profile): bool => $profile->updated_at?->gte(now()->subDays(7)) ?? false)->count(),
             ],
         ]);
+    }
+
+    private function filterProfiles($profiles, Request $request)
+    {
+        $search = trim((string) $request->input('search'));
+        $status = $request->input('status');
+        $campus = $request->input('campus');
+        return $profiles->filter(function (StudentProfile $profile) use ($search, $status, $campus): bool {
+            $matchesSearch = ! $search || str_contains(strtolower((string) $profile->user?->name), strtolower($search)) || str_contains(strtolower((string) $profile->user?->email), strtolower($search)) || str_contains(strtolower((string) $profile->enrollment_number), strtolower($search));
+
+            return $matchesSearch && (! $status || $profile->academic_status?->value === $status) && (! $campus || (string) $profile->campus_id === (string) $campus);
+        })->values();
+    }
+
+    public function report(Request $request)
+    {
+        $this->authorize('viewAny', StudentProfile::class);
+        $request->validate(['search' => ['nullable','string','max:100'],
+            'status' => ['nullable', \Illuminate\Validation\Rule::enum(StudentStatus::class)],
+            'campus' => ['nullable','string','regex:/\A[0-9a-f]{24}\z/']]);
+        $profiles = $this->filterProfiles(StudentProfile::with(['user','campus','academicProgram'])->get()
+            ->filter(fn (StudentProfile $profile): bool => $profile->user !== null), $request);
+        abort_if($profiles->count() > 5000, 422, 'Reduce los filtros para exportar hasta 5000 registros.');
+        $event = \App\Models\SecurityEvent::log(['user_id'=>(string)$request->user()->getKey(),
+            'type'=>'student_report_export','metadata'=>['filters'=>$request->only(['search','status','campus']),
+                'count'=>$profiles->count()]]);
+        abort_unless($event->exists && $event->wasRecentlyCreated, 503);
+        return response()->streamDownload(function () use ($profiles) {
+            $output = fopen('php://output','wb');
+            fputcsv($output, ['Nombre','Matrícula','Campus','Programa','Semestre','Estatus'], ',', '"', '');
+            foreach ($profiles as $profile) {
+                $row = [$profile->user->name, $profile->enrollment_number, $profile->campus?->name,
+                    $profile->academicProgram?->name, $profile->current_semester, $profile->academic_status?->value];
+                fputcsv($output, array_map(\App\Support\StudentReportCsv::cell(...), $row), ',', '"', '');
+            }
+            fclose($output);
+        }, 'estudiantes.csv', ['Content-Type'=>'text/csv; charset=UTF-8','Cache-Control'=>'private, no-store']);
     }
 
     public function create()

@@ -39,6 +39,13 @@ class RolePermission extends Model
     ];
 
     public const PILOT_MAPPINGS = [
+        'financial_refund_designator' => ['identity.refunds.designate'],
+        'service_damage_designator' => ['identity.services.designate'],
+        'budget_administration_designator' => ['identity.budgets.designate'],
+        'institutional_budget_approver' => ['budget.approve'],
+        'institutional_budget_adjuster' => ['budget.adjust'],
+        'institutional_budget_suspender' => ['budget.suspend'],
+        'institutional_budget_resumer' => ['budget.resume'],
         'institutional_budget_committer' => ['budget.commit'],
         'financial_refund_reviewer' => ['refunds.review'],
         'financial_refund_executor' => ['refunds.execute'],

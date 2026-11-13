@@ -19,6 +19,10 @@ class InstitutionalBudgetAuthorizationService
 
     public function allows(string $actorId, string $action, ?string $budgetId = null): bool
     {
+        if (isset(BudgetAdministrationAuthorization::ROLES[$action]) && $action !== 'budget.approve') {
+            try { return app(BudgetAdministrationAuthorization::class)->allows($actorId,$action,$budgetId); }
+            catch (Throwable) { return false; }
+        }
         if ($action !== 'budget.commit' || ! preg_match('/\A[0-9a-f]{24}\z/', $actorId)
             || ! is_string($budgetId)
             || ! preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/', $budgetId)) {

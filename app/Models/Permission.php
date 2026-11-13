@@ -35,6 +35,13 @@ class Permission extends Model
     // Definitions only, deliberately excluded from the existing foundation seeder.
     // A definition is neither a role mapping nor a grant to a user.
     public const TECHNICAL_CATALOG = [
+        'budget.approve' => ['Aprobar presupuesto de Consejo', 'financial'],
+        'budget.adjust' => ['Ajustar presupuesto exacto', 'financial'],
+        'budget.suspend' => ['Suspender presupuesto exacto', 'financial'],
+        'budget.resume' => ['Reactivar presupuesto exacto', 'financial'],
+        'identity.refunds.designate' => ['Designar atribuciones de wallet exacta', 'institutional'],
+        'identity.services.designate' => ['Designar cargos por daños de renta', 'institutional'],
+        'identity.budgets.designate' => ['Designar administración de presupuesto del Consejo', 'institutional'],
         'budget.commit' => ['Comprometer un presupuesto institucional específico', 'financial'],
         'refunds.review' => ['Revisar devoluciones de una wallet', 'financial'],
         'refunds.execute' => ['Ejecutar devoluciones de una wallet', 'financial'],

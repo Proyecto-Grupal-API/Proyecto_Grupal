@@ -21,8 +21,9 @@ final class InstitutionalBudgetService
 
     public function approve(string $actor, array $data, string $key): array
     {
-        $this->authorize($actor, 'budget.approve');
+        $this->authorizeApproval($actor,$data);
         $data = validator($data, [
+            'council_id' => ['sometimes', 'string', 'regex:/\A[0-9a-f]{24}\z/'],
             'institution_reference' => ['required', 'string', 'max:100', 'regex:/\S/u'],
             'approval_reference' => ['required', 'string', 'max:150', 'regex:/\S/u'],
             'payer_reference' => ['required', 'string', 'max:150', 'regex:/\S/u'],
@@ -124,11 +125,11 @@ final class InstitutionalBudgetService
                 if ($existing) {
                     if (!hash_equals($existing->request_hash, $hash)) throw new ConflictHttpException('Llave reutilizada con otros datos o actor.');
                     $current = InstitutionalBonusBudget::where('public_id', $existing->budget_id)->lockForUpdate()->firstOrFail();
-                    $this->revalidate($actor,$action,strtolower($current->public_id));
+                    $this->revalidate($actor,$action,strtolower($current->public_id),$data);
                     app(InstitutionalBudgetIntegrity::class)->assertState($current);
                     return ['operation' => $existing, 'replayed' => true];
                 }
-                if ($action === 'APPROVE') $this->revalidate($actor,$action,null);
+                if ($action === 'APPROVE') $this->revalidate($actor,$action,null,$data);
                 [$row, $before] = $work(); $this->locks->assertOwned($lockKey, $token, 180);
                 $operation = InstitutionalBudgetOperation::create([
                     'public_id' => (string) Str::uuid(), 'budget_id' => $row->public_id, 'action' => $action,
@@ -147,10 +148,23 @@ final class InstitutionalBudgetService
         } finally { $this->locks->release($lockKey, $token); }
     }
 
-    private function revalidate(string $actor,string $action,?string $budgetId): void
+    private function revalidate(string $actor,string $action,?string $budgetId,array $context=[]): void
     {
+        if ($action==='APPROVE') { $this->authorizeApproval($actor,$context); return; }
         $permission=match($action){'APPROVE'=>'budget.approve','ADJUST'=>'budget.adjust','SUSPEND'=>'budget.suspend','RESUME'=>'budget.resume'};
         $this->authorize($actor,$permission,$action==='APPROVE'?null:$budgetId);
+    }
+
+    private function authorizeApproval(string $actor,array $data): void
+    {
+        if ($this->authority instanceof \App\Domains\Financial\Contracts\InstitutionalBudgetApprovalAuthorization) {
+            if (!preg_match('/\A[0-9a-f]{24}\z/',$actor) || !is_string($data['council_id']??null)
+                || !is_string($data['institution_reference']??null)
+                || !$this->authority->allowsApproval($actor,$data['council_id'],$data['institution_reference'])) throw new AuthorizationException();
+            return;
+        }
+        // Compatibility for existing independent providers; E1's adapter always uses the specialized contract.
+        $this->authorize($actor,'budget.approve');
     }
 
     private function authorize(string $actor, string $action, ?string $budgetId = null): void

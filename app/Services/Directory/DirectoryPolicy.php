@@ -33,6 +33,7 @@ final class DirectoryPolicy
             || ! is_int($profile['daily_reference_limit'] ?? null) || $profile['daily_reference_limit'] < 1
             || ! is_array($grant['projections'] ?? null) || ! is_array($grant['context_types'] ?? null)
             || ! in_array($input['context']['type'], $grant['context_types'], true)
+            || (isset($grant['context_ids']) && (!is_array($grant['context_ids']) || !in_array($input['context']['id'],$grant['context_ids'],true)))
             || array_diff($input['projection'], $grant['projections']) !== []
             || ($input['include_enrollment'] && ($grant['enrollment'] ?? false) !== true)
             || array_diff(self::scopes($input), $tokenScopes) !== []) {

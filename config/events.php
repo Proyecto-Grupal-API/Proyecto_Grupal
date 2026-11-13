@@ -1,6 +1,9 @@
 <?php
 
 return [
+    // Opt-in adapter; existing external Bearer contract remains the default.
+    'transport' => env('EVENTS_TRANSPORT', 'legacy'),
+    'platform_secret' => env('EVENTS_PLATFORM_SECRET'),
     'sink_url' => env('EVENTS_SINK_URL'),
     'sink_token' => env('EVENTS_SINK_TOKEN'),
     'timeout' => (int) env('EVENTS_SINK_TIMEOUT', 10),

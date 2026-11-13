@@ -49,6 +49,11 @@ class PublishDomainEvents extends Command
                     ->asJson()
                     ->withoutRedirecting()
                     ->withOptions(['verify' => true]);
+                if (config('events.transport', 'legacy') === 'platform_hmac') {
+                    $wire = \App\Services\IdentityPlatformEnvelope::prepare($event, $sink, (string) config('events.platform_secret'));
+                    $response = $request->withHeaders($wire['headers'])->withBody($wire['body'], 'application/json')->send('POST', $sink);
+                } else {
+                if (config('events.transport', 'legacy') !== 'legacy') throw new \InvalidArgumentException('Unsupported event transport.');
                 if ($token = config('events.sink_token')) {
                     $request = $request->withToken($token);
                 }
@@ -60,6 +65,8 @@ class PublishDomainEvents extends Command
                     'occurred_at' => $event->occurred_at?->toDateTime()->format('Y-m-d\TH:i:s.u\Z'),
                     'payload' => $event->payload?->getArrayCopy() ?? [],
                 ]);
+
+                }
 
                 if ($response->successful()) {
                     if ($delivery->acknowledge($event, $claimToken)) {
@@ -77,6 +84,10 @@ class PublishDomainEvents extends Command
                 $delivery->fail($event, $claimToken, 'http_'.$status, $retryable);
                 $failed++;
                 $this->warn("Event {$event->event_id} failed: HTTP {$status}.");
+            } catch (\InvalidArgumentException $exception) {
+                $delivery->fail($event, $claimToken, 'contract_mismatch', false);
+                $failed++;
+                $this->warn("Event {$event->event_id} failed: contract_mismatch.");
             } catch (ConnectionException $exception) {
                 $delivery->fail($event, $claimToken, 'connection_error', true);
                 $failed++;

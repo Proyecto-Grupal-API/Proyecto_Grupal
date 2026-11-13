@@ -43,6 +43,7 @@ Route::middleware(['auth', 'verified', 'device.track'])->group(function () {
     Route::patch('/student-services/students/{studentId}/preferences', [StudentServicesController::class, 'updatePreferences'])->name('student-services.students.preferences');
     Route::patch('/student-services/students/{studentId}/status', [StudentServicesController::class, 'changeStatus'])->name('student-services.students.status');
 
+    Route::get('/students/report.csv', [StudentController::class, 'report'])->name('students.report');
     Route::get('/students', [StudentController::class, 'index'])->name('students.index');
     Route::get('/students/create', [StudentController::class, 'create'])->name('students.create');
     Route::post('/students', [StudentController::class, 'store'])->name('students.store');

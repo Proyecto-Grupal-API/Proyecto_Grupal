@@ -95,7 +95,7 @@ async function loadCommunity(page = 1) {
   }
 }
 
-function maxVal() { return Math.max(1, ...data.value.chartData.issued) }
+function maxVal() { return Math.max(1, ...data.value.chartData.issued, ...data.value.chartData.redeemed) }
 function barH(v) { return Math.round((v / maxVal()) * 100) }
 
 async function loadAnalytics() {
@@ -156,7 +156,7 @@ onMounted(() => {
           </div>
         </div>
         <div class="bar-chart">
-          <div class="y-axis"><span>250K</span><span>200K</span><span>150K</span><span>100K</span><span>50K</span><span>0</span></div>
+          <div class="y-axis"><span v-for="fraction in [1, 0.8, 0.6, 0.4, 0.2, 0]" :key="fraction">{{ (maxVal() * fraction).toLocaleString('es-MX', { maximumFractionDigits: 1 }) }}</span></div>
           <div class="bars-area">
             <div v-for="(label,i) in data.chartData.labels" :key="label" class="bar-group">
               <div class="bar-pair">

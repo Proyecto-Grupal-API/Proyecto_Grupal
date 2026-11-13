@@ -11,6 +11,13 @@ use RuntimeException;
 
 class IdentidadComunidadApi
 {
+    /** In-process audience contract; user is from the authenticated backend request, not OAuth. */
+    public function seleccionarAudienciaAcademica(\Illuminate\Http\Request $request,array $filters): array
+    {
+        return app(\App\Services\Directory\AcademicAudienceService::class)->select($request,
+            (string)config('identity_directory.community_academic_client',''),$filters);
+    }
+
     public function estado(string $usuarioId): array
     {
         $data = app(ClienteModuloHttp::class)->para('identidad_comunidad', 'students:read')

@@ -36,7 +36,7 @@ function submitImport() {
 </script>
 <template>
     <Head title="Cuentas y perfiles" />
-    <AuthenticatedLayout><template #header><div class="flex items-center justify-between"><div><p class="text-xs font-bold uppercase tracking-widest text-[#0284C7]">Módulo 1.1</p><h2 class="text-2xl font-bold text-[#00338D]">Cuentas y perfiles</h2></div><Link href="/students/create" class="rounded-lg bg-[#00338D] px-4 py-2 text-sm font-semibold text-white">Nuevo estudiante</Link></div></template>
+    <AuthenticatedLayout><template #header><div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p class="text-xs font-bold uppercase tracking-widest text-[#0284C7]">Módulo 1.1</p><h2 class="text-2xl font-bold text-[#00338D]">Cuentas y perfiles</h2></div><div class="flex flex-wrap gap-2"><a :href="route('students.report', { search: search || undefined, status: status || undefined, campus: campus || undefined })" class="inline-flex min-h-[44px] items-center rounded-lg border border-[#00338D] px-4 py-2 text-sm font-semibold text-[#00338D]">Exportar CSV</a><Link href="/students/create" class="inline-flex min-h-[44px] shrink-0 items-center rounded-lg bg-[#00338D] px-4 py-2 text-sm font-semibold text-white">Nuevo estudiante</Link></div></div></template>
         <div class="min-h-screen bg-[#F5F8FC] px-4 py-8 sm:px-6 lg:px-8">
             <div class="mx-auto max-w-7xl space-y-6">
                 <div class="grid gap-4 md:grid-cols-4">
