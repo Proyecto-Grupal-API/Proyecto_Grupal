@@ -9,6 +9,8 @@ import { rewardsInitial } from '@/Platform/initialState.js'
 import { api } from '@/Platform/services/api.js'
 
 const { success, error } = useToast()
+// Mensaje claro del backend (errores de validación 422 o mensaje de negocio) en lugar del texto técnico de axios.
+const apiMessage = (err, fallback) => Object.values(err.response?.data?.errors || {}).flat().join(' ') || err.response?.data?.message || err.response?.data?.error || fallback
 const rewards = ref([...rewardsInitial])
 const showModal = ref(false)
 const showDeleteModal = ref(false)
@@ -21,7 +23,7 @@ const form = ref({
   description: '',
   points_required: 200,
   stock: 25,
-  valid_until: new Date(Date.now() + 180 * 24 * 3600 * 1000).toISOString().slice(0, 10),
+  valid_to: new Date(Date.now() + 180 * 24 * 3600 * 1000).toISOString().slice(0, 10),
   status: 'active',
 })
 
@@ -38,7 +40,7 @@ async function loadRewards() {
         business: r.business_name || (r.business_id ? 'Comercio Asociado' : 'Campus Store'),
         points: r.points_required ?? r.points,
         stock: r.stock !== null ? (r.stock - (r.reserved_stock || 0)) : 99,
-        validUntil: r.valid_until ? r.valid_until.slice(0, 10) : 'Sin límite',
+        validUntil: (r.valid_to || r.valid_until) ? String(r.valid_to || r.valid_until).slice(0, 10) : 'Sin límite',
         status: (r.status === 'active' || r.status === 'Activo') ? 'Activo' : 'Inactivo',
         image: r.image || '🎁',
       }))
@@ -60,7 +62,7 @@ async function handleCreateReward() {
       description: form.value.description,
       points_required: parseInt(form.value.points_required),
       stock: parseInt(form.value.stock),
-      valid_until: form.value.valid_until,
+      valid_to: form.value.valid_to,
       status: 'active',
     })
 
@@ -71,7 +73,7 @@ async function handleCreateReward() {
     await loadRewards()
   } catch (err) {
     console.error('Error al crear recompensa:', err)
-    error(err.message || 'No se pudo crear la recompensa.')
+    error(apiMessage(err, 'No se pudo crear la recompensa.'))
   } finally {
     isSubmitting.value = false
   }
@@ -92,7 +94,7 @@ async function confirmDelete() {
     await loadRewards()
   } catch (err) {
     console.error('Error al eliminar:', err)
-    error(err.message || 'No se pudo eliminar la recompensa.')
+    error(apiMessage(err, 'No se pudo eliminar la recompensa.'))
     showDeleteModal.value = false
   }
 }
@@ -175,7 +177,7 @@ onMounted(() => {
 
           <div class="form-group">
             <label class="cd-label">Fecha de vigencia límite</label>
-            <input v-model="form.valid_until" type="date" required class="cd-input" />
+            <input v-model="form.valid_to" type="date" required class="cd-input" />
           </div>
 
           <div class="form-group">

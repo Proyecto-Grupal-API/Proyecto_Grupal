@@ -49,7 +49,7 @@ async function loadData() {
           business: r.business_name || (r.business_id ? 'Comercio Asociado' : 'Campus Store'),
           points: r.points_required ?? r.points,
           stock: r.stock !== null ? (r.stock - (r.reserved_stock || 0)) : 99,
-          validUntil: r.valid_until ? r.valid_until.slice(0, 10) : 'Sin expiración',
+          validUntil: (r.valid_to || r.valid_until) ? String(r.valid_to || r.valid_until).slice(0, 10) : 'Sin expiración',
           status: (r.status === 'active' || r.status === 'Activo') ? 'Activo' : 'Agotado',
           image: getRewardImage(r),
         }))

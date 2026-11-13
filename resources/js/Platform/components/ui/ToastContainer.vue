@@ -5,7 +5,7 @@ const { toasts } = useToast()
 
 <template>
   <Teleport to="body">
-    <div class="toast-container">
+    <div class="toast-container" role="status" aria-live="polite">
       <TransitionGroup name="toast">
         <div
           v-for="t in toasts"
