@@ -175,6 +175,7 @@ return [
         'valid_to' => 'vigente hasta',
         'valid_until' => 'vigente hasta',
         'code' => 'código',
+        'sku' => 'SKU',
         'title' => 'título',
         'semester' => 'semestre',
         'enrollment_number' => 'matrícula',

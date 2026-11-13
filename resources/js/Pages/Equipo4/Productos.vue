@@ -189,18 +189,18 @@ const deleteProduct = () => {
 
         <form @submit.prevent="submitForm" class="space-y-4">
           <div>
-            <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">SKU</label>
-            <input v-model="form.sku" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-[#0284C7]" />
+            <label for="prod-sku" class="block text-xs font-semibold uppercase text-slate-600 mb-1">SKU</label>
+            <input id="prod-sku" required maxlength="50" v-model="form.sku" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-[#0284C7]" />
             <p v-if="form.errors.sku" class="mt-1 text-xs text-rose-600">{{ form.errors.sku }}</p>
           </div>
           <div>
-            <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Nombre</label>
-            <input v-model="form.name" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-[#0284C7]" />
+            <label for="prod-name" class="block text-xs font-semibold uppercase text-slate-600 mb-1">Nombre</label>
+            <input id="prod-name" required v-model="form.name" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-[#0284C7]" />
             <p v-if="form.errors.name" class="mt-1 text-xs text-rose-600">{{ form.errors.name }}</p>
           </div>
           <div>
-            <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Categoría</label>
-            <select v-model="form.category" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-[#0284C7]" :class="{ 'border-red-500': form.errors.category }">
+            <label for="prod-category" class="block text-xs font-semibold uppercase text-slate-600 mb-1">Categoría</label>
+            <select id="prod-category" required v-model="form.category" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:border-[#0284C7]" :class="{ 'border-red-500': form.errors.category }">
               <option value="" disabled>Selecciona una categoría</option>
               <option v-for="cat in categories" :key="cat.id" :value="cat.slug">{{ cat.name }}</option>
             </select>

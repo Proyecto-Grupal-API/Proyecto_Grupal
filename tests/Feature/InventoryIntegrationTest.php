@@ -480,3 +480,44 @@ it('serves the same signed service contract under the versioned /api/v1 path and
         'X-Team-Signature'=>hash_hmac('sha256',$timestamp.'|POST|/api/equipo4/integration/availability|'.hash('sha256',$json),config('team4.integration.secrets.equipo3'))])->assertUnauthorized();
     $this->getJson('/api/v1/inventory/equipo4/products')->assertUnauthorized();
 });
+
+// Diseño E4 4.9 y rúbrica 10.x: alertas de reabastecimiento, kardex filtrable y dashboard coherente con la base.
+it('raises a low stock alert when a reorder point is exceeded and lets the owner discard it',function () {
+    $this->actingAs($this->actor)->post('/equipo4/reglas-reorden/sync-all')->assertRedirect();
+    $rules=DB::connection('inventory')->getCollection('reorder_rules');$alerts=DB::connection('inventory')->getCollection('stock_alerts');
+    $rule=(array)$rules->findOne(['business_id'=>'business-A']);
+    expect($rule)->not->toBeEmpty();
+    $this->put('/equipo4/reglas-reorden/'.$rule['_id'],['reorder_point'=>-1,'active'=>true])->assertSessionHasErrors('reorder_point');
+    $this->put('/equipo4/reglas-reorden/'.$rule['_id'],['reorder_point'=>1000000,'active'=>true])->assertRedirect();
+    $this->post('/equipo4/alertas/generate')->assertRedirect();
+    $alert=(array)$alerts->findOne(['business_id'=>'business-A','product_id'=>$rule['product_id'],'location_id'=>$rule['location_id'],'status'=>'ACTIVE']);
+    expect($alert['type'] ?? null)->toBe('LOW_STOCK');
+    $this->get('/equipo4')->assertOk()->assertInertia(fn (Assert $a)=>$a->where('stats.alerts_active',$alerts->countDocuments(['business_id'=>'business-A','status'=>'ACTIVE'])));
+    $this->post('/equipo4/alertas/'.$alert['_id'].'/discard',['reason'=>'Reabasto programado'])->assertRedirect();
+    expect((array)$alerts->findOne(['_id'=>$alert['_id']]))->not->toMatchArray(['status'=>'ACTIVE']);
+});
+
+it('filters the kardex report by movement type and text and its counters match the stored movements',function () {
+    $row=DB::connection('inventory')->getCollection('inventories')->findOne(['business_id'=>'business-A']);
+    foreach ([2,-1] as $qty) {
+        $this->actingAs($this->actor)->from('/equipo4/inventario')->post('/equipo4/inventario/adjust',[
+            'inventory_id'=>(string)$row['_id'],'quantity'=>$qty,'reason'=>'Conteo físico '.$qty])->assertSessionHasNoErrors();
+    }
+    $movements=DB::connection('inventory')->getCollection('stock_movements');
+    $total=$movements->countDocuments(['business_id'=>'business-A']);
+    $type=(string)((array)$movements->findOne(['business_id'=>'business-A']))['type'];
+    $this->actingAs($this->actor)->get('/equipo4/kardex')->assertOk()->assertInertia(fn (Assert $a)=>$a->component('Equipo4/Kardex')
+        ->where('pagination.total',$total)->where('kpis.0.value',$total));
+    $this->get('/equipo4/kardex?type='.$type)->assertOk()->assertInertia(fn (Assert $a)=>$a->where('filters.type',$type)
+        ->where('pagination.total',$movements->countDocuments(['business_id'=>'business-A','type'=>$type])));
+    $this->get('/equipo4/kardex?q=texto-que-no-existe-'.uniqid())->assertOk()->assertInertia(fn (Assert $a)=>$a->where('pagination.total',0)->where('movements',[]));
+});
+
+it('shows dashboard indicators equal to direct aggregates of the business inventory',function () {
+    $inv=DB::connection('inventory')->getCollection('inventories');$onHand=0;$available=0;
+    foreach ($inv->find(['business_id'=>'business-A']) as $row) { $onHand+=(int)$row['on_hand']; $available+=(int)$row['available']; }
+    $this->actingAs($this->actor)->get('/equipo4')->assertOk()->assertInertia(fn (Assert $a)=>$a->component('Equipo4/Dashboard')
+        ->where('stats.inventory_units',$onHand)->where('stats.inventory_available',$available)
+        ->where('stats.products',DB::connection('inventory')->getCollection('products')->countDocuments(['business_id'=>'business-A']))
+        ->where('stats.warehouses',DB::connection('inventory')->getCollection('warehouses')->countDocuments(['business_id'=>'business-A'])));
+});
