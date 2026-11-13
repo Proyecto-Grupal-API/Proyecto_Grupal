@@ -2,7 +2,7 @@
 
 | Versión | Fecha | Responsables | Cambio |
 |---|---|---|---|
-| 1.0 | 2026-11-12 | Equipo 2 (autores en Git: Daniel Beltrán, Codex, Daniel Beltran, Viko43, Julian-Darkstar); con Claude Code | Corte MERGE_COMPLETO ffb4abd + parche de cierre; resultados del laboratorio aislado |
+| 1.0 | 2026-11-12 | Equipo 2 (autores en Git: Daniel Beltrán, Codex, Julian-Darkstar, Daniel Beltran, Leonardo A Ayala Mtz); con Claude Code | Corte MERGE_COMPLETO ffb4abd + parche de cierre; resultados del laboratorio aislado |
 
 Estado: **vigente para la evaluación del tercer parcial**.
 
@@ -14,7 +14,7 @@ SQL Server (59 migraciones, 63 tablas, 76 FK) para el núcleo contable; transacc
 Diccionario: `../DICCIONARIO-DE-DATOS.md` (sección E2 Finanzas). Equivalencia de motores: `../EQUIVALENCIA-POSTGRESQL.md`.
 
 ## 3. Requisitos vigentes y trazabilidad
-`TRAZABILIDAD-E2.md` (11 compromisos; 11 implementados).
+`TRAZABILIDAD-E2.md` (11 compromisos; 11 implementados; 11 con pruebas automatizadas en verde).
 
 ## 4. Integraciones verificadas
 - E6: checkout de eventos, devolución y conciliación (D02)
@@ -24,7 +24,7 @@ Diccionario: `../DICCIONARIO-DE-DATOS.md` (sección E2 Finanzas). Equivalencia d
 - E3: checkout de Marketplace
 
 ## 5. Calidad y pruebas
-Pruebas Feature del módulo en la suite completa: 318 casos en verde (detalle por compromiso en la trazabilidad).
+Pruebas Feature del módulo en la suite completa: 320 casos en verde (detalle por compromiso en la trazabilidad).
 
 ## 6. Seguridad y configuración
 Autorizadores financieros Pending* por defecto, banderas de cobro y transferencias apagadas, revisor ≠ solicitante, TOTP reciente, idempotencia obligatoria.

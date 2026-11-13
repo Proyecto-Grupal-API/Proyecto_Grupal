@@ -14,7 +14,7 @@ Laravel + MongoDB. Pantallas Inertia en /servicios/*; API de cobros con E2 (PR#8
 Diccionario: `../DICCIONARIO-DE-DATOS.md` (sección E5 Servicios). Equivalencia de motores: `../EQUIVALENCIA-POSTGRESQL.md`.
 
 ## 3. Requisitos vigentes y trazabilidad
-`TRAZABILIDAD-E5.md` (13 compromisos; 13 implementados).
+`TRAZABILIDAD-E5.md` (13 compromisos; 13 implementados; 13 con pruebas automatizadas en verde).
 
 ## 4. Integraciones verificadas
 - E2: cobros de multas y servicios (ServicesFinancePaymentsTest, LibraryFineFinanceTest; PR#8)

@@ -2,7 +2,7 @@
 
 | Versión | Fecha | Responsables | Cambio |
 |---|---|---|---|
-| 1.0 | 2026-11-12 | Equipo 7 (Recompensas y Plataforma) (autores en Git: Daniel Beltrán, Codex, Julian-Darkstar); con Claude Code | Corte MERGE_COMPLETO ffb4abd + parche de cierre; resultados del laboratorio aislado |
+| 1.0 | 2026-11-12 | Equipo 7 (Recompensas y Plataforma) (autores en Git: Daniel Beltrán, Julian-Darkstar, Codex); con Claude Code | Corte MERGE_COMPLETO ffb4abd + parche de cierre; resultados del laboratorio aislado |
 
 Estado: **vigente para la evaluación del tercer parcial**.
 
@@ -14,7 +14,7 @@ Laravel + MongoDB (conexión platform). Rutas web e Inertia en /recompensas/{alu
 Diccionario: `../DICCIONARIO-DE-DATOS.md` (sección E7 / plataforma). Equivalencia de motores: `../EQUIVALENCIA-POSTGRESQL.md`.
 
 ## 3. Requisitos vigentes y trazabilidad
-`TRAZABILIDAD-E7.md` (11 compromisos; 11 implementados).
+`TRAZABILIDAD-E7.md` (11 compromisos; 11 implementados; 11 con pruebas automatizadas en verde).
 
 ## 4. Integraciones verificadas
 - E1: identidad y rol efectivo (ResolvePlatformActor) sin leer colecciones de usuarios
@@ -23,7 +23,7 @@ Diccionario: `../DICCIONARIO-DE-DATOS.md` (sección E7 / plataforma). Equivalenc
 - E2/E3: acumulación desde ventas (POST /points/earn con dominio de origen)
 
 ## 5. Calidad y pruebas
-Pruebas Feature del módulo en la suite completa: 89 casos en verde (detalle por compromiso en la trazabilidad).
+Pruebas Feature del módulo en la suite completa: 90 casos en verde (detalle por compromiso en la trazabilidad).
 
 ## 6. Seguridad y configuración
 Permisos por rol en servidor; el alumno sólo ve y cancela sus canjes; ajustes manuales y políticas sólo con governance.manage/points.adjust; la aprobación de configuraciones exige settings.approve (rol platform_admin, sin mapeo desde E1 en este corte); secretos de ingesta por dominio sólo por entorno.

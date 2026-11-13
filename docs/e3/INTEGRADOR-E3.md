@@ -14,7 +14,7 @@ Laravel + MongoDB (conexión marketplace). Pantallas Inertia en /tienda/*; API d
 Diccionario: `../DICCIONARIO-DE-DATOS.md` (sección E3 Marketplace). Equivalencia de motores: `../EQUIVALENCIA-POSTGRESQL.md`.
 
 ## 3. Requisitos vigentes y trazabilidad
-`TRAZABILIDAD-E3.md` (10 compromisos; 10 implementados).
+`TRAZABILIDAD-E3.md` (10 compromisos; 9 implementados; 9 con pruebas automatizadas en verde).
 
 ## 4. Integraciones verificadas
 - E1: membresía, capacidades y alta del propietario por negocio (MarketplaceIntegrationTest; laboratorio: aprobación real)

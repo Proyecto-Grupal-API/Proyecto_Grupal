@@ -8,18 +8,18 @@ Fuentes de requisitos: docs/Campus_Digital_Diseno_Modulos.pdf (apartados 5.1–5
 
 | Req. | Compromiso | Fuente | Estado | Pruebas (resultado) | Evidencia | Commits | Primer → último |
 |---|---|---|---|---|---|---|---|
-| 5.1 | Biblioteca y catálogo, préstamos y devoluciones | Diseño 5.1 | Implementado | LibraryLoansTest (7 OK / 0 fallos) |  | 4 | 21e26a2 → 8c18796 |
-| 5.2 | Multas y pagos de biblioteca | Diseño 5.2 | Implementado | LibraryFinesTest, LibraryFineFinanceTest (11 OK / 0 fallos) | Cobro por E2 | 6 | 21e26a2 → 4ffb39c |
-| 5.3 | Lockers: catálogo y periodos | Diseño 5.3 | Implementado | LockersTest (5 OK / 0 fallos) |  | 5 | 21e26a2 → 0963365 |
-| 5.4 | Solicitud y asignación de locker | Diseño 5.4 | Implementado | LockersTest, BenefitsApiTest (19 OK / 0 fallos) | Asignación por beneficio | 5 | 21e26a2 → 0963365 |
-| 5.5 | Reservación de instalaciones | Diseño 5.5 | Implementado | FacilityReservationTest (14 OK / 0 fallos) |  | 2 | 21e26a2 → 8c18796 |
-| 5.6 | Zonas de descanso | Diseño 5.6 | Implementado | RestSpaceTest (8 OK / 0 fallos) |  | 2 | 21e26a2 → 8c18796 |
-| 5.7 | Renta de equipos con garantía | Diseño 5.7 | Implementado | RentalsTest, RentalDepositPilotTest (14 OK / 0 fallos) | Garantía con E2 | 4 | 21e26a2 → 8c18796 |
-| 5.8 | Servicios e impresiones | Diseño 5.8 | Implementado | ServiceOrdersTest, ServicesFinancePaymentsTest (15 OK / 0 fallos) |  | 5 | 21e26a2 → 0963365 |
-| 5.9 | Tickets de soporte e incidencias | Diseño 5.9 | Implementado | SupportTicketsTest (9 OK / 0 fallos) |  | 4 | 21e26a2 → c199386 |
-| 5.10 | Calendarios, cupos y reglas | Diseño 5.10 | Implementado | FacilityReservationTest, RestSpaceTest (22 OK / 0 fallos) | Motor común de disponibilidad | 2 | 21e26a2 → 8c18796 |
-| 5.11 | Validación de acceso y uso | Diseño 5.11 | Implementado | ServiceAccessTest (9 OK / 0 fallos) |  | 2 | 21e26a2 → d194239 |
-| E5-X | Auditoría y analítica hacia E7 | COMUNIDAD_E5_E7_CONTRATOS | Implementado | ServiceAuditTest, PlatformAuditDeliveryTest, ServicePlatformEmitterTest (19 OK / 0 fallos) | F02 | 4 | 21e26a2 → 4ffb39c |
-| E5-R | Reporte de uso de Servicios (panel, filtros y CSV) | Rúbrica 10.x (cierre) | Implementado | ServiceUsageReportTest (4 OK / 0 fallos) | evidencias/interfaz/estados-e5 | 1 | 5e44b07 → 5e44b07 |
+| 5.1 | Biblioteca y catálogo, préstamos y devoluciones | Diseño 5.1 | Implementado y probado | LibraryLoansTest (7 OK / 0 fallos) |  | 4 | 21e26a2 → 8c18796 |
+| 5.2 | Multas y pagos de biblioteca | Diseño 5.2 | Implementado y probado | LibraryFinesTest, LibraryFineFinanceTest (11 OK / 0 fallos) | Cobro por E2 | 6 | 21e26a2 → 4ffb39c |
+| 5.3 | Lockers: catálogo y periodos | Diseño 5.3 | Implementado y probado | LockersTest (5 OK / 0 fallos) |  | 5 | 21e26a2 → 0963365 |
+| 5.4 | Solicitud y asignación de locker | Diseño 5.4 | Implementado y probado | LockersTest, BenefitsApiTest (19 OK / 0 fallos) | Asignación por beneficio | 5 | 21e26a2 → 0963365 |
+| 5.5 | Reservación de instalaciones | Diseño 5.5 | Implementado y probado | FacilityReservationTest (14 OK / 0 fallos) |  | 2 | 21e26a2 → 8c18796 |
+| 5.6 | Zonas de descanso | Diseño 5.6 | Implementado y probado | RestSpaceTest (8 OK / 0 fallos) |  | 2 | 21e26a2 → 8c18796 |
+| 5.7 | Renta de equipos con garantía | Diseño 5.7 | Implementado y probado | RentalsTest, RentalDepositPilotTest (14 OK / 0 fallos) | Garantía con E2 | 4 | 21e26a2 → 8c18796 |
+| 5.8 | Servicios e impresiones | Diseño 5.8 | Implementado y probado | ServiceOrdersTest, ServicesFinancePaymentsTest (15 OK / 0 fallos) |  | 5 | 21e26a2 → 0963365 |
+| 5.9 | Tickets de soporte e incidencias | Diseño 5.9 | Implementado y probado | SupportTicketsTest (9 OK / 0 fallos) |  | 4 | 21e26a2 → c199386 |
+| 5.10 | Calendarios, cupos y reglas | Diseño 5.10 | Implementado y probado | FacilityReservationTest, RestSpaceTest (22 OK / 0 fallos) | Motor común de disponibilidad | 2 | 21e26a2 → 8c18796 |
+| 5.11 | Validación de acceso y uso | Diseño 5.11 | Implementado y probado | ServiceAccessTest (9 OK / 0 fallos) |  | 2 | 21e26a2 → d194239 |
+| E5-X | Auditoría y analítica hacia E7 | COMUNIDAD_E5_E7_CONTRATOS | Implementado y probado | ServiceAuditTest, PlatformAuditDeliveryTest, ServicePlatformEmitterTest (19 OK / 0 fallos) | F02 | 4 | 21e26a2 → 4ffb39c |
+| E5-R | Reporte de uso de Servicios (panel, filtros y CSV) | Rúbrica 10.x (cierre) | Implementado y probado | ServiceUsageReportTest (4 OK / 0 fallos) | evidencias/interfaz/estados-e5 | 2 | 5e44b07 → 16fd74d |
 
 Código por compromiso: columna `codigo` del CSV.

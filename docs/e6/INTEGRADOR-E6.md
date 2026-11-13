@@ -14,7 +14,7 @@ Laravel integrado, modelos Mongo sobre la base Documento (34 modelos), transacci
 Diccionario: `../DICCIONARIO-DE-DATOS.md` (sección E6 Comunidad). Equivalencia de motores: `../EQUIVALENCIA-POSTGRESQL.md`.
 
 ## 3. Requisitos vigentes y trazabilidad
-`TRAZABILIDAD-E6.md` (11 compromisos; 11 implementados).
+`TRAZABILIDAD-E6.md` (11 compromisos; 11 implementados; 11 con pruebas automatizadas en verde).
 
 ## 4. Integraciones verificadas
 - E2: checkout de eventos por HTTP/OAuth, devolución y conciliación (stage-event-paid/refund; D-07 corregido)
