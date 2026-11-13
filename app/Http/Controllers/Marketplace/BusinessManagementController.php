@@ -380,12 +380,45 @@ class BusinessManagementController extends Controller
 
     public function sellerDashboard(Request $request)
     {
-        $ids = $this->integration->businesses($this->userId($request), 'business.sales.operate');
-        $orders = Order::whereIn('business_id', $ids)->get();
+        [$ids, $orders, $filters] = $this->sellerReport($request);
 
-        return Inertia::render('Marketplace/SellerDashboard', ['businesses' => Business::whereIn('_id', $ids)->get(),
+        return Inertia::render('Marketplace/SellerDashboard', ['businesses' => Business::whereIn('_id', $ids)->get(), 'filters' => $filters,
             'stats' => ['orders' => $orders->count(), 'paid_sales' => $orders->where('payment_status', 'paid')->sum('total_cents') / 100, 'pending' => $orders->whereIn('status', ['pending_inventory', 'awaiting_payment'])->count(), 'cancelled' => $orders->where('status', 'cancelled')->count()],
             'topProducts' => $orders->where('payment_status', 'paid')->flatMap(fn ($o) => $o->items ?? [])->groupBy('product_id')->map(fn ($rows) => ['name' => $rows->first()['name'], 'units' => $rows->sum('quantity')])->values()->take(5)]);
+    }
+
+    /** Reporte de ventas del vendedor en CSV (rúbrica 10.3/10.4): mismos filtros y negocios autorizados que el panel. */
+    public function sellerReportCsv(Request $request)
+    {
+        [, $orders, $filters] = $this->sellerReport($request);
+        $out = fopen('php://temp', 'r+');
+        fputcsv($out, ['folio', 'fecha', 'negocio', 'estado', 'estado_pago', 'metodo_pago', 'total_cents'], escape: '\\');
+        foreach ($orders->sortBy('created_at') as $o) {
+            fputcsv($out, array_map(fn ($v) => is_string($v) && preg_match('/^[=+\-@]/', $v) ? "'".$v : $v, [(string) $o->folio, $o->created_at?->toDateTimeString(), (string) $o->business_id,
+                (string) $o->status, (string) $o->payment_status, (string) $o->payment_method, (int) $o->total_cents]), escape: '\\');
+        }
+        rewind($out);
+
+        return response("\u{FEFF}".stream_get_contents($out), 200, ['Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="ventas-'.$filters['desde'].'-a-'.$filters['hasta'].'.csv"', 'Cache-Control' => 'no-store, private']);
+    }
+
+    /** @return array{0: array, 1: \Illuminate\Support\Collection, 2: array} */
+    private function sellerReport(Request $request): array
+    {
+        $v = $request->validate([
+            'desde' => ['nullable', 'date_format:Y-m-d'], 'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'],
+            'estado' => ['nullable', 'in:pending_inventory,awaiting_payment,confirmed,preparing,ready,delivered,cancelled,expired,stock_unavailable,return_approved'],
+        ], ['hasta.after_or_equal' => 'La fecha final debe ser igual o posterior a la inicial.']);
+        $tz = config('app.timezone');
+        $to = isset($v['hasta']) ? \Carbon\CarbonImmutable::createFromFormat('!Y-m-d', $v['hasta'], $tz) : \Carbon\CarbonImmutable::now($tz)->startOfDay();
+        $from = isset($v['desde']) ? \Carbon\CarbonImmutable::createFromFormat('!Y-m-d', $v['desde'], $tz) : $to->subDays(89);
+        abort_if($from->diffInDays($to) > 366, 422, 'El periodo no puede exceder un año.');
+        $ids = $this->integration->businesses($this->userId($request), 'business.sales.operate');
+        $orders = Order::whereIn('business_id', $ids)->where('created_at', '>=', $from->startOfDay())->where('created_at', '<=', $to->endOfDay())
+            ->when($v['estado'] ?? null, fn ($q, $estado) => $q->where('status', $estado))->get();
+
+        return [$ids, $orders, ['desde' => $from->toDateString(), 'hasta' => $to->toDateString(), 'estado' => $v['estado'] ?? '']];
     }
 
     public function auditLog(Request $request)

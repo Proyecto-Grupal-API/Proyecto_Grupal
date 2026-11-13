@@ -33,6 +33,7 @@ Route::middleware(['auth', 'session.active', 'device.track', \App\Http\Middlewar
     Route::post('/tienda/pedidos/{orderId}/consultar-wallet', [MarketplaceController::class, 'syncWallet'])
         ->where('orderId', '[a-f0-9]{24}')->middleware('throttle:12,1')->name('marketplace.wallet.sync');
     Route::get('/tienda/vendedor', [BusinessManagementController::class, 'sellerDashboard'])->name('marketplace.seller.dashboard');
+    Route::get('/tienda/vendedor/reporte.csv', [BusinessManagementController::class, 'sellerReportCsv'])->name('marketplace.seller.report');
     Route::get('/tienda/vendedor/pedidos', [BusinessManagementController::class, 'sellerOrders'])->name('marketplace.seller.orders');
     Route::post('/tienda/pedidos/{orderId}/estado', [BusinessManagementController::class, 'transitionOrder'])->name('marketplace.orders.transition');
     Route::post('/tienda/pedidos/{orderId}/postventa', [BusinessManagementController::class, 'requestReturn'])->name('marketplace.orders.return');
