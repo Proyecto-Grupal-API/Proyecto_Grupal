@@ -10,6 +10,11 @@ test('validation messages and field names are returned in spanish by default', f
     expect($errors->first('name'))->toBe('El campo nombre no debe tener más de 255 caracteres.')
         ->and($errors->first('points_required'))->toBe('El campo puntos requeridos debe ser al menos 1.')
         ->and($errors->first('email'))->toBe('El campo correo electrónico es obligatorio.');
+    // Campos del alta de alumnos (E1) y de catálogos con el mismo nombre visible que en el formulario.
+    $form = Validator::make([], ['academic_program_id' => 'required', 'stock_min' => 'required', 'starts_at' => 'required'])->errors();
+    expect($form->first('academic_program_id'))->toBe('El campo carrera es obligatorio.')
+        ->and($form->first('stock_min'))->toBe('El campo existencia mínima es obligatorio.')
+        ->and($form->first('starts_at'))->toBe('El campo fecha de inicio es obligatorio.');
 });
 
 test('authentication failures are explained in spanish and unknown keys fall back safely', function () {

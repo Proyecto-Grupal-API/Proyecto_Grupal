@@ -30,6 +30,11 @@ abstract class ProductRequest extends FormRequest
         return $identity->userCan($userId, $this->permission());
     }
 
+    public function messages(): array
+    {
+        return ['sku.regex' => 'El SKU sólo admite letras mayúsculas, números y guiones (por ejemplo, TERM-001).'];
+    }
+
     public function rules(): array
     {
         $ignored = $this->ignoredProductId();

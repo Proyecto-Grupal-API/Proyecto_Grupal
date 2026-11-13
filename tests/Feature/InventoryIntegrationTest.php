@@ -528,6 +528,8 @@ it('applies the shared product rules: unique SKU per business on create and edit
     app(\App\Services\InventoryModule\BusinessContext::class)->select('business-A');
     $category=Category::where('business_id','business-A')->where('active',true)->firstOrFail()->slug;
     $data=['name'=>'Gorra','category'=>$category,'stock_min'=>0,'stock_max'=>10,'active'=>true];
+    $this->postJson('/equipo4/productos', ['sku'=>'sku minusculas',...$data])->assertUnprocessable()
+        ->assertJsonValidationErrors(['sku'=>'El SKU sólo admite letras mayúsculas, números y guiones (por ejemplo, TERM-001).']);
     $this->postJson('/equipo4/productos', ['sku'=>'SKU-UNICO-A',...$data])->assertRedirect();
     $this->postJson('/equipo4/productos', ['sku'=>'SKU-UNICO-A',...$data])->assertUnprocessable()
         ->assertJsonValidationErrors(['sku'=>'Ya existe un producto registrado con ese SKU.']);
