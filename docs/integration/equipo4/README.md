@@ -51,7 +51,7 @@ Donde:
 | Cliente | Variable .env | Default dev |
 |---|---|---|
 | Eq.1 (Identidad) | `TEAM1_SERVICE_SECRET` | (vacio - stub) |
-| Eq.2/3/7 (compartido) | `TEAM_SERVICE_SHARED_SECRET` | `secreto_equipo4_eq3_2026` |
+| Eq.2/3/7 (compartido) | `TEAM_SERVICE_SHARED_SECRET` | sin valor por defecto: definir por entorno (el valor histórico se considera comprometido y debe rotarse) |
 
 ## Convenciones generales
 
