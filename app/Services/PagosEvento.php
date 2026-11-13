@@ -74,17 +74,64 @@ class PagosEvento
         return $result ? $this->aplicar($pago, $result) : 'pendiente';
     }
 
+    /**
+     * D-07: an applied payment may later be refunded by Finance (E2) through its own reviewed flow.
+     * Only the reconciliation command calls this; the student-facing consultation keeps its behaviour.
+     * Uses the existing read contract ('refund' receipt) and never infers a refund without that evidence.
+     */
+    public function verificarDevolucionExterna(PagoReservaEvento $pago): string
+    {
+        if ($pago->estado !== 'aplicado') {
+            return $pago->estado;
+        }
+        $result = $this->solicitar($pago, 'read');
+        $receipt = $result['refund'] ?? null;
+        if ($result === null || $receipt === null) {
+            return 'aplicado';
+        }
+        $this->validarRecibo($pago, $result, $receipt);
+
+        return $this->inscripciones->ejecutar($pago->evento_id, function (Evento $evento) use ($pago, $result, $receipt) {
+            $pago->refresh();
+            if ($pago->estado !== 'aplicado') {
+                return $pago->estado;
+            }
+            abort_unless($pago->comprobante === $result['payment_id'], 503, 'La devolución corresponde a otro cobro.');
+            $reg = RegistroEvento::whereKey($pago->registro_id)->where('evento_id', $pago->evento_id)
+                ->where('usuario_id', $pago->usuario_id)->where('generacion', $pago->generacion)->first();
+            $asistio = $reg?->estado_asistencia === 'asistio';
+            $pago->update(['estado' => 'devuelto', 'comprobante_devolucion' => $receipt['refund_id']]);
+            if ($reg && ! $asistio && $reg->estado === 'confirmada') {
+                // Refunded seat must not stay usable: cancel, rotate the QR and promote the waiting list.
+                $this->inscripciones->cerrarReserva($evento, $reg);
+                $reg->refresh()->update(['pago_estado' => 'devuelto']);
+            } elseif ($reg) {
+                $reg->update(['pago_estado' => 'devuelto']);
+            }
+            $this->inscripciones->auditar($evento, null, $asistio ? 'evento_pago_devuelto_con_asistencia' : 'evento_pago_devuelto_externo',
+                (string) $pago->id, null, ['registro_id' => $pago->registro_id, 'generacion' => $pago->generacion,
+                    'referencia_financiera' => $receipt['refund_id']]);
+
+            return 'devuelto';
+        });
+    }
+
+    private function validarRecibo(PagoReservaEvento $pago, array $result, mixed $receipt): void
+    {
+        abort_unless(is_array($receipt) && $result['status'] === 'CONFIRMED'
+            && Str::isUuid($receipt['refund_id'] ?? null)
+            && ($receipt['original_payment_id'] ?? null) === $result['payment_id']
+            && ($receipt['amount_cents'] ?? null) === $pago->monto_centavos
+            && ($receipt['currency'] ?? null) === 'MXN', 503, 'La devolución no coincide con el cobro de la reserva.');
+    }
+
     private function aplicarDevolucion(PagoReservaEvento $pago, array $result): string
     {
         $receipt = $result['refund'] ?? null;
         if ($receipt === null) {
             return 'devolucion_pendiente';
         }
-        abort_unless(is_array($receipt) && $result['status'] === 'CONFIRMED'
-            && Str::isUuid($receipt['refund_id'] ?? null)
-            && ($receipt['original_payment_id'] ?? null) === $result['payment_id']
-            && ($receipt['amount_cents'] ?? null) === $pago->monto_centavos
-            && ($receipt['currency'] ?? null) === 'MXN', 503, 'La devolución no coincide con el cobro de la reserva.');
+        $this->validarRecibo($pago, $result, $receipt);
 
         return $this->inscripciones->ejecutar($pago->evento_id, function (Evento $evento) use ($pago, $result, $receipt) {
             $pago->refresh();

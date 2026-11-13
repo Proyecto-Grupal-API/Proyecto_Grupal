@@ -262,6 +262,71 @@ class ReservasEventosTest extends TestCase
         return $fixture;
     }
 
+    private function pagoAplicado(): array
+    {
+        $evento = $this->evento();
+        $reg = $this->reservar($evento, $this->alumno);
+        $espera = $this->reservar($evento, $this->andrea, 'espera');
+        $url = '/api/eventos/'.$evento->id;
+        $finanzas = $this->finanzas($reg);
+        $this->actingAs($this->alumno)->postJson($url.'/pago', ['generacion' => 1])->assertOk();
+        $finanzas->status = 'CONFIRMED';
+        $this->artisan('comunidad:conciliar-pagos-eventos')->assertSuccessful();
+        $this->assertSame('aplicado', PagoReservaEvento::firstOrFail()->estado);
+
+        return [$evento, $reg, $espera, $url, $finanzas];
+    }
+
+    public function test_finance_refund_of_an_applied_payment_revokes_the_seat_and_promotes_the_queue(): void
+    {
+        [$evento, $reg, $espera, $url, $finanzas] = $this->pagoAplicado();
+        $qr = $reg->fresh()->token_qr;
+        $finanzas->refund = ['refund_id' => (string) Str::uuid(), 'original_payment_id' => $finanzas->payment,
+            'amount_cents' => 2500, 'currency' => 'MXN'];
+        $this->artisan('comunidad:conciliar-pagos-eventos')->assertSuccessful();
+        $pago = PagoReservaEvento::firstOrFail();
+        $this->assertSame('devuelto', $pago->estado);
+        $this->assertSame($finanzas->refund['refund_id'], $pago->comprobante_devolucion);
+        $this->assertSame('cancelada', $reg->fresh()->estado);
+        $this->assertSame('devuelto', $reg->fresh()->pago_estado);
+        $this->assertNotSame($qr, $reg->fresh()->token_qr);
+        $this->assertSame('confirmada', $espera->fresh()->estado);
+        $this->assertSame(1, AuditoriaComunidad::where('accion', 'evento_pago_devuelto_externo')->count());
+        $this->artisan('comunidad:conciliar-pagos-eventos')->assertSuccessful();
+        $this->assertSame(1, AuditoriaComunidad::where('accion', 'evento_pago_devuelto_externo')->count());
+    }
+
+    public function test_applied_seat_is_kept_without_matching_refund_evidence(): void
+    {
+        [$evento, $reg, $espera, $url, $finanzas] = $this->pagoAplicado();
+        $this->artisan('comunidad:conciliar-pagos-eventos')->assertSuccessful();
+        $finanzas->refund = ['refund_id' => (string) Str::uuid(), 'original_payment_id' => $finanzas->payment,
+            'amount_cents' => 2400, 'currency' => 'MXN'];
+        $this->artisan('comunidad:conciliar-pagos-eventos')->assertSuccessful();
+        $finanzas->refund = ['refund_id' => (string) Str::uuid(), 'original_payment_id' => (string) Str::uuid(),
+            'amount_cents' => 2500, 'currency' => 'MXN'];
+        $this->artisan('comunidad:conciliar-pagos-eventos')->assertSuccessful();
+        $this->assertSame('aplicado', PagoReservaEvento::firstOrFail()->estado);
+        $this->assertSame('confirmada', $reg->fresh()->estado);
+        $this->assertSame('espera', $espera->fresh()->estado);
+        $this->actingAs($this->alumno)->postJson($url.'/pago/consultar', ['generacion' => 1])->assertOk()->assertJsonPath('estado', 'aplicado');
+        $this->assertSame(0, AuditoriaComunidad::where('accion', 'like', 'evento_pago_devuelto%')->count());
+    }
+
+    public function test_refund_after_attendance_is_recorded_for_review_without_rewriting_attendance(): void
+    {
+        [$evento, $reg, $espera, $url, $finanzas] = $this->pagoAplicado();
+        $reg->fresh()->update(['estado_asistencia' => 'asistio', 'asistio_en' => now()]);
+        $finanzas->refund = ['refund_id' => (string) Str::uuid(), 'original_payment_id' => $finanzas->payment,
+            'amount_cents' => 2500, 'currency' => 'MXN'];
+        $this->artisan('comunidad:conciliar-pagos-eventos')->assertSuccessful();
+        $this->assertSame('devuelto', PagoReservaEvento::firstOrFail()->estado);
+        $this->assertSame('confirmada', $reg->fresh()->estado);
+        $this->assertSame('asistio', $reg->fresh()->estado_asistencia);
+        $this->assertSame('espera', $espera->fresh()->estado);
+        $this->assertSame(1, AuditoriaComunidad::where('accion', 'evento_pago_devuelto_con_asistencia')->count());
+    }
+
     public function test_audit_failure_rolls_back_the_booking(): void
     {
         $e = $this->evento();

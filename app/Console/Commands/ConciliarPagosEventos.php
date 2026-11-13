@@ -30,7 +30,17 @@ class ConciliarPagosEventos extends Command
                 Log::warning('comunidad.pago_evento_pendiente', ['pago_id' => (string) $pago->id, 'error' => $e::class]);
             }
         }
-        $this->info('Intentos de pago revisados: '.($pendientes->count() + $devoluciones->count()));
+        // D-07: detect refunds completed by Finance after the seat was applied (bounded, oldest review first).
+        $aplicados = PagoReservaEvento::where('estado', 'aplicado')->orderBy('revisado_en')->orderBy('_id')->limit(20)->get();
+        foreach ($aplicados as $pago) {
+            $pago->update(['revisado_en' => now()]);
+            try {
+                $pagos->verificarDevolucionExterna($pago);
+            } catch (Throwable $e) {
+                Log::warning('comunidad.pago_evento_devolucion_externa', ['pago_id' => (string) $pago->id, 'error' => $e::class]);
+            }
+        }
+        $this->info('Intentos de pago revisados: '.($pendientes->count() + $devoluciones->count() + $aplicados->count()));
 
         return self::SUCCESS;
     }
