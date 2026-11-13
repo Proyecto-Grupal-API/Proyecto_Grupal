@@ -4,12 +4,31 @@ namespace App\Http\Controllers;
 use App\Domains\Financial\Enums\WalletType;
 use App\Domains\Financial\Services\LedgerService;
 use App\Domains\Financial\Services\WalletService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use App\Models\User;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class FinancialController extends Controller
 {
+    public function createWallet(Request $request, WalletService $walletService): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($this->canCreateWallet($user), 403);
+
+        $walletService->getOrCreatePersonal((string) $user->getKey());
+
+        return redirect()->route('financial.dashboard', [], 303);
+    }
+
+    private function canCreateWallet(?User $user): bool
+    {
+        return $user !== null && (string) $user->getKey() !== ''
+            && !$user->deleted_at && !$user->account_activation_pending
+            && !$user->must_change_password && $user->hasVerifiedEmail();
+    }
+
     public function index(
         Request $request,
         WalletService $walletService,
@@ -29,6 +48,7 @@ class FinancialController extends Controller
 
         return Inertia::render('Financial/Dashboard', [
             'canReadInstitutionalBudgets' => app(\App\Domains\Financial\Services\InstitutionalBudgetReadAccess::class)->canList($request),
+            'canCreateWallet' => $wallet === null && $this->canCreateWallet($request->user()),
             'wallet' => $wallet ? [
                 'id' => $wallet->public_id,
                 'type' => $wallet->type->value,

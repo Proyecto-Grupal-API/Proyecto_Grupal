@@ -164,6 +164,9 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\RequireBonusAdminist
     Route::get('/finanzas', [FinancialController::class, 'index'])
         ->name('financial.dashboard');
 
+    Route::post('/finanzas/wallet', [FinancialController::class, 'createWallet'])
+        ->middleware('throttle:10,1')->name('financial.wallet.create');
+
     Route::get('/student-services', [StudentServicesController::class, 'index'])
         ->name('student-services.index');
 

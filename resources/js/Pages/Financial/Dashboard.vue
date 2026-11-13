@@ -1,8 +1,9 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 
 defineProps({
+    canCreateWallet: { type: Boolean, default: false },
     canReadInstitutionalBudgets: { type: Boolean, default: false },
     wallet: {
         type: Object,
@@ -14,6 +15,8 @@ defineProps({
         default: () => [],
     },
 });
+
+const walletForm = useForm({});
 
 const formatMoney = (cents, currency = 'MXN') => {
     return new Intl.NumberFormat('es-MX', {
@@ -282,6 +285,14 @@ const formatDate = (date) => {
                         No encontramos una wallet financiera asociada con tu
                         cuenta.
                     </p>
+
+                    <form v-if="canCreateWallet" class="mt-4"
+                        @submit.prevent="!walletForm.processing && walletForm.post(route('financial.wallet.create'))">
+                        <button type="submit" :disabled="walletForm.processing"
+                            class="rounded-xl bg-[#00338D] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                            {{ walletForm.processing ? 'Creando…' : 'Crear mi wallet' }}
+                        </button>
+                    </form>
                 </section>
             </div>
         </div>

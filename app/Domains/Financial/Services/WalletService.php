@@ -26,6 +26,21 @@ class WalletService
         ]);
     }
 
+    public function getOrCreatePersonal(string $ownerId): Wallet
+    {
+        return Wallet::query()->firstOrCreate([
+            'owner_type' => 'USER',
+            'owner_id' => $ownerId,
+            'type' => WalletType::USUARIO->value,
+        ], [
+            'public_id' => (string) Str::uuid(),
+            'currency' => 'MXN',
+            'status' => WalletStatus::ACTIVA,
+            'available_balance_cents' => 0,
+            'held_balance_cents' => 0,
+        ]);
+    }
+
     public function findByOwner(
         string $ownerType,
         string $ownerId,
