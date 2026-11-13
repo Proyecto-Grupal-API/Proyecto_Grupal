@@ -1,0 +1,329 @@
+{
+ "info": {
+  "name": "E3 Marketplace — consumidor externo (rúbrica 9.2)",
+  "description": "Cliente de servicio independiente de la interfaz que consume /api/v1/marketplace con OAuth client_credentials. Requiere un entorno con base, client_id/client_secret (con marketplace:read) y client_id_sin_alcance/client_secret_sin_alcance; no contiene credenciales.",
+  "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ },
+ "item": [
+  {
+   "name": "1. Token de servicio con alcance marketplace:read",
+   "event": [
+    {
+     "listen": "test",
+     "script": {
+      "type": "text/javascript",
+      "exec": [
+       "pm.test('200 con token bearer', () => { pm.response.to.have.status(200); const j=pm.response.json(); pm.expect(j.token_type.toLowerCase()).to.eql('bearer'); pm.expect(j.scope).to.include('marketplace:read'); pm.expect(j.expires_in).to.be.above(0); pm.collectionVariables.set('token', j.access_token); });"
+      ]
+     }
+    }
+   ],
+   "request": {
+    "method": "POST",
+    "header": [
+     {
+      "key": "Accept",
+      "value": "application/json"
+     },
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ],
+    "url": {
+     "raw": "{{base}}/api/v1/oauth/token",
+     "host": [
+      "{{base}}"
+     ],
+     "path": [
+      "api",
+      "v1",
+      "oauth",
+      "token"
+     ]
+    },
+    "body": {
+     "mode": "raw",
+     "raw": "{\"grant_type\": \"client_credentials\", \"client_id\": \"{{client_id}}\", \"client_secret\": \"{{client_secret}}\", \"scope\": \"marketplace:read\"}"
+    }
+   }
+  },
+  {
+   "name": "2. Catálogo sin token → 401",
+   "event": [
+    {
+     "listen": "test",
+     "script": {
+      "type": "text/javascript",
+      "exec": [
+       "pm.test('401 sin credenciales', () => pm.response.to.have.status(401));",
+       "pm.test('error JSON', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+      ]
+     }
+    }
+   ],
+   "request": {
+    "method": "GET",
+    "header": [
+     {
+      "key": "Accept",
+      "value": "application/json"
+     },
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ],
+    "url": {
+     "raw": "{{base}}/api/v1/marketplace/catalog",
+     "host": [
+      "{{base}}"
+     ],
+     "path": [
+      "api",
+      "v1",
+      "marketplace",
+      "catalog"
+     ]
+    }
+   }
+  },
+  {
+   "name": "3. Catálogo con token → contrato",
+   "event": [
+    {
+     "listen": "test",
+     "script": {
+      "type": "text/javascript",
+      "exec": [
+       "const j=pm.response.json();",
+       "pm.test('200 paginado', () => { pm.response.to.have.status(200); pm.expect(j.data).to.be.an('array').that.is.not.empty; pm.expect(j.total).to.be.at.least(j.data.length); pm.expect(j.per_page).to.be.a('number'); });",
+       "pm.test('campos del contrato público', () => j.data.forEach(p => pm.expect(Object.keys(p).sort()).to.eql(['available_stock','business_id','category','currency','description','id','image','kind','name','price'])));",
+       "pm.test('sin datos internos de inventario', () => j.data.forEach(p => pm.expect(p).to.not.have.property('inventory_product_id')));",
+       "pm.test('precio numérico y moneda', () => j.data.forEach(p => { pm.expect(Number(p.price)).to.be.at.least(0); pm.expect(p.currency).to.be.a('string'); }));",
+       "pm.collectionVariables.set('negocios_catalogo', JSON.stringify([...new Set(j.data.map(p => p.business_id))]));"
+      ]
+     }
+    }
+   ],
+   "request": {
+    "method": "GET",
+    "header": [
+     {
+      "key": "Accept",
+      "value": "application/json"
+     },
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     },
+     {
+      "key": "Authorization",
+      "value": "Bearer {{token}}"
+     }
+    ],
+    "url": {
+     "raw": "{{base}}/api/v1/marketplace/catalog",
+     "host": [
+      "{{base}}"
+     ],
+     "path": [
+      "api",
+      "v1",
+      "marketplace",
+      "catalog"
+     ]
+    }
+   }
+  },
+  {
+   "name": "4. Negocios con token → unión con el catálogo",
+   "event": [
+    {
+     "listen": "test",
+     "script": {
+      "type": "text/javascript",
+      "exec": [
+       "const j=pm.response.json();",
+       "pm.test('200 con negocios', () => { pm.response.to.have.status(200); pm.expect(j.data).to.be.an('array').that.is.not.empty; });",
+       "pm.test('campos del contrato', () => j.data.forEach(b => pm.expect(Object.keys(b).sort()).to.eql(['description','id','name','organization_id','type'])));",
+       "pm.test('cada producto del catálogo pertenece a un negocio publicado', () => { const ids=j.data.map(b => b.id); JSON.parse(pm.collectionVariables.get('negocios_catalogo')).forEach(id => pm.expect(ids).to.include(id)); });"
+      ]
+     }
+    }
+   ],
+   "request": {
+    "method": "GET",
+    "header": [
+     {
+      "key": "Accept",
+      "value": "application/json"
+     },
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     },
+     {
+      "key": "Authorization",
+      "value": "Bearer {{token}}"
+     }
+    ],
+    "url": {
+     "raw": "{{base}}/api/v1/marketplace/businesses",
+     "host": [
+      "{{base}}"
+     ],
+     "path": [
+      "api",
+      "v1",
+      "marketplace",
+      "businesses"
+     ]
+    }
+   }
+  },
+  {
+   "name": "5. Cliente sin el alcance pide marketplace:read → denegado",
+   "event": [
+    {
+     "listen": "test",
+     "script": {
+      "type": "text/javascript",
+      "exec": [
+       "pm.test('no emite token con alcance no concedido', () => { pm.expect(pm.response.code).to.be.oneOf([400,401,403,422]); pm.expect(pm.response.json()).to.not.have.property('access_token'); });"
+      ]
+     }
+    }
+   ],
+   "request": {
+    "method": "POST",
+    "header": [
+     {
+      "key": "Accept",
+      "value": "application/json"
+     },
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ],
+    "url": {
+     "raw": "{{base}}/api/v1/oauth/token",
+     "host": [
+      "{{base}}"
+     ],
+     "path": [
+      "api",
+      "v1",
+      "oauth",
+      "token"
+     ]
+    },
+    "body": {
+     "mode": "raw",
+     "raw": "{\"grant_type\": \"client_credentials\", \"client_id\": \"{{client_id_sin_alcance}}\", \"client_secret\": \"{{client_secret_sin_alcance}}\", \"scope\": \"marketplace:read\"}"
+    }
+   }
+  },
+  {
+   "name": "6. Token válido sin el alcance",
+   "event": [
+    {
+     "listen": "test",
+     "script": {
+      "type": "text/javascript",
+      "exec": [
+       "pm.test('200 con sus propios alcances', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().scope).to.not.include('marketplace:read'); pm.collectionVariables.set('token_sin_alcance', pm.response.json().access_token); });"
+      ]
+     }
+    }
+   ],
+   "request": {
+    "method": "POST",
+    "header": [
+     {
+      "key": "Accept",
+      "value": "application/json"
+     },
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ],
+    "url": {
+     "raw": "{{base}}/api/v1/oauth/token",
+     "host": [
+      "{{base}}"
+     ],
+     "path": [
+      "api",
+      "v1",
+      "oauth",
+      "token"
+     ]
+    },
+    "body": {
+     "mode": "raw",
+     "raw": "{\"grant_type\": \"client_credentials\", \"client_id\": \"{{client_id_sin_alcance}}\", \"client_secret\": \"{{client_secret_sin_alcance}}\"}"
+    }
+   }
+  },
+  {
+   "name": "7. Catálogo con token sin alcance → 403",
+   "event": [
+    {
+     "listen": "test",
+     "script": {
+      "type": "text/javascript",
+      "exec": [
+       "pm.test('403 por alcance insuficiente', () => pm.response.to.have.status(403));"
+      ]
+     }
+    }
+   ],
+   "request": {
+    "method": "GET",
+    "header": [
+     {
+      "key": "Accept",
+      "value": "application/json"
+     },
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     },
+     {
+      "key": "Authorization",
+      "value": "Bearer {{token_sin_alcance}}"
+     }
+    ],
+    "url": {
+     "raw": "{{base}}/api/v1/marketplace/catalog",
+     "host": [
+      "{{base}}"
+     ],
+     "path": [
+      "api",
+      "v1",
+      "marketplace",
+      "catalog"
+     ]
+    }
+   }
+  }
+ ],
+ "variable": [
+  {
+   "key": "token",
+   "value": ""
+  },
+  {
+   "key": "token_sin_alcance",
+   "value": ""
+  },
+  {
+   "key": "negocios_catalogo",
+   "value": "[]"
+  }
+ ]
+}
