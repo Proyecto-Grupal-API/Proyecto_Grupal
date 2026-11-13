@@ -12,13 +12,13 @@ function submitReview(id, decision) { review.decision = decision; review.post(`/
       <div class="flex items-center justify-between"><div><p class="text-xs font-semibold text-campus-blue">3.1 · 3.2</p><h1 class="text-2xl font-bold text-slate-800">Registro y autorización</h1><p class="text-sm text-slate-500 mt-1">Las decisiones quedan registradas con responsable y fecha.</p></div><Link href="/tienda/negocios" class="text-sm text-campus-blue">← Negocios</Link></div>
       <form v-if="!isAdmin" @submit.prevent="form.post('/tienda/solicitudes')" class="bg-white rounded-xl border border-campus-border p-5 space-y-3">
         <h2 class="font-bold text-slate-800">Registrar un negocio</h2>
-        <div class="grid md:grid-cols-2 gap-3"><input v-model="form.name" required maxlength="120" placeholder="Nombre del negocio" class="rounded-lg border p-3 text-sm"/><select v-model="form.type" class="rounded-lg border p-3 text-sm"><option value="student">Estudiantil</option><option value="association">Asociación</option><option value="souvenirs">Institucional</option><option value="service">Servicios</option><option value="other">Otro</option></select></div>
+        <div class="grid md:grid-cols-2 gap-3"><input id="app-name" aria-label="Nombre del negocio" v-model="form.name" required maxlength="120" placeholder="Nombre del negocio" class="rounded-lg border p-3 text-sm"/><select id="app-type" aria-label="Tipo de negocio" v-model="form.type" class="rounded-lg border p-3 text-sm"><option value="student">Estudiantil</option><option value="association">Asociación</option><option value="souvenirs">Institucional</option><option value="service">Servicios</option><option value="other">Otro</option></select></div>
         <label v-if="form.type==='association'" class="block text-sm">Organización
           <select v-model="form.organization_id" required class="mt-1 w-full rounded-lg border p-3"><option value="">Selecciona tu organización</option><option v-for="o in organizations" :key="o.id" :value="o.id">{{ o.name }}</option></select>
           <span v-if="!organizations?.length" class="text-xs text-amber-800">Solo una presidencia con membresía y cargo vigentes puede solicitar esta tienda.</span>
         </label>
-        <textarea v-model="form.description" required maxlength="1500" placeholder="Describe el negocio y lo que ofrecerá" class="w-full rounded-lg border p-3 text-sm"></textarea>
-        <button :disabled="form.processing" class="rounded-lg bg-campus-blue px-4 py-2.5 text-sm font-semibold text-white">Enviar a revisión</button>
+        <textarea id="app-description" aria-label="Descripción del negocio" v-model="form.description" required maxlength="1500" placeholder="Describe el negocio y lo que ofrecerá" class="w-full rounded-lg border p-3 text-sm"></textarea>
+        <button :disabled="form.processing" class="rounded-lg bg-campus-blue px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{{ form.processing ? 'Enviando…' : 'Enviar a revisión' }}</button>
         <p v-if="form.errors.name || form.errors.description" class="text-sm text-red-600">{{ form.errors.name || form.errors.description }}</p>
       </form>
       <div class="bg-white rounded-xl border border-campus-border overflow-hidden">
