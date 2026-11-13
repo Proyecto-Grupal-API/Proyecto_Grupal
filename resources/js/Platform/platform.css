@@ -13,7 +13,7 @@
   --cd-topbar-bg: #ffffff;
   --cd-topbar-height: 60px;
 
-  --cd-page-bg: #F2F5FA;
+  --cd-page-bg: #f4f7fc; /* = --campus-background (GUIA-VISUAL) */
   --cd-primary: #2878ED;
   --cd-primary-dark: #1a5fbf;
   --cd-primary-light: #e8f0fd;
@@ -23,7 +23,7 @@
   --cd-text-secondary: #6b7a99;
   --cd-text-muted: #9aa5bc;
 
-  --cd-border: #e4e9f2;
+  --cd-border: #e1e7f0; /* = --campus-border */
   --cd-border-light: #f0f3f9;
 
   --cd-card-bg: #ffffff;
@@ -40,7 +40,7 @@
   --cd-info-bg: #eff6ff;
 
   /* Tipografía */
-  --cd-font: 'Inter', system-ui, -apple-system, sans-serif;
+  --cd-font: "Segoe UI", system-ui, -apple-system, sans-serif; /* tipografía del shell (GUIA-VISUAL) */
 
   font-family: var(--cd-font);
   font-size: 14px;

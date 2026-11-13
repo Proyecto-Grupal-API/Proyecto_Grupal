@@ -169,9 +169,9 @@ function iconPath(href) { return icons[iconByHref[href] || 'cube'] }
 
 <template>
   <Head title="Inventarios" />
-  <div class="min-h-screen bg-[#F4F7FB] text-slate-800 antialiased">
+  <div class="min-h-screen bg-[#F4F7FC] text-slate-800 antialiased" style="font-family: 'Segoe UI', system-ui, -apple-system, sans-serif">
     <!-- Sidebar -->
-    <aside class="hidden lg:flex fixed inset-y-0 left-0 z-40 w-[252px] flex-col bg-[#102F82] text-white">
+    <aside class="hidden lg:flex fixed inset-y-0 left-0 z-40 w-[252px] flex-col bg-[#12285A] text-white">
       <a href="/equipo4" class="flex items-center gap-3 px-5 h-[72px] border-b border-white/10">
         <span class="grid place-items-center w-10 h-10 rounded-xl bg-[#2F6BE8]">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3z"/></svg>
