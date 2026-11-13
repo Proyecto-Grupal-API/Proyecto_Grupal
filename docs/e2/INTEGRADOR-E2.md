@@ -24,13 +24,13 @@ Diccionario: `../DICCIONARIO-DE-DATOS.md` (sección E2 Finanzas). Equivalencia d
 - E3: checkout de Marketplace
 
 ## 5. Calidad y pruebas
-Pruebas Feature del módulo en la suite completa: 311 casos en verde (detalle por compromiso en la trazabilidad).
+Pruebas Feature del módulo en la suite completa: 318 casos en verde (detalle por compromiso en la trazabilidad).
 
 ## 6. Seguridad y configuración
 Autorizadores financieros Pending* por defecto, banderas de cobro y transferencias apagadas, revisor ≠ solicitante, TOTP reciente, idempotencia obligatoria.
 
 ## 7. Limitaciones conocidas
-- Sin pruebas propias en este repositorio para recargas (2.3), retiros (2.4) y límites (2.10).
+- Recargas (2.3), retiros (2.4) y límites (2.10): pruebas TopUpWithdrawalLimitsTest añadidas en el cierre (7 casos) más la conciliación de caja; las recargas no en efectivo no existen en el catálogo (TopUpMethod sólo EFECTIVO).
 - Fechas: los movimientos del ledger se serializan como hora local y los comprobantes en UTC (observación de presentación).
 - Transferencias personales apagadas por defecto.
 
