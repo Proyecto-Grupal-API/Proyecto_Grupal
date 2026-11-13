@@ -521,3 +521,24 @@ it('shows dashboard indicators equal to direct aggregates of the business invent
         ->where('stats.products',DB::connection('inventory')->getCollection('products')->countDocuments(['business_id'=>'business-A']))
         ->where('stats.warehouses',DB::connection('inventory')->getCollection('warehouses')->countDocuments(['business_id'=>'business-A'])));
 });
+
+it('applies the shared product rules: unique SKU per business on create and edit, own SKU kept, permission required', function () {
+    // Rúbrica 5.6: Store/UpdateProductRequest comparten ProductRequest; esta prueba fija su comportamiento.
+    $this->actingAs($this->actor);
+    app(\App\Services\InventoryModule\BusinessContext::class)->select('business-A');
+    $category=Category::where('business_id','business-A')->where('active',true)->firstOrFail()->slug;
+    $data=['name'=>'Gorra','category'=>$category,'stock_min'=>0,'stock_max'=>10,'active'=>true];
+    $this->postJson('/equipo4/productos', ['sku'=>'SKU-UNICO-A',...$data])->assertRedirect();
+    $this->postJson('/equipo4/productos', ['sku'=>'SKU-UNICO-A',...$data])->assertUnprocessable()
+        ->assertJsonValidationErrors(['sku'=>'Ya existe un producto registrado con ese SKU.']);
+    $this->postJson('/equipo4/productos', ['sku'=>'SKU-UNICO-B',...$data])->assertRedirect();
+    $b=Product::where('business_id','business-A')->where('sku','SKU-UNICO-B')->firstOrFail();
+    $this->putJson('/equipo4/productos/'.$b->getKey(), ['sku'=>'SKU-UNICO-B',...$data,'name'=>'Gorra azul'])->assertRedirect();
+    expect($b->fresh()->name)->toBe('Gorra azul');
+    $this->putJson('/equipo4/productos/'.$b->getKey(), ['sku'=>'SKU-UNICO-A',...$data])->assertUnprocessable()
+        ->assertJsonValidationErrors(['sku'=>'Ya existe otro producto registrado con ese SKU.']);
+    expect(Product::where('business_id','business-A')->where('sku','SKU-UNICO-A')->count())->toBe(1);
+    $this->remoteRole='buyer';
+    $this->postJson('/equipo4/productos', ['sku'=>'SKU-UNICO-C',...$data])->assertForbidden();
+    expect(Product::where('sku','SKU-UNICO-C')->exists())->toBeFalse();
+});
