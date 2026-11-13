@@ -31,7 +31,7 @@ class AutorizarServicios
             $message = 'El pago está pendiente de la API de cartera del equipo 2. No se realizó ningún cobro.';
             return $r->expectsJson() ? response()->json(['message' => $message], 503) : back()->withErrors(['pago' => $message]);
         }
-        $staffPages = ['lockers.periods.index', 'lockers.access.index', 'library.copies.index', 'service-access.index'];
+        $staffPages = ['lockers.periods.index', 'lockers.access.index', 'library.copies.index', 'service-access.index', 'reports.index', 'reports.csv'];
         if ($r->isMethod('GET') && ! in_array($name, $staffPages, true)) { return $next($r); }
         if ($staff) {
             if (in_array($name, ['library.loans.store', 'library.reservations.store', 'lockers.assignments.sponsored'], true) && $r->filled('student_id')) {

@@ -39,6 +39,10 @@ Route::middleware(['auth', 'verified', \App\Http\Middleware\AutorizarServicios::
             'student-services/Index'
         )->name('index');
 
+        // Reporte operativo de Servicios (sólo personal autorizado): panel con filtros y CSV.
+        Route::get('/reportes', [\App\Http\Controllers\StudentServices\Reports\ServiceReportController::class, 'index'])->name('reports.index');
+        Route::get('/reportes/servicios.csv', [\App\Http\Controllers\StudentServices\Reports\ServiceReportController::class, 'csv'])->name('reports.csv');
+
         /*
         |--------------------------------------------------------------------------
         | Lockers - Periodos (5.3)

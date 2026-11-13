@@ -75,6 +75,9 @@ const newComment = ref('');
 const commentProcessing = ref(false);
 
 const processingTicketId = ref<string | null>(null);
+// Avisos en línea (rúbrica 3.4/6.3): reemplazan los cuadros de diálogo del navegador en el alta de tickets.
+const formNotice = ref<string>('');
+const pageNotice = ref<string>('');
 
 const evidenceName = ref('');
 
@@ -269,26 +272,28 @@ function handleEvidence(event: Event) {
 }
 
 function createTicket() {
+    formNotice.value = '';
+    pageNotice.value = '';
     if (ticketForm.category === '') {
-        window.alert('Selecciona una categoría.');
+        formNotice.value = 'Selecciona una categoría.';
 
         return;
     }
 
     if (!ticketForm.subject.trim()) {
-        window.alert('Escribe el asunto del ticket.');
+        formNotice.value = 'Escribe el asunto del ticket.';
 
         return;
     }
 
     if (!ticketForm.location.trim()) {
-        window.alert('Escribe la ubicación de la incidencia.');
+        formNotice.value = 'Escribe la ubicación de la incidencia.';
 
         return;
     }
 
     if (!ticketForm.description.trim()) {
-        window.alert('Escribe una descripción del problema.');
+        formNotice.value = 'Escribe una descripción del problema.';
 
         return;
     }
@@ -300,7 +305,7 @@ function createTicket() {
         onSuccess: () => {
             closeForm();
 
-            window.alert('Ticket registrado correctamente.');
+            pageNotice.value = 'Ticket registrado correctamente.';
         },
 
         onError: (errors) => {
@@ -314,7 +319,7 @@ function createTicket() {
                 errors.evidence ??
                 'No fue posible registrar el ticket.';
 
-            window.alert(String(message));
+            formNotice.value = String(message);
         },
     });
 }
@@ -522,15 +527,16 @@ function cancelTicket(ticket: SupportTicket) {
                     </button>
                 </div>
 
+                <p v-if="formNotice" role="alert" class="form-notice form-notice--error">{{ formNotice }}</p>
                 <div class="ticket-form">
                     <div class="form-grid">
                         <div class="form-field">
-                            <label>
+                            <label for="tk-category">
                                 Categoría
                                 <span> * </span>
                             </label>
 
-                            <select v-model="ticketForm.category">
+                            <select id="tk-category" v-model="ticketForm.category">
                                 <option value="">Selecciona</option>
 
                                 <option
@@ -551,12 +557,12 @@ function cancelTicket(ticket: SupportTicket) {
                         </div>
 
                         <div class="form-field">
-                            <label>
+                            <label for="tk-priority">
                                 Prioridad
                                 <span> * </span>
                             </label>
 
-                            <select v-model="ticketForm.priority">
+                            <select id="tk-priority" v-model="ticketForm.priority">
                                 <option value="low">Baja</option>
 
                                 <option value="medium">Media</option>
@@ -575,12 +581,13 @@ function cancelTicket(ticket: SupportTicket) {
                         </div>
 
                         <div class="form-field full">
-                            <label>
+                            <label for="tk-subject">
                                 Asunto
                                 <span> * </span>
                             </label>
 
                             <input
+                                id="tk-subject"
                                 v-model="ticketForm.subject"
                                 type="text"
                                 maxlength="150"
@@ -596,12 +603,13 @@ function cancelTicket(ticket: SupportTicket) {
                         </div>
 
                         <div class="form-field full">
-                            <label>
+                            <label for="tk-location">
                                 Ubicación
                                 <span> * </span>
                             </label>
 
                             <input
+                                id="tk-location"
                                 v-model="ticketForm.location"
                                 type="text"
                                 maxlength="200"
@@ -617,12 +625,13 @@ function cancelTicket(ticket: SupportTicket) {
                         </div>
 
                         <div class="form-field full">
-                            <label>
+                            <label for="tk-description">
                                 Descripción
                                 <span> * </span>
                             </label>
 
                             <textarea
+                                id="tk-description"
                                 v-model="ticketForm.description"
                                 rows="4"
                                 maxlength="2000"
@@ -692,6 +701,7 @@ function cancelTicket(ticket: SupportTicket) {
                 </div>
             </section>
 
+            <p v-if="pageNotice" role="status" class="form-notice form-notice--ok">{{ pageNotice }}</p>
             <div class="filters">
                 <div class="search-field">
                     <input
@@ -1660,4 +1670,7 @@ td {
     font-size: 0.75rem;
     font-weight: 600;
 }
+.form-notice { margin: 0 0 12px; border-radius: 10px; padding: 10px 14px; font-size: 14px; }
+.form-notice--error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+.form-notice--ok { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
 </style>
