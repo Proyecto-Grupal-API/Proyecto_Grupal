@@ -587,6 +587,8 @@ const restoreAvailable = (copy: Copy) => {
     </StudentServicesLayout>
 </template>
 
+<style scoped src="../../../../css/student-services.css"></style>
+
 <style scoped>
 .summary {
     padding: 24px 27px;
@@ -648,39 +650,11 @@ const restoreAvailable = (copy: Copy) => {
     gap: 13px;
 }
 
-.stat-card {
-    padding: 17px 18px;
-    border: 1px solid #dfe5ee;
-    border-radius: 10px;
-    background: white;
-}
-
-.stat-card span {
-    color: #73839a;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.stat-card strong {
-    display: block;
-    margin-top: 6px;
-    color: #25324a;
-    font-size: 24px;
-}
-
 .stat-card small {
     display: block;
     margin-top: 4px;
     color: #97a3b5;
     font-size: 9px;
-}
-
-.content-panel {
-    margin-top: 18px;
-    overflow: hidden;
-    border: 1px solid #dfe5ee;
-    border-radius: 11px;
-    background: white;
 }
 
 .panel-header,
@@ -694,20 +668,6 @@ const restoreAvailable = (copy: Copy) => {
 
 .panel-header {
     border-bottom: 1px solid #e5e9ef;
-}
-
-.panel-header h3,
-.form-header h3 {
-    margin: 0;
-    color: #25324a;
-    font-size: 16px;
-}
-
-.panel-header p,
-.form-header p {
-    margin: 5px 0 0;
-    color: #8794a7;
-    font-size: 11px;
 }
 
 .primary-button,
@@ -726,36 +686,10 @@ const restoreAvailable = (copy: Copy) => {
     color: white;
 }
 
-.secondary-button {
-    border: 1px solid #d6dee9;
-    background: white;
-    color: #55667d;
-}
-
 .primary-button:disabled,
 .secondary-button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
-}
-
-.form-panel {
-    border-bottom: 1px solid #e5e9ef;
-    background: #fafcff;
-}
-
-.form-header {
-    border-bottom: 1px solid #e5e9ef;
-}
-
-.close-button {
-    width: 34px;
-    height: 34px;
-    border: 1px solid #d8e0ea;
-    border-radius: 7px;
-    background: white;
-    color: #657389;
-    font-size: 20px;
-    cursor: pointer;
 }
 
 .copy-form {
@@ -766,22 +700,6 @@ const restoreAvailable = (copy: Copy) => {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 17px 19px;
-}
-
-.form-field-full {
-    grid-column: 1 / -1;
-}
-
-.form-field label {
-    display: block;
-    margin-bottom: 6px;
-    color: #45556c;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.form-field label span {
-    color: #bc4545;
 }
 
 .form-field input,
@@ -799,20 +717,9 @@ const restoreAvailable = (copy: Copy) => {
     font-size: 12px;
 }
 
-.form-field input:focus,
-.form-field select:focus,
-.form-field textarea:focus {
-    border-color: #3970c1;
-    box-shadow: 0 0 0 3px rgba(57, 112, 193, 0.08);
-}
-
 .form-field select:disabled {
     background: #f1f3f6;
     color: #768297;
-}
-
-.form-field textarea {
-    resize: vertical;
 }
 
 .field-error {
@@ -844,24 +751,6 @@ const restoreAvailable = (copy: Copy) => {
     color: #24804f;
 }
 
-.form-actions {
-    margin-top: 19px;
-    padding-top: 17px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 9px;
-    border-top: 1px solid #e5e9ef;
-}
-
-.table-container {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
 th {
     padding: 12px 14px;
     background: #f4f7fb;
@@ -880,22 +769,8 @@ td {
     vertical-align: middle;
 }
 
-tbody tr:hover {
-    background: #fafcff;
-}
-
 .copy-code {
     color: #285aa6;
-}
-
-.book-info {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.book-info strong {
-    color: #303d53;
 }
 
 .book-info small {
@@ -952,12 +827,6 @@ tbody tr:hover {
     font-size: 9px;
     font-weight: 700;
     cursor: pointer;
-}
-
-.action-button.edit {
-    border: 1px solid #c8d8ee;
-    background: #edf3fc;
-    color: #2c5c9f;
 }
 
 .action-button.maintenance {

@@ -724,43 +724,9 @@ function statusLabel(status: LockerPeriod['status']): string {
     </StudentServicesLayout>
 </template>
 
+<style scoped src="../../../../css/student-services.css"></style>
+
 <style scoped>
-.hero {
-    padding: 24px 27px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    border-radius: 12px;
-    background: #2f5eb6;
-    color: white;
-}
-
-.hero-label,
-.panel-label {
-    display: block;
-    margin-bottom: 7px;
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-}
-
-.hero-label {
-    color: #b8cdf0;
-}
-
-.hero h2 {
-    margin: 0;
-    font-size: 23px;
-}
-
-.hero p {
-    max-width: 650px;
-    margin: 7px 0 0;
-    color: #dce8fa;
-    font-size: 12px;
-    line-height: 1.6;
-}
 
 .hero-total {
     min-width: 175px;
@@ -775,42 +741,11 @@ function statusLabel(status: LockerPeriod['status']): string {
     font-size: 10px;
 }
 
-.hero-total strong {
-    display: block;
-    margin-top: 4px;
-    font-size: 28px;
-}
-
-.hero-total small {
-    color: #bfd2ef;
-    font-size: 8px;
-}
-
 .stats-grid {
     margin-top: 18px;
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 13px;
-}
-
-.stat-card {
-    padding: 17px 18px;
-    border: 1px solid #dfe5ee;
-    border-radius: 10px;
-    background: white;
-}
-
-.stat-card span {
-    color: #73839a;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.stat-card strong {
-    display: block;
-    margin-top: 6px;
-    color: #25324a;
-    font-size: 24px;
 }
 
 .stat-card strong.money {
@@ -824,46 +759,6 @@ function statusLabel(status: LockerPeriod['status']): string {
     font-size: 9px;
 }
 
-.module-navigation {
-    margin-top: 18px;
-    padding: 6px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    border: 1px solid #dfe5ee;
-    border-radius: 10px;
-    background: white;
-}
-
-.module-link {
-    min-height: 36px;
-    padding: 0 14px;
-    display: inline-flex;
-    align-items: center;
-    border-radius: 7px;
-    color: #697a91;
-    text-decoration: none;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.module-link:hover {
-    background: #f0f4fa;
-}
-
-.module-link.active {
-    background: #e8f0fc;
-    color: #2e5da3;
-}
-
-.content-panel {
-    margin-top: 18px;
-    overflow: hidden;
-    border: 1px solid #dfe5ee;
-    border-radius: 11px;
-    background: white;
-}
-
 .panel-header,
 .form-header {
     padding: 18px 21px;
@@ -872,24 +767,6 @@ function statusLabel(status: LockerPeriod['status']): string {
     justify-content: space-between;
     gap: 20px;
     border-bottom: 1px solid #e5e9ef;
-}
-
-.panel-label {
-    color: #315a9f;
-}
-
-.panel-header h3,
-.form-header h3 {
-    margin: 0;
-    color: #25324a;
-    font-size: 16px;
-}
-
-.panel-header p,
-.form-header p {
-    margin: 5px 0 0;
-    color: #8794a7;
-    font-size: 11px;
 }
 
 .primary-button,
@@ -913,32 +790,10 @@ function statusLabel(status: LockerPeriod['status']): string {
     color: white;
 }
 
-.secondary-button {
-    border: 1px solid #d6dee9;
-    background: white;
-    color: #55667d;
-}
-
 .primary-button:disabled,
 .secondary-button:disabled {
     opacity: 0.55;
     cursor: not-allowed;
-}
-
-.form-panel {
-    border-bottom: 1px solid #e5e9ef;
-    background: #fafcff;
-}
-
-.close-button {
-    width: 34px;
-    height: 34px;
-    border: 1px solid #d8e0ea;
-    border-radius: 7px;
-    background: white;
-    color: #657389;
-    font-size: 20px;
-    cursor: pointer;
 }
 
 .period-form {
@@ -958,10 +813,6 @@ function statusLabel(status: LockerPeriod['status']): string {
     color: #45556c;
     font-size: 10px;
     font-weight: 700;
-}
-
-.form-field label span {
-    color: #bc4545;
 }
 
 .form-field input,
@@ -1076,15 +927,6 @@ function statusLabel(status: LockerPeriod['status']): string {
     color: #315a9f;
 }
 
-.form-actions {
-    margin-top: 19px;
-    padding-top: 17px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 9px;
-    border-top: 1px solid #e5e9ef;
-}
-
 .filters {
     padding: 14px 21px;
     display: grid;
@@ -1187,11 +1029,6 @@ function statusLabel(status: LockerPeriod['status']): string {
     font-weight: 800;
 }
 
-.status-active {
-    background: #e4f6ec;
-    color: #217a4e;
-}
-
 .status-closed {
     background: #eff1f4;
     color: #788596;
@@ -1239,12 +1076,6 @@ function statusLabel(status: LockerPeriod['status']): string {
     font-size: 9px;
     font-weight: 700;
     cursor: pointer;
-}
-
-.action-button.edit {
-    border: 1px solid #c8d8ee;
-    background: #edf3fc;
-    color: #2c5c9f;
 }
 
 .action-button.close {

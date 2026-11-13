@@ -803,6 +803,8 @@ const serverError = (form: { errors: object }, key: string) =>
     </StudentServicesLayout>
 </template>
 
+<style scoped src="../../../../css/student-services.css"></style>
+
 <style scoped>
 .summary {
     padding: 24px 27px;
@@ -857,11 +859,6 @@ const serverError = (form: { errors: object }, key: string) =>
     font-size: 28px;
 }
 
-.total-box small {
-    color: #bfd2ef;
-    font-size: 8px;
-}
-
 .stats-grid {
     margin-top: 18px;
     display: grid;
@@ -869,39 +866,11 @@ const serverError = (form: { errors: object }, key: string) =>
     gap: 13px;
 }
 
-.stat-card {
-    padding: 17px 18px;
-    border: 1px solid #dfe5ee;
-    border-radius: 10px;
-    background: white;
-}
-
-.stat-card span {
-    color: #73839a;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.stat-card strong {
-    display: block;
-    margin-top: 6px;
-    color: #25324a;
-    font-size: 24px;
-}
-
 .stat-card small {
     display: block;
     margin-top: 4px;
     color: #97a3b5;
     font-size: 9px;
-}
-
-.content-panel {
-    margin-top: 18px;
-    overflow: hidden;
-    border: 1px solid #dfe5ee;
-    border-radius: 11px;
-    background: white;
 }
 
 .panel-header,
@@ -915,20 +884,6 @@ const serverError = (form: { errors: object }, key: string) =>
 
 .panel-header {
     border-bottom: 1px solid #e5e9ef;
-}
-
-.panel-header h3,
-.form-header h3 {
-    margin: 0;
-    color: #25324a;
-    font-size: 16px;
-}
-
-.panel-header p,
-.form-header p {
-    margin: 5px 0 0;
-    color: #8794a7;
-    font-size: 11px;
 }
 
 .primary-button,
@@ -953,36 +908,6 @@ const serverError = (form: { errors: object }, key: string) =>
     opacity: 0.55;
 }
 
-.secondary-button {
-    border: 1px solid #d6dee9;
-    background: white;
-    color: #55667d;
-}
-
-.form-panel {
-    border-bottom: 1px solid #e5e9ef;
-    background: #fafcff;
-}
-
-.form-header {
-    border-bottom: 1px solid #e5e9ef;
-}
-
-.form-header .form-label {
-    color: #315a9f;
-}
-
-.close-button {
-    width: 34px;
-    height: 34px;
-    border: 1px solid #d8e0ea;
-    border-radius: 7px;
-    background: white;
-    color: #657389;
-    font-size: 20px;
-    cursor: pointer;
-}
-
 .reservation-form {
     padding: 21px;
 }
@@ -991,22 +916,6 @@ const serverError = (form: { errors: object }, key: string) =>
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 17px 19px;
-}
-
-.form-field-full {
-    grid-column: 1 / -1;
-}
-
-.form-field label {
-    display: block;
-    margin-bottom: 6px;
-    color: #45556c;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.form-field label span {
-    color: #bc4545;
 }
 
 .form-field input,
@@ -1024,20 +933,9 @@ const serverError = (form: { errors: object }, key: string) =>
     font-size: 12px;
 }
 
-.form-field input:focus,
-.form-field select:focus,
-.form-field textarea:focus {
-    border-color: #3970c1;
-    box-shadow: 0 0 0 3px rgba(57, 112, 193, 0.08);
-}
-
 .form-field input:disabled {
     background: #f1f3f6;
     color: #768297;
-}
-
-.form-field textarea {
-    resize: vertical;
 }
 
 .form-error {
@@ -1072,15 +970,6 @@ const serverError = (form: { errors: object }, key: string) =>
     color: #9d434c;
 }
 
-.form-actions {
-    margin-top: 19px;
-    padding-top: 17px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 9px;
-    border-top: 1px solid #e5e9ef;
-}
-
 .filters {
     padding: 15px 21px;
     display: flex;
@@ -1089,10 +978,6 @@ const serverError = (form: { errors: object }, key: string) =>
     gap: 12px;
     border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
-}
-
-.search-field {
-    flex: 1;
 }
 
 .filters input,
@@ -1118,15 +1003,6 @@ const serverError = (form: { errors: object }, key: string) =>
     padding: 0 10px;
 }
 
-.table-container {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
 th {
     padding: 12px 14px;
     background: #f4f7fb;
@@ -1145,32 +1021,13 @@ td {
     vertical-align: middle;
 }
 
-tbody tr:hover {
-    background: #fafcff;
-}
-
 .reservation-id {
     color: #285aa6;
-}
-
-.book-info {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.book-info strong {
-    color: #303d53;
 }
 
 .book-info small {
     color: #99a4b4;
     font-size: 9px;
-}
-
-.student-id {
-    color: #42546d;
-    font-weight: 700;
 }
 
 .status {
@@ -1180,11 +1037,6 @@ tbody tr:hover {
     font-size: 8px;
     font-weight: 800;
     white-space: nowrap;
-}
-
-.status-pending {
-    background: #fff3d7;
-    color: #946510;
 }
 
 .status-ready {
@@ -1251,12 +1103,6 @@ tbody tr:hover {
     border: 1px solid #e2d5b8;
     background: #fbf4e4;
     color: #85621d;
-}
-
-.action-button.cancel {
-    border: 1px solid #e6c9cd;
-    background: #fbebed;
-    color: #9d4650;
 }
 
 .empty-state {

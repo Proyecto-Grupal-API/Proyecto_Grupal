@@ -1058,43 +1058,9 @@ function cancelTicket(ticket: SupportTicket) {
     </StudentServicesLayout>
 </template>
 
+<style scoped src="../../../../css/student-services.css"></style>
+
 <style scoped>
-.hero {
-    padding: 24px 27px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    border-radius: 12px;
-    background: #2f5eb6;
-    color: white;
-}
-
-.hero-label,
-.panel-label {
-    display: block;
-    margin-bottom: 7px;
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-}
-
-.hero-label {
-    color: #b8cdf0;
-}
-
-.hero h2 {
-    margin: 0;
-    font-size: 23px;
-}
-
-.hero p {
-    max-width: 650px;
-    margin: 7px 0 0;
-    color: #dce8fa;
-    font-size: 12px;
-    line-height: 1.6;
-}
 
 .hero-total {
     min-width: 170px;
@@ -1109,17 +1075,6 @@ function cancelTicket(ticket: SupportTicket) {
     font-size: 9px;
 }
 
-.hero-total strong {
-    display: block;
-    margin-top: 4px;
-    font-size: 28px;
-}
-
-.hero-total small {
-    color: #bfd2ef;
-    font-size: 8px;
-}
-
 .stats-grid {
     margin-top: 18px;
     display: grid;
@@ -1127,60 +1082,9 @@ function cancelTicket(ticket: SupportTicket) {
     gap: 13px;
 }
 
-.stat-card {
-    padding: 17px 18px;
-    border: 1px solid #dfe5ee;
-    border-radius: 10px;
-    background: white;
-}
-
-.stat-card span {
-    color: #73839a;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.stat-card strong {
-    display: block;
-    margin-top: 6px;
-    color: #25324a;
-    font-size: 24px;
-}
-
 .stat-card small {
     color: #97a3b5;
     font-size: 9px;
-}
-
-.content-panel {
-    margin-top: 18px;
-    overflow: hidden;
-    border: 1px solid #dfe5ee;
-    border-radius: 11px;
-    background: white;
-}
-
-.panel-header,
-.form-header,
-.modal-header {
-    padding: 18px 21px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    border-bottom: 1px solid #e5e9ef;
-}
-
-.panel-label {
-    color: #315a9f;
-}
-
-.panel-header h3,
-.form-header h3,
-.modal-header h3 {
-    margin: 0;
-    color: #25324a;
-    font-size: 16px;
 }
 
 .panel-header p,
@@ -1208,21 +1112,10 @@ function cancelTicket(ticket: SupportTicket) {
     color: white;
 }
 
-.secondary-button {
-    border: 1px solid #d6dee9;
-    background: white;
-    color: #55667d;
-}
-
 .primary-button:disabled,
 .secondary-button:disabled {
     cursor: default;
     opacity: 0.55;
-}
-
-.form-panel {
-    border-bottom: 1px solid #e5e9ef;
-    background: #fafcff;
 }
 
 .ticket-form,
@@ -1237,10 +1130,6 @@ function cancelTicket(ticket: SupportTicket) {
     gap: 17px;
 }
 
-.form-field.full {
-    grid-column: 1 / -1;
-}
-
 .form-field label,
 .comment-box label {
     display: block;
@@ -1248,10 +1137,6 @@ function cancelTicket(ticket: SupportTicket) {
     color: #45556c;
     font-size: 10px;
     font-weight: 700;
-}
-
-.form-field label span {
-    color: #bc4545;
 }
 
 .form-field input,
@@ -1307,26 +1192,6 @@ function cancelTicket(ticket: SupportTicket) {
     line-height: 1.6;
 }
 
-.form-actions {
-    margin-top: 19px;
-    padding-top: 17px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 9px;
-    border-top: 1px solid #e5e9ef;
-}
-
-.close-button {
-    width: 34px;
-    height: 34px;
-    border: 1px solid #d8e0ea;
-    border-radius: 7px;
-    background: white;
-    color: #657389;
-    font-size: 20px;
-    cursor: pointer;
-}
-
 .filters {
     padding: 14px 21px;
     display: grid;
@@ -1349,15 +1214,6 @@ function cancelTicket(ticket: SupportTicket) {
     color: #25324a;
     font: inherit;
     font-size: 10px;
-}
-
-.table-container {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
 }
 
 th {
@@ -1474,12 +1330,6 @@ td {
     color: #2c5c9f;
 }
 
-.action-button.cancel {
-    border: 1px solid #e6c9cd;
-    background: #fbebed;
-    color: #9d4650;
-}
-
 .empty-state {
     padding: 55px;
     text-align: center;
@@ -1493,16 +1343,6 @@ td {
 .empty-state p {
     color: #8d99aa;
     font-size: 11px;
-}
-
-.modal-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    display: grid;
-    place-items: center;
-    padding: 20px;
-    background: rgba(18, 29, 47, 0.5);
 }
 
 .modal {

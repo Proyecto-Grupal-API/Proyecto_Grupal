@@ -695,6 +695,8 @@ function viewDetails(fine: LibraryFine) {
     </StudentServicesLayout>
 </template>
 
+<style scoped src="../../../../css/student-services.css"></style>
+
 <style scoped>
 .summary {
     padding: 24px 27px;
@@ -749,36 +751,11 @@ function viewDetails(fine: LibraryFine) {
     font-size: 24px;
 }
 
-.total-box small {
-    color: #bfd2ef;
-    font-size: 8px;
-}
-
 .stats-grid {
     margin-top: 18px;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 13px;
-}
-
-.stat-card {
-    padding: 17px 18px;
-    border: 1px solid #dfe5ee;
-    border-radius: 10px;
-    background: white;
-}
-
-.stat-card span {
-    color: #73839a;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.stat-card strong {
-    display: block;
-    margin-top: 6px;
-    color: #25324a;
-    font-size: 24px;
 }
 
 .stat-card small {
@@ -821,14 +798,6 @@ function viewDetails(fine: LibraryFine) {
     white-space: nowrap;
 }
 
-.content-panel {
-    margin-top: 18px;
-    overflow: hidden;
-    border: 1px solid #dfe5ee;
-    border-radius: 11px;
-    background: white;
-}
-
 .panel-header,
 .form-header {
     padding: 18px 21px;
@@ -840,20 +809,6 @@ function viewDetails(fine: LibraryFine) {
 
 .panel-header {
     border-bottom: 1px solid #e5e9ef;
-}
-
-.panel-header h3,
-.form-header h3 {
-    margin: 0;
-    color: #25324a;
-    font-size: 16px;
-}
-
-.panel-header p,
-.form-header p {
-    margin: 5px 0 0;
-    color: #8794a7;
-    font-size: 11px;
 }
 
 .primary-button,
@@ -873,36 +828,6 @@ function viewDetails(fine: LibraryFine) {
     color: white;
 }
 
-.secondary-button {
-    border: 1px solid #d6dee9;
-    background: white;
-    color: #55667d;
-}
-
-.form-panel {
-    border-bottom: 1px solid #e5e9ef;
-    background: #fafcff;
-}
-
-.form-header {
-    border-bottom: 1px solid #e5e9ef;
-}
-
-.form-header .form-label {
-    color: #315a9f;
-}
-
-.close-button {
-    width: 34px;
-    height: 34px;
-    border: 1px solid #d8e0ea;
-    border-radius: 7px;
-    background: white;
-    color: #657389;
-    font-size: 20px;
-    cursor: pointer;
-}
-
 .fine-form {
     padding: 21px;
 }
@@ -911,22 +836,6 @@ function viewDetails(fine: LibraryFine) {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 17px 19px;
-}
-
-.form-field-full {
-    grid-column: 1 / -1;
-}
-
-.form-field label {
-    display: block;
-    margin-bottom: 6px;
-    color: #45556c;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.form-field label span {
-    color: #bc4545;
 }
 
 .form-field input,
@@ -944,17 +853,6 @@ function viewDetails(fine: LibraryFine) {
     font-size: 12px;
 }
 
-.form-field input:focus,
-.form-field select:focus,
-.form-field textarea:focus {
-    border-color: #3970c1;
-    box-shadow: 0 0 0 3px rgba(57, 112, 193, 0.08);
-}
-
-.form-field textarea {
-    resize: vertical;
-}
-
 .information-box {
     margin-top: 16px;
     padding: 11px 13px;
@@ -969,15 +867,6 @@ function viewDetails(fine: LibraryFine) {
     color: #315a9f;
 }
 
-.form-actions {
-    margin-top: 19px;
-    padding-top: 17px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 9px;
-    border-top: 1px solid #e5e9ef;
-}
-
 .filters {
     padding: 15px 21px;
     display: flex;
@@ -985,10 +874,6 @@ function viewDetails(fine: LibraryFine) {
     gap: 12px;
     border-bottom: 1px solid #e5e9ef;
     background: #fafcff;
-}
-
-.search-field {
-    flex: 1;
 }
 
 .filters input,
@@ -1014,15 +899,6 @@ function viewDetails(fine: LibraryFine) {
     padding: 0 10px;
 }
 
-.table-container {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
 th {
     padding: 12px 14px;
     background: #f4f7fb;
@@ -1041,10 +917,6 @@ td {
     vertical-align: middle;
 }
 
-tbody tr:hover {
-    background: #fafcff;
-}
-
 .folio {
     display: block;
     color: #285aa6;
@@ -1057,20 +929,11 @@ tbody tr:hover {
     font-size: 8px;
 }
 
-.student-id {
-    color: #42546d;
-    font-weight: 700;
-}
-
 .book-info,
 .payment-info {
     display: flex;
     flex-direction: column;
     gap: 3px;
-}
-
-.book-info strong {
-    color: #303d53;
 }
 
 .book-info small,
@@ -1100,11 +963,6 @@ tbody tr:hover {
     font-size: 8px;
     font-weight: 800;
     white-space: nowrap;
-}
-
-.status-pending {
-    background: #fff3d7;
-    color: #946510;
 }
 
 .status-paid {
@@ -1138,18 +996,6 @@ tbody tr:hover {
     border: 1px solid #c8d8ee;
     background: #edf3fc;
     color: #2c5c9f;
-}
-
-.action-button.pay {
-    border: 1px solid #c3e2d1;
-    background: #eaf7f0;
-    color: #26734c;
-}
-
-.action-button.cancel {
-    border: 1px solid #e6c9cd;
-    background: #fbebed;
-    color: #9d4650;
 }
 
 .empty-state {

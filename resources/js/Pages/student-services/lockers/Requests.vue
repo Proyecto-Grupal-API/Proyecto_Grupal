@@ -994,43 +994,9 @@ const serverError = (form: { errors: object }, key: string) =>
     </StudentServicesLayout>
 </template>
 
+<style scoped src="../../../../css/student-services.css"></style>
+
 <style scoped>
-.hero {
-    padding: 24px 27px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    border-radius: 12px;
-    background: #2f5eb6;
-    color: white;
-}
-
-.hero-label,
-.panel-label {
-    display: block;
-    margin-bottom: 7px;
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-}
-
-.hero-label {
-    color: #b8cdf0;
-}
-
-.hero h2 {
-    margin: 0;
-    font-size: 23px;
-}
-
-.hero p {
-    max-width: 650px;
-    margin: 7px 0 0;
-    color: #dce8fa;
-    font-size: 12px;
-    line-height: 1.6;
-}
 
 .hero-user {
     min-width: 185px;
@@ -1064,101 +1030,11 @@ const serverError = (form: { errors: object }, key: string) =>
     gap: 13px;
 }
 
-.stat-card {
-    padding: 17px 18px;
-    border: 1px solid #dfe5ee;
-    border-radius: 10px;
-    background: white;
-}
-
-.stat-card span {
-    color: #73839a;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.stat-card strong {
-    display: block;
-    margin-top: 6px;
-    color: #25324a;
-    font-size: 24px;
-}
-
 .stat-card small {
     display: block;
     margin-top: 4px;
     color: #97a3b5;
     font-size: 9px;
-}
-
-.module-navigation {
-    margin-top: 18px;
-    padding: 6px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    border: 1px solid #dfe5ee;
-    border-radius: 10px;
-    background: white;
-}
-
-.module-link {
-    min-height: 36px;
-    padding: 0 14px;
-    display: inline-flex;
-    align-items: center;
-    border-radius: 7px;
-    color: #697a91;
-    text-decoration: none;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.module-link:hover {
-    background: #f0f4fa;
-}
-
-.module-link.active {
-    background: #e8f0fc;
-    color: #2e5da3;
-}
-
-.content-panel {
-    margin-top: 18px;
-    overflow: hidden;
-    border: 1px solid #dfe5ee;
-    border-radius: 11px;
-    background: white;
-}
-
-.panel-header,
-.form-header,
-.modal-header {
-    padding: 18px 21px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    border-bottom: 1px solid #e5e9ef;
-}
-
-.panel-label {
-    color: #315a9f;
-}
-
-.panel-header h3,
-.form-header h3,
-.modal-header h3 {
-    margin: 0;
-    color: #25324a;
-    font-size: 16px;
-}
-
-.panel-header p,
-.form-header p {
-    margin: 5px 0 0;
-    color: #8794a7;
-    font-size: 11px;
 }
 
 .availability-total {
@@ -1244,32 +1120,10 @@ const serverError = (form: { errors: object }, key: string) =>
     color: white;
 }
 
-.secondary-button {
-    border: 1px solid #d6dee9;
-    background: white;
-    color: #55667d;
-}
-
 .primary-button:disabled,
 .secondary-button:disabled {
     opacity: 0.55;
     cursor: not-allowed;
-}
-
-.form-panel {
-    border-bottom: 1px solid #e5e9ef;
-    background: #fafcff;
-}
-
-.close-button {
-    width: 34px;
-    height: 34px;
-    border: 1px solid #d8e0ea;
-    border-radius: 7px;
-    background: white;
-    color: #657389;
-    font-size: 20px;
-    cursor: pointer;
 }
 
 .request-form {
@@ -1282,10 +1136,6 @@ const serverError = (form: { errors: object }, key: string) =>
     gap: 17px 19px;
 }
 
-.form-field.full {
-    grid-column: 1 / -1;
-}
-
 .form-field label,
 .modal-body label {
     display: block;
@@ -1293,10 +1143,6 @@ const serverError = (form: { errors: object }, key: string) =>
     color: #45556c;
     font-size: 10px;
     font-weight: 700;
-}
-
-.form-field label span {
-    color: #bc4545;
 }
 
 .form-field input,
@@ -1347,15 +1193,6 @@ const serverError = (form: { errors: object }, key: string) =>
     color: #a04444;
 }
 
-.form-actions {
-    margin-top: 19px;
-    padding-top: 17px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 9px;
-    border-top: 1px solid #e5e9ef;
-}
-
 .filters {
     padding: 14px 21px;
     display: grid;
@@ -1382,15 +1219,6 @@ const serverError = (form: { errors: object }, key: string) =>
     font-size: 10px;
 }
 
-.table-container {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
 th {
     padding: 12px 14px;
     background: #f4f7fb;
@@ -1407,10 +1235,6 @@ td {
     color: #5c6980;
     font-size: 10px;
     vertical-align: middle;
-}
-
-tbody tr:hover {
-    background: #fafcff;
 }
 
 .folio {
@@ -1453,11 +1277,6 @@ tbody tr:hover {
     white-space: nowrap;
 }
 
-.status-pending {
-    background: #fff3d7;
-    color: #946510;
-}
-
 .status-paid {
     background: #e8f0fc;
     color: #315fa6;
@@ -1495,12 +1314,6 @@ tbody tr:hover {
     cursor: pointer;
 }
 
-.action-button.pay {
-    border: 1px solid #c3e2d1;
-    background: #eaf7f0;
-    color: #26734c;
-}
-
 .action-button.details {
     border: 1px solid #d8dee8;
     background: #f5f7fa;
@@ -1511,12 +1324,6 @@ tbody tr:hover {
     border: 1px solid #c8d8ee;
     background: #edf3fc;
     color: #2c5c9f;
-}
-
-.action-button.cancel {
-    border: 1px solid #e6c9cd;
-    background: #fbebed;
-    color: #9d4650;
 }
 
 .empty-state {
@@ -1536,26 +1343,12 @@ tbody tr:hover {
     font-size: 11px;
 }
 
-.modal-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    display: grid;
-    place-items: center;
-    padding: 20px;
-    background: rgba(18, 29, 47, 0.5);
-}
-
 .modal {
     width: min(500px, 100%);
     overflow: hidden;
     border-radius: 11px;
     background: white;
     box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
-}
-
-.modal-body {
-    padding: 21px;
 }
 
 .modal-body p {

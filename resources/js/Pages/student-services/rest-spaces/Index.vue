@@ -949,43 +949,9 @@ function toggleMaintenance(space: RestSpace) {
     </StudentServicesLayout>
 </template>
 
+<style scoped src="../../../../css/student-services.css"></style>
+
 <style scoped>
-.hero {
-    padding: 24px 27px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    border-radius: 12px;
-    background: #2f5eb6;
-    color: white;
-}
-
-.hero-label,
-.panel-label {
-    display: block;
-    margin-bottom: 7px;
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-}
-
-.hero-label {
-    color: #b8cdf0;
-}
-
-.hero h2 {
-    margin: 0;
-    font-size: 23px;
-}
-
-.hero p {
-    max-width: 650px;
-    margin: 7px 0 0;
-    color: #dce8fa;
-    font-size: 12px;
-    line-height: 1.6;
-}
 
 .hero-total {
     min-width: 175px;
@@ -1000,42 +966,11 @@ function toggleMaintenance(space: RestSpace) {
     font-size: 9px;
 }
 
-.hero-total strong {
-    display: block;
-    margin-top: 4px;
-    font-size: 28px;
-}
-
-.hero-total small {
-    color: #bfd2ef;
-    font-size: 8px;
-}
-
 .stats-grid {
     margin-top: 18px;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 13px;
-}
-
-.stat-card {
-    padding: 17px 18px;
-    border: 1px solid #dfe5ee;
-    border-radius: 10px;
-    background: white;
-}
-
-.stat-card span {
-    color: #73839a;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.stat-card strong {
-    display: block;
-    margin-top: 6px;
-    color: #25324a;
-    font-size: 24px;
 }
 
 .stat-card small {
@@ -1081,14 +1016,6 @@ function toggleMaintenance(space: RestSpace) {
     line-height: 1.6;
 }
 
-.content-panel {
-    margin-top: 18px;
-    overflow: hidden;
-    border: 1px solid #dfe5ee;
-    border-radius: 11px;
-    background: white;
-}
-
 .panel-header,
 .modal-header {
     padding: 18px 21px;
@@ -1097,10 +1024,6 @@ function toggleMaintenance(space: RestSpace) {
     justify-content: space-between;
     gap: 20px;
     border-bottom: 1px solid #e5e9ef;
-}
-
-.panel-label {
-    color: #315a9f;
 }
 
 .panel-header h3,
@@ -1295,15 +1218,6 @@ function toggleMaintenance(space: RestSpace) {
     cursor: not-allowed;
 }
 
-.table-container {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
 th {
     padding: 12px 14px;
     background: #f4f7fb;
@@ -1359,16 +1273,6 @@ td {
     font-size: 11px;
 }
 
-.modal-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    display: grid;
-    place-items: center;
-    padding: 20px;
-    background: rgba(18, 29, 47, 0.5);
-}
-
 .modal {
     width: min(560px, 100%);
     overflow: hidden;
@@ -1377,37 +1281,10 @@ td {
     box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
 }
 
-.close-button {
-    width: 34px;
-    height: 34px;
-    border: 1px solid #d8e0ea;
-    border-radius: 7px;
-    background: white;
-    color: #657389;
-    font-size: 20px;
-    cursor: pointer;
-}
-
-.modal-body {
-    padding: 21px;
-}
-
 .form-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 17px;
-}
-
-.form-field label {
-    display: block;
-    margin-bottom: 6px;
-    color: #45556c;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.form-field label span {
-    color: #bc4545;
 }
 
 .form-field input,
@@ -1472,12 +1349,6 @@ td {
     border: 1px solid #2c63b7;
     background: #2c63b7;
     color: white;
-}
-
-.secondary-button {
-    border: 1px solid #d6dee9;
-    background: white;
-    color: #55667d;
 }
 
 @media (max-width: 950px) {

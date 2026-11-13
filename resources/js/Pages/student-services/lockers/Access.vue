@@ -311,17 +311,9 @@ onMounted(() => {
     </StudentServicesLayout>
 </template>
 
+<style scoped src="../../../../css/student-services.css"></style>
+
 <style scoped>
-.hero {
-    padding: 24px 27px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    border-radius: 12px;
-    background: #2f5eb6;
-    color: white;
-}
 
 .hero-label,
 .panel-label,
@@ -331,23 +323,6 @@ onMounted(() => {
     font-size: 9px;
     font-weight: 800;
     letter-spacing: 0.12em;
-}
-
-.hero-label {
-    color: #b8cdf0;
-}
-
-.hero h2 {
-    margin: 0;
-    font-size: 23px;
-}
-
-.hero p {
-    max-width: 650px;
-    margin: 7px 0 0;
-    color: #dce8fa;
-    font-size: 12px;
-    line-height: 1.6;
 }
 
 .hero-device {
@@ -378,46 +353,6 @@ onMounted(() => {
     font-size: 8px;
 }
 
-.module-navigation {
-    margin-top: 18px;
-    padding: 6px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    border: 1px solid #dfe5ee;
-    border-radius: 10px;
-    background: white;
-}
-
-.module-link {
-    min-height: 36px;
-    padding: 0 14px;
-    display: inline-flex;
-    align-items: center;
-    border-radius: 7px;
-    color: #697a91;
-    text-decoration: none;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.module-link:hover {
-    background: #f0f4fa;
-}
-
-.module-link.active {
-    background: #e8f0fc;
-    color: #2e5da3;
-}
-
-.content-panel {
-    margin-top: 18px;
-    overflow: hidden;
-    border: 1px solid #dfe5ee;
-    border-radius: 11px;
-    background: white;
-}
-
 .panel-header {
     padding: 18px 21px;
     display: flex;
@@ -425,10 +360,6 @@ onMounted(() => {
     justify-content: space-between;
     gap: 20px;
     border-bottom: 1px solid #e5e9ef;
-}
-
-.panel-label {
-    color: #315a9f;
 }
 
 .panel-header h3 {
@@ -532,14 +463,6 @@ onMounted(() => {
 
 .form-field {
     flex: 1;
-}
-
-.form-field label {
-    display: block;
-    margin-bottom: 6px;
-    color: #45556c;
-    font-size: 10px;
-    font-weight: 700;
 }
 
 .form-field input {
