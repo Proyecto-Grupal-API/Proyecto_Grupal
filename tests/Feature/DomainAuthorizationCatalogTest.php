@@ -29,7 +29,8 @@ test('technical definitions can be persisted in testing without granting any rol
     foreach (Permission::TECHNICAL_CATALOG as $key => [$label, $domain]) {
         Permission::create(['key' => $key, 'display_name' => $label, 'domain' => $domain, 'active' => false]);
     }
-    expect(Permission::count())->toBe(19)->and(RolePermission::count())->toBe(13)
+    // 8 foundation permissions + 22 inactive technical definitions (stale since the 15-entry catalog of 2026-11-09/10).
+    expect(Permission::count())->toBe(count(Permission::CATALOG) + 22)->and(RolePermission::count())->toBe(13)
         ->and(RoleAssignment::count())->toBe(0)
         ->and(app(BonusAuthorization::class)->allows((string) $user->getKey(), 'BECA', 'issue'))->toBeFalse()
         ->and(app(RewardsAuthorization::class)->allows((string) $user->getKey(), 'audit.view'))->toBeFalse();

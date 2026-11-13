@@ -182,7 +182,7 @@ test('budget history refuses extra selectors invalid action cursors and excessiv
 });
 test('budget history current permission and registered session revocation immediately deny access',function(){
     $this->ibhReadAuthority->all=true;ibhHistory($this)->assertOk();$this->ibhReadAuthority->all=false;ibhHistory($this)->assertForbidden();
-    $this->ibhReadAuthority->all=true;$this->ibhSession->update(['revoked_at'=>now()]);ibhHistory($this)->assertForbidden();
+    $this->ibhReadAuthority->all=true;$this->ibhSession->update(['revoked_at'=>now()]);assertRevokedSessionDenied(ibhHistory($this));
 });
 test('budget history authorization outage is sanitized and never returns financial history',function(){
     $this->ibhReadAuthority->unavailable=true;$r=ibhHistory($this)->assertStatus(503);

@@ -131,3 +131,16 @@ function studentServiceTestToken(string $token): string
     ]);
     return app(\App\Services\OAuthTokenService::class)->issue($clientId, 'test', $scopes)['access_token'];
 }
+
+/**
+ * A revoked registered session is denied by Identity's global EnsureSessionIsActive (forced logout,
+ * security event, redirect to login) before module middleware runs; a module 401/403 is also a denial.
+ */
+function assertRevokedSessionDenied(\Illuminate\Testing\TestResponse $response): void
+{
+    expect($response->status())->toBeIn([302, 401, 403]);
+    if ($response->status() === 302) {
+        expect((string) $response->headers->get('Location'))->toEndWith('/login');
+    }
+    expect(auth()->guest() || $response->status() !== 302)->toBeTrue();
+}

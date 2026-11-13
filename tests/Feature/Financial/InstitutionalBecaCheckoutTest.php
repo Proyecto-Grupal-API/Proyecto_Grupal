@@ -213,7 +213,7 @@ test('institutional checkout recent password and confirmed second factor are req
 
 test('institutional checkout revoked session and merchant permission prevent consumption',function(){
     $id=ibcPrepare($this);[$view,$session]=ibcBrowser($this,$id);$body=ibcBody($this,$view);$before=ibcState();
-    $session->update(['revoked_at'=>now()]);ibcConfirm($this,$id,$body)->assertForbidden();
+    $session->update(['revoked_at'=>now()]);assertRevokedSessionDenied(ibcConfirm($this,$id,$body));
     [$view]=ibcBrowser($this,$id);$body=ibcBody($this,$view);
     \App\Models\ServiceClient::where('client_id','svc_beca_checkout')->update(['active'=>false]);ibcConfirm($this,$id,$body)->assertForbidden();expect(ibcState())->toEqual($before);
 });

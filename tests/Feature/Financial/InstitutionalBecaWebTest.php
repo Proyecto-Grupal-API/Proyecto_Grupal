@@ -191,7 +191,7 @@ test('beca web session missing foreign revoked and second factor missing deny bo
     foreach([null,'invalid',(string)$foreign->getKey()]as$id){
         $this->withSession(['cd_session_id'=>$id])->getJson(bwfReviewUrl($this))->assertForbidden();bwfEmit($this,$payload)->assertForbidden();
     }
-    $this->bwfSession->update(['revoked_at'=>now()]);bwfLogin($this)->getJson(bwfReviewUrl($this))->assertForbidden();bwfEmit($this,$payload)->assertForbidden();
+    $this->bwfSession->update(['revoked_at'=>now()]);assertRevokedSessionDenied(bwfLogin($this)->getJson(bwfReviewUrl($this)));assertRevokedSessionDenied(bwfEmit($this,$payload));
     $this->bwfSession->update(['revoked_at'=>null]);$this->bwfOperator->forceFill(['two_factor_confirmed_at'=>null])->save();
     bwfLogin($this)->getJson(bwfReviewUrl($this))->assertForbidden();bwfEmit($this,$payload)->assertForbidden();
     expect(bwfWebState())->toEqual($before);

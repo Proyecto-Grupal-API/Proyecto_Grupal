@@ -72,6 +72,8 @@ function bonusAdminEmit($test, User $recipient, ?array $payload = null): Bonus
 
 test('bonus administration endpoints require authentication and dedicated permissions', function () {
     $this->postJson('/finanzas/bonos/administracion/issue', [])->assertUnauthorized();
+    // The database is dropped before each case: seed the canonical role catalog this case relies on.
+    $this->seed(\Database\Seeders\RoleSeeder::class);
     $user = bonusAdminUser(); $user->assignRole('admin'); withConfirmedTestTwoFactor($user);
     bonusAdminSignIn($this, $user)->get('/finanzas/bonos/administracion')->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('Financial/BonusAdministration')->where('permissions.issue', false)->where('permissions.view', false));

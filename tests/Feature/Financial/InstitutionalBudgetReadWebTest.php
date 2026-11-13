@@ -184,7 +184,7 @@ test('institutional budget screen rejects missing malformed foreign and revoked 
     foreach([null,'bad',(string)Str::uuid()] as $id)$this->withSession(['cd_session_id'=>$id])->get(ibwUrl($this))->assertForbidden();
     $foreign=\App\Models\UserSession::create(['user_id'=>$this->ibwBuyer,'started_at'=>now()]);
     $this->withSession(['cd_session_id'=>(string)$foreign->getKey()])->get(ibwUrl($this))->assertForbidden();
-    $this->ibwSession->update(['revoked_at'=>now()]); ibwSignIn($this)->get(ibwUrl($this))->assertForbidden();
+    $this->ibwSession->update(['revoked_at'=>now()]); assertRevokedSessionDenied(ibwSignIn($this)->get(ibwUrl($this)));
 });
 
 test('institutional budget screen requires confirmed second factor and rechecks account eligibility',function () {

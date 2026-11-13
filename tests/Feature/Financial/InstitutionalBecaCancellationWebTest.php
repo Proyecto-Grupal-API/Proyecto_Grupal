@@ -224,7 +224,7 @@ test('institutional cancellation session missing malformed foreign revoked and u
     bcwLogin($this);$body=bcwCancelBody(bcwReview($this));$before=bcwWebState();
     $foreign=\App\Models\UserSession::create(['user_id'=>$this->bcwBuyer,'started_at'=>now()]);
     foreach([null,'bad',(string)$foreign->getKey()]as$id){bcwRegistry($this,$id);$this->getJson(bcwReviewUrl($this))->assertForbidden();bcwCancel($this,$body)->assertForbidden();}
-    $this->bcwSession->update(['revoked_at'=>now()]);bcwLogin($this);bcwCancel($this,$body)->assertForbidden();
+    $this->bcwSession->update(['revoked_at'=>now()]);bcwLogin($this);assertRevokedSessionDenied(bcwCancel($this,$body));
     $this->bcwSession->update(['revoked_at'=>null]);$this->bcwOperator->forceFill(['two_factor_confirmed_at'=>null])->save();
     bcwLogin($this)->getJson(bcwReviewUrl($this))->assertForbidden();bcwCancel($this,$body)->assertForbidden();expect(bcwWebState())->toEqual($before);
 });
