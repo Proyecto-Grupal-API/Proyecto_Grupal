@@ -40,13 +40,13 @@ Las flechas son contratos HTTP/sobres verificados en el laboratorio (09b, 9.x). 
 | E6 → E1 | 24 | Lee `User`/`ServiceClient` directo (deuda menor; identidad compartida) |
 | E3 → E1 | 1 | Comando de preparación (válido en mantenimiento) |
 | E2 → E1 | 8 | Identidad compartida; parte pasa por `Module1IdentityAdapter` (válido), el resto lee `User` directo (deuda menor) |
-| E5 → E1 | 2 | Lee `User/StudentProfile/Consent` directo (deuda) |
+| E5 → E1 | 2 | `StudentServicesController` es de **E1** (API `/api/v1/students/{id}/status` y consentimientos; falso positivo por nombre). Deuda real: `ServiceAuthority` de E5 lee `Role`/`User` para autorizar |
 | E7 → E6 | 1 | **Falso positivo revisado:** `CommunityPlatformDelivery` es código de E6 (lee su propia auditoría); E7 recibe la proyección por HTTP: contrato válido |
 | E5 → E6 | 2 | **Falso positivo revisado:** `EntregaBeneficiosServicios`/`RevocacionBeneficiosServicios` son código de E6 que lee su propia colección y llama a E5 por HTTP/OAuth (`/api/v1/servicios/asignaciones`): contrato válido |
 | E7 → E1 | 1 | Autorización por roles E1 leída directo (deuda menor) |
 
 ## 3. Brechas concretas
-1. E5 lee datos privados de perfil de E1 (`StudentProfile`, `Consent`, `CommunicationPreference` en `StudentServicesController`): sustituir por el contrato de identidad/directorio de E1.
+1. Autorización fuera de E1 con colecciones de E1: `ServiceAuthority` (E5) y `RewardsAuthorizationService` (E7) leen `Role`/`RolePermission`/`Permission` directamente en lugar del servicio de autorización de E1. Cambio de seguridad: requiere diseño y pruebas de autorización dedicadas (no se hace como corrección de bajo riesgo).
 2. Lecturas directas de `User`/`Role`/`Permission` fuera de E1 (E2 parcialmente, E6, E7 `RewardsAuthorizationService`): canalizarlas por los adaptadores de identidad existentes (como `Module1IdentityAdapter` de E2).
 3. Entre E2–E7 no se encontraron lecturas directas de colecciones ajenas: E6→E5 y E6→E7 usan HTTP/sobres (revisado a mano).
 4. Mover los controladores de E6 del espacio raíz a `App\Http\Controllers\Community` para que la propiedad sea explícita.
