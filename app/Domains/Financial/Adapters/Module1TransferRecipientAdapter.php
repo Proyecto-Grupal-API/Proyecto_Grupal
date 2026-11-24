@@ -5,10 +5,13 @@ namespace App\Domains\Financial\Adapters;
 use App\Domains\Financial\Contracts\IdentityProvider;
 use App\Domains\Financial\Contracts\TransferRecipientProvider;
 use App\Domains\Financial\Exceptions\FinancialDependencyUnavailableException;
+use App\Domains\Financial\Exceptions\TransferRecipientUnavailableException;
+use App\Domains\Financial\Support\FinancialCorrelation;
 use App\Domains\Financial\Contracts\TransferAccountProvider;
 use App\Exceptions\DirectoryFailure;
 use App\Services\Directory\DirectoryInput;
 use App\Services\Directory\IdentityDirectoryService;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Throwable;
 
@@ -28,8 +31,15 @@ class Module1TransferRecipientAdapter implements TransferRecipientProvider
             if ($e->status === 409) {
                 throw new InvalidArgumentException('No se pudo identificar un destinatario único.');
             }
+            if ($e->status === 422) {
+                throw new InvalidArgumentException('Matrícula no válida.');
+            }
+            // FIN-07: distinct cause for the operator, technical code and correlation for support; never the queried value.
+            $failure = TransferRecipientUnavailableException::fromDirectory($e, app(FinancialCorrelation::class)->id());
+            Log::warning('financial.transfer_recipient.directory_failure', ['code' => $failure->reasonCode, 'status' => $e->status,
+                'method' => $method, 'correlation_id' => $failure->correlationId]);
 
-            throw new FinancialDependencyUnavailableException('El directorio de Identidad no está disponible.');
+            throw $failure;
         } catch (InvalidArgumentException|FinancialDependencyUnavailableException $e) {
             throw $e;
         } catch (Throwable $e) {
@@ -54,6 +64,10 @@ class Module1TransferRecipientAdapter implements TransferRecipientProvider
                 throw new InvalidArgumentException('Matrícula no válida.');
             }
             $result = $this->directory->resolve($fields + ['enrollment_number' => $enrollment]);
+            if (in_array($result['result'] ?? null, ['not_found', 'not_usable'], true)) {
+                // Same answer for both: the directory never reveals why an account cannot receive.
+                throw new InvalidArgumentException('No hay un destinatario disponible con esa matrícula.');
+            }
             $projection = $result['identity'] ?? null;
             $id = $projection['user_id'] ?? null;
         } elseif ($method === 'QR') {

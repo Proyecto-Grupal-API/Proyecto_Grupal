@@ -98,7 +98,8 @@ class InventoryController extends Controller
                 'on_hand' => (int) ($inv['on_hand'] ?? 0),
                 'reserved' => (int) ($inv['reserved'] ?? 0),
                 'available' => (int) ($inv['available'] ?? 0),
-                'status' => (string) ($inv['status'] ?? ''),
+                // Derived on read: reservations change available stock without touching the stored status.
+                'status' => (int) ($inv['available'] ?? 0) > 0 ? 'AVAILABLE' : ((int) ($inv['on_hand'] ?? 0) > 0 ? 'RESERVED' : 'OUT_OF_STOCK'),
             ];
         }
 
@@ -124,9 +125,15 @@ class InventoryController extends Controller
             $productsList[] = ['_id' => $pid, 'sku' => $p['sku'], 'name' => $p['name']];
         }
 
+        $locationsList = [];
+        foreach ($locationsMap as $lid => $l) {
+            $locationsList[] = ['_id' => $lid, 'name' => $l['name'], 'warehouse_name' => $warehousesMap[$l['warehouse_id']] ?? ''];
+        }
+
         return Inertia::render('Equipo4/Inventario', [
             'inventory' => $data,
             'productsList' => $productsList,
+            'locationsList' => $locationsList,
             'kpis' => $kpis,
             'pagination' => [
                 'current_page' => $page,
@@ -177,5 +184,71 @@ class InventoryController extends Controller
         }
 
         return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Ajuste aplicado correctamente.');
+    }
+
+    /** Transferencia interna entre dos ubicaciones del mismo negocio (4.2): salida y entrada ligadas en el kardex. */
+    public function transfer(Request $request, InventoryService $inventoryService): RedirectResponse
+    {
+        $back = parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH);
+        $validated = $request->validate([
+            'inventory_id' => ['required', 'string', 'regex:/^[0-9a-f]{24}$/i'],
+            'to_location_id' => ['required', 'string', 'regex:/^[0-9a-f]{24}$/i'],
+            'quantity' => 'required|integer|min:1|max:100000',
+            'reason' => 'required|string|min:3|max:500',
+        ]);
+
+        $inv = DB::connection('inventory')->getCollection('inventories')->findOne([
+            '_id' => new ObjectId($validated['inventory_id']),
+            'business_id' => $this->businessId(),
+        ]);
+        if (! $inv) {
+            return redirect($back)->withErrors(['error' => 'Registro de inventario no encontrado.']);
+        }
+
+        $from = (string) ($inv['location_id'] ?? '');
+        $to = $validated['to_location_id'];
+        if ($from === $to) {
+            return redirect($back)->withErrors(['to_location_id' => 'La ubicación de destino debe ser distinta de la de origen.']);
+        }
+        $destination = DB::connection('inventory')->getCollection('locations')->findOne([
+            '_id' => new ObjectId($to), 'business_id' => $this->businessId(),
+        ]);
+        if (! $destination || ($destination['active'] ?? true) === false) {
+            return redirect($back)->withErrors(['to_location_id' => 'La ubicación de destino no existe o está inactiva en este negocio.']);
+        }
+
+        $quantity = (int) $validated['quantity'];
+        $reference = 'TRF-'.strtoupper(substr(str_replace('-', '', (string) \Illuminate\Support\Str::uuid()), 0, 10));
+        $movement = [
+            'business_id' => $this->businessId(),
+            'product_id' => (string) ($inv['product_id'] ?? ''),
+            'variant_id' => $inv['variant_id'] ?? null,
+            'reason' => 'Transferencia: '.$validated['reason'],
+            'external_reference' => $reference,
+            'actor_id' => \App\Services\InventoryModule\ActorResolver::resolve(),
+        ];
+
+        try {
+            $inventoryService->changeStock([...$movement, 'location_id' => $from, 'quantity' => -$quantity, 'type' => 'TRANSFER_OUT']);
+        } catch (\Throwable $e) {
+            return redirect($back)->withErrors(['error' => 'No se pudo transferir: '.$e->getMessage()]);
+        }
+        try {
+            $inventoryService->changeStock([...$movement, 'location_id' => $to, 'quantity' => $quantity, 'type' => 'TRANSFER_IN']);
+        } catch (\Throwable $e) {
+            // La entrada falló: se devuelve la salida para no perder existencias.
+            Log::error('Fallo la entrada de una transferencia; se compensa la salida.', ['reference' => $reference, 'error' => $e->getMessage()]);
+            $inventoryService->changeStock([...$movement, 'location_id' => $from, 'quantity' => $quantity, 'type' => 'TRANSFER_IN',
+                'reason' => 'Reversión de transferencia fallida '.$reference, 'actor_id' => 'SYSTEM']);
+
+            return redirect($back)->withErrors(['error' => 'No se pudo transferir: '.$e->getMessage()]);
+        }
+
+        app(\App\Services\InventoryModule\AuditService::class)->record('Inventory.transferred', 'inventories', $validated['inventory_id'], [
+            'product_id' => $movement['product_id'], 'from_location_id' => $from, 'to_location_id' => $to,
+            'quantity' => $quantity, 'reason' => $validated['reason'], 'reference' => $reference,
+        ], [], $reference);
+
+        return redirect($back)->with('success', 'Transferencia '.$reference.' aplicada.');
     }
 }

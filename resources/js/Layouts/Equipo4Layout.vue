@@ -36,8 +36,8 @@ const navGroups = computed(() => {
     {
       label: 'Operación',
       href: '/equipo4/devoluciones',
-      match: (url) => url.startsWith('/equipo4/devoluciones') || url.startsWith('/equipo4/alertas') || url.startsWith('/equipo4/conteos'),
-      requires: ['devoluciones.view', 'alertas.view', 'conteos.view'],
+      match: (url) => url.startsWith('/equipo4/devoluciones') || url.startsWith('/equipo4/alertas') || url.startsWith('/equipo4/conteos') || url.startsWith('/equipo4/auditoria'),
+      requires: ['devoluciones.view', 'alertas.view', 'conteos.view', 'auditoria.view'],
     },
   ]
 
@@ -110,6 +110,7 @@ const allGroupModules = {
     { label: 'Devoluciones', href: '/equipo4/devoluciones', requires: 'devoluciones.view' },
     { label: 'Alertas', href: '/equipo4/alertas', requires: 'alertas.view' },
     { label: 'Conteos', href: '/equipo4/conteos', requires: 'conteos.view' },
+    { label: 'Auditoría', href: '/equipo4/auditoria', requires: 'auditoria.view' },
   ],
 }
 
@@ -162,7 +163,7 @@ const iconByHref = {
   '/equipo4/productos': 'cube', '/equipo4/souvenirs': 'tag', '/equipo4/costos': 'coin', '/equipo4/categorias': 'list',
   '/equipo4/inventario': 'cube', '/equipo4/almacenes': 'building', '/equipo4/kardex': 'list', '/equipo4/reservas': 'lock',
   '/equipo4/proveedores': 'users', '/equipo4/compras': 'clipboard', '/equipo4/recepciones': 'truck',
-  '/equipo4/devoluciones': 'back', '/equipo4/alertas': 'bell', '/equipo4/conteos': 'check',
+  '/equipo4/devoluciones': 'back', '/equipo4/alertas': 'bell', '/equipo4/conteos': 'check', '/equipo4/auditoria': 'clipboard',
 }
 function iconPath(href) { return icons[iconByHref[href] || 'cube'] }
 </script>
@@ -291,7 +292,8 @@ function iconPath(href) { return icons[iconByHref[href] || 'cube'] }
           <Link href="/profile" class="text-slate-600 hover:text-blue-700">Mi perfil</Link>
           <Link href="/servicios-estudiante" class="text-slate-600 hover:text-blue-700">Servicios</Link>
           <Link href="/modulo6" class="text-slate-600 hover:text-blue-700">Comunidad</Link>
-          <label class="flex items-center gap-2 ml-auto">Negocio
+          <span v-if="page.props.inventoryContext?.user?.role_scope === 'global'" data-consulta-transversal class="ml-auto rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">Consulta transversal · sólo lectura</span>
+          <label class="flex items-center gap-2" :class="page.props.inventoryContext?.user?.role_scope === 'global' ? '' : 'ml-auto'">Negocio
             <select :value="page.props.inventoryContext?.business_id" @change="router.post('/equipo4/context', { business_id: $event.target.value })" class="rounded-lg border-slate-200 text-sm">
               <option v-for="business in page.props.inventoryContext?.businesses || []" :key="business.id" :value="business.id">{{ business.name }}</option>
             </select>

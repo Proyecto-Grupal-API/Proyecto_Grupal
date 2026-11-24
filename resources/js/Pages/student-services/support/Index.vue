@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import StudentServicesLayout from '@/Layouts/StudentServicesLayout.vue';
-import { router, useForm } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 type TicketPriority = 'low' | 'medium' | 'high' | 'critical';
@@ -376,6 +376,73 @@ function addComment() {
             },
         },
     );
+}
+
+// Atención del ticket por el personal de Servicios (5.9): tomarlo, iniciar la atención, resolverlo y cerrarlo.
+const page = usePage();
+const isStaff = computed(() =>
+    Boolean((page.props as any).auth?.servicios_staff),
+);
+const staffMessage = ref('');
+const staffProcessing = ref(false);
+const nextStatuses = computed<Array<{ value: string; label: string }>>(() => {
+    const flow: Record<string, Array<{ value: string; label: string }>> = {
+        assigned: [
+            { value: 'in_progress', label: 'Iniciar atención' },
+            { value: 'resolved', label: 'Marcar resuelto' },
+        ],
+        in_progress: [{ value: 'resolved', label: 'Marcar resuelto' }],
+        resolved: [{ value: 'closed', label: 'Cerrar ticket' }],
+    };
+
+    return flow[selectedTicket.value?.status ?? ''] ?? [];
+});
+
+function staffAction(path: string, data: Record<string, unknown>) {
+    const ticket = selectedTicket.value;
+
+    if (ticket === null) {
+        return;
+    }
+
+    staffProcessing.value = true;
+
+    router.patch(`/servicios-estudiante/soporte/${ticket.id}/${path}`, data, {
+        preserveScroll: true,
+
+        onSuccess: () => {
+            staffMessage.value = '';
+        },
+
+        onError: (errors) => {
+            window.alert(
+                String(
+                    errors.ticket ??
+                        errors.status ??
+                        errors.assigned_to ??
+                        errors.message ??
+                        'No fue posible actualizar el ticket.',
+                ),
+            );
+        },
+
+        onFinish: () => {
+            staffProcessing.value = false;
+        },
+    });
+}
+
+function takeTicket() {
+    staffAction('asignar', {
+        assigned_to: String((page.props as any).auth?.user?.id ?? ''),
+    });
+}
+
+function changeTicketStatus(status: string) {
+    staffAction('estado', {
+        status,
+        message: staffMessage.value.trim() || null,
+    });
 }
 
 function cancelTicket(ticket: SupportTicket) {
@@ -1020,6 +1087,51 @@ function cancelTicket(ticket: SupportTicket) {
                         >
                             Todavía no existen eventos.
                         </p>
+                    </div>
+
+                    <div
+                        v-if="
+                            isStaff &&
+                            (selectedTicket.status === 'open' ||
+                                nextStatuses.length > 0)
+                        "
+                        class="comment-box"
+                        data-seccion="atencion-personal"
+                    >
+                        <label> Atención del ticket (personal) </label>
+
+                        <button
+                            v-if="selectedTicket.status === 'open'"
+                            type="button"
+                            class="primary-button"
+                            data-accion="tomar-ticket"
+                            :disabled="staffProcessing"
+                            @click="takeTicket"
+                        >
+                            Tomar ticket
+                        </button>
+
+                        <template v-else>
+                            <textarea
+                                id="ticket-status-message"
+                                v-model="staffMessage"
+                                rows="2"
+                                maxlength="2000"
+                                placeholder="Nota para el alumno (opcional)"
+                            />
+
+                            <button
+                                v-for="next in nextStatuses"
+                                :key="next.value"
+                                type="button"
+                                class="primary-button"
+                                :data-estado="next.value"
+                                :disabled="staffProcessing"
+                                @click="changeTicketStatus(next.value)"
+                            >
+                                {{ next.label }}
+                            </button>
+                        </template>
                     </div>
 
                     <div

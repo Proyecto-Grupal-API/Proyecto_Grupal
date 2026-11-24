@@ -216,7 +216,7 @@ class AvailabilityService
 
         if ($block !== null) {
             throw new RuntimeException(
-                "Ese horario está bloqueado: {$block->reason} ({$block->start_at->format('H:i')} – {$block->end_at->format('H:i')})."
+                "Ese horario está bloqueado: {$block->reason} (".\App\Services\StudentServices\ServiceClock::local($block->start_at)->format('H:i')." – ".\App\Services\StudentServices\ServiceClock::local($block->end_at)->format('H:i').")."
             );
         }
 

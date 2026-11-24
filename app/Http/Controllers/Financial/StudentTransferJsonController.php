@@ -158,7 +158,8 @@ return $key;
         } catch (FinancialLimitExceededException $e) {
             return response()->json(['message' => $e->getMessage()] + $e->toArray(), 409);
         } catch (FinancialDependencyUnavailableException $e) {
-            return response()->json(['message' => $e->getMessage()], 503);
+            return response()->json(['message' => $e->getMessage()] + ($e instanceof \App\Domains\Financial\Exceptions\TransferRecipientUnavailableException
+                ? ['code' => $e->reasonCode, 'correlation_id' => $e->correlationId] : []), 503);
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 409);
         }

@@ -48,6 +48,12 @@ class FacilityReservationService
             $idempotencyKey
         );
 
+        // El costo vigente y el estado de pago quedan en la reserva (una sola vez: la misma solicitud repetida no los cambia).
+        if ($reservation->payment_status === null) {
+            $cost = max(0, (int) $facility->cost_cents);
+            $reservation->update(['cost_cents' => $cost, 'payment_status' => ReservationPayment::forCost($cost)]);
+        }
+
         return $reservation;
     }
 

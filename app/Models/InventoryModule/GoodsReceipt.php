@@ -9,6 +9,7 @@ class GoodsReceipt extends Team4Document
         'purchase_order_id',
         'folio',
         'received_by',
+        'location_id',
         'status',
         'notes',
         'received_at',

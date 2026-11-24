@@ -52,7 +52,7 @@ El seeder adicional se ejecuta después de `DatabaseSeeder`:
 docker compose exec --user sail laravel.test php artisan db:seed --class=StaffEventoSeeder
 ```
 
-Crea `staff@campus.test`, matrícula `20260005`, contraseña local **CampusDemo2026!**, integrante de Sistemas; una conferencia gratuita de demostración; una asignación de staff; y boletos para `estudiante@campus.test` y `andrea@campus.test` mediante las reglas de inscripción. Solo admite entornos local/testing.
+Crea `staff@campus.test`, matrícula `20260005`, contraseña local la del archivo privado de la instalación (clave `CAMPUS_DEMO_PASSWORD`), integrante de Sistemas; una conferencia gratuita de demostración; una asignación de staff; y boletos para `estudiante@campus.test` y `andrea@campus.test` mediante las reglas de inscripción. Solo admite entornos local/testing.
 
 No restablece contraseñas existentes, fechas, permisos retirados ni boletos usados al repetirse. La conferencia se crea con inicio 25 minutos después y fin cuatro horas después; al terminar, crear otro evento desde la interfaz y asignar personal. No se hace pasar un evento terminado por uno nuevo modificando sus fechas.
 

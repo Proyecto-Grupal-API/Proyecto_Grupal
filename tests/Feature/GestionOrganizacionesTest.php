@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AuditoriaComunidad;
 use App\Models\Campana;
+use App\Models\ComisionConsejo;
 use App\Models\Evento;
 use App\Models\Mensaje;
 use App\Models\MiembroOrganizacion;
@@ -15,6 +16,7 @@ use App\Models\StaffEvento;
 use App\Models\User;
 use App\Services\AutoridadOrganizaciones;
 use App\Services\EntregaCampanas;
+use App\Services\PermisosComunidad;
 use Database\Seeders\GestionOrganizacionesSeeder;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -88,6 +90,46 @@ class GestionOrganizacionesTest extends TestCase
         $this->getJson('/api/becas?gestion=1')->assertForbidden();
         $this->actingAs($this->estudiante)->postJson('/api/organizaciones/seleccionar', ['organizacion_id' => $id])->assertOk();
         $this->putJson('/api/organizaciones/perfil', ['nombre' => 'Robótica actualizada', 'email' => 'robotica@example.test'])->assertOk();
+    }
+
+    // Recorrido de demostración de E6: el Consejo se da de alta por el registro, con su presidencia por matrícula. El cargo es
+    // de ese Consejo y de nadie más: quien lo preside administra sus comisiones y no gana nada en otra organización; la tesorería
+    // del Consejo consulta pero no administra; quien preside una asociación no lo alcanza, y quien lo registra tampoco.
+    public function test_a_registered_council_gives_its_presidency_authority_over_that_council_only(): void
+    {
+        $id = $this->actingAs($this->gestor)->postJson('/api/gestion-organizaciones', $this->datos(['nombre' => 'Consejo de prueba', 'tipo' => 'consejo']))
+            ->assertCreated()->assertJsonPath('organizacion.estado', 'activa')->json('organizacion.id');
+        $consejo = Organizacion::findOrFail($id);
+        $otroConsejo = Organizacion::where('slug', 'consejo')->firstOrFail();
+        $hoy = now()->timezone('America/Mexico_City')->toDateString();
+        $comision = fn (string $nombre) => ['nombre' => $nombre, 'proposito' => 'Organizar las actividades de la prueba.', 'fecha_inicio' => $hoy, 'fecha_fin' => null, 'clave_solicitud' => (string) Str::uuid()];
+        $this->assertSame('consejo', $consejo->tipo);
+        $this->assertFalse(Gate::forUser($this->gestor)->allows('view', $consejo));
+
+        // Permitido: la presidencia, en su Consejo.
+        $this->actingAs($this->estudiante)->withSession(['organizacion_id' => $id])
+            ->postJson('/api/organizaciones/comisiones', $comision('Comisión de prueba'))->assertCreated();
+        $tesorera = User::factory()->create(['matricula' => 'TESORERIA-1']);
+        $this->postJson('/api/organizaciones/miembros', ['matricula' => 'TESORERIA-1', 'fecha_inicio' => $hoy])->assertCreated();
+        $this->postJson('/api/organizaciones/roles', ['usuario_id' => (string) $tesorera->id, 'slug_rol' => 'tesoreria', 'fecha_inicio' => $hoy, 'fecha_fin' => null, 'periodo_id' => null])->assertCreated();
+
+        // Denegado: la misma cuenta, en el otro Consejo, donde sólo es integrante.
+        $this->assertTrue(MiembroOrganizacion::activos()->where('organizacion_id', (string) $otroConsejo->id)->where('usuario_id', (string) $this->estudiante->id)->exists());
+        $this->withSession(['organizacion_id' => (string) $otroConsejo->id])->postJson('/api/organizaciones/comisiones', $comision('Comisión ajena'))->assertForbidden();
+
+        // Denegado: la tesorería del Consejo consulta, pero no administra.
+        $this->actingAs($tesorera)->withSession(['organizacion_id' => $id])->getJson('/api/organizaciones/comisiones')->assertOk()->assertJsonPath('puede_editar', false)->assertJsonCount(1, 'comisiones');
+        $this->postJson('/api/organizaciones/comisiones', $comision('Comisión de tesorería'))->assertForbidden();
+        $this->postJson('/api/organizaciones/roles', ['usuario_id' => (string) $tesorera->id, 'slug_rol' => 'comunicacion', 'fecha_inicio' => $hoy, 'fecha_fin' => null, 'periodo_id' => null])->assertForbidden();
+        $this->assertSame([], app(PermisosComunidad::class)->capacidades($tesorera, $consejo));
+
+        // Denegado: la presidencia de una asociación no puede elegir el Consejo ni tiene comisiones.
+        $this->actingAs($this->presidente)->postJson('/api/organizaciones/seleccionar', ['organizacion_id' => $id])->assertForbidden();
+        $this->withSession(['organizacion_id' => (string) $this->org->id])->getJson('/api/organizaciones/comisiones')->assertNotFound();
+
+        $this->assertSame(1, ComisionConsejo::where('organizacion_id', $id)->count());
+        $this->assertSame(0, ComisionConsejo::where('nombre', 'Comisión ajena')->count());
+        $this->assertSame(1, RolOrganizacion::vigentes()->where('organizacion_id', $id)->where('slug_rol', 'presidencia')->where('usuario_id', (string) $this->estudiante->id)->count());
     }
 
     public function test_repeat_creation_never_duplicates_or_reactivates_and_changed_payload_conflicts(): void
@@ -220,11 +262,11 @@ class GestionOrganizacionesTest extends TestCase
     {
         $this->seed(GestionOrganizacionesSeeder::class);
         $u = User::where('email', 'gestion@campus.test')->firstOrFail();
-        $p = PermisoGestionOrganizaciones::where('usuario_id',(string) $u->id)->firstOrFail();
+        $p = PermisoGestionOrganizaciones::where('usuario_id', (string) $u->id)->firstOrFail();
         $p->update(['activo' => false]);
         $this->seed(GestionOrganizacionesSeeder::class);
         $this->assertFalse($p->fresh()->activo);
-        $this->assertSame(2,Organizacion::count());
-        $this->assertSame(1,User::where('email','gestion@campus.test')->count());
+        $this->assertSame(2, Organizacion::count());
+        $this->assertSame(1, User::where('email', 'gestion@campus.test')->count());
     }
 }

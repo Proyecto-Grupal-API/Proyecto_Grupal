@@ -2,6 +2,7 @@
 namespace App\Services\InventoryModule;
 
 use App\Exceptions\InventoryModule\IdentityUnavailable;
+use App\Models\Role;
 use App\Services\ClienteModuloHttp;
 
 /** E1 is authoritative. Only access-token caching is shared between requests. */
@@ -37,7 +38,7 @@ class IdentityService
                 || ($response['scope_type'] ?? null) !== 'business' || ($response['scope_id'] ?? null) !== $business) {
                 throw new IdentityUnavailable('Identidad devolvió un contexto incompatible.');
             }
-            if (($response['membership_status'] ?? null) !== 'active') { return null; }
+            if (($response['membership_status'] ?? null) !== 'active') { return $this->globalViewer($userId, $business); }
             $roles = [];
             foreach ((array) ($response['roles'] ?? []) as $row) {
                 if (!is_array($row) || ($row['status'] ?? '') !== 'active') { continue; }
@@ -47,12 +48,29 @@ class IdentityService
                 if (is_string($role)) { $roles[] = $role; }
             }
             $roles = array_values(array_unique($roles));
-            if ($roles === []) { return null; }
+            // A business role always wins in its own business; permissions are never merged with the global viewer.
+            if ($roles === []) { return $this->globalViewer($userId, $business); }
             $actor = request()->user();
             return ['id' => $userId, 'name' => $actor->name, 'email' => $actor->email,
                 'initials' => mb_strtoupper(mb_substr($actor->name, 0, 2)), 'role' => $roles[0], 'roles' => $roles,
                 'role_scope' => 'business', 'role_business_id' => $business];
         });
+    }
+
+    /** Cross-store read-only access: an exact E1 assignment (admin in service:<global_viewer_service>), never the global admin. */
+    private function globalViewer(string $userId, string $business): ?array
+    {
+        $actor = request()->user();
+        $service = (string) config('team4.global_viewer_service', '');
+        if ($service === '' || ! $actor || ! $actor->hasRole(Role::ADMIN, 'service', $service)) { return null; }
+        return ['id' => $userId, 'name' => $actor->name, 'email' => $actor->email,
+            'initials' => mb_strtoupper(mb_substr($actor->name, 0, 2)), 'role' => 'global_viewer', 'roles' => ['global_viewer'],
+            'role_scope' => 'global', 'role_business_id' => $business];
+    }
+
+    public function isGlobalViewer(string $userId): bool
+    {
+        return ($this->getUser($userId)['role_scope'] ?? null) === 'global';
     }
 
     private function capability(string $userId, string $capability): bool
@@ -82,19 +100,28 @@ class IdentityService
 
     public function userCan(string $userId, string $permission): bool
     {
+        if ($this->isGlobalViewer($userId)) {
+            // Read-only by construction: only consultation permissions of its own catalogue, no business capabilities.
+            return str_ends_with($permission, '.view') && in_array($permission, $this->getPermissions(['global_viewer']), true);
+        }
         $roles = $this->getUser($userId)['roles'] ?? [];
         if (!in_array($permission, $this->getPermissions($roles), true)) { return false; }
-        // Approving/cancelling purchases or deleting catalogue entries requires the owner's capability.
-        if (in_array($permission, ['productos.delete', 'souvenirs.delete', 'compras.authorize', 'compras.cancel'], true)) {
+        // Approving/cancelling purchases, deleting catalogue entries or reading the audit trail requires the owner's capability.
+        if (in_array($permission, ['productos.delete', 'souvenirs.delete', 'compras.authorize', 'compras.cancel', 'auditoria.view'], true)) {
             return $this->capability($userId, 'business.manage');
         }
         if ($permission === 'dashboard.view' || str_ends_with($permission, '.view')) {
-            return $this->capability($userId, 'business.inventory.operate') || $this->capability($userId, 'business.operate');
+            return $this->capability($userId, 'business.inventory.operate') || $this->capability($userId, 'business.operate')
+                || $this->capability($userId, 'business.purchasing.operate');
         }
         if ($roles === ['inventory_manager']) { return $this->capability($userId, 'business.inventory.operate'); }
         $purchase = str_starts_with($permission, 'proveedores.') || str_starts_with($permission, 'compras.')
             || $permission === 'recepciones.create' || $permission === 'devoluciones.storeSupplier' || $permission === 'costos.register';
-        return $this->capability($userId, $purchase ? 'business.operate' : 'business.inventory.operate');
+        // Purchasing is granted to whoever operates the business or holds E1's purchasing capability (buyer role).
+        if ($purchase) {
+            return $this->capability($userId, 'business.operate') || $this->capability($userId, 'business.purchasing.operate');
+        }
+        return $this->capability($userId, 'business.inventory.operate');
     }
 
     public function effectivePermissions(string $userId): array

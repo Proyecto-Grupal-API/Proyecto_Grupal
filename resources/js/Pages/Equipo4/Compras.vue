@@ -219,7 +219,7 @@ const toggleHistory = () => {
               <select v-model="form.status" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white">
                 <option value="BORRADOR">Borrador</option>
                 <option value="SOLICITADA">Solicitada</option>
-                <option v-if="isEditing" value="AUTORIZADA">Autorizada</option>
+                <option v-if="isEditing && can('compras.authorize')" value="AUTORIZADA">Autorizada</option>
               </select>
             </div>
           </div>

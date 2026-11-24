@@ -47,6 +47,7 @@ Route::prefix('api/v1/recompensas')->middleware(['web', 'auth', 'session.active'
             Route::get('/balance/{studentId}', [PointsController::class, 'balance'])->middleware(EnsurePlatformPermission::class.':points.view_any');
             Route::get('/history/{studentId}', [PointsController::class, 'history'])->middleware(EnsurePlatformPermission::class.':points.view_any');
             Route::get('/ledger', [PointsController::class, 'ledger'])->middleware(EnsurePlatformPermission::class.':points.view_any');
+            Route::get('/ledger/export', [PointsController::class, 'exportLedger'])->middleware(EnsurePlatformPermission::class.':points.view_any');
             Route::post('/earn', [PointsController::class, 'earn'])->middleware(EnsurePlatformPermission::class.':points.earn');
             Route::post('/redeem', [PointsController::class, 'redeem']);
             Route::post('/reverse', [PointsController::class, 'reverse'])->middleware(EnsurePlatformPermission::class.':points.reverse');
@@ -101,6 +102,7 @@ Route::prefix('api/v1/recompensas')->middleware(['web', 'auth', 'session.active'
 
         // ── Gobierno de puntos y Fraude (7.6) ──────────────────
         Route::prefix('governance')->middleware(EnsurePlatformPermission::class.':governance.view')->group(function () {
+            Route::get('/summary', [GovernanceController::class, 'summary']);
             Route::get('/policies', [GovernanceController::class, 'getPolicies']);
             Route::post('/policies', [GovernanceController::class, 'storePolicy'])->middleware(EnsurePlatformPermission::class.':governance.manage');
             Route::put('/policies/{id}', [GovernanceController::class, 'updatePolicy'])->middleware(EnsurePlatformPermission::class.':governance.manage');
@@ -113,6 +115,7 @@ Route::prefix('api/v1/recompensas')->middleware(['web', 'auth', 'session.active'
         // ── Auditoría transversal (7.8) ────────────────────────
         Route::prefix('audit')->group(function () {
             Route::get('/logs', [AuditController::class, 'index']);
+            Route::get('/logs/export', [AuditController::class, 'export']);
             Route::get('/logs/{id}', [AuditController::class, 'show']);
             Route::get('/correlations/{id}', [AuditController::class, 'correlation']);
         });
@@ -126,6 +129,7 @@ Route::prefix('api/v1/recompensas')->middleware(['web', 'auth', 'session.active'
 
         // ── Integración y observabilidad (7.10) ────────────────
         Route::prefix('integrations')->group(function () {
+            Route::get('/health', [IntegrationController::class, 'health'])->middleware(EnsurePlatformPermission::class.':integrations.view');
             Route::get('/logs', [IntegrationController::class, 'logs'])->middleware(EnsurePlatformPermission::class.':integrations.view');
             Route::get('/webhooks', [IntegrationController::class, 'webhooks'])->middleware(EnsurePlatformPermission::class.':integrations.view');
             Route::post('/webhooks/{id}/retry', [IntegrationController::class, 'retryWebhook'])->middleware(EnsurePlatformPermission::class.':integrations.retry');
@@ -138,7 +142,8 @@ Route::prefix('api/v1/recompensas')->middleware(['web', 'auth', 'session.active'
             Route::put('/{key}', [SettingsController::class, 'update'])->middleware(EnsurePlatformPermission::class.':settings.update');
             Route::get('/versions', [SettingsController::class, 'versions']);
             Route::post('/versions', [SettingsController::class, 'createVersion'])->middleware(EnsurePlatformPermission::class.':settings.update');
-            Route::post('/versions/{id}/transition', [SettingsController::class, 'transitionVersion'])->middleware(EnsurePlatformPermission::class.':settings.approve');
+            // Enviar a aprobación sólo pide poder editar; aprobar, rechazar o activar lo decide el controlador (settings.approve y otra persona).
+            Route::post('/versions/{id}/transition', [SettingsController::class, 'transitionVersion'])->middleware(EnsurePlatformPermission::class.':settings.update');
         });
 
         Route::prefix('catalogs')->middleware(EnsurePlatformPermission::class.':catalogs.view')->group(function () {
@@ -151,10 +156,8 @@ Route::prefix('api/v1/recompensas')->middleware(['web', 'auth', 'session.active'
 
 Route::middleware(['web', 'auth', 'session.active', 'device.track', ResolvePlatformActor::class])->prefix('recompensas')->group(function () {
     Route::get('/', function (Request $r) {
-        $role = $r->attributes->get('platform_actor')->role;
-
-        return redirect('/recompensas/'.match ($role) {
-            'admin' => 'admin','professor' => 'profesor',default => 'alumno'
+        return redirect('/recompensas/'.match ($r->attributes->get('platform_actor')->area()) {
+            'admin' => 'admin', 'professor' => 'profesor', default => 'alumno'
         });
     })->name('platform.home');
     Route::get('/alumno', fn (Request $r) => Inertia::render('Platform/student/StudentDashboard', ['platformActor' => $r->attributes->get('platform_actor')->toArray()]));
@@ -170,6 +173,7 @@ Route::middleware(['web', 'auth', 'session.active', 'device.track', ResolvePlatf
     Route::get('/admin', fn (Request $r) => Inertia::render('Platform/admin/AdminDashboard', ['platformActor' => $r->attributes->get('platform_actor')->toArray()]))->middleware(EnsurePlatformPermission::class.':analytics.view');
     Route::get('/admin/ledger', fn (Request $r) => Inertia::render('Platform/admin/AdminLedger', ['platformActor' => $r->attributes->get('platform_actor')->toArray()]))->middleware(EnsurePlatformPermission::class.':points.view_any');
     Route::get('/admin/negocios', fn (Request $r) => Inertia::render('Platform/admin/AdminBusinesses', ['platformActor' => $r->attributes->get('platform_actor')->toArray()]))->middleware(EnsurePlatformPermission::class.':businesses.view');
+    Route::get('/admin/campanas', fn (Request $r) => Inertia::render('Platform/admin/AdminCampaigns', ['platformActor' => $r->attributes->get('platform_actor')->toArray()]))->middleware(EnsurePlatformPermission::class.':rules.view');
     Route::get('/admin/reglas', fn (Request $r) => Inertia::render('Platform/admin/AdminRules', ['platformActor' => $r->attributes->get('platform_actor')->toArray()]))->middleware(EnsurePlatformPermission::class.':rules.view');
     Route::get('/admin/catalogo', fn (Request $r) => Inertia::render('Platform/admin/AdminCatalog', ['platformActor' => $r->attributes->get('platform_actor')->toArray()]))->middleware(EnsurePlatformPermission::class.':rewards.manage');
     Route::get('/admin/canjes', fn (Request $r) => Inertia::render('Platform/admin/AdminRedemptions', ['platformActor' => $r->attributes->get('platform_actor')->toArray()]))->middleware(EnsurePlatformPermission::class.':redemptions.view_all');

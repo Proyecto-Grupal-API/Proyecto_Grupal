@@ -143,7 +143,7 @@ class BookingService
 
         if ($now->lessThan($window['opens_at'])) {
             throw new RuntimeException(
-                "Aún no inicia la ventana de check-in (a partir de las {$window['opens_at']->format('H:i')} del {$window['opens_at']->format('d/m/Y')})."
+                "Aún no inicia la ventana de check-in (a partir de las ".\App\Services\StudentServices\ServiceClock::local($window['opens_at'])->format('H:i')." del ".\App\Services\StudentServices\ServiceClock::local($window['opens_at'])->format('d/m/Y').")."
             );
         }
 
@@ -151,7 +151,7 @@ class BookingService
             $this->markNoShow($type, $booking, $resource);
 
             throw new RuntimeException(
-                "La tolerancia de llegada terminó a las {$window['closes_at']->format('H:i')}; la reserva se marcó como no-show."
+                "La tolerancia de llegada terminó a las ".\App\Services\StudentServices\ServiceClock::local($window['closes_at'])->format('H:i')."; la reserva se marcó como no-show."
             );
         }
 

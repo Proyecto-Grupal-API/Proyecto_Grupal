@@ -37,8 +37,14 @@ final class PlatformActor
         return in_array($permission, $this->permissions(), true);
     }
 
+    /** Área de la interfaz que le corresponde: student, professor o admin. */
+    public function area(): string
+    {
+        return (string) (config('platform_permissions.home_area.'.$this->role) ?? 'student');
+    }
+
     public function toArray(): array
     {
-        return ['id' => $this->id, 'name' => $this->name, 'role' => $this->role, 'permissions' => $this->permissions()];
+        return ['id' => $this->id, 'name' => $this->name, 'role' => $this->role, 'area' => $this->area(), 'permissions' => $this->permissions()];
     }
 }

@@ -3,16 +3,16 @@
 namespace App\Providers;
 
 use App\Domains\Financial\Adapters\CashShiftReconciliationSource;
+use App\Domains\Financial\Adapters\CommunityCashAuthorizationProvider;
+use App\Domains\Financial\Adapters\ConfiguredFinancialWebAuthorizer;
 use App\Domains\Financial\Adapters\Module1IdentityAdapter;
 use App\Domains\Financial\Adapters\Module1TransferAccountAdapter;
 use App\Domains\Financial\Adapters\Module1TransferRecipientAdapter;
 use App\Domains\Financial\Adapters\Module1TransferSessionContextAdapter;
 use App\Domains\Financial\Adapters\PendingBonusAuthorizationProvider;
-use App\Domains\Financial\Adapters\CommunityCashAuthorizationProvider;
 use App\Domains\Financial\Adapters\PendingFinancialRoleProvider;
-use App\Domains\Financial\Adapters\PendingFinancialWebAuthorizer;
-use App\Domains\Financial\Adapters\PersonalWalletTransferAuthorization;
 use App\Domains\Financial\Adapters\PendingTransferDelegationProvider;
+use App\Domains\Financial\Adapters\PersonalWalletTransferAuthorization;
 use App\Domains\Financial\Contracts\BonusAuthorizationProvider;
 use App\Domains\Financial\Contracts\CashAuthorizationProvider;
 use App\Domains\Financial\Contracts\CashReconciliationSource;
@@ -51,8 +51,10 @@ class FinancialServiceProvider extends ServiceProvider
             PersonalWalletTransferAuthorization::class);
         $this->app->bind(BonusAuthorizationProvider::class,
             PendingBonusAuthorizationProvider::class);
+        // Controles financieros web: roles de Identidad declarados por instalación en `financial.access`
+        // (vacío = se deniega a todos, como hasta ahora). Las demás acciones siguen denegadas.
         $this->app->bind(FinancialWebAuthorizer::class,
-            PendingFinancialWebAuthorizer::class);
+            ConfiguredFinancialWebAuthorizer::class);
         $this->app->bind(CashAuthorizationProvider::class,
             CommunityCashAuthorizationProvider::class);
         $this->app->bind(FinancialRoleProvider::class, PendingFinancialRoleProvider::class);

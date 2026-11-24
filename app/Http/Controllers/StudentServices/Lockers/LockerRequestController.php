@@ -198,17 +198,9 @@ class LockerRequestController extends Controller
 
                             'can_reconcile_payment' => $this->financePayments->canReconcile($lockerRequest, $userId),
 
-                            'paid_at' => $lockerRequest
-                                ->paid_at
-                                ?->format(
-                                    'Y-m-d H:i'
-                                ),
+                            'paid_at' => \App\Services\StudentServices\ServiceClock::localOrNull($lockerRequest->paid_at)?->format('Y-m-d H:i'),
 
-                            'created_at' => $lockerRequest
-                                ->created_at
-                                ?->format(
-                                    'Y-m-d H:i'
-                                ),
+                            'created_at' => \App\Services\StudentServices\ServiceClock::localOrNull($lockerRequest->created_at)?->format('Y-m-d H:i'),
 
                             'notes' => $lockerRequest
                                 ->notes,

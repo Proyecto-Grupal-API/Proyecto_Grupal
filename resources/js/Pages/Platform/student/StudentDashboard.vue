@@ -7,6 +7,9 @@ import StatCard from '@/Platform/components/ui/StatCard.vue'
 import StatusBadge from '@/Platform/components/ui/StatusBadge.vue'
 import { studentDashboardInitial } from '@/Platform/initialState.js'
 import { api } from '@/Platform/services/api.js'
+import { useRole } from '@/Platform/composables/useRole.js'
+
+const { currentUser } = useRole()
 
 const router = useRouter()
 const data = ref({ ...studentDashboardInitial })
@@ -57,6 +60,7 @@ onMounted(() => {
         <h1 class="page-title">Recompensas</h1>
         <div class="page-subtitle">Panel del alumno</div>
         <p class="page-desc">Acumula puntos, participa en campañas y canjea recompensas.</p>
+        <p class="page-desc" style="font-size:12px">Tu identificador de recompensas: <code data-id-recompensas style="font-weight:700;user-select:all">{{ currentUser.id }}</code>. Díctalo en caja para que tus compras acumulen puntos.</p>
       </div>
     </div>
 

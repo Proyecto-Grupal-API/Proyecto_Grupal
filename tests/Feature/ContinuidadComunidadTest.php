@@ -45,7 +45,7 @@ class ContinuidadComunidadTest extends TestCase
     {
         foreach ([['fecha_inicio' => today()->subMonth(), 'fecha_fin' => today()->addMonth()], ['fecha_inicio' => today()->addDay(), 'fecha_fin' => today()->addMonth()], ['fecha_inicio' => today()->subMonth(), 'fecha_fin' => today()->subDay()]] as $periodo) {
             $this->cargo()->update($periodo);
-            $this->actingAs($this->presidente)->from('/profile')->delete('/profile', ['password' => 'CampusDemo2026!'])->assertRedirect('/profile')->assertSessionHasErrors('password');
+            $this->actingAs($this->presidente)->from('/profile')->delete('/profile', ['password' => config('demo.password')])->assertRedirect('/profile')->assertSessionHasErrors('password');
             $this->assertAuthenticatedAs($this->presidente);
             $this->assertNotNull($this->presidente->fresh());
             $this->assertNull($this->cargo()->eliminado_en);
@@ -56,7 +56,7 @@ class ContinuidadComunidadTest extends TestCase
     {
         $rol = RolOrganizacion::create(['organizacion_id' => (string) $this->org->id, 'usuario_id' => (string) $this->estudiante->id, 'slug_rol' => 'comunicacion', 'fecha_inicio' => today()]);
         $staff = StaffEvento::create(['organizacion_id' => (string) $this->org->id, 'usuario_id' => (string) $this->estudiante->id, 'evento_id' => 'evento-prueba']);
-        $this->actingAs($this->estudiante)->delete('/profile', ['password' => 'CampusDemo2026!'])->assertRedirect('/')->assertSessionHasNoErrors();
+        $this->actingAs($this->estudiante)->delete('/profile', ['password' => config('demo.password')])->assertRedirect('/')->assertSessionHasNoErrors();
         $this->assertGuest();
         $this->assertNull(User::find($this->estudiante->id));
         $this->assertTrue(User::withTrashed()->findOrFail($this->estudiante->id)->trashed());

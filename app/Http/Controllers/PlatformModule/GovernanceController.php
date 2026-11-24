@@ -3,15 +3,19 @@
 namespace App\Http\Controllers\PlatformModule;
 
 use App\Models\PlatformModule\AuditCorrelation;
+use App\Models\PlatformModule\EarningRule;
 use App\Models\PlatformModule\FraudFlag;
 use App\Models\PlatformModule\PointsAccount;
 use App\Models\PlatformModule\PointsLedger;
 use App\Models\PlatformModule\PointsPolicy;
 use App\Services\PlatformModule\PlatformAuditTrail;
+use App\Services\PlatformModule\PointsGovernance;
+use App\Services\StudentStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class GovernanceController
 {
@@ -28,6 +32,41 @@ class GovernanceController
     /**
      * Creación de política de gobierno de puntos.
      */
+    /** Indicadores reales de gobierno (7.6): nada de cifras fijas en la pantalla. */
+    public function summary(): JsonResponse
+    {
+        $governance = app(PointsGovernance::class);
+        $ledgerTotals = [];
+        $ledger = DB::connection('platform')->getCollection((new PointsLedger)->getTable());
+        foreach ($ledger->aggregate([['$group' => ['_id' => '$student_id', 'total' => ['$sum' => '$amount']]]]) as $row) {
+            $ledgerTotals[(string) $row['_id']] = (int) $row['total'];
+        }
+        $accounts = PointsAccount::all();
+        // Una cuenta cuadra cuando su saldo es max(0, ledger) y su pendiente max(0, -ledger).
+        $outOfBalance = $accounts->filter(function (PointsAccount $a) use ($ledgerTotals) {
+            $sum = $ledgerTotals[(string) $a->student_id] ?? 0;
+
+            return (int) $a->balance !== max(0, $sum) || (int) $a->pending_balance !== max(0, -$sum);
+        })->count();
+
+        return response()->json([
+            'policies_total' => PointsPolicy::count(),
+            'policies_active' => PointsPolicy::where('status', 'active')->count(),
+            'effective_daily_cap_points' => $governance->dailyCapPoints(),
+            'effective_max_redemptions_per_day' => $governance->maxRedemptionsPerDay(),
+            'rules_with_daily_cap' => EarningRule::where('daily_cap', '>', 0)->count(),
+            'rules_with_operation_cap' => EarningRule::where('max_points_per_operation', '>', 0)->count(),
+            'fraud_open' => FraudFlag::where('status', 'open')->count(),
+            'fraud_total' => FraudFlag::count(),
+            'accounts_total' => $accounts->count(),
+            'accounts_with_pending_balance' => $accounts->filter(fn (PointsAccount $a) => (int) $a->pending_balance !== 0)->count(),
+            'pending_balance_total' => (int) $accounts->sum('pending_balance'),
+            // Conciliación: cuentas cuyo saldo guardado no coincide con la suma de su ledger.
+            'accounts_out_of_balance' => $outOfBalance,
+            'ledger_entries' => PointsLedger::count(),
+        ]);
+    }
+
     public function storePolicy(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -164,6 +203,12 @@ class GovernanceController
 
         $user = $request->attributes->get('platform_actor');
         $studentId = $validated['student_id'];
+        // Los puntos pertenecen a un alumno: Identidad (1.8) confirma que la cuenta existe y tiene perfil de estudiante.
+        try {
+            app(StudentStatusService::class)->forUserId($studentId);
+        } catch (\Throwable $e) {
+            throw ValidationException::withMessages(['student_id' => 'El identificador no corresponde a un alumno registrado.']);
+        }
         $amount = (int) $validated['amount'];
         $idempotencyKey = $validated['idempotency_key'] ?? (string) Str::uuid();
 
@@ -202,7 +247,7 @@ class GovernanceController
             );
 
             if ($amount > 0) {
-                $account->increment('balance', $amount);
+                $account->credit($amount);
                 $account->increment('lifetime_earned', $amount);
             } else {
                 $account->decrement('balance', abs($amount));

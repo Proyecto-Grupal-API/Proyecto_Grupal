@@ -11,12 +11,16 @@ use App\Services\StudentServices\Calendars\BookableResources;
 use App\Services\StudentServices\Calendars\BookingService;
 use App\Services\StudentServices\Calendars\BookingStatus;
 use App\Services\StudentServices\Calendars\CalendarRuleChecker;
+use App\Services\StudentServices\Reservations\ReservationPayment;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class FacilityController extends Controller
 {
+    /** @var array<string, int> costo vigente de cada instalación, para las reservas anteriores al estado de pago */
+    private array $facilityCosts = [];
+
     public function __construct(
         private AvailabilityService $availability,
         private BookingService $bookings,
@@ -51,6 +55,9 @@ class FacilityController extends Controller
         $facilityNames = $facilityModels->mapWithKeys(
             fn (Facility $facility): array => [(string) $facility->id => $facility->name]
         );
+        $this->facilityCosts = $facilityModels->mapWithKeys(
+            fn (Facility $facility): array => [(string) $facility->id => (int) $facility->cost_cents]
+        )->all();
 
         $reservations = Reservation::query()
             ->where('student_id', $studentId)
@@ -103,6 +110,7 @@ class FacilityController extends Controller
     {
         $facilityId = (string) $reservation->facility_id;
         $facilityRules = $rules[$facilityId] ?? BookableResources::definition(BookableResources::FACILITY)['defaults'];
+        $facilityCost = $this->facilityCosts[$facilityId] ?? null;
 
         $canCancel = $reservation->status === BookingStatus::WAITLISTED
             || ($reservation->status === BookingStatus::CONFIRMED
@@ -116,6 +124,9 @@ class FacilityController extends Controller
             'start_at' => $reservation->start_at->toIso8601String(),
             'end_at' => $reservation->end_at->toIso8601String(),
             'status' => $reservation->status,
+            'status_label' => ReservationPayment::label($reservation, $facilityCost),
+            'cost_cents' => ReservationPayment::costCents($reservation, $facilityCost),
+            'payment_status' => ReservationPayment::status($reservation, $facilityCost),
             'waitlist_position' => $this->availability->waitlistPosition(BookableResources::FACILITY, $reservation),
             'can_cancel' => $canCancel,
             'cancellation_reason' => $reservation->cancellation_reason,

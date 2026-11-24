@@ -38,14 +38,47 @@ class AlertGeneratorService
         return 'HIGH';
     }
 
-    public function syncOne(string $productId, string $locationId): void
-    {
-        $rule = ReorderRule::where('business_id', $this->businessId())
-            ->where('product_id', $productId)
-            ->where('location_id', $locationId)
-            ->where('active', true)
-            ->first();
+    private const PRIORITY_RANK = ['LOW' => 0, 'HIGH' => 1, 'CRITICAL' => 2];
 
+    /**
+     * Un descarte silencia la condición de stock bajo de ese producto y ubicación mientras
+     * siga siendo la misma: no se vuelve a avisar hasta que la existencia se recupere por
+     * encima del punto de reorden (episodio nuevo) o la situación empeore de prioridad.
+     */
+    private function silencedBy(\MongoDB\Collection $alerts, string $productId, string $locationId, string $priority): bool
+    {
+        $dismissed = $alerts->findOne([
+            'business_id' => $this->businessId(),
+            'product_id' => $productId,
+            'location_id' => $locationId,
+            'status' => 'DISMISSED',
+            'condition_cleared_at' => null,
+        ], ['sort' => ['dismissed_at' => -1, '_id' => -1]]);
+
+        if ($dismissed === null) {
+            return false;
+        }
+
+        $dismissedRank = self::PRIORITY_RANK[(string) ($dismissed['priority'] ?? '')] ?? 0;
+
+        return (self::PRIORITY_RANK[$priority] ?? 0) <= $dismissedRank;
+    }
+
+    /** La existencia volvió a estar por encima del punto de reorden: los descartes previos dejan de aplicar. */
+    private function clearSilences(\MongoDB\Collection $alerts, string $productId, string $locationId): void
+    {
+        $alerts->updateMany([
+            'business_id' => $this->businessId(),
+            'product_id' => $productId,
+            'location_id' => $locationId,
+            'status' => 'DISMISSED',
+            'condition_cleared_at' => null,
+        ], ['$set' => ['condition_cleared_at' => new \MongoDB\BSON\UTCDateTime(now())]]);
+    }
+
+    /** @return 'created'|'updated'|'resolved'|'silenced'|null */
+    private function evaluate(string $productId, string $locationId, bool $productActive, int $available, int $reorderPoint, int $minQty): ?string
+    {
         $alertsCollection = DB::connection('inventory')->getCollection('stock_alerts');
 
         $existing = $alertsCollection->findOne([
@@ -55,16 +88,80 @@ class AlertGeneratorService
             'status' => 'ACTIVE',
         ]);
 
-        if (!$rule) {
-            if ($existing) {
-                $alertsCollection->updateOne(
-                    ['_id' => $existing['_id']],
-                    ['$set' => [
-                        'status' => 'RESOLVED',
-                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                    ]]
-                );
+        if ($available >= $reorderPoint) {
+            $this->clearSilences($alertsCollection, $productId, $locationId);
+            if (! $existing) {
+                return null;
             }
+            $alertsCollection->updateOne(
+                ['_id' => $existing['_id']],
+                ['$set' => [
+                    'status' => 'RESOLVED',
+                    'current_qty' => $available,
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                ]]
+            );
+
+            return 'resolved';
+        }
+
+        $priority = $this->calculatePriority($productActive, $available, $minQty, $reorderPoint);
+
+        $message = sprintf(
+            '%s: %d disponibles (reorden en %d, mínimo %d)',
+            $productActive ? 'Stock bajo' : 'Producto inactivo con stock bajo',
+            $available,
+            $reorderPoint,
+            $minQty
+        );
+
+        if ($existing) {
+            $alertsCollection->updateOne(
+                ['_id' => $existing['_id']],
+                ['$set' => [
+                    'current_qty' => $available,
+                    'threshold' => $reorderPoint,
+                    'priority' => $priority,
+                    'message' => $message,
+                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                ]]
+            );
+
+            return 'updated';
+        }
+
+        if ($this->silencedBy($alertsCollection, $productId, $locationId, $priority)) {
+            return 'silenced';
+        }
+
+        $alertsCollection->insertOne([
+            '_id' => new ObjectId(),
+            'business_id' => $this->businessId(),
+            'product_id' => $productId,
+            'location_id' => $locationId,
+            'type' => 'LOW_STOCK',
+            'current_qty' => $available,
+            'threshold' => $reorderPoint,
+            'priority' => $priority,
+            'status' => 'ACTIVE',
+            'message' => $message,
+            'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
+            'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
+        ]);
+
+        return 'created';
+    }
+
+    public function syncOne(string $productId, string $locationId): void
+    {
+        $rule = ReorderRule::where('business_id', $this->businessId())
+            ->where('product_id', $productId)
+            ->where('location_id', $locationId)
+            ->where('active', true)
+            ->first();
+
+        if (!$rule) {
+            $this->resolveFor($productId, $locationId);
             return;
         }
 
@@ -72,67 +169,19 @@ class AlertGeneratorService
             ->where('business_id', $this->businessId())
             ->first();
 
-        $productActive = $product ? (bool) $product->active : true;
-
         $inventory = Inventory::where('business_id', $this->businessId())
             ->where('product_id', $productId)
             ->where('location_id', $locationId)
             ->first();
 
-        $available = $inventory ? (int) $inventory->available : 0;
-        $reorderPoint = (int) $rule->reorder_point;
-        $minQty = (int) $rule->min_qty;
-
-        if ($available < $reorderPoint) {
-            $priority = $this->calculatePriority($productActive, $available, $minQty, $reorderPoint);
-
-            $message = sprintf(
-                '%s: %d disponibles (reorden en %d, mínimo %d)',
-                $productActive ? 'Stock bajo' : 'Producto inactivo con stock bajo',
-                $available,
-                $reorderPoint,
-                $minQty
-            );
-
-            if ($existing) {
-                $alertsCollection->updateOne(
-                    ['_id' => $existing['_id']],
-                    ['$set' => [
-                        'current_qty' => $available,
-                        'threshold' => $reorderPoint,
-                        'priority' => $priority,
-                        'message' => $message,
-                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                    ]]
-                );
-            } else {
-                $alertsCollection->insertOne([
-                    '_id' => new ObjectId(),
-                    'business_id' => $this->businessId(),
-                    'product_id' => $productId,
-                    'location_id' => $locationId,
-                    'type' => 'LOW_STOCK',
-                    'current_qty' => $available,
-                    'threshold' => $reorderPoint,
-                    'priority' => $priority,
-                    'status' => 'ACTIVE',
-                    'message' => $message,
-                    'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                    'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                ]);
-            }
-        } else {
-            if ($existing) {
-                $alertsCollection->updateOne(
-                    ['_id' => $existing['_id']],
-                    ['$set' => [
-                        'status' => 'RESOLVED',
-                        'current_qty' => $available,
-                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                    ]]
-                );
-            }
-        }
+        $this->evaluate(
+            $productId,
+            $locationId,
+            $product ? (bool) $product->active : true,
+            $inventory ? (int) $inventory->available : 0,
+            (int) $rule->reorder_point,
+            (int) $rule->min_qty
+        );
     }
 
     public function resolveFor(string $productId, string $locationId): void
@@ -153,7 +202,7 @@ class AlertGeneratorService
 
     public function generate(): array
     {
-        $stats = ['created' => 0, 'updated' => 0, 'resolved' => 0];
+        $stats = ['created' => 0, 'updated' => 0, 'resolved' => 0, 'silenced' => 0];
 
         $rules = ReorderRule::where('business_id', $this->businessId())
             ->where('active', true)
@@ -164,92 +213,29 @@ class AlertGeneratorService
             ->keyBy(fn($p) => (string) $p->_id);
 
         $inventoryMap = [];
-        $allInventory = Inventory::where('business_id', $this->businessId())->get();
-        foreach ($allInventory as $inv) {
-            $pid = (string) $inv->product_id;
-            $lid = (string) $inv->location_id;
-            if (!isset($inventoryMap[$pid])) {
-                $inventoryMap[$pid] = [];
-            }
-            $inventoryMap[$pid][$lid] = (int) $inv->available;
+        foreach (Inventory::where('business_id', $this->businessId())->get() as $inv) {
+            $inventoryMap[(string) $inv->product_id][(string) $inv->location_id] = (int) $inv->available;
         }
-
-        $alertsCollection = DB::connection('inventory')->getCollection('stock_alerts');
 
         foreach ($rules as $rule) {
             $productId = (string) $rule->product_id;
             $locationId = (string) $rule->location_id;
-            $reorderPoint = (int) $rule->reorder_point;
-            $minQty = (int) $rule->min_qty;
 
             if (!$productsMap->has($productId)) {
                 continue;
             }
 
-            $product = $productsMap->get($productId);
-            $productActive = (bool) $product->active;
+            $result = $this->evaluate(
+                $productId,
+                $locationId,
+                (bool) $productsMap->get($productId)->active,
+                $inventoryMap[$productId][$locationId] ?? 0,
+                (int) $rule->reorder_point,
+                (int) $rule->min_qty
+            );
 
-            $available = $inventoryMap[$productId][$locationId] ?? 0;
-
-            $existing = $alertsCollection->findOne([
-                'business_id' => $this->businessId(),
-                'product_id' => $productId,
-                'location_id' => $locationId,
-                'status' => 'ACTIVE',
-            ]);
-
-            if ($available < $reorderPoint) {
-                $priority = $this->calculatePriority($productActive, $available, $minQty, $reorderPoint);
-
-                $message = sprintf(
-                    '%s: %d disponibles (reorden en %d, mínimo %d)',
-                    $productActive ? 'Stock bajo' : 'Producto inactivo con stock bajo',
-                    $available,
-                    $reorderPoint,
-                    $minQty
-                );
-
-                if ($existing) {
-                    $alertsCollection->updateOne(
-                        ['_id' => $existing['_id']],
-                        ['$set' => [
-                            'current_qty' => $available,
-                            'threshold' => $reorderPoint,
-                            'priority' => $priority,
-                            'message' => $message,
-                            'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                        ]]
-                    );
-                    $stats['updated']++;
-                } else {
-                    $alertsCollection->insertOne([
-                        '_id' => new ObjectId(),
-                        'business_id' => $this->businessId(),
-                        'product_id' => $productId,
-                        'location_id' => $locationId,
-                        'type' => 'LOW_STOCK',
-                        'current_qty' => $available,
-                        'threshold' => $reorderPoint,
-                        'priority' => $priority,
-                        'status' => 'ACTIVE',
-                        'message' => $message,
-                        'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                        'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                    ]);
-                    $stats['created']++;
-                }
-            } else {
-                if ($existing) {
-                    $alertsCollection->updateOne(
-                        ['_id' => $existing['_id']],
-                        ['$set' => [
-                            'status' => 'RESOLVED',
-                            'current_qty' => $available,
-                            'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                        ]]
-                    );
-                    $stats['resolved']++;
-                }
+            if ($result !== null) {
+                $stats[$result]++;
             }
         }
 

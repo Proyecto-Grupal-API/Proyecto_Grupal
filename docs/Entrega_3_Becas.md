@@ -70,7 +70,7 @@ docker compose exec --user sail laravel.test npm run build
 
 El seeder opcional y repetible crea un bono de alimentación de $800 del Consejo y 100 impresiones de Sistemas, con dos beneficiarios cada uno. No reinicia fechas ni cambios manuales. Crear nuevas convocatorias para demostraciones posteriores.
 
-Todas las cuentas de demostración usan `CampusDemo2026!`:
+Todas las cuentas de demostración usan la del archivo privado de la instalación (clave `CAMPUS_DEMO_PASSWORD`):
 
 1. Como `estudiante@campus.test` o `andrea@campus.test`, iniciar solicitud, escribir motivo, adjuntar documentos de prueba y enviar.
 2. Como `consejo@campus.test` para el bono o `presidencia@campus.test` para impresiones, cerrar recepción y abrir Revisar solicitudes.

@@ -43,7 +43,7 @@ test('dry run has no persistence or catalog side effects and is the command defa
     expect($report['mode'])->toBe('DRY_RUN')->and($report['assignments_to_create'])->toBe(1)
         ->and($report['created'])->toBe(0)->and(RoleAssignment::count())->toBe(0)
         ->and(BusinessMembership::count())->toBe(0)->and($user->fresh()->getAttributes())->toEqual($before)
-        ->and(Role::count())->toBe(16)->and(Permission::count())->toBe(8)->and(RolePermission::count())->toBe(13);
+        ->and(Role::count())->toBe(16)->and(Permission::count())->toBe(9)->and(RolePermission::count())->toBe(14);
     // The pre-backfill parity mismatch is reported, not hidden with a legacy fallback.
     $this->artisan('identity:backfill-role-assignments')->assertFailed();
     expect(RoleAssignment::count())->toBe(0);
@@ -284,7 +284,7 @@ test('permission catalog cannot grant legacy roles and new roles remain nonassig
     foreach (Role::NEW_ROLES as $role) {
         expect(fn () => $user->assignRole($role))->toThrow(InvalidArgumentException::class);
     }
-    expect($user->fresh()->roles)->toBe([])->and(Permission::count())->toBe(8)->and(RolePermission::count())->toBe(13);
+    expect($user->fresh()->roles)->toBe([])->and(Permission::count())->toBe(9)->and(RolePermission::count())->toBe(14);
 });
 
 test('storage rejection is not reported as successful migration and rerun can resume', function () {

@@ -7,6 +7,7 @@ use App\Models\AcademicProgram;
 use App\Models\Campus;
 use App\Models\Role;
 use App\Models\User;
+use Database\Seeders\Demo\DemoPassword;
 use Illuminate\Database\Seeder;
 
 class IntegracionEquipo1Seeder extends Seeder
@@ -16,8 +17,9 @@ class IntegracionEquipo1Seeder extends Seeder
         if (! app()->environment(['local', 'testing'])) {
             throw new \RuntimeException('La demostración integrada solo puede prepararse en local/testing.');
         }
+        $password = DemoPassword::value();   // de la configuración privada; se comprueba antes de sembrar nada
         $this->call([AuthorizationFoundationSeeder::class, DatabaseSeeder::class, EventoSeeder::class, BecaSeeder::class, ComunicacionSeeder::class, ParticipacionSeeder::class, ReporteSeeder::class, StaffEventoSeeder::class, GestionOrganizacionesSeeder::class]);
-        $admin = User::firstOrCreate(['email' => 'identidad@campus.test'], ['name' => 'Administración Identidad', 'password' => 'CampusDemo2026!', 'email_verified_at' => now()]);
+        $admin = User::firstOrCreate(['email' => 'identidad@campus.test'], ['name' => 'Administración Identidad', 'password' => $password, 'email_verified_at' => now()]);
         $admin->assignRole(Role::ADMIN);
         $campus = Campus::where('code', 'CENTRAL')->firstOrFail();
         $program = AcademicProgram::where('code', 'ISC')->firstOrFail();

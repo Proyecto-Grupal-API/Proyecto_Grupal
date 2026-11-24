@@ -21,6 +21,8 @@ class WebhookEvent extends Model
         'retry_count',
         'next_retry_at',
         'processed_at',
+        'detail',
+        'reference',
     ];
 
     protected $casts = [

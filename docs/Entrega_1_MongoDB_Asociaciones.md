@@ -32,7 +32,7 @@ En esta entrega las sesiones y la caché se guardan en archivos, y las tareas se
 
 ## Cuentas de demostración
 
-Contraseña local para las cuatro cuentas: `CampusDemo2026!`.
+Contraseña local para las cuatro cuentas: la del archivo privado de la instalación (clave `CAMPUS_DEMO_PASSWORD`).
 
 | Correo | Matrícula | Uso |
 | --- | --- | --- |

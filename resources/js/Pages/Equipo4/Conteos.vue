@@ -73,13 +73,15 @@ const openCaptureModal = async (row) => {
   try {
     const response = await fetch(`/equipo4/conteos/${row._id}/details`, { headers: { 'Accept': 'application/json' } })
     const data = await response.json()
-    captureItems.value = data.items.map(i => ({ ...i, counted_qty_input: i.counted_qty || 0 }))
+    // Una partida sin capturar queda vacía: sólo lo que se cuenta se envía y se ajusta.
+    captureItems.value = data.items.map(i => ({ ...i, counted_qty_input: i.captured ? i.counted_qty : '' }))
   } catch (e) { console.error(e) } finally { loadingCapture.value = false }
 }
 
 const saveCapture = () => {
   if (!selectedCount.value || !canCapture.value) return
-  const items = captureItems.value.map(i => ({ item_id: i._id, counted_qty: Number(i.counted_qty_input) || 0 }))
+  const items = captureItems.value.filter(isCounted).map(i => ({ item_id: i._id, counted_qty: Number(i.counted_qty_input) }))
+  if (items.length === 0) { alert('Captura al menos una partida antes de guardar.'); return }
   router.post(`/equipo4/conteos/${selectedCount.value._id}/capture`, { items }, {
     preserveScroll: true,
     onFinish: () => { showCaptureModal.value = false; selectedCount.value = null }
@@ -89,7 +91,9 @@ const saveCapture = () => {
 const closeCount = () => {
   if (!selectedCount.value || !canClose.value) return
   const alerts = captureItems.value.filter(i => hasAlert(i) !== null).length
+  const pending = captureItems.value.filter(i => !i.captured).length
   let msg = `¿Cerrar el conteo ${selectedCount.value.folio} y aplicar los ajustes?`
+  if (pending > 0) msg += ` ${pending} partida(s) sin captura guardada quedarán sin cambio.`
   if (alerts > 0) msg = `⚠️ Hay ${alerts} diferencia(s) sospechosa(s). ¿Seguro que quieres cerrar?`
   if (!confirm(msg)) return
   router.post(`/equipo4/conteos/${selectedCount.value._id}/close`, {}, {
@@ -121,9 +125,11 @@ const deleteCount = () => {
   })
 }
 
-const calculatedDifference = (item) => (Number(item.counted_qty_input) || 0) - item.expected_qty
+const isCounted = (item) => item.counted_qty_input !== '' && item.counted_qty_input !== null && item.counted_qty_input !== undefined && !Number.isNaN(Number(item.counted_qty_input))
+const calculatedDifference = (item) => isCounted(item) ? Number(item.counted_qty_input) - item.expected_qty : 0
 
 const hasAlert = (item) => {
+  if (!isCounted(item)) return null
   const counted = Number(item.counted_qty_input) || 0
   const expected = item.expected_qty || 0
   const stockMax = item.stock_max || 0
@@ -228,6 +234,7 @@ const alertText = (item) => {
                   <tr>
                     <th class="px-3 py-2 text-left">SKU</th>
                     <th class="px-3 py-2 text-left">Producto</th>
+                    <th class="px-3 py-2 text-left">Ubicación</th>
                     <th class="px-3 py-2 text-right w-24">Esperado</th>
                     <th class="px-3 py-2 text-right w-24">Stock máx</th>
                     <th class="px-3 py-2 text-right w-32">Contado</th>
@@ -239,19 +246,20 @@ const alertText = (item) => {
                   <tr v-for="item in captureItems" :key="item._id" :class="alertClass(item)">
                     <td class="px-3 py-2 font-mono text-xs">{{ item.product_sku }}</td>
                     <td class="px-3 py-2">{{ item.product_name }}</td>
+                    <td class="px-3 py-2 text-xs text-slate-600">{{ item.location_name || '—' }}</td>
                     <td class="px-3 py-2 text-right text-slate-600">{{ item.expected_qty }}</td>
                     <td class="px-3 py-2 text-right text-slate-400 text-xs">{{ item.stock_max }}</td>
                     <td class="px-3 py-2">
-                      <input v-model.number="item.counted_qty_input" type="number" min="0" :disabled="!canCapture" class="w-full px-2 py-1 text-xs rounded border border-slate-300 text-right disabled:bg-slate-50" />
+                      <input v-model="item.counted_qty_input" type="number" min="0" placeholder="Sin contar" :aria-label="`Contado ${item.product_sku} ${item.location_name || ''}`" :disabled="!canCapture" class="w-full px-2 py-1 text-xs rounded border border-slate-300 text-right disabled:bg-slate-50" />
                     </td>
-                    <td class="px-3 py-2 text-right font-semibold" :class="calculatedDifference(item) === 0 ? 'text-emerald-600' : 'text-rose-600'">
-                      {{ calculatedDifference(item) > 0 ? '+' : '' }}{{ calculatedDifference(item) }}
+                    <td class="px-3 py-2 text-right font-semibold" :class="!isCounted(item) ? 'text-slate-400' : calculatedDifference(item) === 0 ? 'text-emerald-600' : 'text-rose-600'">
+                      <template v-if="isCounted(item)">{{ calculatedDifference(item) > 0 ? '+' : '' }}{{ calculatedDifference(item) }}</template><template v-else>—</template>
                     </td>
                     <td class="px-3 py-2 text-xs">
                       <span v-if="alertText(item)" :class="hasAlert(item) === 'critical' ? 'text-rose-700 font-bold' : 'text-amber-700 font-semibold'">{{ alertText(item) }}</span>
                     </td>
                   </tr>
-                  <tr v-if="captureItems.length === 0"><td colspan="7" class="px-3 py-4 text-center text-xs text-slate-500">Sin items.</td></tr>
+                  <tr v-if="captureItems.length === 0"><td colspan="8" class="px-3 py-4 text-center text-xs text-slate-500">Sin items.</td></tr>
                 </tbody>
               </table>
             </div>

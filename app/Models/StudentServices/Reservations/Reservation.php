@@ -41,6 +41,8 @@ class Reservation extends Model
         'end_at',
         'status',
         'idempotency_key',
+        'cost_cents',
+        'payment_status',
         'waitlisted_at',
         'promoted_at',
         'checked_in_at',
@@ -56,6 +58,7 @@ class Reservation extends Model
     {
         return [
             'start_at' => 'datetime',
+            'cost_cents' => 'integer',
             'end_at' => 'datetime',
             'waitlisted_at' => 'datetime',
             'promoted_at' => 'datetime',

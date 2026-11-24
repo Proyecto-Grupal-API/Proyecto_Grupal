@@ -506,6 +506,34 @@ function cancelOrder(order: ServiceOrder) {
     );
 }
 
+function markReady(order: ServiceOrder) {
+    processingOrderId.value = order.id;
+
+    router.patch(
+        `/servicios-estudiante/servicios-impresiones/${order.id}/listo`,
+        {},
+        {
+            preserveScroll: true,
+
+            onSuccess: () => {
+                window.alert('Solicitud marcada como lista para recoger.');
+            },
+
+            onError: (errors) => {
+                window.alert(
+                    String(
+                        errors.order ?? 'No fue posible marcar la solicitud como lista.',
+                    ),
+                );
+            },
+
+            onFinish: () => {
+                processingOrderId.value = null;
+            },
+        },
+    );
+}
+
 function markDelivered(order: ServiceOrder) {
     if (order.status !== 'ready') {
         return;
@@ -1026,6 +1054,19 @@ function markDelivered(order: ServiceOrder) {
                                         @click="payWithScholarship(order)"
                                     >
                                         Usar beca
+                                    </button>
+
+                                    <button
+                                        v-if="isStaff() && order.status === 'processing'"
+                                        type="button"
+                                        class="action-button deliver"
+                                        data-accion="marcar-lista"
+                                        :disabled="
+                                            processingOrderId === order.id
+                                        "
+                                        @click="markReady(order)"
+                                    >
+                                        Marcar lista
                                     </button>
 
                                     <button

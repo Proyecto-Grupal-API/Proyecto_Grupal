@@ -72,7 +72,6 @@ class InventoryService
                 ],
                 '$set' => [
                     'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
-                    'status' => $qty > 0 ? 'AVAILABLE' : 'OUT_OF_STOCK',
                 ],
                 '$setOnInsert' => [
                     'created_at' => new \MongoDB\BSON\UTCDateTime(now()),
@@ -99,6 +98,9 @@ class InventoryService
         if ($inventoryId === null) {
             throw new \RuntimeException('MongoDB no devolvió el identificador del inventario.');
         }
+        // E4 (20-nov-2026): the status follows the resulting available stock, not the sign of the change.
+        $this->syncStatus($collection, $inventoryId);
+        $updatedArray['status'] = (int) ($updatedArray['available'] ?? 0) > 0 ? 'AVAILABLE' : 'OUT_OF_STOCK';
 
         $movementData = [
             ...$data,
@@ -126,6 +128,7 @@ class InventoryService
                         ],
                     ]
                 );
+                $this->syncStatus($collection, $inventoryId);
             } catch (\Throwable $compensationException) {
                 Log::critical('Falló la compensación de inventario después de un error de Kardex.', [
                     'inventory_id' => (string) $inventoryId,
@@ -169,5 +172,11 @@ class InventoryService
         }
 
         return Inventory::where('_id', $inventoryId)->firstOrFail();
+    }
+
+    /** Derives the status from the document's current available stock in one atomic pipeline update. */
+    private function syncStatus($collection, $inventoryId): void
+    {
+        $collection->updateOne(['_id' => $inventoryId], [['$set' => ['status' => ['$cond' => [['$gt' => ['$available', 0]], 'AVAILABLE', 'OUT_OF_STOCK']]]]]);
     }
 }

@@ -47,6 +47,7 @@ Route::post('/organizaciones/delegaciones', [\App\Http\Controllers\DelegacionOrg
 Route::post('/organizaciones/delegaciones/{id}/revocar', [\App\Http\Controllers\DelegacionOrganizacionController::class, 'revocar'])->where('id', '[a-fA-F0-9]{24}');
 Route::post('/organizaciones/seleccionar', [OrganizacionController::class, 'seleccionar']);
 Route::put('/organizaciones/perfil', [OrganizacionController::class, 'updatePerfil']);
+Route::get('/organizaciones/miembros/historial', [OrganizacionController::class, 'historialMiembros']);
 Route::post('/organizaciones/miembros', [OrganizacionController::class, 'addMiembro']);
 Route::delete('/organizaciones/miembros/{id}', [OrganizacionController::class, 'removeMiembro'])->where('id', '[a-fA-F0-9]{24}');
 Route::post('/organizaciones/roles', [OrganizacionController::class, 'assignRol']);
@@ -105,6 +106,8 @@ Route::prefix('comunicacion/{id}')->where(['id' => '[a-fA-F0-9]{24}'])->group(fu
     Route::post('/cancelar', [ComunicacionController::class, 'cancelar']);
 });
 Route::get('/bandeja', [BandejaController::class, 'index']);
+Route::get('/avisos-generales', [\App\Http\Controllers\AvisoGeneralController::class, 'index']);
+Route::post('/avisos-generales', [\App\Http\Controllers\AvisoGeneralController::class, 'store'])->middleware('throttle:10,1');
 Route::get('/bandeja/categorias', [BandejaController::class, 'categorias']);
 Route::put('/bandeja/categorias/servicios_estudiante', [BandejaController::class, 'categoria']);
 Route::get('/bandeja/preferencias', [BandejaController::class, 'preferencias']);
@@ -112,7 +115,8 @@ Route::put('/bandeja/preferencias/{id}', [BandejaController::class, 'preferencia
 Route::get('/bandeja/{id}', [BandejaController::class, 'show'])->where('id', '[a-fA-F0-9]{24}');
 Route::put('/bandeja/{id}', [BandejaController::class, 'update'])->where('id', '[a-fA-F0-9]{24}');
 Route::get('/transparencia', [TransparenciaController::class, 'index']);
-Route::get('/notificaciones', [NotificacionController::class, 'index']);
+Route::get('/notificaciones', [NotificacionController::class, 'index'])
+    ->middleware(\App\Http\Middleware\PreserveSessionForBackgroundRequests::class);   // sondeo de la barra común: no gasta los avisos de la página
 Route::put('/notificaciones/leer', [NotificacionController::class, 'marcarLeidas']);
 Route::delete('/notificaciones/leidas', [NotificacionController::class, 'eliminarLeidas']);
 

@@ -13,10 +13,13 @@ use App\Services\PlatformModule\PointsLedger\Exception\InsufficientPointsExcepti
 use App\Services\PlatformModule\PointsLedger\Exception\LedgerEntryNotFoundException;
 use App\Services\PlatformModule\PointsLedger\Exception\NoActiveEarningRuleException;
 use App\Services\PlatformModule\PointsLedgerService;
+use App\Services\StudentStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PointsController
 {
@@ -100,9 +103,8 @@ class PointsController
      * Ledger global de puntos (solo administración y auditoría transversal).
      * Permite filtros por student_id, type, business_id y rango de fechas.
      */
-    public function ledger(Request $request): JsonResponse
+    private function ledgerQuery(Request $request)
     {
-        $perPage = min((int) $request->query('per_page', 25), 100);
         $query = PointsLedger::orderBy('created_at', 'desc');
 
         if ($studentId = $request->query('student_id')) {
@@ -131,7 +133,30 @@ class PointsController
             $query->where('created_at', '<=', Carbon::parse($to)->endOfDay());
         }
 
-        return response()->json($query->paginate($perPage));
+        return $query;
+    }
+
+    public function ledger(Request $request): JsonResponse
+    {
+        $perPage = min((int) $request->query('per_page', 25), 100);
+
+        return response()->json($this->ledgerQuery($request)->paginate($perPage));
+    }
+
+    /** Exportación CSV del ledger con los mismos filtros del listado (rúbrica 10.3 y 10.4). */
+    public function exportLedger(Request $request): StreamedResponse
+    {
+        $rows = $this->ledgerQuery($request)->limit(5000)->get();
+
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['fecha', 'alumno', 'tipo', 'puntos', 'negocio', 'dominio', 'referencia', 'descripcion', 'movimiento_relacionado']);
+            foreach ($rows as $entry) {
+                fputcsv($out, [optional($entry->created_at)->toIso8601String(), $entry->student_id, $entry->type, $entry->amount,
+                    $entry->business_id, $entry->source_domain, $entry->source_reference, $entry->description, $entry->related_ledger_id]);
+            }
+            fclose($out);
+        }, 'ledger-recompensas-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     /**
@@ -149,6 +174,13 @@ class PointsController
             'idempotency_key' => 'nullable|string',
             'metadata' => 'nullable|array',
         ]);
+
+        // Los puntos pertenecen a un alumno: Identidad (1.8) confirma que la cuenta existe y tiene perfil de estudiante.
+        try {
+            app(StudentStatusService::class)->forUserId($validated['student_id']);
+        } catch (\Throwable $e) {
+            throw ValidationException::withMessages(['student_id' => 'El identificador no corresponde a un alumno registrado.']);
+        }
 
         $user = $request->attributes->get('platform_actor');
 

@@ -25,7 +25,6 @@ class StudentCatalogSeeder extends Seeder
         DB::connection('mongodb')->getCollection('academic_programs')->createIndex(['code' => 1, 'campus_id' => 1], ['unique' => true]);
         DB::connection('mongodb')->getCollection('student_profiles')->createIndex(['enrollment_number' => 1], ['unique' => true]);
         DB::connection('mongodb')->getCollection('student_profiles')->createIndex(['user_id' => 1], ['unique' => true]);
-        DB::connection('mongodb')->getCollection('oauth_service_clients')->createIndex(['client_id' => 1], ['unique' => true]);
         DB::connection('mongodb')->getCollection('event_outbox')->createIndex(['event_id' => 1], ['unique' => true]);
         DB::connection('mongodb')->getCollection('event_outbox')->createIndex(['published_at' => 1, 'occurred_at' => 1]);
     }

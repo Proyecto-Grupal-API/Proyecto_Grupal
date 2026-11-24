@@ -17,10 +17,10 @@ beforeEach(function () {
     $this->seed(AuthorizationFoundationSeeder::class);
 });
 
-test('canonical seeding remains sixteen eight thirteen without assignments or passive technical permission records', function () {
+test('canonical seeding remains sixteen nine fourteen without assignments or passive technical permission records', function () {
     $this->seed(AuthorizationFoundationSeeder::class);
-    expect(Role::count())->toBe(16)->and(Permission::count())->toBe(8)
-        ->and(RolePermission::count())->toBe(13)->and(RoleAssignment::count())->toBe(0)
+    expect(Role::count())->toBe(16)->and(Permission::count())->toBe(9)
+        ->and(RolePermission::count())->toBe(14)->and(RoleAssignment::count())->toBe(0)
         ->and(Permission::whereIn('domain', ['financial', 'rewards'])->count())->toBe(0);
 });
 
@@ -29,8 +29,8 @@ test('technical definitions can be persisted in testing without granting any rol
     foreach (Permission::TECHNICAL_CATALOG as $key => [$label, $domain]) {
         Permission::create(['key' => $key, 'display_name' => $label, 'domain' => $domain, 'active' => false]);
     }
-    // 8 foundation permissions + 22 inactive technical definitions (stale since the 15-entry catalog of 2026-11-09/10).
-    expect(Permission::count())->toBe(count(Permission::CATALOG) + 22)->and(RolePermission::count())->toBe(13)
+    // 9 foundation permissions + 22 inactive technical definitions (stale since the 15-entry catalog of 2026-11-09/10).
+    expect(Permission::count())->toBe(count(Permission::CATALOG) + 22)->and(RolePermission::count())->toBe(14)
         ->and(RoleAssignment::count())->toBe(0)
         ->and(app(BonusAuthorization::class)->allows((string) $user->getKey(), 'BECA', 'issue'))->toBeFalse()
         ->and(app(RewardsAuthorization::class)->allows((string) $user->getKey(), 'audit.view'))->toBeFalse();
@@ -39,19 +39,19 @@ test('technical definitions can be persisted in testing without granting any rol
 test('technical capabilities reject a mismatched domain and unknown permission names', function () {
     expect(fn () => Permission::create(['key' => 'audit.view', 'display_name' => 'Fixture', 'domain' => 'business']))->toThrow(ValidationException::class)
         ->and(fn () => Permission::create(['key' => 'universal.allow', 'display_name' => 'Fixture', 'domain' => 'financial']))->toThrow(ValidationException::class)
-        ->and(Permission::count())->toBe(8);
+        ->and(Permission::count())->toBe(9);
 });
 
 test('an absent role remains a validation error rather than a policy helper type error', function () {
     expect(fn () => RolePermission::create(['permission_key' => 'business.manage']))->toThrow(ValidationException::class)
-        ->and(RolePermission::count())->toBe(13);
+        ->and(RolePermission::count())->toBe(14);
 });
 
 test('known roles cannot receive unapproved financial or rewards mappings through the model writer', function (string $role, string $key) {
     [$label, $domain] = Permission::TECHNICAL_CATALOG[$key];
     Permission::create(['key' => $key, 'display_name' => $label, 'domain' => $domain, 'active' => true]);
     expect(fn () => RolePermission::create(['role_key' => $role, 'permission_key' => $key]))->toThrow(ValidationException::class)
-        ->and(RolePermission::count())->toBe(13)->and(RoleAssignment::count())->toBe(0);
+        ->and(RolePermission::count())->toBe(14)->and(RoleAssignment::count())->toBe(0);
 })->with([
     ['admin', 'bonuses.beca.issue'], ['business_owner', 'bonuses.negocio.issue'],
     ['business_manager', 'rewards.catalog.manage'], ['cashier', 'rewards.redemption.deliver'],

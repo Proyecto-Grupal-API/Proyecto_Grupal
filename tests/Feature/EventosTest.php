@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AuditoriaComunidad;
 use App\Models\Evento;
+use App\Models\Mensaje;
 use App\Models\Organizacion;
 use App\Models\RegistroEvento;
 use App\Models\User;
@@ -139,7 +140,72 @@ class EventosTest extends TestCase
         $this->assertSame('confirmada', $wait->fresh()->estado);
         $this->putJson("/api/eventos/$e->id", $this->payload())->assertUnprocessable()->assertJsonValidationErrors('capacidad');
         $this->putJson("/api/eventos/$e->id", $this->payload(['capacidad' => 2, 'costo' => 50]))->assertUnprocessable()->assertJsonValidationErrors('costo');
-        $this->putJson("/api/eventos/$e->id", $this->payload(['capacidad' => 2, 'ubicacion' => 'Otro lugar']))->assertUnprocessable()->assertJsonValidationErrors('ubicacion');
+        // Petición del profesor (20-nov-2026): con reservas, la ubicación de un evento sin costo sí puede cambiar.
+        $this->putJson("/api/eventos/$e->id", $this->payload(['capacidad' => 2, 'ubicacion' => 'Otro lugar']))->assertOk();
+        $this->assertSame('Otro lugar', $e->fresh()->ubicacion);
+    }
+
+    // Petición del profesor (20-nov-2026): «Los eventos … deben poder cambiarse de fecha o ser modificados estando activas y con
+    // reservas». Las reservas, sus identificadores y sus boletos se conservan y cada inscrito recibe un aviso en su bandeja.
+    public function test_an_active_event_with_reservations_can_be_rescheduled_keeping_reservations_and_notifying_participants(): void
+    {
+        $local = fn ($date) => $date->timezone('America/Mexico_City')->format('Y-m-d\TH:i');
+        $e = $this->evento();
+        $confirmed = $this->inscribir($this->estudiante, $e);
+        $waiting = $this->inscribir($this->andrea, $e, 'espera');
+        $nuevo = $this->payload(['ubicacion' => 'Auditorio principal', 'fecha_hora_inicio' => $local(now()->addDays(3)),
+            'fecha_hora_fin' => $local(now()->addDays(3)->addHours(2)), 'fecha_fin_registro' => $local(now()->addDays(2)),
+            'actualizado_en_esperado' => $e->actualizado_en->toISOString()]);
+
+        $this->actingAs($this->presidente)->putJson("/api/eventos/$e->id", $nuevo)->assertOk();
+
+        $e->refresh();
+        $this->assertTrue($e->fecha_hora_inicio->equalTo(now()->addDays(3)));
+        $this->assertSame('Auditorio principal', $e->ubicacion);
+        $this->assertSame('publicado', $e->estado);
+        foreach ([[$confirmed, 'confirmada'], [$waiting, 'espera']] as [$registro, $estado]) {
+            $after = $registro->fresh();
+            $this->assertSame($estado, $after->estado);
+            $this->assertSame($registro->token_qr, $after->token_qr);
+        }
+        $this->assertSame(2, RegistroEvento::where('evento_id', (string) $e->id)->count());
+        // Aviso en la bandeja de cada inscrito (no del gestor), una sola vez aunque se reintente.
+        $avisos = Mensaje::where('tipo_aviso', 'evento_reprogramado')->get();
+        $this->assertEqualsCanonicalizing([(string) $this->estudiante->id, (string) $this->andrea->id], $avisos->pluck('usuario_id')->all());
+        $this->assertStringContainsString('Auditorio principal', $avisos->first()->cuerpo);
+        $this->assertSame("/modulo6/eventos/$e->id/boleto", $avisos->first()->accion_url);
+        $this->actingAs($this->estudiante)->getJson('/api/bandeja')->assertOk();
+        $this->assertSame(1, AuditoriaComunidad::where('accion', 'evento_reprogramado')->count());
+        // Los inscritos ven la nueva fecha en su boleto.
+        $this->actingAs($this->estudiante)->getJson("/api/eventos/$e->id/boleto")->assertOk()->assertJsonPath('ubicacion', 'Auditorio principal');
+        // Reenviar el mismo cambio no duplica avisos.
+        $this->actingAs($this->presidente)->putJson("/api/eventos/$e->id", array_replace($nuevo, ['actualizado_en_esperado' => null]))->assertOk();
+        $this->assertSame(2, Mensaje::where('tipo_aviso', 'evento_reprogramado')->count());
+    }
+
+    public function test_rescheduling_keeps_policy_dependent_terms_blocked_and_rejects_stale_or_unauthorized_edits(): void
+    {
+        $local = fn ($date) => $date->timezone('America/Mexico_City')->format('Y-m-d\TH:i');
+        $later = ['fecha_hora_inicio' => $local(now()->addDays(3)), 'fecha_hora_fin' => $local(now()->addDays(3)->addHours(2)), 'fecha_fin_registro' => $local(now()->addDays(2))];
+        // Evento con costo y reservas: cambiar la fecha requiere una política de devoluciones que no existe.
+        $paid = $this->evento(['costo' => 50, 'capacidad' => 3]);
+        $this->inscribir($this->estudiante, $paid);
+        $this->actingAs($this->presidente)->putJson("/api/eventos/$paid->id", $this->payload(['costo' => 50, 'capacidad' => 3] + $later))
+            ->assertUnprocessable()->assertJsonValidationErrors('fecha_hora_inicio');
+        // Edición desactualizada: otro gestor guardó antes.
+        $e = $this->evento(['capacidad' => 3]);
+        $this->inscribir($this->estudiante, $e);
+        $loaded = $e->fresh()->actualizado_en->toISOString();
+        $this->travel(1)->minutes();
+        $same = ['fecha_hora_inicio' => $local($e->fecha_hora_inicio), 'fecha_hora_fin' => $local($e->fecha_hora_fin),
+            'fecha_inicio_registro' => $local($e->fecha_inicio_registro), 'fecha_fin_registro' => $local($e->fecha_fin_registro)];
+        $this->actingAs($this->presidente)->putJson("/api/eventos/$e->id", $this->payload(['capacidad' => 3, 'titulo' => 'Primer cambio'] + $same))->assertOk();
+        $this->putJson("/api/eventos/$e->id", $this->payload(['capacidad' => 3] + $later + ['actualizado_en_esperado' => $loaded]))->assertConflict();
+        $this->assertSame('Primer cambio', $e->fresh()->titulo);
+        // Fechas incompatibles y usuario sin permiso.
+        $this->putJson("/api/eventos/$e->id", $this->payload(['capacidad' => 3, 'fecha_hora_inicio' => $local(now()->subHour())]))->assertUnprocessable();
+        $this->actingAs($this->andrea)->putJson("/api/eventos/$e->id", $this->payload(['capacidad' => 3] + $later))->assertStatus(403);
+        $this->assertSame(0, Mensaje::where('tipo_aviso', 'evento_reprogramado')->count());
     }
 
     public function test_closed_registration_and_full_events_without_waiting_list_reject_booking(): void

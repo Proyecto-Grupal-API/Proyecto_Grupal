@@ -97,7 +97,7 @@ async function confirmRedeem() {
     loadData()
   } catch (err) {
     console.error('Error al canjear recompensa:', err)
-    error(err.message || 'No se pudo procesar el canje.')
+    error(err.response?.data?.error || err.response?.data?.message || 'No se pudo procesar el canje.')
     showModal.value = false
   } finally {
     isSubmitting.value = false

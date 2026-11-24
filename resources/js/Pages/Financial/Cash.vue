@@ -24,6 +24,18 @@ const confirmation = ref(null);
 const preparing = ref(null);
 const action = ref('open');
 const form = reactive({ amount: '', wallet: '', reason: '', type: 'CASH_IN' });
+// FIN-05: buscar al titular por matrícula para no copiar el UUID de la wallet a mano.
+const holderQuery = ref('');
+const holder = ref(null);
+async function findHolder() {
+    if (!holderQuery.value.trim() || !shiftId.value) return;
+    holder.value = null;
+    await run(async () => {
+        const { data } = await axios.get(`${base.value}/shifts/${shiftId.value}/holder`, { params: { titular: holderQuery.value.trim() } });
+        holder.value = data.data;
+        if (data.data.operable) form.wallet = data.data.wallet_id;
+    });
+}
 const selectedRefund = computed(() => refunds.value.find(item => item.id === refundId.value));
 const confirmationLink = computed(() => confirmation.value?.student_url ? `${window.location.origin}${confirmation.value.student_url}` : '');
 const register = computed(() => registers.value.find(item => item.id === registerId.value));
@@ -52,9 +64,12 @@ function explain(exception) {
     if (response.status === 401 || response.status === 419) return 'Tu sesión venció. Inicia sesión nuevamente antes de continuar.';
     if (response.status === 403) return response.data?.message || 'No tienes permiso para esta acción en la asociación.';
     if (response.status === 404) return 'El registro no existe o no pertenece a esta asociación.';
+    if (isLimitBlock(exception)) return `Rechazada por un límite financiero: no se registró dinero. Folio de la alerta: ${response.data.error.alert_id || 'sin folio'}.`;
     const messages = Object.values(response.data?.errors || {}).flat();
     return messages.length ? messages.join(' ') : response.data?.message || 'No fue posible completar la solicitud.';
 }
+// A blocking limit is a definitive answer (FIN-02/FIN-04): retrying the same request cannot succeed.
+const isLimitBlock = exception => exception?.response?.status === 409 && exception.response.data?.error?.code === 'FINANCIAL_LIMIT_EXCEEDED';
 async function run(task) {
     if (busy.value) return;
     busy.value = true; error.value = '';
@@ -136,7 +151,7 @@ async function prepareConfirmation() {
             const { data } = await axios.post(request.url, request.payload, { headers: { 'Idempotency-Key': request.key } });
             confirmation.value = data.data; preparing.value = null;
         } catch (exception) {
-            if ([401, 403, 404, 419, 422].includes(exception.response?.status)) preparing.value = null;
+            if ([401, 403, 404, 419, 422].includes(exception.response?.status) || isLimitBlock(exception)) preparing.value = null;
             throw exception;
         }
     });
@@ -205,10 +220,15 @@ async function submit() {
             // Validation and access failures did not execute the service. Business/concurrency
             // conflicts and unknown responses preserve the original request for safe retry.
             if ([401, 403, 404, 419, 422].includes(exception.response?.status)) pending.value = null;
+            if (isLimitBlock(exception) && request.payload.confirmation_id) {
+                pending.value = null;
+                // Read directly: refreshConfirmation() goes through run(), which is busy with this same request.
+                try { confirmation.value = (await axios.get(confirmationPath.value)).data.data; } catch { /* the error below still explains the rejection */ }
+            }
             throw exception;
         }
         pending.value = null; confirmation.value = null; success.value = `${titles[request.action]}: operación confirmada.${result.data.data.folio ? ` Folio: ${result.data.data.folio}.` : ''}`;
-        form.amount = ''; form.reason = ''; form.wallet = '';
+        form.amount = ''; form.reason = ''; form.wallet = ''; holder.value = null; holderQuery.value = '';
         if (request.action === 'open') shiftId.value = result.data.data.id;
         try {
             await getList('shifts', `${base.value}/registers/${registerId.value}/shifts`);
@@ -291,7 +311,16 @@ function abandon() {
                             <label v-if="action === 'movements'">Tipo<select v-model="form.type"><option value="CASH_IN">Entrada de efectivo</option><option value="CASH_OUT">Salida de efectivo</option></select></label>
                             <label v-if="action !== 'recover'"> {{ action === 'open' ? 'Fondo inicial' : action === 'close' ? 'Efectivo contado' : 'Importe' }} ({{ currency }})<input v-model="form.amount" required inputmode="decimal" placeholder="100.00" /></label>
                             <div v-if="action === 'recover'" class="sm:col-span-2"><p class="note">Solicitud: {{ selectedRefund?.id || 'Selecciona una solicitud desde el listado anterior.' }}</p><strong v-if="selectedRefund">Importe aprobado: {{ (selectedRefund.amount_cents / 100).toFixed(2) }} {{ selectedRefund.currency }}</strong></div>
-                            <label v-if="['topups', 'withdrawals'].includes(action)">Identificador de wallet<input v-model="form.wallet" required maxlength="36" placeholder="UUID de la wallet" /></label>
+                            <div v-if="['topups', 'withdrawals'].includes(action)" class="sm:col-span-2 space-y-2" data-buscar-titular>
+                                <label>Matrícula del titular<span class="flex gap-2"><input v-model="holderQuery" maxlength="128" placeholder="Matrícula o identificador de usuario" @keydown.enter.prevent="findHolder" /><button type="button" class="secondary" :disabled="busy || !holderQuery.trim()" @click="findHolder">Buscar titular</button></span></label>
+                                <div v-if="holder" class="rounded-lg border p-3 text-sm" :class="holder.operable ? 'border-green-300 bg-green-50' : 'border-amber-300 bg-amber-50'" data-titular>
+                                    <p><strong>{{ holder.holder_name }}</strong> · Matrícula {{ holder.enrollment_number || '—' }}</p>
+                                    <p>Wallet {{ holder.wallet_id }} · {{ holder.currency }} · {{ holder.status }}</p>
+                                    <p v-if="holder.notice">{{ holder.notice }}</p>
+                                    <p v-else>Verifica con el titular antes de solicitar la confirmación.</p>
+                                </div>
+                            </div>
+                            <label v-if="['topups', 'withdrawals'].includes(action)">Identificador de wallet<input v-model="form.wallet" required maxlength="36" placeholder="Se completa al buscar al titular, o pega el UUID" /></label>
                             <label v-if="action !== 'open'" class="sm:col-span-2">Motivo<textarea v-model="form.reason" required maxlength="1000" rows="2" /></label>
                         </fieldset>
                         <section v-if="['topups', 'withdrawals', 'adjustments', 'recover'].includes(action)" class="space-y-3 rounded-xl border bg-blue-50 p-4 text-sm">
@@ -299,7 +328,8 @@ function abandon() {
                             <button v-if="!confirmation" type="button" class="secondary" :disabled="busy || !!pending || !canOperate" @click="prepareConfirmation">{{ preparing ? 'Reintentar la preparación' : ['adjustments', 'recover'].includes(action) ? 'Preparar solicitud administrativa' : 'Solicitar confirmación al estudiante' }}</button>
                             <button v-if="preparing" type="button" class="secondary" :disabled="busy" @click="discardPreparation">Descartar reintento de confirmación</button>
                             <template v-if="confirmation">
-                                <p><strong>Estado:</strong> {{ ({ PENDING: confirmation.kind === 'ADMINISTRATIVE' ? 'Esperando supervisor' : 'Esperando al estudiante', READY: 'Lista para ejecutar sin supervisor', APPROVED: 'Autorizada por supervisor', CONFIRMED: 'Confirmada', REJECTED: 'Rechazada', EXPIRED: 'Vencida', CANCELLED: 'Cancelada', CONSUMED: 'Operación finalizada' })[confirmation.status] }}</p>
+                                <p><strong>Estado:</strong> {{ ({ PENDING: confirmation.kind === 'ADMINISTRATIVE' ? 'Esperando supervisor' : 'Esperando al estudiante', READY: 'Lista para ejecutar sin supervisor', APPROVED: 'Autorizada por supervisor', CONFIRMED: 'Confirmada', REJECTED: confirmation.rejected_by_system ? 'Rechazada por un límite financiero' : 'Rechazada', EXPIRED: 'Vencida', CANCELLED: 'Cancelada', CONSUMED: 'Operación finalizada' })[confirmation.status] }}</p>
+                                <p v-if="confirmation.rejection_reason" data-motivo-rechazo>{{ confirmation.rejection_reason }} No se registró dinero ni efectivo. Folio de la alerta: {{ confirmation.rejection_alert_id }}.</p>
                                 <p v-if="confirmation.supervisor_required && confirmation.kind !== 'ADMINISTRATIVE'">Segunda autorización: {{ ({ PENDING: 'Esperando supervisor', APPROVED: 'Aprobada', REJECTED: 'Rechazada' })[confirmation.supervisor_status] }} · Política versión {{ confirmation.approval_policy_version }}</p>
                                 <p v-if="confirmation.kind === 'ADMINISTRATIVE'">Regla versión {{ confirmation.approval_policy_version }} · {{ confirmation.supervisor_required ? 'Requiere supervisor independiente' : 'No requiere supervisor para este importe' }}</p><p>Vence: {{ date(confirmation.expires_at) }}</p>
                                 <p v-if="confirmation.kind !== 'ADMINISTRATIVE'">El estudiante puede abrir «Confirmaciones de caja» desde su wallet o usar este enlace en su propia sesión:</p>

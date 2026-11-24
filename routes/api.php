@@ -11,11 +11,12 @@ use App\Http\Middleware\AuthorizeCommunityService;
 use App\Http\Middleware\AuthorizeIdentityService;
 use Illuminate\Support\Facades\Route;
 
-foreach (['authorization/check' => ['post', 'check', 'identity:authorization:check'],
-    'assignments' => ['get', 'assignments', 'identity:assignments:read'],
-    'business-owner/provision' => ['post', 'provision', 'identity:business-owner:provision']] as $path => [$method, $action, $scope]) {
+// Límites con nombre, contados por cliente OAuth y no por IP del llamador (ver AppServiceProvider).
+foreach (['authorization/check' => ['post', 'check', 'identity:authorization:check', 'identity-business-read'],
+    'assignments' => ['get', 'assignments', 'identity:assignments:read', 'identity-business-read'],
+    'business-owner/provision' => ['post', 'provision', 'identity:business-owner:provision', 'identity-business-provision']] as $path => [$method, $action, $scope, $limiter]) {
     Route::$method('/v1/identity/'.$path, [BusinessAuthorizationController::class, $action])
-        ->middleware(['oauth.service:'.$scope, AuthorizeIdentityService::class.':'.$scope, 'throttle:30,1']);
+        ->middleware(['oauth.service:'.$scope, AuthorizeIdentityService::class.':'.$scope, 'throttle:'.$limiter]);
 }
 
 Route::post('/oauth/token', OAuthTokenController::class)->middleware('throttle:60,1');

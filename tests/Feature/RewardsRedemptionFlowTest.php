@@ -3,11 +3,14 @@
 use App\Http\Middleware\EnsureRequiredTwoFactorAuthentication;
 use App\Http\Middleware\EnsureSessionIsActive;
 use App\Http\Middleware\TrackDeviceSession;
+use App\Models\PlatformModule\AuditLog;
+use App\Models\PlatformModule\ConfigurationVersion;
 use App\Models\PlatformModule\PointsAccount;
 use App\Models\PlatformModule\PointsLedger;
 use App\Models\PlatformModule\Redemption;
 use App\Models\PlatformModule\Reward;
 use App\Models\Role;
+use App\Models\StudentProfile;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 
@@ -25,6 +28,10 @@ beforeEach(function () {
     $this->admin->assignRole(Role::ADMIN);
     $this->student = User::factory()->create(['must_change_password' => false, 'account_activation_pending' => false]);
     $this->other = User::factory()->create(['must_change_password' => false, 'account_activation_pending' => false]);
+    // Los puntos pertenecen a alumnos: el ajuste manual exige que la cuenta tenga perfil de estudiante en Identidad.
+    foreach ([$this->student, $this->other] as $i => $user) {
+        StudentProfile::create(['user_id' => (string) $user->getKey(), 'enrollment_number' => 'FLOW-'.$i, 'academic_status' => 'active']);
+    }
 });
 
 function rewardsSetup($test): string
@@ -96,7 +103,7 @@ test('governance policies are validated and a manual adjustment moves points wit
     $this->postJson('/api/v1/recompensas/governance/manual-adjustment', ['student_id' => (string) $this->student->getKey(), 'amount' => 0, 'reason' => 'Nulo'])->assertUnprocessable();
     $this->postJson('/api/v1/recompensas/governance/manual-adjustment', ['student_id' => (string) $this->student->getKey(), 'amount' => 3,
         'reason' => 'Compensación por incidencia', 'idempotency_key' => 'ajuste-1'])->assertSuccessful();
-    expect(\App\Models\PlatformModule\AuditLog::where('entity_type', '!=', null)->count())->toBeGreaterThan(0);
+    expect(AuditLog::where('entity_type', '!=', null)->count())->toBeGreaterThan(0);
     $this->actingAs($this->student)->getJson('/api/v1/recompensas/points/my-balance')->assertJsonPath('balance', 15);
     $this->postJson('/api/v1/recompensas/governance/manual-adjustment', ['student_id' => (string) $this->student->getKey(), 'amount' => 100, 'reason' => 'x'])->assertForbidden();
 });
@@ -104,9 +111,9 @@ test('governance policies are validated and a manual adjustment moves points wit
 test('configuration changes are versioned and an administrator cannot approve them alone', function () {
     $this->actingAs($this->admin);
     $id = $this->postJson('/api/v1/recompensas/settings/versions', ['config_key' => 'points.expiration_days', 'value' => 365])->assertSuccessful()->json('version._id')
-        ?? \App\Models\PlatformModule\ConfigurationVersion::where('config_key', 'points.expiration_days')->value('_id');
+        ?? ConfigurationVersion::where('config_key', 'points.expiration_days')->value('_id');
     $this->postJson('/api/v1/recompensas/settings/versions/'.$id.'/transition', ['target_status' => 'active'])->assertStatus(403);
-    expect(\App\Models\PlatformModule\ConfigurationVersion::find($id)->status)->toBe('draft');
+    expect(ConfigurationVersion::find($id)->status)->toBe('draft');
 });
 
 test('administrative actions leave a complete audit trail with actor, origin, entity and changes', function () {
@@ -120,15 +127,15 @@ test('administrative actions leave a complete audit trail with actor, origin, en
     $expected = ['business.registered' => ['RewardProgramMembership', 'businesses'], 'earning_rule.created' => ['EarningRule', 'rules'],
         'reward.created' => ['Reward', 'rewards'], 'redemption.delivered' => ['Redemption', 'rewards'], 'points.adjusted_manually' => ['PointsLedger', 'governance']];
     foreach ($expected as $action => [$entityType, $domain]) {
-        $log = \App\Models\PlatformModule\AuditLog::where('action', $action)->sole();
+        $log = AuditLog::where('action', $action)->sole();
         expect($log->actor_id)->toBe((string) $this->admin->getKey())->and($log->actor_role)->toBeString()->not->toBe('')
             ->and($log->entity_type)->toBe($entityType)->and($log->entity_id)->toBeString()->not->toBe('')
             ->and($log->ip_address)->toBe('127.0.0.1')->and($log->device)->toBe('Symfony')->and($log->source_domain)->toBe($domain);
     }
-    $reward = \App\Models\PlatformModule\AuditLog::where('action', 'reward.created')->sole();
+    $reward = AuditLog::where('action', 'reward.created')->sole();
     expect($reward->entity_id)->toBe($rewardId)->and($reward->after['name'])->toBe('Café de prueba');
-    $delivered = \App\Models\PlatformModule\AuditLog::where('action', 'redemption.delivered')->sole();
+    $delivered = AuditLog::where('action', 'redemption.delivered')->sole();
     expect($delivered->entity_id)->toBe($redemptionId)->and($delivered->before['status'])->toBeIn(['requested', 'confirmed', 'pending'])
         ->and($delivered->after['status'])->toBe('delivered');
-    expect(\App\Models\PlatformModule\AuditLog::where('action', 'points.adjusted_manually')->sole()->reason)->toBe('Compensación auditada');
+    expect(AuditLog::where('action', 'points.adjusted_manually')->sole()->reason)->toBe('Compensación auditada');
 });

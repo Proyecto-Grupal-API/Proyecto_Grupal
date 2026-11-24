@@ -4,6 +4,9 @@ return [
     'database' => env('INVENTARIO_DATABASE'),
     'identidad' => ['url' => env('INVENTARIO_IDENTIDAD_API_URL', 'http://app'),
         'client_id' => env('INVENTARIO_IDENTIDAD_CLIENT_ID'), 'client_secret' => env('INVENTARIO_IDENTIDAD_CLIENT_SECRET')],
+    // Consulta transversal de sólo lectura (requerimiento E4, 20-nov-2026): cargo exacto que asigna Identidad (rol `admin` en el
+    // contexto service:<valor>). El administrador global no lo hereda. Vacío = desactivado.
+    'global_viewer_service' => env('TEAM4_GLOBAL_VIEWER_SERVICE', 'inventario-consulta'),
     'role_map_business' => ['business_owner' => 'admin', 'business_manager' => 'business_manager',
         'inventory_manager' => 'inventory_manager', 'buyer' => 'buyer'],
     'outbox' => ['enabled' => env('INVENTARIO_E7_OUTBOX_HABILITADO', false),

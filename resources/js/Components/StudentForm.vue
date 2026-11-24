@@ -152,7 +152,7 @@ onBeforeUnmount(() => { temporaryPassword.value = null; });
                     <label class="block"><span class="text-sm font-semibold text-slate-700">Canal preferido</span><select v-model="form.preferred_contact_channel" class="mt-1 w-full rounded-lg border-slate-300"><option v-for="channel in contactChannels" :key="channel.value" :value="channel.value">{{ channel.label }}</option></select></label>
                     <label class="block"><span class="text-sm font-semibold text-slate-700">Correo personal</span><input v-model="form.personal_email" type="email" class="mt-1 w-full rounded-lg border-slate-300" /></label>
                     <label class="block"><span class="text-sm font-semibold text-slate-700">Teléfono</span><input v-model="form.phone" class="mt-1 w-full rounded-lg border-slate-300" /></label>
-                    <label class="block"><span class="text-sm font-semibold text-slate-700">Motivo del cambio de estatus</span><input v-model="form.status_reason" class="mt-1 w-full rounded-lg border-slate-300" /></label>
+                    <label class="block"><span class="text-sm font-semibold text-slate-700">Motivo del cambio de estatus</span><input v-model="form.status_reason" class="mt-1 w-full rounded-lg border-slate-300" /><small class="text-red-600">{{ form.errors.status_reason }}</small></label>
                     <label class="block md:col-span-2"><span class="text-sm font-semibold text-slate-700">Fotografía</span><input type="file" accept="image/*" class="mt-1 block" @change="form.photo = $event.target.files[0]" /></label>
                 </div>
                 <p v-if="requestError" role="alert" class="text-sm text-rose-700">{{ requestError }}</p>

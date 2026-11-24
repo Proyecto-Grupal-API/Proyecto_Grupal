@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Financial\Enums\CashReconciliationStatus;
+use App\Domains\Financial\Enums\DifferenceStatus;
 use App\Domains\Financial\Enums\ReconciliationCheck;
 use App\Domains\Financial\Models\CashReceipt;
 use App\Domains\Financial\Models\FinancialTransaction;
@@ -73,4 +74,50 @@ test('cash shift reconciles the confirmed top-up and withdrawal and reports the 
     expect($pdf->getContent())->toStartWith('%PDF-');
     $params['folio'] = 'INCORRECTO';
     $this->getJson(route('financial.receipts.show', $params))->assertNotFound();
+});
+
+// Requisito 2.10-d (reportes de diferencias). El faltante de un arqueo aparece en la conciliación del día sólo si la conciliación
+// de caja está encendida y la conciliación es la global; se resuelve una sola vez, con actor y nota, y resolverlo deja constancia:
+// no mueve dinero ni corrige el arqueo. El recorrido de E2 lo hace por la pantalla de controles financieros.
+test('a cash shortfall is reported by the global reconciliation and resolved once with a note, without touching the shift', function () {
+    $cash = app(CashShiftService::class);
+    $service = app(ReconciliationService::class);
+    $agent = 'test-cash-agent';
+    $register = $cash->createRegister('test-association', 'Caja con faltante', 'MXN', $agent);
+    $shift = $cash->open($register->public_id, $agent, 10000, (string) Str::uuid());
+    $close = $cash->close($shift->public_id, 9500, (string) Str::uuid(), $agent, 'Arqueo con faltante de prueba.');
+    $today = now(config('financial.business_timezone'))->toDateString();
+    $shortfall = fn ($report) => $report->observedDifferences()
+        ->where('check_code', ReconciliationCheck::CAJA_DIFERENCIA->value)->where('entity_id', $shift->public_id);
+    expect($close['expected_amount_cents'])->toBe(10000)->and($close['difference_cents'])->toBe(-500);
+
+    // Como llega el producto: la conciliación no compara la caja y no reporta el faltante.
+    config(['financial.cash.reconciliation_enabled' => false]);
+    $off = $service->run($today, $agent);
+    expect($off->cash_status)->toBe(CashReconciliationStatus::NO_INTEGRADA)->and($shortfall($off)->count())->toBe(0);
+
+    config(['financial.cash.reconciliation_enabled' => true]);
+    $report = $service->run($today, $agent);
+    $difference = $shortfall($report)->sole();
+    expect($report->cash_status)->toBe(CashReconciliationStatus::COMPARADA)
+        ->and($difference->status)->toBe(DifferenceStatus::ABIERTA)
+        ->and($difference->expected_cents)->toBe(10000)
+        ->and($difference->actual_cents)->toBe(9500)
+        ->and($difference->difference_cents)->toBe(-500);
+
+    // Resolver exige actor y nota, y ocurre una sola vez.
+    expect(fn () => $service->resolveDifference($difference, 'test-controls', '   '))->toThrow(InvalidArgumentException::class)
+        ->and(fn () => $service->resolveDifference($difference, '', 'Sin actor.'))->toThrow(InvalidArgumentException::class);
+    $resolved = $service->resolveDifference($difference, 'test-controls', 'Faltante aclarado con el operador.');
+    expect($resolved->status)->toBe(DifferenceStatus::RESUELTA)
+        ->and($resolved->resolved_by)->toBe('test-controls')
+        ->and($resolved->resolution_note)->toBe('Faltante aclarado con el operador.')
+        ->and($resolved->resolved_at)->not->toBeNull()
+        ->and(fn () => $service->resolveDifference($difference, 'test-controls', 'Otra nota.'))
+        ->toThrow(InvalidArgumentException::class, 'La diferencia ya fue resuelta.');
+
+    // Deja constancia y nada más: el arqueo conserva lo contado y su diferencia.
+    $after = $shift->fresh();
+    expect((int) $after->counted_amount_cents)->toBe(9500)->and((int) $after->difference_cents)->toBe(-500)
+        ->and($difference->fresh()->difference_cents)->toBe(-500);
 });

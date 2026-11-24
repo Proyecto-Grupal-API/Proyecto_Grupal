@@ -17,8 +17,11 @@ use App\Services\PlatformModule\PointsLedger\Exception\InsufficientPointsExcepti
 use App\Services\PlatformModule\PointsLedger\Exception\LedgerEntryNotFoundException;
 use App\Services\PlatformModule\PointsLedger\Exception\NoActiveEarningRuleException;
 use App\Services\PlatformModule\PointsLedger\Result\LedgerOperationResult;
+use Closure;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use MongoDB\Driver\Exception\BulkWriteException;
 
 /**
  * NOTA IMPORTANTE SOBRE TRANSACCIONES:
@@ -64,8 +67,16 @@ final class PointsLedgerService implements PointsLedgerServiceInterface
             : $withCampaign;
 
         $points = $this->applyDailyCap($request->studentId, $rule, $points);
+        // Política de gobierno activa (7.6): tope general por alumno y día, por encima del tope propio de la regla.
+        $remaining = app(PointsGovernance::class)->remainingToday($request->studentId);
+        if ($remaining !== null) {
+            if ($remaining <= 0) {
+                throw DailyCapExceededException::forStudentAndRule($request->studentId, 'política general', (int) app(PointsGovernance::class)->dailyCapPoints());
+            }
+            $points = min($points, $remaining);
+        }
 
-        return PlatformTransaction::run(function () use ($request, $rule, $points) {
+        return $this->oncePerKey($request->idempotencyKey, $request->studentId, function () use ($request, $rule, $points) {
             $ledgerEntry = PointsLedger::create([
                 'student_id' => $request->studentId,
                 'idempotency_key' => $request->idempotencyKey,
@@ -81,7 +92,7 @@ final class PointsLedgerService implements PointsLedgerServiceInterface
             ]);
 
             $account = $this->accountFor($request->studentId);
-            $account->increment('balance', $points);
+            $account->credit($points);
             $account->increment('lifetime_earned', $points);
             $account->update(['last_ledger_entry_id' => (string) $ledgerEntry->_id]);
 
@@ -123,7 +134,7 @@ final class PointsLedgerService implements PointsLedgerServiceInterface
             throw InsufficientPointsException::forStudent($request->studentId, $available, $request->pointsRequired);
         }
 
-        return PlatformTransaction::run(function () use ($request) {
+        return $this->oncePerKey($request->idempotencyKey, $request->studentId, function () use ($request) {
             $ledgerEntry = PointsLedger::create([
                 'student_id' => $request->studentId,
                 'idempotency_key' => $request->idempotencyKey,
@@ -184,7 +195,7 @@ final class PointsLedgerService implements PointsLedgerServiceInterface
         $studentId = $original->student_id;
         $reversalAmount = -$original->amount; // signo opuesto al movimiento original
 
-        return PlatformTransaction::run(function () use ($request, $original, $studentId, $reversalAmount) {
+        return $this->oncePerKey($request->idempotencyKey, null, function () use ($request, $original, $studentId, $reversalAmount) {
             // IMPORTANTE: el disponible se calcula ANTES de crear el ledger entry de
             // reverso. Si se calculara después, la suma del ledger ya incluiría el propio
             // movimiento que se está creando y el reverso terminaría autocancelándose en
@@ -237,8 +248,8 @@ final class PointsLedgerService implements PointsLedgerServiceInterface
                     ]);
                 }
             } else {
-                // Se están devolviendo puntos de un redeem revertido: crédito directo, sin riesgo de faltante.
-                $account->increment('balance', $reversalAmount);
+                // Se están devolviendo puntos de un redeem revertido: crédito sin riesgo de faltante (salda antes la deuda pendiente).
+                $account->credit($reversalAmount);
             }
 
             $account->update(['last_ledger_entry_id' => (string) $ledgerEntry->_id]);
@@ -275,8 +286,9 @@ final class PointsLedgerService implements PointsLedgerServiceInterface
     public function reconcileAccount(string $studentId): PointsAccount
     {
         $account = $this->accountFor($studentId);
-        $recalculatedBalance = $account->reconcileFromLedger(); // el modelo solo calcula, no persiste
-        $account->update(['balance' => $recalculatedBalance]);
+        $sum = $account->reconcileFromLedger(); // el modelo solo calcula, no persiste
+        // Un ledger negativo es deuda por reversos sin fondos: el disponible queda en 0 y la diferencia en pendiente.
+        $account->update(['balance' => max(0, $sum), 'pending_balance' => max(0, -$sum)]);
 
         return $account->fresh();
     }
@@ -296,6 +308,26 @@ final class PointsLedgerService implements PointsLedgerServiceInterface
             ['student_id' => $studentId],
             ['balance' => 0, 'pending_balance' => 0, 'lifetime_earned' => 0, 'lifetime_redeemed' => 0]
         );
+    }
+
+    /**
+     * Ejecuta la operación en transacción. Si otra petición con la misma clave de idempotencia se adelantó entre la
+     * comprobación de repetición y la inserción, el índice único del ledger rechaza esta: la transacción se deshace
+     * completa y se responde con el movimiento que ya quedó registrado. Dentro de una transacción ajena no se
+     * intercepta, porque esa transacción ya quedó abortada y debe deshacerla quien la abrió.
+     */
+    private function oncePerKey(string $idempotencyKey, ?string $studentId, Closure $operation): LedgerOperationResult
+    {
+        try {
+            return PlatformTransaction::run($operation);
+        } catch (BulkWriteException $e) {
+            $duplicate = $e->getCode() === 11000 || str_contains($e->getMessage(), 'E11000');
+            $joined = DB::connection('platform')->getSession()?->isInTransaction() ?? false;
+            if ($duplicate && ! $joined && ($replay = $this->findReplay($idempotencyKey, $studentId))) {
+                return $replay;
+            }
+            throw $e;
+        }
     }
 
     /**

@@ -12,7 +12,9 @@ const data = ref({ ...adminDashboardInitial })
 const isLoading = ref(true)
 
 // Gráfico de barras simple — sin librería externa
-function maxVal() { return Math.max(1, ...data.value.chartData.issued) }
+function maxVal() { return Math.max(1, ...data.value.chartData.issued, ...data.value.chartData.redeemed) }
+// Marcas del eje a partir del máximo real de la serie.
+function ticks() { const m = maxVal(); return [1, 0.8, 0.6, 0.4, 0.2, 0].map(f => fmt(Math.round(m * f))) }
 function barH(v) { return Math.round((v / maxVal()) * 100) }
 function fmt(n) {
   if (n >= 1000000) return (n/1000000).toFixed(1)+'M'
@@ -35,7 +37,14 @@ async function loadDashboard() {
       data.value.completedRedemptions = stats.total_redemptions_delivered ?? data.value.completedRedemptions
       data.value.fraudAlerts = stats.open_fraud_flags ?? data.value.fraudAlerts
       data.value.adheredBusinesses = stats.active_businesses ?? 0
-      data.value.auditLogs = (stats.recent_audit_logs || []).map(x=>({id:x._id || x.id,user:x.actor_id || 'No registrado',initials:'ID',action:x.action,entity:x.entity_type,date:(x.created_at || '').slice(0,16)}))
+      const roles = { platform_admin: 'Administración de plataforma', admin: 'Administración del programa', auditor: 'Auditoría', professor: 'Profesor', student: 'Alumno', system: 'Sistema' }
+      data.value.auditLogs = (stats.recent_audit_logs || []).map(x => ({ id: x._id || x.id, user: roles[x.actor_role] || x.actor_role || 'No registrado',
+        initials: (x.actor_role || 'ID').slice(0, 2).toUpperCase(), action: x.action, entity: x.entity_type, date: (x.created_at || '').slice(0, 16).replace('T', ' ') }))
+      // Series mensuales del ledger y bloque de gobierno: todo llega del servidor.
+      if (stats.chart) data.value.chartData = { labels: stats.chart.labels || [], issued: stats.chart.issued || [], redeemed: stats.chart.redeemed || [] }
+      if (stats.governance) data.value.governance = { emissionLimits: stats.governance.rules_with_limits ?? 0, expiringPoints: stats.governance.pending_configuration_versions ?? 0,
+        detectedFrauds: stats.governance.fraud_open ?? 0, pendingCampaigns: stats.governance.draft_campaigns ?? 0 }
+      data.value.period = (stats.chart?.labels?.length ? `${stats.chart.labels[0]} a ${stats.chart.labels[stats.chart.labels.length - 1]}` : 'Periodo actual')
     }
   } catch (err) {
     console.warn('No se pudo actualizar la información de Recompensas.', err)
@@ -94,7 +103,7 @@ onMounted(() => {
         <div class="bar-chart">
           <!-- Y axis -->
           <div class="y-axis">
-            <span>250K</span><span>200K</span><span>150K</span><span>100K</span><span>50K</span><span>0</span>
+            <span v-for="(t, i) in ticks()" :key="i">{{ t }}</span>
           </div>
           <!-- Bars -->
           <div class="bars-area">
@@ -116,15 +125,15 @@ onMounted(() => {
           <div class="card-head"><span class="ct">Gobierno y alertas</span></div>
           <div class="gov-list">
             <div class="gov-item">
-              <div class="gi-left"><span class="gi-icon">📋</span><span class="gi-label">Límites de emisión</span></div>
+              <div class="gi-left"><span class="gi-icon">📋</span><span class="gi-label">Reglas con tope de emisión</span></div>
               <span class="gi-badge" style="background:#EFF6FF;color:#2878ED">{{ data.governance.emissionLimits }}</span>
             </div>
             <div class="gov-item">
-              <div class="gi-left"><span class="gi-icon">⏰</span><span class="gi-label">Puntos por expirar</span></div>
+              <div class="gi-left"><span class="gi-icon">⏰</span><span class="gi-label">Configuraciones por aprobar</span></div>
               <span class="gi-badge" style="background:#FFFBEB;color:#D97706">{{ data.governance.expiringPoints }}</span>
             </div>
             <div class="gov-item">
-              <div class="gi-left"><span class="gi-icon">⚠</span><span class="gi-label">Posibles fraudes detectados</span></div>
+              <div class="gi-left"><span class="gi-icon">⚠</span><span class="gi-label">Alertas antifraude abiertas</span></div>
               <span class="gi-badge" style="background:#FEF2F2;color:#dc2626">{{ data.governance.detectedFrauds }}</span>
             </div>
             <div class="gov-item">
@@ -138,7 +147,7 @@ onMounted(() => {
         <div class="card actions-card">
           <div class="card-head"><span class="ct">Acciones administrativas</span></div>
           <div class="actions-list">
-            <button class="action-item" @click="router.push('/recompensas/admin/reglas')">
+            <button class="action-item" @click="router.push('/recompensas/admin/campanas')">
               <div class="ai-icon" style="background:#EFF6FF">📢</div>
               <div class="ai-text"><div class="ai-t">Crear campaña</div><div class="ai-d">Lanza una nueva campaña de recompensas</div></div>
               <span class="ai-a">›</span>
@@ -179,6 +188,7 @@ onMounted(() => {
               <td style="color:var(--cd-text-muted);font-size:12px">{{ a.entity }}</td>
               <td style="color:var(--cd-text-muted);font-size:12px;white-space:nowrap">{{ a.date }}</td>
             </tr>
+            <tr v-if="!data.auditLogs.length"><td colspan="4" style="text-align:center;color:var(--cd-text-muted);padding:20px">Aún no hay eventos de auditoría.</td></tr>
           </tbody>
         </table>
       </div>

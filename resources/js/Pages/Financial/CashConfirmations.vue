@@ -5,7 +5,7 @@ const props = defineProps({ confirmations: Object, selected: Object });
 const form = useForm({});
 const money = item => new Intl.NumberFormat('es-MX', { style: 'currency', currency: item.currency }).format(item.amount_cents / 100);
 const date = value => value ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'medium' }).format(new Date(value)) : '—';
-const status = value => ({ PENDING: 'Por confirmar', CONFIRMED: 'Confirmada: esperando al cajero', REJECTED: 'Rechazada', CANCELLED: 'Cancelada por el cajero', EXPIRED: 'Vencida', CONSUMED: 'Operación finalizada' }[value] || value);
+const status = (value, system = false) => ({ PENDING: 'Por confirmar', CONFIRMED: 'Confirmada: esperando al cajero', REJECTED: system ? 'Rechazada por un límite financiero' : 'Rechazada', CANCELLED: 'Cancelada por el cajero', EXPIRED: 'Vencida', CONSUMED: 'Operación finalizada' }[value] || value);
 function decide(action) {
     if (form.processing) return;
     if (action === 'approve' && !window.confirm(`¿Confirmas ${props.selected.operation === 'TOPUP' ? 'recargar' : 'retirar'} ${money(props.selected)} en ${props.selected.register_name}?`)) return;
@@ -25,7 +25,8 @@ function decide(action) {
                 <p class="text-3xl font-bold text-[#00338D]">{{ money(selected) }}</p>
                 <p><strong>Caja:</strong> {{ selected.register_name }}</p>
                 <p><strong>Motivo:</strong> {{ selected.reason }}</p>
-                <p><strong>Estado:</strong> {{ status(selected.status) }}</p>
+                <p><strong>Estado:</strong> {{ status(selected.status, selected.rejected_by_system) }}</p>
+                <p v-if="selected.rejection_reason" data-motivo-rechazo class="rounded-lg bg-amber-50 p-3 text-sm">{{ selected.rejection_reason }} No se acreditó ni descontó nada de tu wallet.</p>
                 <p class="text-sm text-slate-600">Vigencia: {{ date(selected.expires_at) }}</p>
                 <p class="text-sm text-slate-600">{{ selected.operation === 'TOPUP' ? 'El cajero debe recibir el efectivo antes de acreditar tu wallet.' : 'Al finalizar, se descontará este importe de tu wallet y el cajero deberá entregarte el efectivo.' }}</p>
                 <div class="flex flex-wrap gap-3">
@@ -40,7 +41,7 @@ function decide(action) {
                 <p v-if="!confirmations?.data?.length" class="text-slate-500">No hay confirmaciones registradas.</p>
                 <Link v-for="item in confirmations?.data || []" :key="item.id" :href="route('financial.cash.confirmations.student.show', { confirmationId: item.id })" class="block rounded-xl border p-4">
                     <strong>{{ item.operation === 'TOPUP' ? 'Recarga' : 'Retiro' }} · {{ money(item) }}</strong>
-                    <p class="text-sm text-slate-600">{{ item.register_name }} · {{ status(item.status) }} · {{ date(item.expires_at) }}</p>
+                    <p class="text-sm text-slate-600">{{ item.register_name }} · {{ status(item.status, item.rejected_by_system) }} · {{ date(item.expires_at) }}</p>
                 </Link>
                 <div class="flex gap-4"><Link v-if="confirmations?.prev_page_url" :href="confirmations.prev_page_url" class="text-[#00338D]">Anterior</Link><Link v-if="confirmations?.next_page_url" :href="confirmations.next_page_url" class="text-[#00338D]">Siguiente</Link></div>
             </section>

@@ -10,6 +10,7 @@ use App\Models\PlatformModule\Reward;
 use App\Services\PlatformModule\PlatformActor as User;
 use App\Services\PlatformModule\PlatformAuditTrail;
 use App\Services\PlatformModule\PlatformTransaction;
+use App\Services\PlatformModule\PointsGovernance;
 use App\Services\PlatformModule\PointsLedger\DTO\RedeemPointsRequest;
 use App\Services\PlatformModule\PointsLedger\DTO\ReversePointsRequest;
 use App\Services\PlatformModule\PointsLedger\Exception\InsufficientPointsException;
@@ -127,6 +128,27 @@ class RedemptionController
             return response()->json([
                 'success' => false,
                 'error' => 'No hay stock disponible para esta recompensa.',
+            ], 422);
+        }
+
+        // Política de gobierno activa (7.6): máximo de canjes por alumno y día.
+        $governance = app(PointsGovernance::class);
+        $maxPerDay = $governance->maxRedemptionsPerDay();
+        if ($maxPerDay !== null && $governance->redemptionsToday($studentId) >= $maxPerDay) {
+            return response()->json([
+                'success' => false,
+                'error' => "Ya alcanzaste el máximo de {$maxPerDay} canjes por día que fija la política del programa.",
+            ], 422);
+        }
+
+        // Límite por alumno que el administrador fija en la recompensa (7.4-e). Cuentan los canjes vigentes, como en el máximo diario.
+        $limitPerUser = $reward->limit_per_user;
+        if ($limitPerUser !== null && $limitPerUser > 0
+            && Redemption::where('student_id', $studentId)->where('reward_id', (string) $reward->_id)
+                ->whereNotIn('status', ['cancelled', 'failed'])->count() >= $limitPerUser) {
+            return response()->json([
+                'success' => false,
+                'error' => "Esta recompensa tiene un límite de {$limitPerUser} canjes por alumno y ya lo alcanzaste.",
             ], 422);
         }
 

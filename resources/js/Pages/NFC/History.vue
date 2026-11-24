@@ -240,7 +240,7 @@ const formatDate = (date) => {
                                 <!-- Usuario -->
                                 <td class="whitespace-nowrap px-6 py-4">
                                     <div class="text-sm font-medium text-gray-900">
-                                        {{ event.performedBy?.name || 'Usuario' }}
+                                        {{ event.performed_by?.name || event.performedBy?.name || 'Usuario' }}
                                     </div>
 
                                     <div

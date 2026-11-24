@@ -49,8 +49,8 @@ async function submitProposal() {
       name: form.value.name,
       description: form.value.description,
       multiplier: parseFloat(form.value.multiplier),
-      start_date: form.value.start_date,
-      end_date: form.value.end_date,
+      starts_at: form.value.start_date,
+      ends_at: form.value.end_date || null,
     })
 
     success('¡Propuesta académica enviada exitosamente! Quedará en revisión por el Administrador.')

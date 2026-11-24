@@ -10,9 +10,9 @@ use App\Services\RewardsAuthorizationService;
 
 test('technical definitions preserve foundation catalogs and isolate financial policy from rewards', function () {
     expect(Permission::DOMAINS)->toBe(['business', 'institutional', 'financial', 'rewards', 'student_services'])
-        ->and(Permission::CATALOG)->toHaveCount(8)
+        ->and(Permission::CATALOG)->toHaveCount(9)
         ->and(Permission::TECHNICAL_CATALOG)->toHaveCount(22)
-        ->and(Permission::definitions())->toHaveCount(30)
+        ->and(Permission::definitions())->toHaveCount(31)
         // E1-01/E1-02: budget.* separated and three designation capabilities; definitions only, no new mappings.
         ->and(Permission::TECHNICAL_CATALOG)->toHaveKeys(['budget.approve', 'budget.adjust', 'budget.suspend', 'budget.resume',
             'identity.refunds.designate', 'identity.services.designate', 'identity.budgets.designate'])
@@ -22,7 +22,7 @@ test('technical definitions preserve foundation catalogs and isolate financial p
         ->and(array_keys(Role::FINANCIAL_ROLE_SCOPES))->toBe(Role::FINANCIAL_ROLES)
         ->and(Role::AUTHORIZATION_ROLES)->toHaveCount(35)->and(Role::REWARDS_ROLE_SCOPES)->toBe([])
         ->and(array_keys(RolePermission::FINANCIAL_MAPPINGS))->toBe(Role::FINANCIAL_ROLES)->and(RolePermission::REWARDS_MAPPINGS)->toBe([])
-        ->and(array_sum(array_map('count', RolePermission::MAPPINGS)))->toBe(13);
+        ->and(array_sum(array_map('count', RolePermission::MAPPINGS)))->toBe(14);
 });
 
 test('domain capability definitions are finite and do not promise cross-module audit or campaigns', function () {

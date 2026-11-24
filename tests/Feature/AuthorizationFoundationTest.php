@@ -50,7 +50,7 @@ function foundationAssertDuplicate(Closure $operation): void
 test('permission keys and role permission pairs are unique in storage', function () {
     foundationAssertDuplicate(fn () => Permission::create(Permission::where('key', 'business.manage')->first()->only(['key', 'display_name', 'description', 'domain', 'active'])));
     foundationAssertDuplicate(fn () => RolePermission::create(['role_key' => 'cashier', 'permission_key' => 'business.sales.operate']));
-    expect(Permission::count())->toBe(8)->and(RolePermission::count())->toBe(13);
+    expect(Permission::count())->toBe(9)->and(RolePermission::count())->toBe(14);
 });
 
 test('permission catalog rejects consumer owned capabilities and mismatched domains', function (array $data) {
@@ -75,7 +75,7 @@ test('catalog preserves six legacy roles and adds exactly ten isolated foundatio
         ->and(Role::count())->toBe(16)
         ->and(Role::where('name', 'inventory_manager')->count())->toBe(1)
         ->and(Role::where('name', 'business_admin')->exists())->toBeFalse()
-        ->and(RolePermission::whereIn('role_key', [...Role::VALID_ROLES, 'buyer', 'auditor', 'rewards_admin'])->count())->toBe(0);
+        ->and(RolePermission::whereIn('role_key', [...Role::VALID_ROLES, 'auditor', 'rewards_admin'])->count())->toBe(0);
 });
 
 test('assignment uses normalized canonical user id and contains only structural metadata', function () {
@@ -250,7 +250,7 @@ test('bootstrap and migrations are idempotent without changing users or backfill
     $this->foundationMigration->up();
     $this->seed(AuthorizationFoundationSeeder::class);
     $this->seed(AuthorizationFoundationSeeder::class);
-    expect(Role::count())->toBe(16)->and(Permission::count())->toBe(8)->and(RolePermission::count())->toBe(13)
+    expect(Role::count())->toBe(16)->and(Permission::count())->toBe(9)->and(RolePermission::count())->toBe(14)
         ->and(User::count())->toBe(1)->and($this->subject->fresh()->getAttributes())->toEqual($before)
         ->and(RoleAssignment::count())->toBe(1)->and(BusinessMembership::count())->toBe(0);
 });
@@ -307,7 +307,7 @@ test('migration rollback preserves existing records and history', function () {
     $membership = foundationMembership($this->subject);
     $this->foundationMigration->down();
     expect($assignment->fresh()->status)->toBe('revoked')->and($membership->fresh()->status)->toBe('active')
-        ->and(User::count())->toBe(1)->and(Permission::count())->toBe(8);
+        ->and(User::count())->toBe(1)->and(Permission::count())->toBe(9);
     $this->foundationMigration->up();
 });
 

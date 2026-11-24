@@ -199,6 +199,14 @@ Route::prefix('equipo4')->middleware(['auth', 'session.active', 'device.track', 
     Route::post('/inventario/adjust', [InventoryController::class, 'adjust'])
         ->middleware('team4.permission:inventario.adjust')
         ->name('equipo4.inventario.adjust');
+    Route::post('/inventario/transfer', [InventoryController::class, 'transfer'])
+        ->middleware('team4.permission:inventario.transfer')
+        ->name('equipo4.inventario.transfer');
+
+    // ---------- Auditoría ----------
+    Route::get('/auditoria', [\App\Http\Controllers\InventoryModule\AuditController::class, 'index'])
+        ->middleware('team4.permission:auditoria.view')
+        ->name('equipo4.auditoria.index');
 
     // ---------- Devoluciones ----------
     Route::get('/devoluciones', [ReturnController::class, 'index'])

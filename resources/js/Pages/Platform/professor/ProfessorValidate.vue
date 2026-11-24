@@ -125,7 +125,7 @@ onMounted(() => {
             v-if="searchResult.can_deliver"
             class="btn btn-primary"
             @click="openValidate({
-              _id: searchResult.redemption._id,
+              _id: searchResult.redemption._id || searchResult.redemption.id,
               student: searchResult.student?.name || 'Estudiante',
               reward: searchResult.redemption.reward?.name || 'Recompensa',
               points: searchResult.redemption.points_spent,

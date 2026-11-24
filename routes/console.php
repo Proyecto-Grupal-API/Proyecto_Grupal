@@ -25,6 +25,9 @@ Schedule::command('servicios:revisar-sla')->everyFiveMinutes()->withoutOverlappi
 Schedule::command('inventario:expirar-reservas')->everyFiveMinutes()->withoutOverlapping(10);
 
 Schedule::command('marketplace:reconciliar')->everyMinute()->withoutOverlapping(10);
+if (config('marketplace.rewards.enabled') === true) {
+    Schedule::command('marketplace:publicar-recompensas')->everyMinute()->withoutOverlapping(10);
+}
 
 if (config('comunidad.eventos_pagos.enabled') === true) {
     Schedule::command('comunidad:conciliar-pagos-eventos')->everyMinute()->withoutOverlapping(10);

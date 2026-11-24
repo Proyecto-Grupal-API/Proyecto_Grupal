@@ -113,6 +113,15 @@ function formatDate(value: string | null): string {
         return '—';
     }
 
+    // Las fechas con hora llegan en UTC: cortar la cadena mostraba el día siguiente para un fin de día local.
+    if (value.length > 10) {
+        const date = new Date(value);
+
+        if (!Number.isNaN(date.getTime())) {
+            return new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
+        }
+    }
+
     const clean = value.slice(0, 10);
 
     const parts = clean.split('-');

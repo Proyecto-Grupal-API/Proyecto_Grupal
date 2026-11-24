@@ -24,7 +24,9 @@ class StudentCashConfirmationController extends Controller
             'operation' => $proof->operation, 'amount_cents' => $proof->amount_cents, 'currency' => $proof->currency,
             'reason' => $proof->reason, 'register_name' => $proof->shift->cashRegister->name,
             'expires_at' => $proof->expires_at->toISOString(), 'confirmed_at' => $proof->confirmed_at?->toISOString(),
-            'consumed_at' => $proof->consumed_at?->toISOString()];
+            'consumed_at' => $proof->consumed_at?->toISOString(),
+            // FIN-04: the student sees the same final outcome as the cashier, without operator or alert identifiers.
+            'rejected_by_system' => $proof->rejected_by === CashOperationConfirmationService::LIMIT_REJECTOR, 'rejection_reason' => $proof->rejection_reason];
     }
 
     public function index(Request $request)

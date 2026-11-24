@@ -5,6 +5,9 @@ namespace App\Http\Controllers\PlatformModule;
 use App\Models\PlatformModule\AnalyticsEvent;
 use App\Models\PlatformModule\AuditCorrelation;
 use App\Models\PlatformModule\AuditLog;
+use App\Models\PlatformModule\IntegrationLog;
+use App\Models\PlatformModule\WebhookEvent;
+use App\Services\PlatformModule\CommerceEventProcessor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -106,6 +109,11 @@ class PlatformIngestController
             return $this->duplicate($request, $d['event_id'], $digest, AnalyticsEvent::class);
         }
 
+        // 7.10: cada entrega aceptada queda en el registro de integraciones.
+        IntegrationLog::create(['domain' => $d['source_domain'], 'direction' => 'inbound', 'endpoint' => '/'.$request->path(),
+            'status' => 'success', 'attempt' => 1, 'request_payload' => ['event_id' => $d['event_id'], 'event_name' => $d['event_name']], 'correlation_id' => $d['event_id']]);
+        $this->processCommerce($event);
+
         return response()->json(
             ['estado' => $event->wasRecentlyCreated ? 'aceptado' : 'duplicado', 'event_id' => $d['event_id']],
             $event->wasRecentlyCreated ? 202 : 200
@@ -171,6 +179,27 @@ class PlatformIngestController
         }
 
         return response()->json(['estado' => 'aceptado', 'event_id' => $d['event_id']], 202);
+    }
+
+    /**
+     * Ventas confirmadas y devoluciones de Tienda: se convierten en puntos y quedan en la bandeja de eventos con su
+     * resultado. Un fallo de procesamiento no rechaza la entrega (el evento ya está guardado): queda para reintento.
+     */
+    private function processCommerce(AnalyticsEvent $event): void
+    {
+        $processor = app(CommerceEventProcessor::class);
+        if (! $processor->handles((string) $event->event_name)) {
+            return;
+        }
+        try {
+            $result = $processor->handle($event);
+        } catch (\Throwable $e) {
+            report($e);
+            $result = ['status' => 'failed', 'detail' => 'Error interno al procesar el evento.'];
+        }
+        WebhookEvent::create(['source' => (string) $event->source_domain, 'event_id' => (string) $event->event_id,
+            'event_type' => (string) $event->event_name, 'reference' => (string) $event->aggregate_id, 'payload' => ['aggregate_id' => (string) $event->aggregate_id],
+            'status' => $result['status'], 'retry_count' => 0, 'processed_at' => $result['status'] === 'failed' ? null : now(), 'detail' => $result['detail']]);
     }
 
     private function digest(array $value): string

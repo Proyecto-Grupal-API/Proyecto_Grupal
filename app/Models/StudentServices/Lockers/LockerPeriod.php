@@ -101,13 +101,9 @@ class LockerPeriod extends Model
             'code' => $this->code,
             'name' => $this->name,
 
-            'starts_at' => $this->starts_at?->format(
-                'Y-m-d'
-            ),
+            'starts_at' => \App\Services\StudentServices\ServiceClock::localOrNull($this->starts_at)?->format('Y-m-d'),
 
-            'ends_at' => $this->ends_at?->format(
-                'Y-m-d'
-            ),
+            'ends_at' => \App\Services\StudentServices\ServiceClock::localOrNull($this->ends_at)?->format('Y-m-d'),
 
             'prices' => [
                 'small' => $this->priceFor(

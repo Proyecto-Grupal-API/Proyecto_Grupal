@@ -7,6 +7,7 @@ use App\Http\Requests\StudentServices\Reservations\StoreReservationRequest;
 use App\Models\StudentServices\Reservations\Facility;
 use App\Models\StudentServices\Reservations\Reservation;
 use App\Services\StudentServices\Reservations\FacilityReservationService;
+use App\Services\StudentServices\Reservations\ReservationPayment;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,12 +53,7 @@ class ReservationController extends Controller
             ]);
         }
 
-        return back()->with(
-            'success',
-            $reservation->status === 'confirmed'
-                ? 'Reserva confirmada.'
-                : 'Sin cupo por ahora: quedaste en lista de espera.'
-        );
+        return back()->with('success', ReservationPayment::announcement($reservation, $facility->cost_cents));
     }
 
     public function cancel(

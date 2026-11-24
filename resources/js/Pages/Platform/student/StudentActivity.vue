@@ -73,7 +73,8 @@ async function loadActivity() {
       concept: item.description || (item.type === 'earn' ? 'Puntos acumulados' : 'Canje de recompensa'),
       source: item.source_domain || 'campus',
       points: item.amount ?? null,
-      type: item.type === 'earn' ? 'earn' : 'redeem',
+      // El tipo real del movimiento: antes todo lo que no era `earn` (abonos manuales, reversos) se listaba como canje.
+      type: item.type,
       status: 'Completado',
     }))
   } catch {

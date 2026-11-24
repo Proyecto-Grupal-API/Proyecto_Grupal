@@ -19,7 +19,14 @@ const map = {
   'Próxima':     { cls: 'purple',  label: 'Próxima' },
   'OK':          { cls: 'success', label: 'OK' },
   'Advertencia': { cls: 'warning', label: 'Advertencia' },
-  'Error':       { cls: 'danger',  label: 'Error' },
+    'Error':       { cls: 'danger',  label: 'Error' },
+  'En falla':    { cls: 'danger',  label: 'En falla' },
+  'Con fallas':  { cls: 'danger',  label: 'Con fallas' },
+  'Rechazada':   { cls: 'danger',  label: 'Rechazada' },
+  'Recibiendo':  { cls: 'success', label: 'Recibiendo' },
+  'Aprobada':    { cls: 'info',    label: 'Aprobada' },
+  'En revisión': { cls: 'warning', label: 'En revisión' },
+  'Sin eventos': { cls: 'warning', label: 'Sin eventos' },
 }
 
 function getBadge(s) {

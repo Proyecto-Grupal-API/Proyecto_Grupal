@@ -3,8 +3,9 @@
 | Versión | Fecha | Responsables | Cambio |
 |---|---|---|---|
 | 1.0 | 2026-11-13 | Integración MERGE_COMPLETO; con Claude Code | Generada desde `route:list` del laboratorio y las reglas de validación reales de cada controlador/FormRequest |
+| 1.1 | 2026-11-15 | Auditoría integral E1–E7; con Claude Code | Regenerada con los endpoints añadidos en la rama `validacion-funcional-e1-e7` (Recompensas: exportaciones, resumen de gobierno, salud de integraciones, catálogos) |
 
-488 endpoints bajo `/api` (343 versionados en `/api/v1`). Formato máquina: `api-referencia.json`. Para cada endpoint: parámetros de ruta, cuerpo/consulta aceptados (reglas Laravel), respuestas de éxito y errores posibles derivados de su middleware y de su código. Los ejemplos ejecutados están en la colección Postman verificada (`docs/postman/`).
+492 endpoints bajo `/api` (347 versionados en `/api/v1`). Formato máquina: `api-referencia.json`. Para cada endpoint: parámetros de ruta, cuerpo/consulta aceptados (reglas Laravel), respuestas de éxito y errores posibles derivados de su middleware y de su código. Los ejemplos ejecutados están en la colección Postman verificada (`docs/postman/`).
 
 **Convenciones de error**: 401 sin sesión o credencial de servicio; 403 sin permiso; 404 recurso inexistente o ajeno (no se revela existencia); 409 conflicto de estado o reintento con datos distintos; 422 validación con cuerpo `{"message": "...", "errors": {"campo": ["mensaje"]}}` (mensajes en español); 429 límite; 503 dependencia no disponible, sin diagnósticos internos.
 
@@ -758,7 +759,7 @@
 - Acción: `Financial\TopUpController@store`
 - Request: sin cuerpo validado (consulta o acción sin parámetros adicionales).
 - Respuesta: 201 · JSON
-- Errores: 401 credencial o firma de servicio inválida; 404 recurso inexistente o ajeno; 409 conflicto de estado o idempotencia; 503 dependencia no disponible
+- Errores: 401 credencial o firma de servicio inválida; 404 recurso inexistente o ajeno
 
 ### `GET /api/v1/financial/topups/{topUpId}`
 - Acción: `Financial\TopUpController@show`
@@ -770,7 +771,8 @@
 ### `POST /api/v1/financial/topups/{topUpId}/complete`
 - Acción: `Financial\TopUpController@complete`
 - Parámetros de ruta: `topUpId`
-- Request: sin cuerpo validado (consulta o acción sin parámetros adicionales).
+- Request:
+  - `idempotency_key`: ['nullable', 'string', 'max:255']
 - Respuesta: 200 · JSON
 - Errores: 401 credencial o firma de servicio inválida; 422 validación; 404 recurso inexistente o ajeno; 409 conflicto de estado o idempotencia
 
@@ -800,7 +802,7 @@
 - Acción: `Financial\WithdrawalController@store`
 - Request: sin cuerpo validado (consulta o acción sin parámetros adicionales).
 - Respuesta: 201 · JSON
-- Errores: 401 credencial o firma de servicio inválida; 404 recurso inexistente o ajeno; 409 conflicto de estado o idempotencia; 503 dependencia no disponible
+- Errores: 401 credencial o firma de servicio inválida; 404 recurso inexistente o ajeno
 
 ### `GET /api/v1/financial/withdrawals/{withdrawalId}`
 - Acción: `Financial\WithdrawalController@show`
@@ -3329,10 +3331,10 @@
 - Request:
   - `event_id`: required · uuid
   - `event_name`: ['required', 'string', 'max:100', 'regex:/^[a-z]
-- Respuesta: 200 · JSON
+- Respuesta: 201 · JSON
 - Errores: 401 sin sesión; 401 credencial o firma de servicio inválida; 503 integración sin secreto configurado (falla cerrado); 403 sin permiso; 422 validación
 
-## E7 Recompensas (62)
+## E7 Recompensas (66)
 
 ### `GET /api/v1/recompensas/analytics/community`
 - Acción: `PlatformModule\CommunityAnalyticsController`
@@ -3365,6 +3367,12 @@
 - Request: sin cuerpo validado (consulta o acción sin parámetros adicionales).
 - Respuesta: 200 · JSON
 - Errores: 401 sin sesión
+
+### `GET /api/v1/recompensas/audit/logs/export`
+- Acción: `PlatformModule\AuditController@export`
+- Request: sin cuerpo validado (consulta o acción sin parámetros adicionales).
+- Respuesta: 200 · descarga
+- Errores: 401 sin sesión; 403 sin permiso
 
 ### `GET /api/v1/recompensas/audit/logs/{id}`
 - Acción: `PlatformModule\AuditController@show`
@@ -3414,7 +3422,7 @@
 - Acción: `PlatformModule\BusinessController@toggleStatus`
 - Parámetros de ruta: `id`
 - Request: sin cuerpo validado (consulta o acción sin parámetros adicionales).
-- Respuesta: 201 · JSON
+- Respuesta: 200 · JSON
 - Errores: 401 sin sesión; 403 sin permiso; 404 recurso inexistente o ajeno
 
 ### `GET /api/v1/recompensas/campaigns`
@@ -3479,7 +3487,7 @@
 - Acción: `PlatformModule\CampaignController@toggleStatus`
 - Parámetros de ruta: `id`
 - Request: sin cuerpo validado (consulta o acción sin parámetros adicionales).
-- Respuesta: 201 · JSON
+- Respuesta: 200 · JSON
 - Errores: 401 sin sesión; 403 sin permiso; 404 recurso inexistente o ajeno
 
 ### `GET /api/v1/recompensas/catalogs`
@@ -3523,7 +3531,7 @@
 - Request:
   - `status`: required · string · in:open,under_review,resolved,dismissed
   - `notes`: required · string · max:1000
-- Respuesta: 201 · JSON
+- Respuesta: 200 · JSON
 - Errores: 401 sin sesión; 403 sin permiso; 422 validación; 404 recurso inexistente o ajeno
 
 ### `POST /api/v1/recompensas/governance/manual-adjustment`
@@ -3572,6 +3580,18 @@
 - Respuesta: 200 · JSON
 - Errores: 401 sin sesión; 403 sin permiso; 422 validación; 404 recurso inexistente o ajeno
 
+### `GET /api/v1/recompensas/governance/summary`
+- Acción: `PlatformModule\GovernanceController@summary`
+- Request: sin cuerpo validado (consulta o acción sin parámetros adicionales).
+- Respuesta: 200 · JSON
+- Errores: 401 sin sesión; 403 sin permiso
+
+### `GET /api/v1/recompensas/integrations/health`
+- Acción: `PlatformModule\IntegrationController@health`
+- Request: sin cuerpo validado (consulta o acción sin parámetros adicionales).
+- Respuesta: 200 · JSON
+- Errores: 401 sin sesión; 403 sin permiso
+
 ### `POST /api/v1/recompensas/integrations/ingest-event`
 - Acción: `PlatformModule\IntegrationController@ingestEvent`
 - Request:
@@ -3604,7 +3624,7 @@
 - Parámetros de ruta: `id`
 - Request: sin cuerpo validado (consulta o acción sin parámetros adicionales).
 - Respuesta: 200 · JSON
-- Errores: 401 sin sesión; 403 sin permiso; 404 recurso inexistente o ajeno; 503 dependencia no disponible
+- Errores: 401 sin sesión; 403 sin permiso; 422 validación; 404 recurso inexistente o ajeno
 
 ### `GET /api/v1/recompensas/points/balance/{studentId}`
 - Acción: `PlatformModule\PointsController@balance`
@@ -3638,6 +3658,12 @@
 - Acción: `PlatformModule\PointsController@ledger`
 - Request: sin cuerpo validado (consulta o acción sin parámetros adicionales).
 - Respuesta: 200 · JSON
+- Errores: 401 sin sesión; 403 sin permiso
+
+### `GET /api/v1/recompensas/points/ledger/export`
+- Acción: `PlatformModule\PointsController@exportLedger`
+- Request: sin cuerpo validado (consulta o acción sin parámetros adicionales).
+- Respuesta: 200 · descarga
 - Errores: 401 sin sesión; 403 sin permiso
 
 ### `GET /api/v1/recompensas/points/my-balance`
@@ -3845,7 +3871,7 @@
 - Acción: `PlatformModule\EarningRuleController@toggleStatus`
 - Parámetros de ruta: `id`
 - Request: sin cuerpo validado (consulta o acción sin parámetros adicionales).
-- Respuesta: 201 · JSON
+- Respuesta: 200 · JSON
 - Errores: 401 sin sesión; 403 sin permiso; 404 recurso inexistente o ajeno
 
 ### `GET /api/v1/recompensas/settings`
@@ -3874,7 +3900,7 @@
 - Request:
   - `target_status`: required · string · in:pending_approval,approved,rejected,active
   - `rejected_reason`: nullable · string · max:500
-- Respuesta: 201 · JSON
+- Respuesta: 200 · JSON
 - Errores: 401 sin sesión; 403 sin permiso; 422 validación; 404 recurso inexistente o ajeno
 
 ### `PUT /api/v1/recompensas/settings/{key}`

@@ -102,6 +102,7 @@ Route::middleware(['auth', 'verified', 'device.track'])->group(function () {
         // Latido para deteccion casi-inmediata de sesion revocada
         // desde otra pestaña/dispositivo (ver AuthenticatedLayout.vue).
         Route::get('/latido', [SecurityDeviceController::class, 'heartbeat'])
+            ->middleware(\App\Http\Middleware\PreserveSessionForBackgroundRequests::class)   // no gasta los avisos de la página
             ->name('heartbeat');
 
         Route::post('/confirmar-segundo-factor', \App\Http\Controllers\Auth\RecentTwoFactorController::class)
@@ -218,6 +219,11 @@ Route::middleware(['auth', 'session.active', 'device.track', SeleccionarOrganiza
     Route::get('/becas/solicitudes/{id}', fn (string $id) => Inertia::render('Modulo6/Estudiante/SolicitudBeca', ['solicitudId' => $id]))->where('id', '[a-fA-F0-9]{24}')->name('solicitud-beca');
 
     Route::get('/bandeja', fn () => Inertia::render('Modulo6/Bandeja'))->name('bandeja');
+    Route::get('/avisos-generales', function (\Illuminate\Http\Request $request) {
+        abort_unless(\App\Support\Authorization\CoordinadorComunicaciones::permite($request->user()), 403);
+
+        return Inertia::render('Modulo6/AvisosGenerales');
+    })->name('avisos-generales');
 
     Route::get('/comunicacion', function () {
         return Inertia::render('Modulo6/Comunicacion');

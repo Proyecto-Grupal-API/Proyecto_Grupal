@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\PlatformModule;
 
 use App\Models\PlatformModule\AnalyticsEvent;
+use App\Models\PlatformModule\AuditLog;
 use App\Models\PlatformModule\IntegrationLog;
 use App\Models\PlatformModule\WebhookEvent;
+use App\Services\PlatformModule\CommerceEventProcessor;
+use App\Services\PlatformModule\PlatformAuditTrail;
 use App\Services\PlatformModule\PointsLedger\DTO\EarnPointsRequest;
 use App\Services\PlatformModule\PointsLedgerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class IntegrationController
@@ -60,10 +64,61 @@ class IntegrationController
     /**
      * Reintento de procesamiento de un webhook fallido.
      */
+    /** Reprocesa un evento que quedó en falla (por ejemplo, una venta de un negocio que aún no tenía regla activa). */
     public function retryWebhook(Request $request, string $id): JsonResponse
     {
-        WebhookEvent::findOrFail($id);
-        abort(503, 'El reprocesamiento requiere un manejador acordado con el módulo emisor. No se modificó el evento.');
+        $webhook = WebhookEvent::findOrFail($id);
+        if ($webhook->status !== 'failed') {
+            return response()->json(['success' => false, 'error' => 'Sólo se reintentan eventos en falla.', 'webhook' => $webhook], 422);
+        }
+        $event = AnalyticsEvent::where('event_id', $webhook->event_id)->first();
+        $processor = app(CommerceEventProcessor::class);
+        if (! $event || ! $processor->handles((string) $event->event_name)) {
+            return response()->json(['success' => false, 'error' => 'El evento original ya no está disponible para reprocesarse.', 'webhook' => $webhook], 422);
+        }
+        try {
+            $result = $processor->handle($event);
+        } catch (\Throwable $e) {
+            report($e);
+            $result = ['status' => 'failed', 'detail' => 'Error interno al procesar el evento.'];
+        }
+        $webhook->update(['status' => $result['status'], 'detail' => $result['detail'], 'retry_count' => (int) $webhook->retry_count + 1,
+            'processed_at' => $result['status'] === 'failed' ? null : now()]);
+        app(PlatformAuditTrail::class)->record($request, $request->attributes->get('platform_actor'), 'webhook.retried',
+            'WebhookEvent', (string) $webhook->_id, 'integrations', ['after' => ['status' => $result['status'], 'detail' => $result['detail'], 'retry_count' => $webhook->retry_count]]);
+
+        return response()->json(['success' => $result['status'] !== 'failed', 'message' => $result['detail'], 'error' => $result['status'] === 'failed' ? $result['detail'] : null,
+            'webhook' => $webhook->fresh()], $result['status'] === 'failed' ? 422 : 200);
+    }
+
+    /** Salud de las integraciones (7.10): por dominio emisor, si tiene credencial, cuántos eventos llegaron y cuándo el último. */
+    public function health(): JsonResponse
+    {
+        $labels = ['identity' => 'Identidad (E1)', 'wallet' => 'Finanzas (E2)', 'marketplace' => 'Tienda (E3)', 'inventory' => 'Inventarios (E4)',
+            'services' => 'Servicios (E5)', 'community' => 'Comunidad (E6)'];
+        try {
+            DB::connection('platform')->getMongoDB()->command(['ping' => 1]);
+            $database = 'ok';
+        } catch (\Throwable) {
+            $database = 'sin respuesta';
+        }
+        $domains = [];
+        foreach ($labels as $domain => $label) {
+            $secret = config('platform.ingest.secrets.'.$domain);
+            // Recibido = eventos analíticos más sobres de auditoría entregados por el dominio (los que traen huella de sobre).
+            $audits = fn () => AuditLog::where('source_domain', $domain)->whereNotNull('envelope_hash');
+            $events = AnalyticsEvent::where('source_domain', $domain)->count() + $audits()->count();
+            $last = AnalyticsEvent::where('source_domain', $domain)->orderBy('created_at', 'desc')->first()?->created_at;
+            $lastAudit = $audits()->orderBy('created_at', 'desc')->first()?->created_at;
+            $latest = collect([$last, $lastAudit])->filter()->max();
+            $domains[] = ['domain' => $domain, 'label' => $label, 'credential' => is_string($secret) && strlen($secret) >= 20, 'events_total' => $events,
+                'last_event_at' => $latest ? $latest->toIso8601String() : null, 'failed_webhooks' => WebhookEvent::where('source', $domain)->where('status', 'failed')->count()];
+        }
+
+        return response()->json(['ingest_enabled' => config('platform.ingest.enabled') === true, 'database' => $database, 'domains' => $domains,
+            'webhooks' => ['total' => WebhookEvent::count(), 'failed' => WebhookEvent::where('status', 'failed')->count(),
+                'processed' => WebhookEvent::where('status', 'processed')->count(), 'ignored' => WebhookEvent::where('status', 'ignored')->count()],
+            'logs_total' => IntegrationLog::count()]);
     }
 
     /**

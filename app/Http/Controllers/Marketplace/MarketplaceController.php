@@ -44,6 +44,17 @@ class MarketplaceController extends Controller
         }
     }
 
+    /**
+     * El formulario de la tienda escribe en los dos campos de políticas. Una tienda guardada con la lista vacía no los traía
+     * y lo escrito se perdía al enviar: aquí se entregan siempre los dos, con lo que haya.
+     */
+    private static function policyFields(mixed $policies): array
+    {
+        $policies = is_array($policies) ? $policies : [];
+
+        return ['returns' => (string) ($policies['returns'] ?? ''), 'privacy' => (string) ($policies['privacy'] ?? '')];
+    }
+
     public function index(Request $request)
     {
         $ids = $this->publicIds();
@@ -51,8 +62,13 @@ class MarketplaceController extends Controller
         $this->displayProducts($products);
         $cart = Cart::where('user_id', (string) $request->user()->getKey())->first();
 
+        // La portada es de la tienda, no del negocio: se adjunta la de cada tienda publicada para que la página pública la muestre.
+        $businesses = Business::whereIn('_id', $ids)->limit(12)->get();
+        $covers = Storefront::whereIn('business_id', $businesses->map(fn ($b) => (string) $b->getKey())->all())->where('published', true)->pluck('banner', 'business_id');
+        $businesses->each(fn ($b) => $b->banner = $covers[(string) $b->getKey()] ?? null);
+
         return Inertia::render('Marketplace/Index', [
-            'businesses' => Business::whereIn('_id', $ids)->limit(12)->get(), 'products' => $products,
+            'businesses' => $businesses, 'products' => $products,
             'stats' => ['businesses' => count($ids), 'products' => Product::whereIn('business_id', $ids)->where('active', true)->count(),
                 'orders' => Order::where('buyer_id', (string) $request->user()->getKey())->count(), 'sales' => 0],
             'cartWalletAvailable' => $cart && ! empty($cart->items)
@@ -75,6 +91,9 @@ class MarketplaceController extends Controller
         $managed = Business::whereIn('_id', $managedIds)->get();
         foreach ($businesses as $b) {
             $b->storefront = Storefront::where('business_id', (string) $b->getKey())->first();
+            if ($b->storefront) {
+                $b->storefront->policies = self::policyFields($b->storefront->policies);
+            }
             $b->can_configure = in_array((string) $b->getKey(), $ownerIds, true);
         }
 

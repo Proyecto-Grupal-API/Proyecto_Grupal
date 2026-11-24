@@ -6,6 +6,7 @@ use App\Models\MiembroOrganizacion;
 use App\Models\Organizacion;
 use App\Models\RolOrganizacion;
 use App\Models\User;
+use Database\Seeders\Demo\DemoPassword;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -20,6 +21,7 @@ class DatabaseSeeder extends Seeder
         if (! app()->environment(['local', 'testing'])) {
             throw new \RuntimeException('Los usuarios de demostración solo se crean en local o testing.');
         }
+        $password = DemoPassword::value();   // de la configuración privada; se comprueba antes de escribir nada
         $this->call([TipoBeneficioSeeder::class, RoleSeeder::class, StudentCatalogSeeder::class]);
         $personas = [
             ['name' => 'Presidencia Sistemas', 'email' => 'presidencia@campus.test', 'matricula' => '20260001'],
@@ -27,7 +29,7 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Presidencia Consejo', 'email' => 'consejo@campus.test', 'matricula' => '20260003'],
             ['name' => 'Andrea Demo', 'email' => 'andrea@campus.test', 'matricula' => '20260004'],
         ];
-        $users = collect($personas)->map(fn ($p) => User::firstOrCreate(['email' => $p['email']], [...$p, 'password' => 'CampusDemo2026!', 'email_verified_at' => now()]));
+        $users = collect($personas)->map(fn ($p) => User::firstOrCreate(['email' => $p['email']], [...$p, 'password' => $password, 'email_verified_at' => now()]));
         foreach ([['sistemas', 'Asociación de Sistemas', 'asociacion', 0], ['consejo', 'Consejo Estudiantil', 'consejo', 2]] as [$slug, $nombre, $tipo, $presidente]) {
             $org = Organizacion::firstOrCreate(['slug' => $slug], ['nombre' => $nombre, 'tipo' => $tipo, 'descripcion' => 'Organización de demostración de Campus Digital.', 'email' => $users[$presidente]->email, 'telefono' => '', 'estado' => 'activa']);
             foreach ([$presidente, 1] as $i) {

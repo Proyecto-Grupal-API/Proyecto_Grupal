@@ -25,6 +25,7 @@ class Permission extends Model
         'business.operate' => ['Operar negocio', 'business'],
         'business.sales.operate' => ['Operar ventas', 'business'],
         'business.inventory.operate' => ['Operar inventario', 'business'],
+        'business.purchasing.operate' => ['Operar compras y abastecimiento', 'business'],
         'organizations.institutional.manage' => ['Gestión institucional de organizaciones', 'institutional'],
         'academic.program.coordinate' => ['Coordinar programa académico', 'institutional'],
         'academic.department.manage' => ['Gestionar departamento académico', 'institutional'],

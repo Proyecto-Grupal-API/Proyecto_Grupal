@@ -3,6 +3,7 @@
 | Versión | Fecha | Responsable | Cambio |
 |---|---|---|---|
 | 1.0 | 2026-11-12 | Equipo 1 (coordinación de la integración); con Claude Code | Registro inicial de los documentos usados en la evaluación |
+| 1.1 | 2026-11-15 | Auditoría integral E1–E7; con Claude Code | Se registran la adenda de la validación funcional y la referencia de API 1.1 (rama local `validacion-funcional-e1-e7`) |
 
 Corte: MERGE_COMPLETO `ffb4abd` + parche de cierre (candidata no publicada). Estados: **Vigente** = describe el corte; **Histórico** = se conserva sin actualizar como antecedente.
 
@@ -11,6 +12,8 @@ Corte: MERGE_COMPLETO `ffb4abd` + parche de cierre (candidata no publicada). Est
 | `docs/e1/E1-DOCUMENTO-INTEGRADOR.md` | 1.0 | 2026-11-12 | Equipo 1 | Vigente |
 | `docs/e1/TRAZABILIDAD-E1.md` / `.csv` | 1.0 | 2026-11-12 | Equipo 1 | Vigente (generado) |
 | `docs/DICCIONARIO-DE-DATOS.md` | 1.0 | 2026-11-12 | Equipos 1–7 | Vigente (generado) |
+| `docs/ADENDA-2026-11-15-VALIDACION-FUNCIONAL.md` | 1.0 | 2026-11-15 | Auditoría integral E1–E7 | Vigente (cambios de la rama local; completa los integradores y el diccionario) |
+| `docs/API-REFERENCIA.md` / `api-referencia.json` | 1.1 | 2026-11-15 | Auditoría integral E1–E7 | Vigente (generado) |
 | `docs/EQUIVALENCIA-POSTGRESQL.md` | 1.0 | 2026-11-12 | Equipos 1–7 | Vigente |
 | `docs/integration/E1-CIERRE-E6.md` | 1.0 | 2026-11-11 | Equipo 1 / E6 | Vigente |
 | `docs/integration/E1-CIERRE-FUNCIONAL-EVALUACION.md` | 1.0 | 2026-11-11 | Equipo 1 | Vigente |

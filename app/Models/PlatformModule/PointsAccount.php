@@ -37,4 +37,23 @@ class PointsAccount extends Model
 
         return (int) $sum;
     }
+
+    /**
+     * Abona puntos a la cuenta. Si hay deuda pendiente por un reverso que no se pudo cubrir (pending_balance),
+     * el abono la salda primero y sólo el resto pasa a saldo disponible. Así el saldo guardado siempre equivale
+     * a max(0, ledger) y el pendiente a max(0, -ledger).
+     */
+    public function credit(int $points): void
+    {
+        if ($points <= 0) {
+            return;
+        }
+        $settle = min((int) $this->pending_balance, $points);
+        if ($settle > 0) {
+            $this->decrement('pending_balance', $settle);
+        }
+        if ($points - $settle > 0) {
+            $this->increment('balance', $points - $settle);
+        }
+    }
 }

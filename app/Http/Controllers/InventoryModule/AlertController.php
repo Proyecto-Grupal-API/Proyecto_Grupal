@@ -166,6 +166,7 @@ class AlertController extends Controller
             'business_id' => $this->businessId(),
         ]);
         if (!$alertDoc) return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'Alerta no encontrada.']);
+        if ((string) ($alertDoc['status'] ?? '') !== 'ACTIVE') return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'Solo se descartan alertas activas.']);
 
         DB::connection('inventory')->getCollection('stock_alerts')->updateOne(
             ['_id' => new ObjectId($id)],
@@ -177,6 +178,11 @@ class AlertController extends Controller
                 'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]]
         );
+
+        app(\App\Services\InventoryModule\AuditService::class)->record('StockAlert.dismissed', 'stock_alerts', $id,
+            ['status' => 'DISMISSED', 'resolution_reason' => $validated['reason']],
+            ['status' => (string) ($alertDoc['status'] ?? ''), 'priority' => (string) ($alertDoc['priority'] ?? '')],
+            (string) ($alertDoc['message'] ?? ''));
 
         return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Alerta descartada.');
     }

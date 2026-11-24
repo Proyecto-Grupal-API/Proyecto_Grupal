@@ -8,7 +8,8 @@ class PointsLedger extends Model
 {
     protected $connection = 'platform';
 
-    protected $collection = 'points_ledger';
+    /** Colección real del ledger. El controlador de MongoDB ignora `$collection`; los datos siempre estuvieron aquí. */
+    protected $table = 'points_ledgers';
 
     public $timestamps = true;
 

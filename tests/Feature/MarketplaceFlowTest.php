@@ -10,6 +10,7 @@ use App\Models\Marketplace\Cart;
 use App\Models\Marketplace\Order;
 use App\Models\Marketplace\Product;
 use App\Models\Marketplace\ReturnRequest;
+use App\Models\Marketplace\Storefront;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -151,4 +152,34 @@ test('the seller sales report filters by period and status, exports the same row
         ->and($csv)->toContain(',awaiting_payment,pending,wallet,5100');
     $this->actingAs($this->stranger)->get('/tienda/vendedor/reporte.csv')->assertOk();
     expect(substr_count(trim($this->get('/tienda/vendedor/reporte.csv')->getContent()), "\n"))->toBe(0);
+});
+
+// Publicación de tienda (3.3). Dos defectos vistos en el recorrido de interfaz del 16 de noviembre: la tienda pública no
+// mostraba la portada guardada (la leía del negocio, que no la tiene) y las políticas no se podían guardar cuando la tienda
+// las tenía como lista vacía, que es como las deja el sembrador de demostración.
+test('the public store receives the cover of each published storefront', function () {
+    $business = marketplaceStore($this);
+    Storefront::where('business_id', (string) $business->getKey())->update(['banner' => 'https://cdn.example.test/portada.png']);
+
+    $this->actingAs($this->buyer)->get('/tienda')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Marketplace/Index')
+        ->where('businesses.0.banner', 'https://cdn.example.test/portada.png'));
+
+    // Una tienda sin publicar no aparece en la tienda pública, así que tampoco su portada.
+    Storefront::where('business_id', (string) $business->getKey())->update(['published' => false]);
+    $this->get('/tienda')->assertOk()->assertInertia(fn (Assert $page) => $page->has('businesses', 0));
+});
+
+test('the storefront form always receives both policy fields, also when they were stored as an empty list', function () {
+    $business = marketplaceStore($this);
+    $id = (string) $business->getKey();
+    Storefront::where('business_id', $id)->update(['policies' => []]);
+
+    $this->actingAs($this->seller)->get('/tienda/negocios')->assertOk()->assertInertia(fn (Assert $page) => $page->component('Marketplace/Businesses')
+        ->where('businesses.data.0.storefront.policies', ['returns' => '', 'privacy' => '']));
+
+    $this->put('/tienda/negocios/'.$id.'/tienda', ['name' => 'Impresiones Rápidas', 'published' => true,
+        'policies' => ['returns' => 'Devoluciones en siete días.', 'privacy' => 'Sólo para entregar el pedido.']])->assertSessionHasNoErrors();
+    expect(Storefront::where('business_id', $id)->firstOrFail()->policies)->toBe(['returns' => 'Devoluciones en siete días.', 'privacy' => 'Sólo para entregar el pedido.']);
+    $this->get('/tienda/negocios')->assertInertia(fn (Assert $page) => $page
+        ->where('businesses.data.0.storefront.policies', ['returns' => 'Devoluciones en siete días.', 'privacy' => 'Sólo para entregar el pedido.']));
 });

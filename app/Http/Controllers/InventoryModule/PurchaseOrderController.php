@@ -189,6 +189,11 @@ class PurchaseOrderController extends Controller
             return redirect(parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH))->withErrors(['error' => 'No se pudo crear: '.$e->getMessage()]);
         }
 
+        app(\App\Services\InventoryModule\AuditService::class)->record('PurchaseOrder.created', 'purchase_orders', (string) $orderId, [
+            'folio' => $folio, 'status' => (string) ($validated['status'] ?? 'SOLICITADA'), 'supplier_id' => (string) ($validated['supplier_id'] ?? ''),
+            'total_estimated' => (float) $total, 'items_count' => count($items),
+        ], [], $folio);
+
         return redirect(parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH))->with('success', 'OC '.$folio.' creada.');
     }
 
@@ -252,6 +257,10 @@ class PurchaseOrderController extends Controller
             return redirect(parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH))->withErrors(['error' => 'No se pudo actualizar: '.$e->getMessage()]);
         }
 
+        app(\App\Services\InventoryModule\AuditService::class)->record('PurchaseOrder.updated', 'purchase_orders', $id,
+            ['status' => (string) ($validated['status'] ?? $o['status']), 'items_count' => count($items)],
+            ['status' => (string) ($o['status'] ?? ''), 'items_count' => (int) ($o['items_count'] ?? 0)], (string) ($o['folio'] ?? ''));
+
         return redirect(parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH))->with('success', 'OC actualizada.');
     }
 
@@ -284,6 +293,9 @@ class PurchaseOrderController extends Controller
                 ['$set' => ['status' => 'AUTORIZADA', 'authorized_by' => ActorResolver::resolve(), 'updated_at' => new UTCDateTime(now())]]
             );
 
+            app(\App\Services\InventoryModule\AuditService::class)->record('PurchaseOrder.authorized', 'purchase_orders', $id,
+                ['status' => 'AUTORIZADA'], ['status' => $currentStatus, 'requested_by' => (string) ($o['requested_by'] ?? '')], (string) ($o['folio'] ?? ''));
+
             return redirect(parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH))->with('success', 'OC autorizada.');
         }
 
@@ -296,6 +308,9 @@ class PurchaseOrderController extends Controller
                 ['_id' => new ObjectId($id)],
                 ['$set' => ['status' => 'CANCELADA', 'updated_at' => new UTCDateTime(now())]]
             );
+
+            app(\App\Services\InventoryModule\AuditService::class)->record('PurchaseOrder.cancelled', 'purchase_orders', $id,
+                ['status' => 'CANCELADA'], ['status' => $currentStatus], (string) ($o['folio'] ?? ''));
 
             return redirect(parse_url(request()->headers->get('referer') ?: '/', PHP_URL_PATH))->with('success', 'OC cancelada.');
         }

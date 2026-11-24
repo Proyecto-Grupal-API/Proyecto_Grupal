@@ -31,7 +31,7 @@ $catalog = [
                 'costos.view',
 
                 // Inventario: núcleo de su rol
-                'inventario.view', 'inventario.adjust',
+                'inventario.view', 'inventario.adjust', 'inventario.transfer',
                 'almacenes.view', 'almacenes.create', 'almacenes.update', 'almacenes.delete',
                 'kardex.view',
 
@@ -80,6 +80,18 @@ $catalog = [
             ],
         ],
 
+        // Consulta transversal (todas las tiendas): sólo pantallas de consulta; sin bitácora de auditoría ni costos de negocios ajenos.
+        'global_viewer' => [
+            'label' => 'Consulta transversal (sólo lectura)',
+            'permissions' => [
+                'dashboard.view',
+                'productos.view', 'souvenirs.view',
+                'inventario.view', 'almacenes.view', 'kardex.view', 'reservas.view',
+                'proveedores.view', 'compras.view', 'recepciones.view',
+                'devoluciones.view', 'alertas.view', 'conteos.view',
+            ],
+        ],
+
         'auditor' => [
             'label' => 'Auditor',
             'permissions' => [
@@ -89,6 +101,7 @@ $catalog = [
                 'inventario.view', 'almacenes.view', 'kardex.view', 'reservas.view',
                 'proveedores.view', 'compras.view', 'recepciones.view',
                 'devoluciones.view', 'alertas.view', 'conteos.view',
+                'auditoria.view',
             ],
         ],
 
@@ -121,6 +134,15 @@ $catalog = [
             'returns_month',
         ],
 
+        'global_viewer' => [
+            'products_active',
+            'inventory_units',
+            'reservations_active',
+            'alerts_active',
+            'warehouses',
+            'locations',
+        ],
+
         'auditor' => [
             'products_active',
             'inventory_units',
@@ -139,5 +161,5 @@ $catalog = [
 
 $catalog["roles"]["business_manager"] = ["label" => "Gerente del negocio", "permissions" => array_values(array_unique(array_merge($catalog["roles"]["inventory_manager"]["permissions"], $catalog["roles"]["buyer"]["permissions"])))];
 $catalog["dashboard_kpis"]["business_manager"] = ["*"];
-$catalog['all'] = ['alertas.discard', 'alertas.sync', 'alertas.view', 'almacenes.create', 'almacenes.delete', 'almacenes.update', 'almacenes.view', 'compras.authorize', 'compras.cancel', 'compras.create', 'compras.update', 'compras.view', 'conteos.capture', 'conteos.close', 'conteos.create', 'conteos.delete', 'conteos.view', 'costos.register', 'costos.view', 'dashboard.view', 'devoluciones.storeCustomer', 'devoluciones.storeSupplier', 'devoluciones.view', 'inventario.adjust', 'inventario.view', 'kardex.view', 'productos.create', 'productos.delete', 'productos.update', 'productos.view', 'proveedores.create', 'proveedores.delete', 'proveedores.update', 'proveedores.view', 'recepciones.create', 'recepciones.view', 'reservas.create', 'reservas.release', 'reservas.view', 'souvenirs.create', 'souvenirs.delete', 'souvenirs.update', 'souvenirs.view'];
+$catalog['all'] = ['auditoria.view', 'inventario.transfer', 'alertas.discard', 'alertas.sync', 'alertas.view', 'almacenes.create', 'almacenes.delete', 'almacenes.update', 'almacenes.view', 'compras.authorize', 'compras.cancel', 'compras.create', 'compras.update', 'compras.view', 'conteos.capture', 'conteos.close', 'conteos.create', 'conteos.delete', 'conteos.view', 'costos.register', 'costos.view', 'dashboard.view', 'devoluciones.storeCustomer', 'devoluciones.storeSupplier', 'devoluciones.view', 'inventario.adjust', 'inventario.view', 'kardex.view', 'productos.create', 'productos.delete', 'productos.update', 'productos.view', 'proveedores.create', 'proveedores.delete', 'proveedores.update', 'proveedores.view', 'recepciones.create', 'recepciones.view', 'reservas.create', 'reservas.release', 'reservas.view', 'souvenirs.create', 'souvenirs.delete', 'souvenirs.update', 'souvenirs.view'];
 return $catalog;

@@ -177,7 +177,7 @@ class ServiceAccessService
         }
 
         return [
-            'message' => "Préstamo registrado. Fecha de devolución: {$loan->due_at->format('d/m/Y')}.",
+            'message' => "Préstamo registrado. Fecha de devolución: ".\App\Services\StudentServices\ServiceClock::local($loan->due_at)->format('d/m/Y').".",
             'reference' => (string) $copy->code,
             'reference_id' => (string) $loan->id,
             'event' => 'library.loan_created',
@@ -266,7 +266,7 @@ class ServiceAccessService
         $resource = $this->bookings->resourceOf($type, $booking);
 
         return [
-            'message' => 'Entrada registrada en '.($resource->name ?? 'el recurso')." hasta las {$booking->end_at->format('H:i')}.",
+            'message' => 'Entrada registrada en '.($resource->name ?? 'el recurso')." hasta las ".\App\Services\StudentServices\ServiceClock::local($booking->end_at)->format('H:i').".",
             'reference' => (string) $booking->folio,
             'reference_id' => (string) $booking->id,
             'event' => $type.'.checked_in',
@@ -325,7 +325,7 @@ class ServiceAccessService
         $asset = Asset::find((string) $rental->asset_id);
 
         return [
-            'message' => 'Entrega de '.($asset->name ?? 'equipo')." validada. Devolver a más tardar el {$rental->due_at->format('d/m/Y')}.",
+            'message' => 'Entrega de '.($asset->name ?? 'equipo')." validada. Devolver a más tardar el ".\App\Services\StudentServices\ServiceClock::local($rental->due_at)->format('d/m/Y').".",
             'reference' => (string) ($asset->inventory_item_id ?? $rental->id),
             'reference_id' => (string) $rental->id,
             'event' => 'rental.picked_up',

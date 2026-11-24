@@ -9,6 +9,7 @@ use App\Models\RegistroEvento;
 use App\Models\StaffEvento;
 use App\Models\User;
 use App\Services\InscripcionesEvento;
+use Database\Seeders\Demo\DemoPassword;
 use Illuminate\Database\Seeder;
 
 class StaffEventoSeeder extends Seeder
@@ -18,9 +19,10 @@ class StaffEventoSeeder extends Seeder
         if (! app()->environment(['local', 'testing'])) {
             throw new \RuntimeException('La demostración de staff solo está disponible en local/testing.');
         }
+        $password = DemoPassword::value();
         $org = Organizacion::where('slug', 'sistemas')->firstOrFail();
         $admin = User::where('email', 'presidencia@campus.test')->firstOrFail();
-        $staff = User::firstOrCreate(['email' => 'staff@campus.test'], ['name' => 'Staff de acceso', 'matricula' => '20260005', 'password' => 'CampusDemo2026!', 'email_verified_at' => now()]);
+        $staff = User::firstOrCreate(['email' => 'staff@campus.test'], ['name' => 'Staff de acceso', 'matricula' => '20260005', 'password' => $password, 'email_verified_at' => now()]);
         MiembroOrganizacion::firstOrCreate(['organizacion_id' => (string) $org->id, 'usuario_id' => (string) $staff->id], ['fecha_inicio' => today(), 'estado' => 'activo', 'eliminado_en' => null]);
         $evento = Evento::firstOrCreate(['slug' => 'conferencia-acceso-demo'], [
             'organizacion_id' => (string) $org->id, 'creado_por' => (string) $admin->id,

@@ -20,12 +20,15 @@ class GuardarEventoRequest extends FormRequest
             'fecha_hora_inicio' => ['required', 'date_format:Y-m-d\TH:i'], 'fecha_hora_fin' => ['required', 'date_format:Y-m-d\TH:i'],
             'fecha_inicio_registro' => ['required', 'date_format:Y-m-d\TH:i'], 'fecha_fin_registro' => ['required', 'date_format:Y-m-d\TH:i'],
             'costo' => ['required', 'numeric', 'min:0', 'max:100000', 'decimal:0,2'], 'capacidad' => ['required', 'integer', 'min:1', 'max:10000'], 'lista_espera' => ['required', 'boolean'],
+            // Control optimista: la versión del evento que tenía cargada quien edita (opcional para clientes de API).
+            'actualizado_en_esperado' => ['nullable', 'date'],
         ];
     }
 
     public function datosEvento(): array
     {
         $data = $this->validated();
+        unset($data['actualizado_en_esperado']);
         foreach (['fecha_hora_inicio', 'fecha_hora_fin', 'fecha_inicio_registro', 'fecha_fin_registro'] as $campo) {
             $data[$campo] = CarbonImmutable::createFromFormat('!Y-m-d\TH:i', $data[$campo], config('comunidad.eventos_timezone'))->utc();
         }

@@ -46,7 +46,7 @@ test('business capabilities follow the exact persistent canonical matrix', funct
     'manager' => ['business_manager', ['business.operate', 'business.sales.operate', 'business.inventory.operate']],
     'cashier' => ['cashier', ['business.sales.operate']],
     'inventory' => ['inventory_manager', ['business.inventory.operate']],
-    'buyer' => ['buyer', []],
+    'buyer' => ['buyer', ['business.purchasing.operate']],
 ]);
 
 test('only active current and presently valid membership and assignment authorize', function (string $model, string $state, bool $allow) {

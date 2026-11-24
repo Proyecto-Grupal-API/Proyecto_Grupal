@@ -12,7 +12,7 @@ async function request(method, endpoint, data = null, customHeaders = {}) {
   }
 }
 export const api = {
-  catalogs: { list: () => request('GET','/catalogs') },
+  catalogs: { list: () => request('GET','/catalogs'), create: (payload) => request('POST','/catalogs', payload) },
   // ── 1. Autenticación y Perfil ──────────────────────────────
 
   // ── 2. Dashboard ───────────────────────────────────────────
@@ -101,6 +101,7 @@ export const api = {
 
   // ── 9. Gobierno de Puntos, Políticas y Fraude ──────────────
   governance: {
+    getSummary: () => request('GET', '/governance/summary'),
     getPolicies: () => request('GET', '/governance/policies'),
     createPolicy: (payload) => request('POST', '/governance/policies', payload),
     updatePolicy: (id, payload) => request('PUT', `/governance/policies/${id}`, payload),
@@ -130,6 +131,7 @@ export const api = {
 
   // ── 12. Integraciones y Observabilidad ─────────────────────
   integrations: {
+    getHealth: () => request('GET', '/integrations/health'),
     getLogs: (params = {}) => {
       const qs = new URLSearchParams(params).toString()
       return request('GET', `/integrations/logs${qs ? `?${qs}` : ''}`)
@@ -148,7 +150,7 @@ export const api = {
     update: (key, payload) => request('PUT', `/settings/${key}`, payload),
     getVersions: () => request('GET', '/settings/versions'),
     createVersion: (payload) => request('POST', '/settings/versions', payload),
-    transitionVersion: (id, status) => request('POST', `/settings/versions/${id}/transition`, { status }),
+    transitionVersion: (id, target_status, rejected_reason = null) => request('POST', `/settings/versions/${id}/transition`, rejected_reason ? { target_status, rejected_reason } : { target_status }),
   },
 }
 

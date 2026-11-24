@@ -15,6 +15,8 @@ return [
     'avisos_finanzas_client_id' => env('FINANCIAL_COMMUNITY_NOTICES_CLIENT_ID'),
     'eventos_nfc_habilitado' => env('COMUNIDAD_EVENTOS_NFC_HABILITADO', false),
     'eventos_timezone' => 'America/Mexico_City',
+    // Aviso general a todos los usuarios (petición del profesor, 20-nov-2026): contexto de servicio del cargo de Identidad.
+    'avisos_generales' => ['servicio' => env('COMUNIDAD_AVISOS_GENERALES_SERVICIO', 'comunicaciones')],
     'eventos_lock_store' => 'file',
     'checkin_minutos_antes' => 30,
 ];

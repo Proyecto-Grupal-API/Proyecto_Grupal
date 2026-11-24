@@ -15,6 +15,7 @@ use App\Models\PlatformModule\RedemptionEvent;
 use App\Models\PlatformModule\Reward;
 use App\Models\PlatformModule\WebhookEvent;
 use App\Models\Role;
+use App\Models\StudentProfile;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Support\Facades\DB;
@@ -107,6 +108,8 @@ it('keeps a redemption retry to one debit one reservation and one receipt', func
     $admin->assignRole(Role::ADMIN);
     $this->actingAs($admin);
     EarningRule::create(['business_id' => 'business-test', 'name' => 'Regla de pruebas', 'status' => 'active', 'active_from' => now()->subDay(), 'points_per_unit' => 1, 'unit_amount' => 1, 'multiplier' => 1]);
+    // Recompensas sólo acumula puntos a alumnos registrados en Identidad: el actor de la prueba lo es.
+    StudentProfile::create(['user_id' => (string) $this->actor->getKey(), 'enrollment_number' => 'INT-7M-1', 'academic_status' => 'active']);
     $this->postJson('/api/v1/recompensas/points/earn', ['student_id' => (string) $this->actor->getKey(), 'business_id' => 'business-test', 'sale_amount' => 300, 'source_domain' => 'community', 'source_reference' => 'fixture-1', 'idempotency_key' => 'earn-fixture-1'])->assertCreated();
     $reward = Reward::create(['name' => 'Servicio de prueba', 'points_required' => 50, 'stock' => 5, 'reserved_stock' => 0, 'is_physical' => false, 'status' => 'active']);
     $this->actingAs($this->actor);
@@ -141,6 +144,8 @@ it('never marks an external webhook processed without actually replaying it', fu
     $this->actor->assignRole(Role::ADMIN);
     $this->actingAs($this->actor);
     $event = WebhookEvent::create(['source' => 'marketplace', 'event_type' => 'sale', 'event_id' => 'fixture-webhook', 'status' => 'failed', 'retry_count' => 0]);
-    $this->postJson('/api/v1/recompensas/integrations/webhooks/'.$event->getKey().'/retry')->assertStatus(503);
+    // El reintento ya reprocesa de verdad los eventos de venta (RewardsCommerceIntegrationTest). Uno cuyo evento original
+    // no se conserva no puede reprocesarse: se rechaza y sigue en falla, sin contarse como intento.
+    $this->postJson('/api/v1/recompensas/integrations/webhooks/'.$event->getKey().'/retry')->assertStatus(422)->assertJsonPath('success', false);
     expect($event->fresh()->status)->toBe('failed')->and($event->fresh()->retry_count)->toBe(0);
 });

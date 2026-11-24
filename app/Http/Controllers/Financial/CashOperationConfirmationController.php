@@ -25,6 +25,21 @@ class CashOperationConfirmationController extends CashController
             $values['operation'], $values['amount_cents'], $actor, $values['reason'], $key)));
     }
 
+    /** FIN-05: titular y wallet por matrícula para el operador del turno (no es un directorio abierto). */
+    public function holder(Request $request, string $associationId, string $shiftId, \App\Domains\Financial\Services\CashHolderLookup $lookup): JsonResponse
+    {
+        $actor = $this->authorizeAssociation($request, $associationId, 'operate');
+        $shift = $this->shift($associationId, $shiftId);
+        abort_unless($shift->agent_id === $actor, 403);
+        $values = $request->validate(['titular' => ['required', 'string', 'max:128']]);
+        try {
+            return $this->execute($request, fn () => $lookup->find($values['titular'], $actor, $request->ip(), $shift->cashRegister->currency));
+        } catch (\App\Domains\Financial\Exceptions\FinancialDependencyUnavailableException $e) {
+            return response()->json(['message' => $e->getMessage()] + ($e instanceof \App\Domains\Financial\Exceptions\TransferRecipientUnavailableException
+                ? ['code' => $e->reasonCode, 'correlation_id' => $e->correlationId] : []), 503);
+        }
+    }
+
     public function showConfirmation(Request $request, string $associationId, string $shiftId, string $confirmationId): JsonResponse
     {
         $actor = $this->authorizeAssociation($request, $associationId, 'operate');
@@ -51,6 +66,8 @@ class CashOperationConfirmationController extends CashController
             'confirmed_at' => $proof->confirmed_at?->toISOString(),
             'supervisor_required' => $proof->supervisor_required, 'supervisor_status' => $proof->supervisor_status,
             'approval_policy_version' => $proof->approval_policy_snapshot['version'] ?? 0,
+            'rejected_by_system' => $proof->rejected_by === CashOperationConfirmationService::LIMIT_REJECTOR,
+            'rejection_reason' => $proof->rejection_reason, 'rejection_alert_id' => $proof->rejection_alert_id ? strtolower($proof->rejection_alert_id) : null,
             'student_url' => route('financial.cash.confirmations.student.show', ['confirmationId' => $proof->public_id], false)];
     }
 }

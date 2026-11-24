@@ -9,7 +9,8 @@ class AcademicStatusHistory extends Model
 {
     protected $connection = 'mongodb';
 
-    protected $collection = 'academic_status_history';
+    /** Colección real del historial. El controlador de MongoDB ignora `$collection`. */
+    protected $table = 'academic_status_histories';
 
     protected $fillable = [
         'student_profile_id', 'from_status', 'to_status', 'reason', 'changed_by', 'changed_at',

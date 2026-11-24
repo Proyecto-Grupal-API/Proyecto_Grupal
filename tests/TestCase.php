@@ -59,6 +59,11 @@ abstract class TestCase extends BaseTestCase
 
         parent::setUp();
         $this->withoutVite();
+        // Las cuentas sintéticas de los sembradores toman su contraseña de configuración privada (adenda 21.E). En pruebas
+        // no hay archivo privado: cada prueba recibe una aleatoria, salvo que fije o retire la suya.
+        if (! config('demo.password')) {
+            config(['demo.password' => 'solo-pruebas-'.bin2hex(random_bytes(12))]);
+        }
 
         // Detect any connection drift after Laravel's testing traits have initialized.
         $this->assertSafeMongoTestTarget();

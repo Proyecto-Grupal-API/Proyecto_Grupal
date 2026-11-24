@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\PlatformModule;
 
+use App\Models\PlatformModule\AuditLog;
+use App\Models\PlatformModule\ConfigurationVersion;
+use App\Models\PlatformModule\EarningRule;
 use App\Models\PlatformModule\FraudFlag;
 use App\Models\PlatformModule\PointCampaign;
 use App\Models\PlatformModule\PointsAccount;
@@ -143,7 +146,34 @@ class DashboardController
             'open_fraud_flags' => FraudFlag::where('status', 'open')->count(),
             'redemptions_today' => Redemption::where('created_at', '>=', $today)->count(),
             'recent_ledger' => PointsLedger::orderBy('created_at', 'desc')->take(5)->get(),
+            // Últimos eventos de la bitácora y series mensuales del ledger (7.9): todo sale de consultas reales.
+            'recent_audit_logs' => AuditLog::orderBy('created_at', 'desc')->take(8)->get()
+                ->map(fn ($log) => ['id' => (string) $log->_id, 'action' => $log->action, 'actor_id' => $log->actor_id, 'actor_role' => $log->actor_role,
+                    'entity_type' => $log->entity_type, 'entity_id' => $log->entity_id, 'ip_address' => $log->ip_address,
+                    'created_at' => optional($log->created_at)->toIso8601String()])->values(),
+            'chart' => $this->monthlySeries(6),
+            'governance' => [
+                'rules_with_limits' => EarningRule::where(fn ($q) => $q->where('daily_cap', '>', 0)->orWhere('max_points_per_operation', '>', 0))->count(),
+                'fraud_open' => FraudFlag::where('status', 'open')->count(),
+                'draft_campaigns' => PointCampaign::where('status', 'draft')->count(),
+                'pending_configuration_versions' => ConfigurationVersion::where('status', 'pending_approval')->count(),
+            ],
             'top_rewards' => Reward::orderBy('stock', 'desc')->take(4)->get(),
         ]);
+    }
+
+    /** Puntos emitidos y canjeados por mes en los últimos $months meses, sumados del ledger. */
+    private function monthlySeries(int $months): array
+    {
+        $labels = $issued = $redeemed = [];
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $start = Carbon::now()->startOfMonth()->subMonthsNoOverflow($i);
+            $end = $start->copy()->endOfMonth();
+            $labels[] = $start->format('Y-m');
+            $issued[] = (int) PointsLedger::where('type', 'earn')->whereBetween('created_at', [$start, $end])->sum('amount');
+            $redeemed[] = (int) abs(PointsLedger::where('type', 'redeem')->whereBetween('created_at', [$start, $end])->sum('amount'));
+        }
+
+        return ['labels' => $labels, 'issued' => $issued, 'redeemed' => $redeemed];
     }
 }

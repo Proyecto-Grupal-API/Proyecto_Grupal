@@ -109,6 +109,8 @@ function abrir(e = null) {
               fecha_hora_fin: local(e.fecha_hora_fin),
               fecha_inicio_registro: local(e.fecha_inicio_registro),
               fecha_fin_registro: local(e.fecha_fin_registro),
+              estado: e.estado,
+              actualizado_en_esperado: e.actualizado_en || null,
           }
         : {
               titulo: "",
@@ -677,6 +679,11 @@ function cerrar() {
                         class="rounded"
                     />Habilitar lista de espera</label
                 >
+                <p v-if="formulario.id && formulario.estado === 'publicado'" data-aviso-edicion-activa class="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
+                    Evento publicado: puedes cambiar fecha, ubicación y demás datos aunque tenga reservas; las reservas y los boletos se conservan
+                    y cada inscrito recibe un aviso en su bandeja. Con reservas no se puede cambiar el costo, ni la fecha si el evento tiene costo
+                    (requiere una política de devoluciones).
+                </p>
                 <p v-if="formulario.costo > 0" class="text-sm text-amber-800">
                     Las reservas con pago pendiente vencerán a los 15 minutos o al inicio del evento, lo que ocurra primero.
                     {{

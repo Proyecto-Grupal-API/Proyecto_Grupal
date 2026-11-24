@@ -8,6 +8,7 @@ import { usePermissions } from '@/Composables/usePermissions'
 const props = defineProps({
   receipts: { type: Array, default: () => [] },
   receivableOrders: { type: Array, default: () => [] },
+  locationsList: { type: Array, default: () => [] },
   kpis: { type: Array, default: () => [] },
   pagination: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) }
@@ -36,7 +37,7 @@ const selectedOrderId = ref('')
 const orderDetails = ref(null)
 const receiptQuantities = ref({})
 
-const form = useForm({ purchase_order_id: '', notes: '', items: [] })
+const form = useForm({ purchase_order_id: '', location_id: '', notes: '', items: [] })
 
 const openCreateModal = async () => {
   if (!canCreate.value) return
@@ -45,6 +46,7 @@ const openCreateModal = async () => {
   selectedOrderId.value = ''
   orderDetails.value = null
   receiptQuantities.value = {}
+  form.location_id = props.locationsList[0]?._id || ''
   showModal.value = true
 }
 
@@ -144,6 +146,14 @@ const submitReceipt = () => {
             <option v-for="o in receivableOrders" :key="o._id" :value="o._id">{{ o.folio }}</option>
           </select>
           <p v-if="receivableOrders.length === 0" class="mt-1 text-xs text-amber-600">No hay OCs autorizadas pendientes.</p>
+        </div>
+
+        <div>
+          <label for="receipt-location" class="block text-xs font-semibold uppercase text-slate-600 mb-1">Ubicación de entrada *</label>
+          <select id="receipt-location" v-model="form.location_id" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white">
+            <option v-for="l in locationsList" :key="l._id" :value="l._id">{{ l.warehouse_name }} · {{ l.name }}</option>
+          </select>
+          <p v-if="form.errors.location_id" class="mt-1 text-xs text-rose-600">{{ form.errors.location_id }}</p>
         </div>
 
         <div v-if="loadingDetails" class="text-center py-8 text-slate-500">Cargando líneas...</div>

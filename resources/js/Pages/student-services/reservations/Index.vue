@@ -53,6 +53,10 @@ interface Reservation {
     start_at: string;
     end_at: string;
     status: ReservationStatus;
+    // Lo calcula el servidor: una reserva con costo y sin cobro no dice «Confirmada».
+    status_label?: string;
+    cost_cents?: number;
+    payment_status?: 'pending' | 'not_required';
     waitlist_position: number;
     can_cancel: boolean;
     cancellation_reason: string | null;
@@ -68,6 +72,10 @@ const props = defineProps<{
 }>();
 
 const notice = ref<string | null>(null);
+
+function formatAmount(cents: number): string {
+    return '$' + (cents / 100).toFixed(2) + ' MXN';
+}
 
 function formatCost(cents: number): string {
     if (cents === 0) {
@@ -422,7 +430,13 @@ const modalMessage = computed(() => {
     }
 
     if (modalWillBeConfirmed.value) {
-        return `✅ Hay cupo (${modalOccupied.value}/${modalFacility.value.capacity} ocupado en ese horario) — quedará confirmada.`;
+        // Con costo no se anuncia como confirmada: Servicios no cobra reservas y el pago queda pendiente.
+        const result =
+            modalFacility.value.cost_cents > 0
+                ? 'quedará apartada con el pago pendiente'
+                : 'quedará confirmada';
+
+        return `✅ Hay cupo (${modalOccupied.value}/${modalFacility.value.capacity} ocupado en ese horario) — ${result}.`;
     }
 
     return `⏳ Sin cupo en ese horario (${modalOccupied.value}/${modalFacility.value.capacity}). Puedes unirte a la lista de espera: se confirma sola si alguien cancela.`;
@@ -431,13 +445,17 @@ const modalMessage = computed(() => {
 function submitReservation() {
     form.idempotency_key = crypto.randomUUID();
 
+    const hasCost = (modalFacility.value?.cost_cents ?? 0) > 0;
+
     form.post('/servicios-estudiante/reservas', {
         preserveScroll: true,
         onSuccess: () => {
             notice.value =
                 modalWillBeConfirmed.value === false
                     ? 'Quedaste en lista de espera. Te confirmaremos automáticamente si se libera un lugar.'
-                    : 'Reserva confirmada.';
+                    : hasCost
+                      ? 'Reserva apartada con el pago pendiente. No se ha realizado ningún cobro.'
+                      : 'Reserva confirmada.';
             closeModal();
         },
     });
@@ -654,7 +672,10 @@ function statusLabel(status: ReservationStatus): string {
                                             reservation.status === 'waitlisted',
                                     }"
                                 >
-                                    {{ statusLabel(reservation.status) }}
+                                    {{
+                                        reservation.status_label ??
+                                        statusLabel(reservation.status)
+                                    }}
                                     <template
                                         v-if="reservation.waitlist_position"
                                     >
@@ -678,6 +699,21 @@ function statusLabel(status: ReservationStatus): string {
                                     }}
                                 </span>
                             </div>
+
+                            <p
+                                v-if="
+                                    reservation.payment_status === 'pending' &&
+                                    (reservation.status === 'confirmed' ||
+                                        reservation.status === 'waitlisted')
+                                "
+                                class="payment-pending"
+                            >
+                                Costo
+                                {{ formatAmount(reservation.cost_cents ?? 0) }}
+                                · pago pendiente. No se ha realizado ningún
+                                cobro: Servicios todavía no cobra reservas en
+                                línea.
+                            </p>
 
                             <button
                                 v-if="reservation.can_cancel"
@@ -721,7 +757,10 @@ function statusLabel(status: ReservationStatus): string {
                                 class="history-status"
                                 :class="`history-${reservation.status}`"
                             >
-                                {{ statusLabel(reservation.status) }}
+                                {{
+                                    reservation.status_label ??
+                                    statusLabel(reservation.status)
+                                }}
                             </span>
                         </article>
                     </div>
@@ -1079,6 +1118,12 @@ function statusLabel(status: ReservationStatus): string {
                     </div>
                 </div>
 
+                <p v-if="modalFacility.cost_cents > 0" class="payment-pending">
+                    Esta instalación tiene costo. La reserva quedará apartada
+                    con el pago pendiente; no se realizará ningún cobro en
+                    línea.
+                </p>
+
                 <div class="modal-actions">
                     <button
                         type="button"
@@ -1418,6 +1463,15 @@ function statusLabel(status: ReservationStatus): string {
 .reservation-card-header strong {
     color: #334159;
     font-size: 10px;
+}
+
+.payment-pending {
+    margin: 0.5rem 0 0;
+    padding: 0.5rem 0.75rem;
+    border-left: 3px solid #b45309;
+    background: #fffbeb;
+    color: #78350f;
+    font-size: 0.85rem;
 }
 
 .reservation-status {

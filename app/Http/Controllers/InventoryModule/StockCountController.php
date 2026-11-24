@@ -169,10 +169,14 @@ class StockCountController extends Controller
                 'business_id' => $this->businessId(),
                 'stock_count_id' => $stockCountId,
                 'product_id' => (string) ($attrs['product_id'] ?? ''),
+                // Cada partida corresponde a una existencia concreta: producto, variante y ubicación.
+                'variant_id' => $attrs['variant_id'] ?? null,
+                'location_id' => (string) ($attrs['location_id'] ?? ''),
                 'product_sku' => $product ? (string) $product->sku : '',
                 'product_name' => $product ? (string) $product->name : '',
                 'expected_qty' => (int) ($attrs['available'] ?? 0),
                 'counted_qty' => 0,
+                'captured' => false,
                 'difference' => 0,
                 'unit_cost' => 0,
                 'notes' => '',
@@ -185,6 +189,9 @@ class StockCountController extends Controller
             DB::connection('inventory')->getCollection('stock_count_items')->insertMany($itemsToInsert);
         }
 
+        app(\App\Services\InventoryModule\AuditService::class)->record('StockCount.created', 'stock_counts', $stockCountId,
+            ['folio' => $folio, 'warehouse_id' => (string) $validated['warehouse_id'], 'items' => count($itemsToInsert)], [], $folio);
+
         return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Conteo ' . $folio . ' creado.');
     }
 
@@ -195,11 +202,13 @@ class StockCountController extends Controller
 
         $productsMap = Product::where('business_id', $this->businessId())->get()->keyBy(fn($p) => (string) $p->_id);
 
+        $locationNames = Location::where('business_id', $this->businessId())->get()->mapWithKeys(fn ($l) => [(string) $l->_id => (string) $l->name]);
+
         $items = StockCountItem::where('business_id', $this->businessId())
             ->where('stock_count_id', $id)
             ->orderBy('product_sku', 'asc')
             ->get()
-            ->map(function ($i) use ($productsMap) {
+            ->map(function ($i) use ($productsMap, $locationNames) {
                 $attrs = $i->getAttributes();
                 $product = $productsMap->get((string) ($attrs['product_id'] ?? ''));
                 return [
@@ -207,8 +216,11 @@ class StockCountController extends Controller
                     'product_id' => (string) ($attrs['product_id'] ?? ''),
                     'product_sku' => (string) ($attrs['product_sku'] ?? ''),
                     'product_name' => (string) ($attrs['product_name'] ?? ''),
+                    'location_name' => (string) ($locationNames[(string) ($attrs['location_id'] ?? '')] ?? ''),
                     'expected_qty' => (int) ($attrs['expected_qty'] ?? 0),
                     'counted_qty' => (int) ($attrs['counted_qty'] ?? 0),
+                    // Sin captura la partida no se ajusta al cerrar (los conteos anteriores a esta marca se dan por capturados si difieren).
+                    'captured' => (bool) ($attrs['captured'] ?? ((int) ($attrs['difference'] ?? 0) !== 0)),
                     'difference' => (int) ($attrs['difference'] ?? 0),
                     'stock_max' => $product ? (int) $product->stock_max : 0,
                 ];
@@ -250,6 +262,7 @@ class StockCountController extends Controller
 
                 (clone $items)->whereKey($item->getKey())->update([
                     'counted_qty' => (int) $input['counted_qty'],
+                    'captured' => true,
                     'difference' => (int) $input['counted_qty'] - $item->expected_qty,
                 ]);
             }
@@ -291,8 +304,11 @@ class StockCountController extends Controller
             $difference = (int) ($attrs['difference'] ?? 0);
             if ($difference === 0) continue;
 
+            // El ajuste va a la existencia contada (producto y ubicación), no a la primera del producto.
             $inv = Inventory::where('business_id', $this->businessId())
                 ->where('product_id', (string) ($attrs['product_id'] ?? ''))
+                ->when(! empty($attrs['location_id']), fn ($q) => $q->where('location_id', (string) $attrs['location_id'])
+                    ->where('variant_id', $attrs['variant_id'] ?? null))
                 ->first();
 
             if (!$inv) { $errors[] = 'Sin inventario para SKU ' . ($attrs['product_sku'] ?? ''); continue; }
@@ -347,7 +363,12 @@ class StockCountController extends Controller
             ['$set' => ['status' => 'CLOSED', 'closed_by' => \App\Services\InventoryModule\ActorResolver::resolve(), 'updated_at' => new \MongoDB\BSON\UTCDateTime(now())]]
         );
 
-        return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Conteo cerrado. ' . $applied . ' ajustes aplicados.');
+        $uncaptured = $items->filter(fn ($i) => ($i->getAttributes()['captured'] ?? null) === false)->count();
+        app(\App\Services\InventoryModule\AuditService::class)->record('StockCount.closed', 'stock_counts', $id,
+            ['status' => 'CLOSED', 'adjustments' => $applied, 'uncaptured' => $uncaptured], ['status' => 'DRAFT'], (string) ($stockCount->folio ?? ''));
+
+        return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->with('success', 'Conteo cerrado. ' . $applied . ' ajustes aplicados.'
+            . ($uncaptured > 0 ? ' ' . $uncaptured . ' partidas sin capturar quedaron sin cambio.' : ''));
     }
 
     public function destroy(string $id): RedirectResponse

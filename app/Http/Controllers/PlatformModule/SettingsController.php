@@ -135,6 +135,14 @@ class SettingsController
 
         $next = $validated['target_status'];
 
+        // Separación de funciones (7.11): enviar a aprobación sólo pide poder editar configuraciones; aprobar, rechazar o
+        // activar exige la autoridad de aprobación, y nadie aprueba ni activa una versión que redactó él mismo.
+        if ($next !== 'pending_approval') {
+            abort_unless($user->hasPermission('settings.approve'), 403, 'Aprobar, rechazar o activar una versión requiere la autoridad de aprobación.');
+            abort_if(in_array($next, ['approved', 'active'], true) && (string) $version->created_by === (string) $user->getKey(),
+                403, 'Una versión debe aprobarla una persona distinta de quien la redactó.');
+        }
+
         if (! $version->canTransitionTo($next)) {
             return response()->json([
                 'success' => false,
@@ -198,6 +206,9 @@ class SettingsController
         ]);
 
         $catalog = Catalog::create($validated);
+
+        app(PlatformAuditTrail::class)->record($request, $request->attributes->get('platform_actor'), 'catalog.created', 'Catalog',
+            (string) $catalog->_id, 'settings', ['after' => $catalog->toArray()]);
 
         return response()->json(['success' => true, 'catalog' => $catalog], 201);
     }

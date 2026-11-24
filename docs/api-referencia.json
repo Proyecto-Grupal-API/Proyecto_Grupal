@@ -9567,9 +9567,7 @@
   "formato": "JSON",
   "errores": [
    "401 credencial o firma de servicio inválida",
-   "404 recurso inexistente o ajeno",
-   "409 conflicto de estado o idempotencia",
-   "503 dependencia no disponible"
+   "404 recurso inexistente o ajeno"
   ],
   "middleware": [
    "ValidateServiceToken",
@@ -9611,7 +9609,9 @@
   "parametros_ruta": [
    "topUpId"
   ],
-  "request": {},
+  "request": {
+   "idempotency_key": "['nullable', 'string', 'max:255']"
+  },
   "form_request": null,
   "respuestas": [
    "200"
@@ -9722,9 +9722,7 @@
   "formato": "JSON",
   "errores": [
    "401 credencial o firma de servicio inválida",
-   "404 recurso inexistente o ajeno",
-   "409 conflicto de estado o idempotencia",
-   "503 dependencia no disponible"
+   "404 recurso inexistente o ajeno"
   ],
   "middleware": [
    "ValidateServiceToken",
@@ -9780,7 +9778,7 @@
   "middleware": [
    "ValidateServiceToken:identity:assignments:read",
    "AuthorizeIdentityService:identity:assignments:read",
-   "ThrottleRequests:30,1"
+   "ThrottleRequests:identity-business-read"
   ]
  },
  {
@@ -9803,7 +9801,7 @@
   "middleware": [
    "ValidateServiceToken:identity:authorization:check",
    "AuthorizeIdentityService:identity:authorization:check",
-   "ThrottleRequests:30,1"
+   "ThrottleRequests:identity-business-read"
   ]
  },
  {
@@ -9826,7 +9824,7 @@
   "middleware": [
    "ValidateServiceToken:identity:business-owner:provision",
    "AuthorizeIdentityService:identity:business-owner:provision",
-   "ThrottleRequests:30,1"
+   "ThrottleRequests:identity-business-provision"
   ]
  },
  {
@@ -11069,7 +11067,7 @@
   },
   "form_request": null,
   "respuestas": [
-   "200"
+   "201"
   ],
   "formato": "JSON",
   "errores": [
@@ -11204,6 +11202,30 @@
   "formato": "JSON",
   "errores": [
    "401 sin sesión"
+  ],
+  "middleware": [
+   "Authenticate",
+   "EnsureSessionIsActive",
+   "TrackDeviceSession",
+   "ResolvePlatformActor"
+  ]
+ },
+ {
+  "modulo": "E7 Recompensas",
+  "metodo": "GET",
+  "ruta": "/api/v1/recompensas/audit/logs/export",
+  "nombre": null,
+  "accion": "PlatformModule\\AuditController@export",
+  "parametros_ruta": [],
+  "request": {},
+  "form_request": null,
+  "respuestas": [
+   "200"
+  ],
+  "formato": "descarga",
+  "errores": [
+   "401 sin sesión",
+   "403 sin permiso"
   ],
   "middleware": [
    "Authenticate",
@@ -11374,7 +11396,7 @@
   "request": {},
   "form_request": null,
   "respuestas": [
-   "201"
+   "200"
   ],
   "formato": "JSON",
   "errores": [
@@ -11562,7 +11584,7 @@
   "request": {},
   "form_request": null,
   "respuestas": [
-   "201"
+   "200"
   ],
   "formato": "JSON",
   "errores": [
@@ -11728,7 +11750,7 @@
   },
   "form_request": null,
   "respuestas": [
-   "201"
+   "200"
   ],
   "formato": "JSON",
   "errores": [
@@ -11881,6 +11903,56 @@
  },
  {
   "modulo": "E7 Recompensas",
+  "metodo": "GET",
+  "ruta": "/api/v1/recompensas/governance/summary",
+  "nombre": null,
+  "accion": "PlatformModule\\GovernanceController@summary",
+  "parametros_ruta": [],
+  "request": {},
+  "form_request": null,
+  "respuestas": [
+   "200"
+  ],
+  "formato": "JSON",
+  "errores": [
+   "401 sin sesión",
+   "403 sin permiso"
+  ],
+  "middleware": [
+   "Authenticate",
+   "EnsureSessionIsActive",
+   "TrackDeviceSession",
+   "ResolvePlatformActor",
+   "EnsurePlatformPermission:governance.view"
+  ]
+ },
+ {
+  "modulo": "E7 Recompensas",
+  "metodo": "GET",
+  "ruta": "/api/v1/recompensas/integrations/health",
+  "nombre": null,
+  "accion": "PlatformModule\\IntegrationController@health",
+  "parametros_ruta": [],
+  "request": {},
+  "form_request": null,
+  "respuestas": [
+   "200"
+  ],
+  "formato": "JSON",
+  "errores": [
+   "401 sin sesión",
+   "403 sin permiso"
+  ],
+  "middleware": [
+   "Authenticate",
+   "EnsureSessionIsActive",
+   "TrackDeviceSession",
+   "ResolvePlatformActor",
+   "EnsurePlatformPermission:integrations.view"
+  ]
+ },
+ {
+  "modulo": "E7 Recompensas",
   "metodo": "POST",
   "ruta": "/api/v1/recompensas/integrations/ingest-event",
   "nombre": null,
@@ -11983,8 +12055,8 @@
   "errores": [
    "401 sin sesión",
    "403 sin permiso",
-   "404 recurso inexistente o ajeno",
-   "503 dependencia no disponible"
+   "422 validación",
+   "404 recurso inexistente o ajeno"
   ],
   "middleware": [
    "Authenticate",
@@ -12098,6 +12170,31 @@
    "200"
   ],
   "formato": "JSON",
+  "errores": [
+   "401 sin sesión",
+   "403 sin permiso"
+  ],
+  "middleware": [
+   "Authenticate",
+   "EnsureSessionIsActive",
+   "TrackDeviceSession",
+   "ResolvePlatformActor",
+   "EnsurePlatformPermission:points.view_any"
+  ]
+ },
+ {
+  "modulo": "E7 Recompensas",
+  "metodo": "GET",
+  "ruta": "/api/v1/recompensas/points/ledger/export",
+  "nombre": null,
+  "accion": "PlatformModule\\PointsController@exportLedger",
+  "parametros_ruta": [],
+  "request": {},
+  "form_request": null,
+  "respuestas": [
+   "200"
+  ],
+  "formato": "descarga",
   "errores": [
    "401 sin sesión",
    "403 sin permiso"
@@ -12748,7 +12845,7 @@
   "request": {},
   "form_request": null,
   "respuestas": [
-   "201"
+   "200"
   ],
   "formato": "JSON",
   "errores": [
@@ -12860,7 +12957,7 @@
   },
   "form_request": null,
   "respuestas": [
-   "201"
+   "200"
   ],
   "formato": "JSON",
   "errores": [
@@ -12875,7 +12972,7 @@
    "TrackDeviceSession",
    "ResolvePlatformActor",
    "EnsurePlatformPermission:settings.view",
-   "EnsurePlatformPermission:settings.approve"
+   "EnsurePlatformPermission:settings.update"
   ]
  },
  {

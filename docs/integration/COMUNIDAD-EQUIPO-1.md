@@ -38,7 +38,7 @@ No usar `down -v` salvo que se pretenda borrar los datos de esta copia. No ejecu
 
 ## Cuentas locales
 
-Contraseña de las cuentas siguientes: `CampusDemo2026!`. Son exclusivamente demostración local.
+Contraseña de las cuentas siguientes: la del archivo privado de la instalación (clave `CAMPUS_DEMO_PASSWORD`). Son exclusivamente demostración local.
 
 | Cuenta | Función |
 | --- | --- |

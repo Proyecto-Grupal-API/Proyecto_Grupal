@@ -1,6 +1,9 @@
 <?php
+
 return [
     'timezone' => 'America/Mexico_City',
+    // Contexto `service` de Identidad cuyo rol `admin` acredita al personal de Servicios (además del administrador global).
+    'contexto_personal' => 'servicios-estudiante',
     'identidad' => ['url' => env('SERVICIOS_IDENTIDAD_API_URL', 'http://app'), 'client_id' => env('SERVICIOS_IDENTIDAD_CLIENT_ID'), 'client_secret' => env('SERVICIOS_IDENTIDAD_CLIENT_SECRET')],
     'beneficios' => ['url' => env('SERVICIOS_API_URL', 'http://app'), 'client_id' => env('COMUNIDAD_SERVICIOS_CLIENT_ID'), 'client_secret' => env('COMUNIDAD_SERVICIOS_CLIENT_SECRET')],
     'avisos' => ['url' => env('COMUNIDAD_API_URL', 'http://app'), 'client_id' => env('SERVICIOS_COMUNIDAD_CLIENT_ID'), 'client_secret' => env('SERVICIOS_COMUNIDAD_CLIENT_SECRET')],

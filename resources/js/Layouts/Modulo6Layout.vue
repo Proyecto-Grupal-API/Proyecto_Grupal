@@ -141,6 +141,9 @@ const enlaces = computed(() =>
                         },
                     ]
                   : []),
+              ...(page.props.auth.coordinador_comunicaciones
+                  ? [{ nombre: "Avisos generales", icono: "📢", href: "/modulo6/avisos-generales", activo: currentUrl.value === "/modulo6/avisos-generales" }]
+                  : []),
               {
                   nombre: "Eventos y actividades",
                   icono: "🎟️",
@@ -186,6 +189,17 @@ const enlaces = computed(() =>
               },
           ],
 );
+// Una sola regla para la tarjeta activa y su aria-current: antes eran dos expresiones duplicadas y la de la clase no
+// tenía ramas para Cartera ni Recompensas, así que en /modulo6 se marcaban tres tarjetas y en /finanzas ninguna.
+const moduloActivo = (modulo) => {
+    if (modulo.perfil) return esPerfil.value;
+    if (modulo.finanzas) return esFinanzas.value;
+    if (modulo.recompensas) return esRecompensas.value;
+    if (modulo.servicios) return esServicios.value;
+    if (modulo.inventario) return esInventario.value;
+    if (modulo.marketplace) return esMarketplace.value;
+    return !esPerfil.value && !esServicios.value && !esInventario.value && !esMarketplace.value && !esFinanzas.value && !esRecompensas.value;
+};
 const esActivo = (enlace) =>
     enlace.activo ?? currentUrl.value.startsWith(enlace.href);
 watch(
@@ -368,16 +382,8 @@ const eliminarLeidas = async () => {
                             v-if="modulo.href"
                             :href="modulo.href"
                             class="campus-module"
-                            :class="{
-                                'is-active': modulo.perfil
-                                    ? esPerfil
-                                    : modulo.servicios ? esServicios : modulo.inventario ? esInventario : modulo.marketplace ? esMarketplace : (!esPerfil && !esServicios && !esInventario && !esMarketplace && !esFinanzas && !esRecompensas),
-                            }"
-                            :aria-current="
-                                (modulo.finanzas ? esFinanzas : modulo.recompensas ? esRecompensas : modulo.perfil ? esPerfil : modulo.servicios ? esServicios : modulo.inventario ? esInventario : modulo.marketplace ? esMarketplace : (!esPerfil && !esServicios && !esInventario && !esMarketplace && !esFinanzas && !esRecompensas))
-                                    ? 'true'
-                                    : undefined
-                            "
+                            :class="{ 'is-active': moduloActivo(modulo) }"
+                            :aria-current="moduloActivo(modulo) ? 'true' : undefined"
                         >
                             <span aria-hidden="true">{{ modulo.icono }}</span
                             >{{ modulo.nombre }}

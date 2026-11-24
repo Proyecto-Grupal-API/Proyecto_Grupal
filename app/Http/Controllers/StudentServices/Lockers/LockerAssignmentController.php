@@ -115,23 +115,11 @@ class LockerAssignmentController extends Controller
                             'status' => $assignment
                                 ->status,
 
-                            'starts_at' => $assignment
-                                ->starts_at
-                                ?->format(
-                                    'Y-m-d'
-                                ),
+                            'starts_at' => \App\Services\StudentServices\ServiceClock::localOrNull($assignment->starts_at)?->format('Y-m-d'),
 
-                            'ends_at' => $assignment
-                                ->ends_at
-                                ?->format(
-                                    'Y-m-d'
-                                ),
+                            'ends_at' => \App\Services\StudentServices\ServiceClock::localOrNull($assignment->ends_at)?->format('Y-m-d'),
 
-                            'released_at' => $assignment
-                                ->released_at
-                                ?->format(
-                                    'Y-m-d H:i'
-                                ),
+                            'released_at' => \App\Services\StudentServices\ServiceClock::localOrNull($assignment->released_at)?->format('Y-m-d H:i'),
 
                             'renewal_count' => (int)
                                 $assignment

@@ -14,6 +14,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use MongoDB\BSON\ObjectId;
 
@@ -94,9 +95,20 @@ class GoodsReceiptController extends Controller
             ['label' => 'Últimos 7 días', 'value' => $receiptsWeek, 'color' => 'success'],
         ];
 
+        $warehouses = [];
+        foreach (DB::connection('inventory')->getCollection('warehouses')->find(['business_id' => $this->businessId()]) as $w) {
+            $warehouses[(string) $w['_id']] = (string) ($w['name'] ?? '');
+        }
+        $locationsList = [];
+        foreach (Location::where('business_id', $this->businessId())->get() as $loc) {
+            if ($loc->active === false) { continue; }
+            $locationsList[] = ['_id' => (string) $loc->_id, 'name' => (string) $loc->name, 'warehouse_name' => $warehouses[(string) $loc->warehouse_id] ?? ''];
+        }
+
         return Inertia::render('Equipo4/Recepciones', [
             'receipts' => $receiptsData,
             'receivableOrders' => $receivableOrders,
+            'locationsList' => $locationsList,
             'kpis' => $kpis,
             'pagination' => [
                 'current_page' => $receipts->currentPage(),
@@ -148,6 +160,7 @@ class GoodsReceiptController extends Controller
     {
         $validated = $request->validate([
             'purchase_order_id' => 'required|string',
+            'location_id' => ['nullable', 'string', 'regex:/^[0-9a-f]{24}$/i'],
             'notes' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
             'items.*.purchase_order_item_id' => 'required|string|distinct',
@@ -171,7 +184,16 @@ class GoodsReceiptController extends Controller
             }
         }
 
-        $defaultLocationId = $this->getDefaultLocationId();
+        // La mercancía entra en la ubicación que elige quien recibe; sin elección, en la primera del negocio.
+        if (! empty($validated['location_id'])) {
+            $chosen = Location::where('_id', $validated['location_id'])->where('business_id', $this->businessId())->first();
+            if (! $chosen || $chosen->active === false) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['location_id' => 'La ubicación de entrada no existe o está inactiva en este negocio.']);
+            }
+            $defaultLocationId = (string) $chosen->_id;
+        } else {
+            $defaultLocationId = $this->getDefaultLocationId();
+        }
         if (empty($defaultLocationId)) return redirect(parse_url(request()->headers->get("referer") ?: "/", PHP_URL_PATH))->withErrors(['error' => 'No hay ubicaciones configuradas.']);
 
         $folio = 'REC-' . str_pad((string) (GoodsReceipt::where('business_id', $this->businessId())->count() + 1), 5, '0', STR_PAD_LEFT);
@@ -188,6 +210,7 @@ class GoodsReceiptController extends Controller
                 'purchase_order_id' => (string) $order->_id,
                 'folio' => $folio,
                 'received_by' => \App\Services\InventoryModule\ActorResolver::resolve(),
+                'location_id' => $defaultLocationId,
                 'status' => 'COMPLETADA',
                 'notes' => $validated['notes'] ?? '',
                 'received_at' => new \MongoDB\BSON\UTCDateTime(now()),

@@ -21,6 +21,8 @@ class RolePermission extends Model
         'business_manager' => ['business.operate', 'business.sales.operate', 'business.inventory.operate'],
         'cashier' => ['business.sales.operate'],
         'inventory_manager' => ['business.inventory.operate'],
+        // Diseño §2: «Comprador / abastecimiento: proveedores, órdenes de compra, recepciones y devoluciones a proveedor».
+        'buyer' => ['business.purchasing.operate'],
         'organization_manager' => ['organizations.institutional.manage'],
         'career_coordinator' => ['academic.program.coordinate'],
         'department_head' => ['academic.department.manage'],

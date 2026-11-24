@@ -15,6 +15,10 @@ class BusinessContextController extends Controller
         $identity=app(IdentityService::class);
         abort_unless($identity->userCan((string) $request->user()->getAuthIdentifier(), 'dashboard.view'), 403);
         $request->session()->put('inventory_business_id', $data['business_id']);
+        if ($identity->isGlobalViewer((string) $request->user()->getAuthIdentifier())) {
+            app(\App\Services\InventoryModule\AuditService::class)->log('Inventory.global_viewer_context', ['actor_id' => (string) $request->user()->getAuthIdentifier(),
+                'action' => 'consultar_tienda', 'entity_type' => 'business', 'entity_id' => $data['business_id'], 'business_id' => $data['business_id']]);
+        }
         return redirect()->route('equipo4.dashboard');
     }
 }

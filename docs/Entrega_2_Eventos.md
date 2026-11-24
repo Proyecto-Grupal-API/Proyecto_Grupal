@@ -48,7 +48,7 @@ docker compose exec --user sail laravel.test npm run build
 4. Descargar el QR de Andrea. Como presidencia abrir Inscritos y asistencia y cargar esa imagen: registra la asistencia. Volver a leerla: rechaza el acceso duplicado.
 5. En un evento con costo reservar un lugar y comprobar que queda pendiente sin QR.
 
-Contraseña de las cuentas de demostración: `CampusDemo2026!`.
+Contraseña de las cuentas de demostración: la del archivo privado de la instalación (clave `CAMPUS_DEMO_PASSWORD`).
 
 ## Verificación
 

@@ -8,6 +8,7 @@ import DelegacionesOrganizacion from "@/Components/DelegacionesOrganizacion.vue"
 import ComisionesConsejo from "@/Components/ComisionesConsejo.vue";
 import DocumentosOrganizacion from "@/Components/DocumentosOrganizacion.vue";
 import PeriodosOrganizacion from "@/Components/PeriodosOrganizacion.vue";
+import HistorialIntegrantes from "@/Components/HistorialIntegrantes.vue";
 
 const page = usePage();
 const datos = ref(null);
@@ -502,6 +503,9 @@ async function cambiarOrganizacion() {
                     </div>
                 </template>
             </template>
+        </div>
+        <div v-if="datos?.organizacion && datos.puede_editar" class="campus-page pb-6">
+            <HistorialIntegrantes :key="datos" :organizacion-id="String(datos.organizacion.id)" />
         </div>
         <div v-if="datos?.organizacion" class="campus-page pb-6">
             <PeriodosOrganizacion :miembros="datos.miembros" :organizacion-id="String(datos.organizacion.id)" :key="datos" @actualizados="actualizarPeriodos" />

@@ -48,7 +48,7 @@ it('receives the E4 wire contract once without awarding points and rejects confl
     signedInventoryContract($this, $path, $body)->assertOk()->assertJson(['status' => 'duplicate']);
     signedInventoryContract($this, $path, [...$body, 'payload' => [...$body['payload'], 'reason' => 'CHANGED']])->assertConflict();
     expect(AnalyticsEvent::count())->toBe(1)->and(AnalyticsEvent::first()->processed)->toBeFalse();
-    expect(DB::connection('platform')->getCollection('points_ledger')->countDocuments())->toBe(0);
+    expect(DB::connection('platform')->getCollection('points_ledgers')->countDocuments())->toBe(0);
 });
 
 it('checks the source, timestamp, signature, event type and privacy at the E4 receiver', function () {

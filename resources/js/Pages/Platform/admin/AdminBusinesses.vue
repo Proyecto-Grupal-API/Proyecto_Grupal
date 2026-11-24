@@ -8,6 +8,8 @@ import { businessesInitial } from '@/Platform/initialState.js'
 import { api } from '@/Platform/services/api.js'
 
 const { success, error } = useToast()
+const apiMessage = (err, fallback) => Object.values(err.response?.data?.errors || {}).flat().join(' ') || err.response?.data?.message || err.response?.data?.error || fallback
+const editingId = ref(null)
 const businesses = ref([...businessesInitial])
 const showModal = ref(false)
 const isSubmitting = ref(false)
@@ -27,19 +29,18 @@ async function loadBusinesses() {
     isLoading.value = true
     const res = await api.businesses.list()
     const list = Array.isArray(res) ? res : (res.data || [])
-    if (list.length > 0) {
-      businesses.value = list.map(b => ({
-        id: b._id || b.id,
-        _id: b._id || b.id,
-        name: b.name,
-        code: b.code,
-        responsible: b.contact_name || b.responsible || 'Responsable',
-        joinDate: b.created_at ? b.created_at.slice(0, 10) : '2026-01-15',
-        participation: b.status === 'active' ? 'Alta' : 'Baja',
-        status: (b.status === 'active' || b.status === 'Activo') ? 'Activo' : 'Inactivo',
-        rawStatus: b.status,
-      }))
-    }
+    // Sólo datos del servidor: sin valores de relleno.
+    businesses.value = list.map(b => ({
+      id: b._id || b.id,
+      _id: b._id || b.id,
+      name: b.business_name,
+      code: b.business_id,
+      category: b.category || '—',
+      contactEmail: b.contact_email || '',
+      joinDate: String(b.joined_at || b.created_at || '').slice(0, 10) || '—',
+      status: b.status === 'active' ? 'Activo' : (b.status === 'suspended' ? 'Suspendido' : 'Inactivo'),
+      rawStatus: b.status,
+    }))
   } catch (err) {
     console.warn('No se pudo actualizar la información de Recompensas.', err)
   } finally {
@@ -47,17 +48,35 @@ async function loadBusinesses() {
   }
 }
 
+function openCreate() {
+  editingId.value = null
+  form.value = { name: '', code: '', category: 'Cafetería', contact_name: '', contact_email: '', status: 'active' }
+  showModal.value = true
+}
+
+function openEdit(b) {
+  editingId.value = b._id
+  form.value = { name: b.name, code: b.code, category: b.category === '—' ? '' : b.category, contact_name: '', contact_email: b.contactEmail, status: b.rawStatus }
+  showModal.value = true
+}
+
 async function handleCreateBusiness() {
   if (!form.value.name.trim() || !form.value.code.trim()) return
 
   try {
     isSubmitting.value = true
+    if (editingId.value) {
+      await api.businesses.update(editingId.value, { business_name: form.value.name.trim(), category: form.value.category || null, contact_email: form.value.contact_email || null })
+      success(`Negocio "${form.value.name}" actualizado.`)
+      showModal.value = false
+      await loadBusinesses()
+      return
+    }
     await api.businesses.create({
-      name: form.value.name,
-      code: form.value.code.toUpperCase(),
+      business_id: form.value.code.toUpperCase(),
+      business_name: form.value.name,
       category: form.value.category,
-      contact_name: form.value.contact_name,
-      contact_email: form.value.contact_email,
+      contact_email: form.value.contact_email || null,
       status: 'active',
     })
 
@@ -69,8 +88,7 @@ async function handleCreateBusiness() {
     form.value.contact_email = ''
     await loadBusinesses()
   } catch (err) {
-    console.error('Error al adherir negocio:', err)
-    error(err.message || 'Error al guardar el negocio.')
+        error(apiMessage(err, 'No se pudo guardar el negocio.'))
   } finally {
     isSubmitting.value = false
   }
@@ -82,8 +100,7 @@ async function handleToggle(b) {
     success(`Estado del negocio "${b.name}" actualizado.`)
     await loadBusinesses()
   } catch (err) {
-    console.error('Error al cambiar estado:', err)
-    error(err.message || 'No se pudo cambiar el estado.')
+        error(apiMessage(err, 'No se pudo cambiar el estado.'))
   }
 }
 
@@ -100,7 +117,7 @@ onMounted(() => {
         <div class="page-subtitle">Panel de administración</div>
         <p class="page-desc">Gestiona comercios, cafeterías y servicios universitarios afiliados al ecosistema de puntos.</p>
       </div>
-      <button class="btn btn-primary" @click="showModal = true">＋ Adherir negocio</button>
+      <button class="btn btn-primary" @click="openCreate">＋ Adherir negocio</button>
     </div>
 
     <div class="card">
@@ -110,9 +127,9 @@ onMounted(() => {
             <tr>
               <th>Negocio</th>
               <th>Código</th>
-              <th>Responsable</th>
+              <th>Categoría</th>
+              <th>Correo de contacto</th>
               <th>Fecha adhesión</th>
-              <th>Participación</th>
               <th>Estado</th>
               <th>Acción</th>
             </tr>
@@ -120,12 +137,13 @@ onMounted(() => {
           <tbody>
             <tr v-for="b in businesses" :key="b.id">
               <td style="font-weight:600">{{ b.name }}</td>
-              <td><code style="font-size:11px;background:#f0f3f9;padding:2px 6px;border-radius:4px">{{ b.code || 'COM-01' }}</code></td>
-              <td>{{ b.responsible }}</td>
+              <td><code style="font-size:11px;background:#f0f3f9;padding:2px 6px;border-radius:4px">{{ b.code }}</code></td>
+              <td>{{ b.category }}</td>
+              <td style="font-size:12px">{{ b.contactEmail || '—' }}</td>
               <td style="color:var(--cd-text-muted);font-size:12px">{{ b.joinDate }}</td>
-              <td><span class="part-badge" :class="b.participation.toLowerCase()">{{ b.participation }}</span></td>
               <td><StatusBadge :status="b.status" /></td>
-              <td>
+              <td style="white-space:nowrap">
+                <button class="btn btn-ghost btn-sm" @click="openEdit(b)">Editar</button>
                 <button
                   class="btn btn-ghost btn-sm"
                   :style="{ color: b.status === 'Activo' ? '#dc2626' : '#16a34a' }"
@@ -135,6 +153,7 @@ onMounted(() => {
                 </button>
               </td>
             </tr>
+            <tr v-if="!isLoading && !businesses.length"><td colspan="7" style="text-align:center;color:var(--cd-text-muted);padding:24px">No hay negocios adheridos.</td></tr>
           </tbody>
         </table>
       </div>
@@ -144,7 +163,7 @@ onMounted(() => {
     <div v-if="showModal" class="modal-backdrop" @click.self="showModal = false">
       <div class="modal card">
         <div class="modal-header">
-          <h3 class="modal-title">Adherir Nuevo Negocio</h3>
+          <h3 class="modal-title">{{ editingId ? 'Editar negocio adherido' : 'Adherir Nuevo Negocio' }}</h3>
           <button class="modal-close" @click="showModal = false">✕</button>
         </div>
         <form @submit.prevent="handleCreateBusiness" class="modal-body">
@@ -156,7 +175,7 @@ onMounted(() => {
           <div class="form-row">
             <div class="form-group">
               <label class="cd-label">Código único</label>
-              <input v-model="form.code" required class="cd-input" placeholder="Ej: CAF-CENTRAL" style="text-transform:uppercase;" />
+              <input v-model="form.code" required :disabled="!!editingId" class="cd-input" placeholder="Ej: CAF-CENTRAL" style="text-transform:uppercase;" />
             </div>
             <div class="form-group">
               <label class="cd-label">Categoría</label>
@@ -170,21 +189,15 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label class="cd-label">Contacto / Encargado</label>
-              <input v-model="form.contact_name" class="cd-input" placeholder="Nombre completo" />
-            </div>
-            <div class="form-group">
-              <label class="cd-label">Correo electrónico</label>
-              <input v-model="form.contact_email" type="email" class="cd-input" placeholder="contacto@negocio.com" />
-            </div>
+          <div class="form-group">
+            <label class="cd-label">Correo de contacto</label>
+            <input v-model="form.contact_email" type="email" class="cd-input" placeholder="contacto@negocio.test" />
           </div>
 
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" @click="showModal = false">Cancelar</button>
             <button type="submit" class="btn btn-primary" :disabled="isSubmitting">
-              {{ isSubmitting ? 'Guardando...' : 'Adherir Negocio' }}
+              {{ isSubmitting ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Adherir Negocio') }}
             </button>
           </div>
         </form>

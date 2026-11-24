@@ -9,7 +9,8 @@ class ServiceClient extends Model
 {
     protected $connection = 'mongodb';
 
-    protected $collection = 'oauth_service_clients';
+    /** Colección real de los clientes de servicio. El controlador de MongoDB ignora `$collection`. */
+    protected $table = 'service_clients';
 
     protected $fillable = ['name', 'client_id', 'secret_hash', 'scopes', 'active'];
 

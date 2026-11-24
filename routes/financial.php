@@ -134,6 +134,7 @@ Route::middleware(['web', 'auth', 'verified', 'session.active', 'device.track'])
                 ->whereUuid('confirmationId')->whereIn('decision', ['approve', 'reject'])->name('approval-requests.review');
             $confirmations = CashOperationConfirmationWebController::class;
             Route::post('/shifts/{shiftId}/confirmations', [$confirmations, 'store'])->whereUuid('shiftId')->name('confirmations.store');
+            Route::get('/shifts/{shiftId}/holder', [$confirmations, 'holder'])->whereUuid('shiftId')->middleware('throttle:30,1')->name('confirmations.holder');
             Route::get('/shifts/{shiftId}/confirmations/{confirmationId}', [$confirmations, 'showConfirmation'])->whereUuid(['shiftId', 'confirmationId'])->name('confirmations.show');
             Route::post('/shifts/{shiftId}/confirmations/{confirmationId}/cancel', [$confirmations, 'cancel'])->whereUuid(['shiftId', 'confirmationId'])->name('confirmations.cancel');
             $recoveries = CashWithdrawalRecoveryWebController::class;

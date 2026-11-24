@@ -221,3 +221,103 @@ test('the calendars panel lists resources of every registered type', function ()
             ->has('blocks')
             ->has('waitlist'));
 });
+
+// P-16: Servicios no cobra reservas (el contrato de cobros con Finanzas sólo cubre lockers e impresiones). Mientras eso no
+// cambie, una reserva de una instalación con costo no puede anunciarse como confirmada ni como pagada.
+function paidFacility(): Facility
+{
+    return Facility::create(['name' => 'Auditorio Principal', 'type' => 'Auditorio', 'building' => 'Edificio A',
+        'capacity' => 5, 'cost_cents' => 15000, 'active' => true]);
+}
+
+test('a reservation of a facility with a cost is recorded with payment pending and is never announced as confirmed or paid', function () {
+    $auditorium = paidFacility();
+    $student = User::factory()->create();
+
+    reserveFacility($student, $auditorium, '10:00', '11:00')
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', fn (string $message): bool => str_contains($message, 'pago pendiente')
+            && str_contains($message, '$150.00 MXN')
+            && str_contains($message, 'No se ha realizado ningún cobro')
+            && ! str_contains($message, 'Reserva confirmada')
+            && ! str_contains(mb_strtolower($message), 'pagada'));
+
+    $reservation = Reservation::where('student_id', (string) $student->id)->firstOrFail();
+
+    expect($reservation->status)->toBe('confirmed')   // sigue ocupando su lugar en el calendario
+        ->and($reservation->cost_cents)->toBe(15000)
+        ->and($reservation->payment_status)->toBe('pending');
+
+    $this->actingAs($student)->get('/servicios-estudiante/reservas')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('myReservations.0.status', 'confirmed')
+            ->where('myReservations.0.payment_status', 'pending')
+            ->where('myReservations.0.cost_cents', 15000)
+            ->where('myReservations.0.status_label', 'Apartada · pago pendiente'));
+});
+
+test('a free facility keeps the plain confirmation and needs no payment', function () {
+    $student = User::factory()->create();
+
+    reserveFacility($student, $this->facility, '10:00', '11:00')
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Reserva confirmada.');
+
+    $reservation = Reservation::where('student_id', (string) $student->id)->firstOrFail();
+
+    expect($reservation->cost_cents)->toBe(0)
+        ->and($reservation->payment_status)->toBe('not_required');
+
+    $this->actingAs($student)->get('/servicios-estudiante/reservas')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('myReservations.0.payment_status', 'not_required')
+            ->where('myReservations.0.status_label', 'Confirmada'));
+});
+
+test('a reservation made before the payment state existed is shown as pending when its facility has a cost', function () {
+    $auditorium = paidFacility();
+    $student = User::factory()->create();
+
+    // Como las que ya existen en una instalación: sin costo ni estado de pago guardados.
+    Reservation::create(['folio' => 'RES-ANTERIOR', 'facility_id' => (string) $auditorium->id, 'student_id' => (string) $student->id,
+        'start_at' => Carbon::parse('2026-10-12 10:00'), 'end_at' => Carbon::parse('2026-10-12 11:00'), 'status' => 'confirmed',
+        'idempotency_key' => (string) Str::uuid()]);
+
+    $this->actingAs($student)->get('/servicios-estudiante/reservas')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('myReservations.0.payment_status', 'pending')
+            ->where('myReservations.0.cost_cents', 15000)
+            ->where('myReservations.0.status_label', 'Apartada · pago pendiente'));
+});
+
+test('the payment state of a reservation with a cost survives the waitlist, the same request repeated and the cancellation', function () {
+    $auditorium = paidFacility();
+    $auditorium->update(['capacity' => 1]);
+    $first = User::factory()->create();
+    $second = User::factory()->create();
+
+    reserveFacility($first, $auditorium, '10:00', '11:00', 'clave-repetida-0001')->assertSessionHasNoErrors();
+    reserveFacility($first, $auditorium, '10:00', '11:00', 'clave-repetida-0001')->assertSessionHasNoErrors();   // misma clave: misma reserva
+    reserveFacility($second, $auditorium, '10:00', '11:00')
+        ->assertSessionHas('success', 'Sin cupo por ahora: quedaste en lista de espera.');
+
+    expect(Reservation::where('student_id', (string) $first->id)->count())->toBe(1);
+
+    $waiting = Reservation::where('student_id', (string) $second->id)->firstOrFail();
+    expect($waiting->status)->toBe('waitlisted')->and($waiting->payment_status)->toBe('pending');
+
+    $this->actingAs($second)->get('/servicios-estudiante/reservas')
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('myReservations.0.status_label', 'En espera'));
+
+    $this->travelTo(Carbon::parse('2026-10-11 08:00'));   // un día antes: dentro del plazo de cancelación
+    $own = Reservation::where('student_id', (string) $first->id)->firstOrFail();
+    $this->actingAs($first)->patch('/servicios-estudiante/reservas/'.$own->id.'/cancelar')->assertSessionHasNoErrors();
+
+    $this->actingAs($first)->get('/servicios-estudiante/reservas')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('history.0.status_label', 'Cancelada')
+            ->where('history.0.payment_status', 'pending'));   // nunca hubo cobro: tampoco hay nada que devolver
+
+    // Ninguna reserva figura como pagada: Servicios no tiene con qué cobrarlas.
+    expect(Reservation::whereNotIn('payment_status', ['pending', 'not_required'])->count())->toBe(0);
+});

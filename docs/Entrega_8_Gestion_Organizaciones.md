@@ -67,7 +67,7 @@ docker compose exec --user sail laravel.test php artisan db:seed --class=Gestion
 docker compose exec --user sail laravel.test npm run build
 ```
 
-El seeder adicional solo admite local/testing. Crea `gestion@campus.test`, matrícula `20260006`, contraseña inicial **CampusDemo2026!**, y su permiso de gestión. No añade organizaciones ni restablece contraseñas existentes. Si el permiso ya existía y fue revocado, no lo reactiva al repetir el seeder.
+El seeder adicional solo admite local/testing. Crea `gestion@campus.test`, matrícula `20260006`, contraseña inicial la del archivo privado de la instalación (clave `CAMPUS_DEMO_PASSWORD`), y su permiso de gestión. No añade organizaciones ni restablece contraseñas existentes. Si el permiso ya existía y fue revocado, no lo reactiva al repetir el seeder.
 
 Recorrido sugerido:
 

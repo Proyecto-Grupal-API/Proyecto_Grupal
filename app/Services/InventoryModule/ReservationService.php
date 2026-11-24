@@ -109,6 +109,11 @@ class ReservationService
             // no-op
         }
 
+        app(AuditService::class)->record('StockReservation.created', 'stock_reservations', (string) $reservationObjectId, [
+            'product_id' => (string) $data['product_id'], 'location_id' => (string) $data['location_id'], 'quantity' => (int) $data['quantity'],
+            'source' => (string) ($data['source'] ?? 'MANUAL'), 'external_reference' => (string) ($data['external_reference'] ?? ''),
+        ]);
+
         return StockReservation::where('_id', (string) $reservationObjectId)->firstOrFail();
     }
 
@@ -184,6 +189,9 @@ class ReservationService
                 'updated_at' => new \MongoDB\BSON\UTCDateTime(now()),
             ]]
         );
+
+        app(AuditService::class)->record('StockReservation.released', 'stock_reservations', (string) $docId,
+            ['status' => 'RELEASED', 'release_reason' => $reason], ['status' => $status, 'quantity' => $quantity]);
 
         // 5) Sincronizar alertas
         try {

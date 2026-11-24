@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\GuardarEventoRequest;
 use App\Models\Evento;
+use App\Models\Mensaje;
 use App\Models\Organizacion;
 use App\Models\PagoReservaEvento;
 use App\Models\RegistroEvento;
@@ -68,24 +69,39 @@ class EventoController extends Controller
         return $this->conEvento($request, $id, true, function ($e) use ($request, $data) {
             $this->inscripciones->sincronizar($e, $request->user());
             $this->editable($e);
+            $esperado = $request->input('actualizado_en_esperado');
+            if ($esperado && $e->actualizado_en && ! $e->actualizado_en->equalTo(\Carbon\CarbonImmutable::parse($esperado))) {
+                return response()->json(['message' => 'Otra persona modificó este evento después de que lo abriste. Recárgalo y vuelve a aplicar tus cambios.'], 409);
+            }
             $q = RegistroEvento::where('evento_id', (string) $e->id);
             if ($data['capacidad'] < (clone $q)->conCupo()->count()) {
                 throw ValidationException::withMessages(['capacidad' => 'El cupo no puede ser menor que las reservas confirmadas.']);
             }
-            if ((clone $q)->where(fn ($q) => $q->where(fn ($q) => $q->conCupo())->orWhere('estado', 'espera'))->exists()) {
-                foreach (['costo', 'ubicacion', 'fecha_hora_inicio', 'fecha_hora_fin'] as $c) {
-                    $igual = str_starts_with($c, 'fecha') ? $data[$c]->equalTo($e->$c) : $data[$c] == $e->$c;
-                    if (! $igual) {
-                        throw ValidationException::withMessages([$c => 'Con reservas activas no se pueden cambiar el costo, la ubicación ni las fechas del evento.']);
-                    }
+            $cambios = array_values(array_filter(['costo', 'ubicacion', 'fecha_hora_inicio', 'fecha_hora_fin'],
+                fn ($c) => ! (str_starts_with($c, 'fecha') ? $data[$c]->equalTo($e->$c) : $data[$c] == $e->$c)));
+            $conReservas = (clone $q)->where(fn ($q) => $q->where(fn ($q) => $q->conCupo())->orWhere('estado', 'espera'))->exists();
+            if ($conReservas) {
+                // Petición del profesor (20-nov-2026): con reservas se pueden mover fechas y ubicación. Siguen protegidos los
+                // términos que dependen de una política no definida: el importe fijado al reservar y las devoluciones.
+                if (in_array('costo', $cambios, true)) {
+                    throw ValidationException::withMessages(['costo' => 'Con reservas activas no se puede cambiar el costo: el importe quedó fijado al reservar.']);
+                }
+                if ((float) $e->costo > 0 && array_intersect(['fecha_hora_inicio', 'fecha_hora_fin'], $cambios)) {
+                    throw ValidationException::withMessages(['fecha_hora_inicio' => 'En un evento con costo y reservas, cambiar la fecha requiere una política de devoluciones que todavía no está definida.']);
                 }
             }
             $antes = $e->toArray();
             $e->update($data);
             $this->inscripciones->promover($e, $request->user());
             $this->inscripciones->auditar($e, $request->user(), 'evento_editado', $e->id, $antes, $e->toArray());
+            $relevantes = array_values(array_diff($cambios, ['costo']));
+            if ($conReservas && $relevantes !== []) {
+                $avisados = $this->avisarCambio($e, $antes, $relevantes);
+                $this->inscripciones->auditar($e, $request->user(), 'evento_reprogramado', $e->id,
+                    array_intersect_key($antes, array_flip($relevantes)), ['cambios' => $relevantes, 'avisados' => $avisados]);
+            }
 
-            return response()->json(['message' => 'Evento actualizado.']);
+            return response()->json(['message' => 'Evento actualizado.', 'actualizado_en' => $e->fresh()->actualizado_en?->toISOString()]);
         });
     }
 
@@ -299,6 +315,33 @@ class EventoController extends Controller
             && $reg->estado_pago === 'pendiente' && $reg->reserva_hasta?->isFuture() && $reg->monto_centavos > 0
             && ! in_array($reg->pago_estado, ['cancelacion_pendiente', 'devolucion_pendiente', 'devuelto'], true),
             'puede_consultar_pago' => config('comunidad.eventos_pagos.enabled') === true && in_array($reg->pago_estado, ['pendiente', 'cancelacion_pendiente', 'devolucion_pendiente'], true), 'puede_cancelar' => $e && now()->lt($e->fecha_hora_inicio) && in_array($estado, ['confirmada', 'espera'], true) && $reg->estado_asistencia !== 'asistio' && $reg->estado_pago !== 'pagado', 'zona_horaria' => config('comunidad.eventos_timezone')];
+    }
+
+    /**
+     * Aviso interno (bandeja de E6) a cada persona con reserva o en espera cuando cambian la fecha o la ubicación. Es un
+     * aviso operativo de su propia reserva: se entrega una vez por cambio (clave de idempotencia) y no usa correo ni SMS.
+     */
+    private function avisarCambio(Evento $e, array $antes, array $campos): int
+    {
+        $tz = config('comunidad.eventos_timezone');
+        $formato = fn ($v) => $v ? \Carbon\CarbonImmutable::parse($v)->timezone($tz)->format('d/m/Y H:i') : '—';
+        $etiquetas = ['ubicacion' => 'Ubicación', 'fecha_hora_inicio' => 'Inicio', 'fecha_hora_fin' => 'Fin'];
+        $lineas = array_map(fn ($c) => $etiquetas[$c].': '.($c === 'ubicacion' ? ($antes[$c] ?? '—') : $formato($antes[$c] ?? null))
+            .' → '.($c === 'ubicacion' ? $e->ubicacion : $formato($e->$c)), $campos);
+        $huella = hash('sha256', json_encode([$e->id, $e->ubicacion, (string) $e->fecha_hora_inicio, (string) $e->fecha_hora_fin]));
+        $organizacion = Organizacion::find($e->organizacion_id);
+        $avisados = 0;
+        foreach (RegistroEvento::where('evento_id', (string) $e->id)->whereIn('estado', ['confirmada', 'espera'])->pluck('usuario_id') as $usuario) {
+            $mensaje = Mensaje::firstOrCreate(['clave_idempotencia' => 'evento-cambio:'.$huella, 'usuario_id' => (string) $usuario], [
+                'organizacion_id' => (string) $e->organizacion_id, 'emisor_nombre' => $organizacion?->nombre ?? 'Comunidad',
+                'asunto' => 'Cambio en el evento «'.$e->titulo.'»', 'cuerpo' => "El evento en el que tienes lugar cambió:\n".implode("\n", $lineas)
+                    ."\nTu reserva y tu boleto siguen vigentes.", 'accion_url' => '/modulo6/eventos/'.$e->id.'/boleto', 'texto_accion' => 'Ver mi boleto',
+                'tipo_aviso' => 'evento_reprogramado', 'leido_en' => null, 'primera_lectura_en' => null, 'archivado_en' => null, 'eliminado_en' => null, 'importante' => true,
+            ]);
+            $mensaje->wasRecentlyCreated && $avisados++;
+        }
+
+        return $avisados;
     }
 
     private function editable(Evento $e): void

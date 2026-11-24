@@ -34,11 +34,7 @@ class OrganizacionController extends Controller
         $identidades = [];
         if ($org && $ids->isNotEmpty()) {
             Gate::authorize('view', $org);
-            $identidades = config('identidad_comunidad.directorio_organizaciones')
-                ? app(IdentidadComunidadApi::class)->identidadesOrganizacion($ids->all(), (string) $org->id)
-                : User::whereIn('_id', $ids)->get(['_id', 'name', 'matricula'])->mapWithKeys(
-                    fn ($user) => [(string) $user->id => ['nombre' => $user->name, 'matricula' => $user->matricula]],
-                )->all();
+            $identidades = $this->identidades($ids->all(), $org);
         }
         $identidad = fn ($item) => $identidades[$item->usuario_id] ?? ['nombre' => 'Usuario no disponible', 'matricula' => null];
 
@@ -152,6 +148,10 @@ class OrganizacionController extends Controller
             if (RolOrganizacion::vigentes()->where('organizacion_id', (string) $org->id)->where('usuario_id', $miembro->usuario_id)->where('slug_rol', 'presidencia')->exists()) {
                 throw ValidationException::withMessages(['miembro' => 'Transfiere la presidencia antes de dar de baja a su titular.']);
             }
+            if ($miembro->estado !== 'activo') {
+                // Un reintento de la misma baja no vuelve a auditarse ni a retirar nada.
+                throw ValidationException::withMessages(['miembro' => 'Este integrante ya fue dado de baja.']);
+            }
             $antes = $miembro->toArray();
             $miembro->update(['estado' => 'inactivo', 'eliminado_en' => now()]);
             app(\App\Services\ComiteBecas::class)->retirar((string) $miembro->usuario_id, (string) $request->user()->id, (string) $org->id);
@@ -169,6 +169,48 @@ class OrganizacionController extends Controller
             }
             $this->auditar($request, $org, 'miembro_baja', $miembro, $antes);
         });
+    }
+
+    /**
+     * Incidencia E6 (20-nov-2026): historial de altas y bajas de integrantes de la organización activa. Reutiliza la
+     * auditoría de Comunidad (las entradas se escriben en la misma transacción que el cambio, así que sólo hay registros
+     * de operaciones confirmadas). Sólo lo consulta quien administra la organización; nunca muestra otras organizaciones.
+     */
+    public function historialMiembros(Request $request)
+    {
+        $org = $this->organizacion($request, true);
+        $request->validate(['page' => ['nullable', 'integer', 'min:1']]);
+        $p = AuditoriaComunidad::where('organizacion_id', (string) $org->id)->whereIn('accion', ['miembro_registrado', 'miembro_baja'])
+            ->orderBy('creado_en', 'desc')->orderBy('_id', 'desc')->paginate(20);
+        $integrante = fn ($a) => (string) (data_get($a->despues, 'usuario_id') ?? data_get($a->antes, 'usuario_id'));
+        $ids = $p->getCollection()->flatMap(fn ($a) => [$integrante($a), (string) $a->usuario_id])->filter()->unique()->values()->all();
+        $identidades = $ids ? $this->identidades($ids, $org) : [];
+        $persona = fn (string $id) => ['usuario_id' => $id, 'nombre' => $identidades[$id]['nombre'] ?? 'Usuario no disponible', 'matricula' => $identidades[$id]['matricula'] ?? null];
+
+        return response()->json([
+            'movimientos' => $p->getCollection()->map(fn ($a) => [
+                'id' => (string) $a->id,
+                'operacion' => $a->accion === 'miembro_registrado' ? 'incorporacion' : 'eliminacion',
+                'organizacion_id' => (string) $org->id,
+                'organizacion_nombre' => $org->nombre,
+                'integrante' => $persona($integrante($a)),
+                'realizado_por' => array_diff_key($persona((string) $a->usuario_id), ['matricula' => true]),
+                'fecha' => $a->creado_en?->toIso8601String(),
+                'estado_anterior' => data_get($a->antes, 'estado'),
+                'estado_posterior' => data_get($a->despues, 'estado'),
+                'fecha_inicio' => data_get($a->despues, 'fecha_inicio'),
+            ])->values(),
+            'page' => $p->currentPage(), 'last_page' => $p->lastPage(),
+        ])->header('Cache-Control', 'private, no-store');
+    }
+
+    private function identidades(array $ids, Organizacion $org): array
+    {
+        return config('identidad_comunidad.directorio_organizaciones')
+            ? app(IdentidadComunidadApi::class)->identidadesOrganizacion($ids, (string) $org->id)
+            : User::whereIn('_id', $ids)->get(['_id', 'name', 'matricula'])->mapWithKeys(
+                fn ($user) => [(string) $user->id => ['nombre' => $user->name, 'matricula' => $user->matricula]],
+            )->all();
     }
 
     public function removeRol(Request $request, string $id)

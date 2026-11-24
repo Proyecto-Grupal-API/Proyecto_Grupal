@@ -8,6 +8,8 @@ use App\Services\PlatformModule\PlatformActor as User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use MongoDB\BSON\Regex;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AuditController
 {
@@ -15,9 +17,8 @@ class AuditController
      * Consulta paginada de registros de auditoría transversal (módulo 7.8).
      * Corrige el filtro de student_id y añade filtros por actor, acción, entidad y rango de fechas.
      */
-    public function index(Request $request): JsonResponse
+    private function filtered(Request $request)
     {
-        $perPage = min((int) $request->query('per_page', 25), 100);
         $user = $request->attributes->get('platform_actor');
 
         $query = AuditLog::orderBy('created_at', 'desc');
@@ -58,7 +59,43 @@ class AuditController
             $query->where('created_at', '<=', Carbon::parse($to)->endOfDay());
         }
 
-        return response()->json($query->paginate($perPage));
+        // Búsqueda libre (literal, sin distinguir mayúsculas) sobre acción, entidad, cargo y dominio; exacta sobre identificadores.
+        $search = trim((string) $request->query('search', ''));
+        if ($search !== '') {
+            $pattern = new Regex(preg_quote(mb_substr($search, 0, 100), '/'), 'i');
+            $query->where(function ($q) use ($pattern, $search) {
+                foreach (['action', 'entity_type', 'actor_role', 'source_domain', 'reason'] as $field) {
+                    $q->orWhere($field, 'regex', $pattern);
+                }
+                $q->orWhere('entity_id', $search)->orWhere('actor_id', $search)->orWhere('correlation_id', $search);
+            });
+        }
+
+        return $query;
+    }
+
+    public function index(Request $request): JsonResponse
+    {
+        $perPage = min((int) $request->query('per_page', 25), 100);
+
+        return response()->json($this->filtered($request)->paginate($perPage));
+    }
+
+    /** Exportación CSV de la bitácora con los mismos filtros de la consulta (rúbrica 10.3 y 10.4). */
+    public function export(Request $request): StreamedResponse
+    {
+        abort_unless($request->attributes->get('platform_actor')->hasPermission('audit.view'), 403, 'No tienes permiso para exportar la auditoría.');
+        $rows = $this->filtered($request)->limit(5000)->get();
+
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['fecha', 'accion', 'entidad', 'id_entidad', 'actor', 'cargo', 'dominio', 'ip', 'correlacion']);
+            foreach ($rows as $log) {
+                fputcsv($out, [optional($log->created_at)->toIso8601String(), $log->action, $log->entity_type, $log->entity_id,
+                    $log->actor_id, $log->actor_role, $log->source_domain, $log->ip_address, $log->correlation_id]);
+            }
+            fclose($out);
+        }, 'auditoria-recompensas-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     /**
