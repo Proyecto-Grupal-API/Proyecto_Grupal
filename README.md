@@ -29,6 +29,30 @@ el alcance de la integración previa se registra en `ESTADO_1_3_4_5_6.md`.
 La publicación posterior de E1 se detalla abajo; no modifica el estado atribuido
 a los demás equipos en esos antecedentes.
 
+## Validación funcional E1–E7 y paquete Docker de Campus Virtual (noviembre 2026)
+
+Esta actualización publica en `MERGE_COMPLETO` el código que corre en el paquete
+Docker de pruebas para los equipos. Antes sólo existía en ramas locales.
+
+| Origen | Contenido |
+| --- | --- |
+| Candidata `6710e59` (rama `validacion-funcional-e1-e7`, sobre `0812221`) | Instalador `php artisan campus:install --demo` con 31 cuentas sintéticas por equipo, cargos de módulo por contexto de servicio, recompensas por compras del marketplace, auditoría de Inventarios, índices alineados con las colecciones en uso y correcciones de interfaz. Detalle en la [adenda de validación funcional](docs/ADENDA-2026-11-15-VALIDACION-FUNCIONAL.md). |
+| Parche M21 `6710e59 → 8e17e14` (rama `fix/e2-finanzas-confirmacion-limites`) | **E2:** la caja valida los límites antes de pedir confirmación; un rechazo queda en `REJECTED` con motivo y alerta; búsqueda de la wallet por matrícula; preflight de sólo lectura de matrículas (`identity:directory-preflight`). **E4:** el estado de existencias sigue a lo disponible después de un ajuste; consulta transversal de sólo lectura (`service:inventario-consulta`). **E6:** reprogramación de eventos gratuitos con reservas, avisos generales (`service:comunicaciones`) e historial de altas y bajas de integrantes. |
+| [`paquete-docker/`](paquete-docker/README.md) | `campus.sh`, `compose.yaml` y guías para instalar la plataforma completa en Windows con WSL2 y Docker Desktop (también en Linux), con MongoDB 7 y SQL Server 2022. |
+
+Validación registrada para la candidata (laboratorio Linux, 17-nov-2026): 2 374
+pruebas Feature sin fallos e instalación desde cero con la secuencia de los siete
+equipos sin fallas (los pasos no correctos dependen de decisiones o de terceros).
+El parche M21 se aplicó el 20-nov-2026 en la instalación Docker alojada con una
+sola migración nueva (`database/migrations/financial/2026_11_20_000001_add_rejection_trace_to_cash_operation_confirmations.php`).
+Los 73 requisitos del diseño que faltan están en
+[`paquete-docker/docs/PENDIENTES-73.md`](paquete-docker/docs/PENDIENTES-73.md).
+
+Al actualizar una instalación existente hay que ejecutar `php artisan migrate`
+para la migración financiera nueva. Las contraseñas de demostración no están en
+el repositorio: el instalador las genera en el archivo privado de cada máquina
+(`CAMPUS_DEMO_PASSWORD`).
+
 ## Entrega integral E1 integrada y publicada
 
 La integración de E1 se publicó en `MERGE_COMPLETO` mediante

@@ -1,0 +1,29 @@
+Campus Digital E1–E7 — paquete de pruebas para los equipos
+
+Versión del código:   candidata 6710e59 (rama validacion-funcional-e1-e7, local, sin publicar)
+Imagen de la app:     localhost/campus-php-runtime:6710e59 (PHP 8.5.11 con mongodb, sqlsrv, pdo_sqlsrv y gd)
+Bases de datos:       mongo:7 y SQL Server 2022, fijadas por huella (sha256) en compose.yaml
+Fecha del paquete:    17 de noviembre de 2026
+
+Validación de la candidata (laboratorio Linux, 17-nov-2026):
+  - Regresión completa: 2 374 pruebas Feature sin fallos; 553 Unit (10 que sólo pasan aisladas, desde antes).
+  - Nueve instalaciones nuevas; reinicio real con datos idénticos; secuencia de los siete equipos tras el reinicio
+    sin fallas (643 pasos, 622 correctos, 21 bloqueados por funciones que dependen de decisiones o terceros).
+  - Diseño: 349 de 422 requisitos con doble validación (prueba técnica e interfaz). Faltan 73: docs/PENDIENTES-73.md.
+
+Este paquete (compose.yaml y campus.sh) se probó instalando desde cero en Linux con docker compose y corriendo
+la secuencia completa de los siete equipos sobre la instalación resultante (ver el resultado al final de este archivo).
+No se ha probado todavía en una computadora con Windows.
+
+Prueba del paquete (17-nov-2026, laboratorio Linux, docker compose v5.7 sobre Podman 6.1):
+  - ./campus.sh instalar desde cero: bases creadas, 130 migraciones, configuración de laboratorio (89 claves),
+    aplicación respondiendo.
+  - Secuencia completa sobre esa instalación: accesos 40/40; E1 65/67, E2 63/72, E3 50/55, E4 71/72, E5 117/118,
+    E6 122/125, E7 90/90 — 0 fallas (lo no correcto son pasos bloqueados por decisiones o terceros). Mismos números
+    que la candidata en su validación.
+  - ./campus.sh detener y ./campus.sh iniciar: los datos se conservan (41 usuarios, 11 monederos antes y después).
+  - Ningún valor de las configuraciones privadas del laboratorio está en el paquete (revisados documentos, código
+    e imagen).
+  Ajustes que sólo necesitó la laptop del laboratorio y NO forman parte del paquete: una subred fija para la red de
+  Docker (Podman sin subredes libres). La opción SELinux (label=disable) sí está en compose.yaml y no tiene efecto
+  en Windows.

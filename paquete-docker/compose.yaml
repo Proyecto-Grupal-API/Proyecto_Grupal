@@ -1,0 +1,66 @@
+# Campus Digital E1–E7 — paquete de pruebas para los equipos (candidata 6710e59).
+# No lo edites a mano: se maneja con ./campus.sh (ver GUIA-WINDOWS-WSL2-DOCKER.md).
+# Tres contenedores: la aplicación (servidor web de varios procesos, cola y planificador, como en el laboratorio
+# donde se validó la candidata), MongoDB con réplica y SQL Server. Las bases no se publican fuera de Docker;
+# la aplicación sólo escucha en 127.0.0.1 del equipo.
+name: ${CAMPUS_PROYECTO:-campusdigital}
+
+services:
+  app:
+    image: localhost/campus-php-runtime:6710e59
+    pull_policy: never
+    user: root
+    working_dir: /project
+    entrypoint: ["/bin/sh", "/docker/iniciar-app.sh"]
+    security_opt:
+      - label=disable   # sólo tiene efecto en Linux con SELinux (Fedora); en Windows/WSL2 no cambia nada
+    environment:
+      PHP_CLI_SERVER_WORKERS: ${CAMPUS_PROCESOS_WEB:-8}
+    ports:
+      - "127.0.0.1:${CAMPUS_PUERTO:-18080}:8080"
+    volumes:
+      - ./codigo/campus:/project
+      - ./config:/config
+      - ./docker:/docker:ro
+      - storage:/storage
+    depends_on:
+      mongo:
+        condition: service_healthy
+      sqlserver:
+        condition: service_started
+    restart: unless-stopped
+    stop_grace_period: 20s
+
+  mongo:
+    image: mongo@sha256:76f1e3cc36f46a79f98f30736174fa0c55a2ba41d6ce860e4e551e3ffbcce009   # mongo:7
+    pull_policy: missing
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "1"]
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      # Inicia la réplica la primera vez (las transacciones de la aplicación la necesitan) y comprueba que haya primario.
+      test: ["CMD", "mongosh", "--quiet", "--eval", "try { rs.status() } catch (e) { rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'mongo:27017'}]}) }; quit(db.hello().isWritablePrimary ? 0 : 1)"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+    stop_grace_period: 60s
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server@sha256:ba4c8329f48fb8f02e1416be6a930ebfd71268caee78aa985f3af4315e457c89   # SQL Server 2022
+    pull_policy: missing
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${CAMPUS_SQL_SA_PASSWORD:?Ejecuta ./campus.sh preparar}
+      MSSQL_MEMORY_LIMIT_MB: "2048"
+    volumes:
+      - sql-data:/var/opt/mssql
+    restart: unless-stopped
+    stop_grace_period: 120s
+
+volumes:
+  storage:
+  mongo-data:
+  sql-data:
